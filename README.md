@@ -1,5 +1,4 @@
-# Cognitive-Flow
-Cognitive performance app
+
 # Cognitive Flow
 
 **Cognitive Flow** is a mobile-first cognitive training app built around short, adaptive sessions for attention control, pattern tracking, and transfer validation.
@@ -80,5 +79,21 @@ https://www.figma.com/make/94PJs9hqzROUM5Y0JcpfYm/Mindfulness-App-Design?p=f
 
 The intended user loop is:
 
-```text
 Check state → Train pattern → Finish calmly → Return later
+
+
+The MVP should avoid over-explaining the task during play. It should not show technical terms such as Gabor, spatial frequency, optic flow, n-back, SR maps, or relational transformation in the live interface.
+
+## Evidence base
+
+Cognitive Flow is an evidence-informed experimental training system. It is designed to train attention control, subtle change detection, rule updating, and relational pattern tracking.
+
+Transfer effects should be measured, not assumed.
+
+## Evidence and validation checks
+
+- Cognitive control capacity tracking
+- Reasoning-transfer tests
+- Subjective flow-experience checks
+- Portability tests across visual wrappers
+- Delayed re-checks to distinguish temporary practice effects from more durable learning
