@@ -1,4 +1,4 @@
-# **Cognitive Flow**
+# *Seeing Patterns**
 
 ## **Technical Grant & Product Specification**
 
@@ -40,34 +40,19 @@ This is consistent with the broader literature: perceptual learning supports sen
 
 # 2. Product positioning
 
-## 2.1 Product name
-
-**Cognitive Flow**
-
-### Suggested subtitle
-
 > **Adaptive pattern training for focus and cognitive performance.**
 
 ### Public-facing description
 
-> **Cognitive Flow is a short adaptive training app designed to help users practise subtle change detection, pattern tracking, and focused cognitive control in a calm daily routine.**
+> **Seeing Patterns is a short adaptive training app designed to help users practise subtle change detection, pattern tracking, and focused cognitive control in a calm daily routine.**
 
-### Scientific claim posture
+### Scientific claim 
 
 Use:
 
 > **Designed to support focused cognitive training.**
 > **Designed around clear goals, simple feedback, and calibrated challenge.**
 > **Measures whether training gains transfer to independent cognitive trackers.**
-
-Avoid:
-
-> **Proven to increase IQ.**
-> **Clinically validated cognitive enhancement.**
-> **Induces flow state.**
-> **Measures your brain state.**
-> **Guarantees far transfer.**
-
 ---
 
 # 3. System concept
@@ -133,7 +118,7 @@ the MVP should show:
 > **You’re building consistency**
 > **Next session: tomorrow / in 2 days**
 
-## 4.2 What to remove from the consumer MVP
+## 4.2 What to exclude from the consumer MVP
 
 The following should move to **internal analytics**, the website proof layer, or a later **coach/pro dashboard**:
 
