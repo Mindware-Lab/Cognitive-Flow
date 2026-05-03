@@ -66,6 +66,8 @@ The science stays in the engine. The user experiences a calm cognitive flow ritu
 
 
 ---
+## UI Design Flow
+https://www.figma.com/make/94PJs9hqzROUM5Y0JcpfYm/Mindfulness-App-Design?p=f
 
 <img width="525" height="714" alt="ui1" src="https://github.com/user-attachments/assets/6e6af931-19dd-4c5f-a5a5-e6ef2f640779" />
 <img width="523" height="561" alt="ui2" src="https://github.com/user-attachments/assets/19a563e1-5dbd-4ac1-8d82-d6391e446602" />
