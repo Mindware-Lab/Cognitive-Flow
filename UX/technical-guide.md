@@ -1,3 +1,6 @@
+This is based on Alex Holgate's current UI/UX Figma Design, with additional information.
+
+
 Apple’s current design guidance supports fast, enjoyable, interactive onboarding rather than long explanatory screens, which fits the Seeing Patterns tutorial approach. ([Apple Developer][1]) Mobile health engagement research also supports light use of feedback, self-monitoring, prompts, rewards, and goal setting, which supports your weekly dots, G-Credits, streaks, and completion rewards — provided they are not stressful or competitive. ([Frontiers][2])
 
 ---
@@ -105,7 +108,7 @@ The Zone Coach spec also explicitly rejects peer comparison and leaderboards bec
 
 ---
 
-# 4. Stitched app journey
+# 4. App journey
 
 ## First launch
 
