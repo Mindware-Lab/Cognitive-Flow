@@ -1,4 +1,4 @@
-This is based on Alex Holgate's current UI/UX Figma Design, with additional information.
+This is based on Alex Holgate's current UI/UX Figma Design, with additional information for review.
 
 
 Apple’s current design guidance supports fast, enjoyable, interactive onboarding rather than long explanatory screens, which fits the Seeing Patterns tutorial approach. ([Apple Developer][1]) Mobile health engagement research also supports light use of feedback, self-monitoring, prompts, rewards, and goal setting, which supports your weekly dots, G-Credits, streaks, and completion rewards — provided they are not stressful or competitive. ([Frontiers][2])
