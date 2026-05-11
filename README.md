@@ -1,13 +1,13 @@
 
-# Cognitive Flow
+# IQ Coach
 
-**Cognitive Flow** is a mobile-first cognitive training app built around short, adaptive sessions for attention control, pattern tracking, and transfer validation.
+**IQ Coach** is a mobile-first cognitive training app built around short, adaptive sessions for attention control, pattern tracking, and transfer validation.
 
 The app is designed to feel simple to the user: a calm daily training ritual with minimal feedback, clear choices, and no cognitive-science dashboard during play. Under the surface, it records detailed behavioural data to estimate cognitive control, training state, learning progress, and whether gains transfer beyond the task itself.
 
 ## Core concept
 
-Cognitive Flow is based on two connected training layers:
+IQ Coach is based on two connected training layers:
 
 ### 1. Zone Coach
 
@@ -40,7 +40,7 @@ The first implementation focuses on a **Visual Patterns** lane using a single Ga
 
 ## Product principle
 
-Cognitive Flow separates the consumer experience from the scientific engine.
+IQ Coach separates the consumer experience from the scientific engine.
 
 The user sees:
 
@@ -61,7 +61,7 @@ The system records:
 - portability probes
 - transfer-test outcomes
 
-The science stays in the engine. The user experiences a calm cognitive flow ritual.
+The science stays in the engine. The user experiences a calm IQ Coach ritual.
 
 
 ---
@@ -86,7 +86,7 @@ The MVP should avoid over-explaining the task during play. It should not show te
 
 ## Evidence base
 
-Cognitive Flow is an evidence-informed experimental training system. It is designed to train attention control, subtle change detection, rule updating, and relational pattern tracking.
+IQ Coach is an evidence-informed experimental training system. It is designed to train attention control, subtle change detection, rule updating, and relational pattern tracking.
 
 Transfer effects should be measured, not assumed.
 
