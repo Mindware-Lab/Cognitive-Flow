@@ -1,44 +1,5 @@
 # **Cognitive Flow**
-
-## **Zone Coach MVP**
-
-### Technical Specification and Research Rationale
-
-### Core app component, with Seeing Patterns / Relational Flow reserved as the later training layer
-
----
-
-## 1. Executive summary — revised
-
-**Cognitive Flow** is the umbrella app. Its core MVP is **Zone Coach**: a 3-minute pre-semantic cognitive-control training and tracking task adapted from the Backward Masking Majority Function Task. The task has two roles. First, it acts as a **training task in its own right**, repeatedly challenging the user to allocate attention under uncertainty. Second, it acts as a **state and progress tracker**, estimating cognitive control capacity and current training regime from behavioural performance.
-
-The uploaded Zone MVP specification defines Zone Coach as a mobile web application with a **3-minute session target**, a **5-session onboarding arc**, and a primary output of **real-time regime classification plus CCC trajectory**. It uses a pre-semantic adaptation of the MFT-M, replacing directional arrows with orientation gratings, spatial-frequency patches, and luminance discs. 
-
-The scientific anchor is strong. Wu et al. quantified **capacity of cognitive control** from a perceptual decision-making task by manipulating information entropy and exposure time, estimating CCC at approximately **3–4 bits per second**. This gives Cognitive Flow a rare behavioural training variable expressed in an information-rate unit rather than only in accuracy or reaction time. ([Nature][1])
-
-The key training evidence is Zhang et al.’s 2024 MFT-M study. In that study, healthy young adults were randomised to either seven consecutive days of MFT-M attention-control training or a sham programme. Compared with controls, the MFT-M training group showed better performance on selected ANT-R attention conditions, better performance on verbal-memory learning trials, and ERP changes on 2-back and task-switching tasks. This positions MFT-M not merely as a measure, but as a **training task with observed transfer to untrained cognitive and neural-processing outcomes**. ([ScienceDirect][2])
-
-Cognitive Flow therefore starts from a clear proposition:
-
-> **Zone Coach trains attention control by repeatedly operating near the user’s cognitive control capacity boundary, while also estimating CCC trajectory and current regime state.**
-
-The pre-semantic mobile version is expected to recruit similar control mechanisms, but it is still an adaptation. Its transfer effects should be tested directly using app-native longitudinal CCC estimates, independent reasoning-transfer outcomes, and a separate subjective flow-experience measure.
-
-The consumer-facing app should remain simple. The user sees:
-
-> **Check your state. Train your control. Find your flow.**
-
-The backend estimates:
-
-* cognitive control capacity in bits per second
-* CCC trajectory over sessions
-* regime state
-* response-time stability
-* recovery from challenge/probe events
-* whether state-matched Flow Actions improve subsequent Zone Coach performance
-* whether training transfers to independent reasoning outcomes
-* whether behavioural “In Flow” states correspond to subjective psychological flow reports
-
+ 
 The key product distinction is:
 
 | App layer                       |                                  Name |         MVP status | Purpose                                                                     |
