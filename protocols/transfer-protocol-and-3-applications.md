@@ -738,24 +738,23 @@ The practical upgrade is:
 
 ---
 
-## 5.2 Protocol 2: WM–Puzzle Epistemic Transfer
+## 5.2 Protocol 2: IQ Coach
 
 ### Role in the framework
 
-The WM–Puzzle paradigm is the **G / adaptive-intelligence protocol**.
+The IQ Coach is the **Fluid intelligence protocol**.
 
 Its revised core sequence is:
 
 ```text
-1. Zone gate.
-2. Association / discrimination WM block.
-3. Variable-abstraction check.
-4. SR relation drill.
-5. Puzzle mission.
-6. Embedded epistemic prompt.
-7. Wrapper swap.
-8. Real-life implementation cue.
-9. Delayed re-check.
+1. Association / discrimination WM block.
+2. Variable-abstraction check.
+3. SR relation drill.
+4. Puzzle mission.
+5. Embedded epistemic prompt.
+6. Wrapper swap.
+7. Real-life implementation cue.
+8. Delayed re-check.
 ```
 
 The association / discrimination block trains the learner to identify the variables over which later inference will operate. The SR relation drill then trains predictive relations over those variables. The puzzle embeds that operator in a meaningful problem space. The prompt trains the meta-problem-solving stance. The implementation cue supports real-world deployment.
@@ -1012,11 +1011,11 @@ prompt-governed action change
 
 ---
 
-## 5.3 Protocol 3: WM–Reappraisal Cognitive Resilience
+## 5.3 Protocol 3: Resilience Coach
 
 ### Role in the framework
 
-The WM–Reappraisal protocol is the **R / cognitive-resilience protocol**.
+The Resilience Coachl is the **R / cognitive-resilience protocol**.
 
 It applies the same far-transfer architecture to threat-loaded appraisals, stress reactions, pain beliefs, performance anxiety, perfectionism, exam anxiety, workplace setbacks and other domains where cognition becomes rigid or defensive under load.
 
@@ -1029,20 +1028,6 @@ This is not simply “positive thinking”. It is **SR-style reappraisal trainin
 ### Relationship to CBT-style cognitive restructuring
 
 The protocol draws from the broad cognitive therapy tradition, where maladaptive interpretations are identified, examined and revised. It differs by operationalising reappraisal as a WM-supported, prediction-testing, transfer-validated training loop.
-
-Its revised structure is:
-
-```text
-1. Zone gate.
-2. Trigger/belief selection.
-3. Appraisal discrimination.
-4. Threat-variable decomposition.
-5. WM-reappraisal task.
-6. Predictive relation training.
-7. Behavioural or cognitive prediction test.
-8. Implementation intention.
-9. Delayed re-check.
-```
 
 Implementation intentions provide a bridge from training to real-life deployment: they link a future cue to a planned response, so that goal-directed action is more likely to be triggered automatically when the situation arises. Gollwitzer describes implementation intentions as plans that link anticipated critical situations to goal-directed responses, allowing situational cues to elicit the planned response more automatically.
 
@@ -1533,7 +1518,7 @@ relation-matching accuracy predicts transfer across structurally related puzzle 
 variable-to-SR transition accuracy predicts delayed portability better than raw trained-task gain alone
 ```
 
-## 8.6 G-protocol predictions
+## 8.6 g-protocol predictions
 
 ```text
 operator transfer improves across structurally related puzzle families
@@ -1609,7 +1594,7 @@ Clinical adaptations would need separate protocols, safety screening, profession
 
 The stripped-down framework is:
 
-> **Zone Coach trains and measures the state conditions for adaptive learning: Ψ-band access, attention-control stability, cognitive-control capacity and recovery from perturbation. Association and discrimination blocks carve the state space by training relevant-variable detection, category-boundary discrimination and surface-lure suppression. WM–Puzzle Epistemic Transfer trains the G-structure: variable binding, SR-style reasoning operators, problem-space navigation, epistemic control policies, wrapper transfer and delayed deployment. WM–Reappraisal Cognitive Resilience trains the R-structure: appraisal discrimination, flexible reappraisal, threat-schema updating, prediction testing, recovery under load and real-life implementation. Horizontal transfer is trained through wrapper swaps, boundary probes and delayed re-checks. Vertical transfer is trained by linking state regulation, attention control, variable abstraction, WM/SR inference, mission application, meta-epistemic prompts, implementation intentions and real-world deployment into a reinforced adaptive chain. Zhang–Tang entropy–mutual information dynamics provide the formal learning principle: productive transfer requires enough entropy to reconfigure and enough mutual information to remain relevant. Trident-G supplies the full adaptive-intelligence architecture: local SR tuning, breakpoint-triggered re-entry into the Ψ-band, horizontal portability validation, vertical control-policy integration and slow schematic Gc crystallisation.**
+> **Zone Coach trains and measures the state conditions for adaptive learning: Ψ-band access, attention-control stability, cognitive-control capacity and recovery from perturbation. Association and discrimination blocks carve the state space by training relevant-variable detection, category-boundary discrimination and surface-lure suppression. IQ Coach trains the G-structure: variable binding, SR-style reasoning operators, problem-space navigation, epistemic control policies, wrapper transfer and delayed deployment. Resilience Coach trains the R-structure: appraisal discrimination, flexible reappraisal, threat-schema updating, prediction testing, recovery under load and real-life implementation. Horizontal transfer is trained through wrapper swaps, boundary probes and delayed re-checks. Vertical transfer is trained by linking state regulation, attention control, variable abstraction, WM/SR inference, mission application, meta-epistemic prompts, implementation intentions and real-world deployment into a reinforced adaptive chain. Zhang–Tang entropy–mutual information dynamics provide the formal learning principle: productive transfer requires enough entropy to reconfigure and enough mutual information to remain relevant. Trident-G supplies the full adaptive-intelligence architecture: local SR tuning, breakpoint-triggered re-entry into the Ψ-band, horizontal portability validation, vertical control-policy integration and slow schematic Gc crystallisation.**
 
 Or:
 
@@ -1618,8 +1603,8 @@ Zone trains the state.
 Discrimination carves the variables.
 WM binds the variables.
 SR training learns transitions.
-G trains the structure.
-R trains resilient reappraisal.
+g trains the structure.
+r trains resilient reappraisal.
 Prompts train the thinker.
 Implementation intentions train deployment.
 Reinforcement binds the verticals.
