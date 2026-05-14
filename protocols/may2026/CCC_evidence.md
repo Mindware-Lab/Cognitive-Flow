@@ -391,7 +391,7 @@ r = .862
 
 That is the key result. The adaptive task preserved much of the information in the original task while using far fewer trials. 
 
-## Why this matters for your WM–CCC / Zone Coach design
+## Why this matters for the WM–CCC / Zone Coach design
 
 This method gives you a direct template:
 
@@ -421,7 +421,7 @@ estimate S-Horizon
 select the next condition that is most informative for the weakest or most uncertain parameter
 ```
 
-So your adaptive system could eventually select across:
+So the adaptive system could eventually select across:
 
 ```text
 exposure time
@@ -476,7 +476,7 @@ attention-control training
 → limited behavioural transfer where additional operations are required
 ```
 
-That is exactly what your Trident-G/PS-RWC distinction would predict.
+That is exactly what the Trident-G/PS-RWC distinction would predict.
 
 ## Why this supports the Trident-G interpretation
 
@@ -503,7 +503,7 @@ problem-space search
 
 So the results make sense. MFT-M training improved CCC and transferred most clearly to tasks sharing **attention-control and perceptual-selection structure**, but it did not produce robust behavioural gains in N-back or switching because those tasks require additional operations beyond evidence sampling. The authors make a similar point when explaining that the 2-back task also requires updating, maintenance and inhibition, so attentional neural changes may not be sufficient to produce behavioural changes. 
 
-## The key result for your theory: neural transfer without behavioural transfer
+## The key result for the theory: neural transfer without behavioural transfer
 
 The 2-back result is especially important.
 
@@ -516,7 +516,7 @@ P2 decrease
 
 in the 2-back task. The authors interpret this as improved neural efficiency in attentional processing during working-memory demand. 
 
-In your framework, this suggests:
+In the framework, this suggests:
 
 ```text
 MFT-M training improved the attention-control substrate,
@@ -546,7 +546,7 @@ That should, in principle, target the missing operations that ordinary MFT-M doe
 
 The behavioural ANT-R improvements were mainly in **congruent** or **double-congruent** conditions, not in the incongruent conflict conditions. The authors suggest that MFT-M may encourage a grouping/scanning strategy that helps when arrows align, but may not help — and may even interfere — when the task requires ignoring flankers or spatial-location conflict. 
 
-That is almost a textbook example of your distinction between:
+That is almost a textbook example of the distinction between:
 
 ```text
 surface improvement / fast Gc
@@ -570,13 +570,13 @@ suppress misleading surface cues
 recover invariant rule under conflict
 ```
 
-So the result supports your claim that **wrapper swaps and breakpoint perturbations are necessary**. Without them, the training may compile a useful but partly brittle surface strategy.
+So the result supports the claim that **wrapper swaps and breakpoint perturbations are necessary**. Without them, the training may compile a useful but partly brittle surface strategy.
 
 ## How this relates to form-route and function-route theory
 
 This study explicitly uses the **form-route / function-route** distinction. Ericson and Klingberg’s dual-process model argues that training effects can arise through a fast form-specific route or a slower, more general function route. ([Nature][2]) The MFT-M training results fit that distinction well: some transfer appears form-driven, while the ERP changes suggest some function-level attentional change.
 
-Your Trident-G version is more detailed:
+the Trident-G version is more detailed:
 
 ```text
 form-route
@@ -601,9 +601,9 @@ This MFT-M paper is interesting because it is not simply standard WM training. I
 
 That is useful, but it is not yet full far transfer.
 
-## What the results imply for your WM–CCC game
+## What the results imply for the WM–CCC game
 
-The paper strongly supports the idea that your training should **not stop at straight MFT-M / CCC**.
+The paper strongly supports the idea that the training should **not stop at straight MFT-M / CCC**.
 
 A good next-generation design would use MFT-M as the entry layer:
 
@@ -641,7 +641,7 @@ This is exactly where the uploaded results become useful: they show that MFT-M c
 
 ## Bottom line
 
-These results are encouraging, but they also show why your expanded theory is needed.
+These results are encouraging, but they also show why the expanded theory is needed.
 
 The study suggests:
 
@@ -727,7 +727,7 @@ This is exactly the kind of thing the WM–CCC → PS-RWC → puzzle/prompt sequ
 
 That last point is especially important. The study found that high CCC predicted higher PMR only when anterior insula–middle frontal gyrus connectivity was strong. In other words, having capacity was not enough; the system had to **mobilise** that capacity at the right moment. 
 
-That maps almost directly onto your distinction:
+That maps almost directly onto the distinction:
 
 ```text
 capacity
@@ -763,7 +763,7 @@ niche cue activation
 delayed reuse
 ```
 
-This aligns with your protocol document’s claim that WM is not enough by itself; it must be embedded in a stack involving WM/SR operator training, prompts, wrapper swaps, implementation intentions and delayed re-checks. 
+This aligns with the protocol document’s claim that WM is not enough by itself; it must be embedded in a stack involving WM/SR operator training, prompts, wrapper swaps, implementation intentions and delayed re-checks. 
 
 ## The stronger training hypothesis
 
@@ -830,7 +830,7 @@ state readiness
 
 The Trident G theory could explain these results very well.
 
-The uploaded study suggests that better cognitive-control capacity supports optimal decision-making because it helps people sustain cautious, goal-consistent evidence thresholds and resist probability matching. Your expanded theory adds the missing training logic: to produce transferable improvement, training should not just increase perceptual bits/sec, but build a **relational workspace control policy** that can be mobilised under uncertainty, linked to prompts, and reused across changed wrappers and real-world niches.
+The uploaded study suggests that better cognitive-control capacity supports optimal decision-making because it helps people sustain cautious, goal-consistent evidence thresholds and resist probability matching. the expanded theory adds the missing training logic: to produce transferable improvement, training should not just increase perceptual bits/sec, but build a **relational workspace control policy** that can be mobilised under uncertainty, linked to prompts, and reused across changed wrappers and real-world niches.
 
 The careful claim would be:
 
@@ -841,7 +841,7 @@ The careful claim would be:
 
 # Relational Processing
 
-Yes. There is a coherent literature trail from **working memory as temporary binding**, through **relational complexity**, into **fluid intelligence as relation processing**. That gives a strong theoretical basis for defining your construct as **Relational Workspace Capacity** rather than simply “n-back ability” or generic “WM capacity”.
+Yes. There is a coherent literature trail from **working memory as temporary binding**, through **relational complexity**, into **fluid intelligence as relation processing**. That gives a strong theoretical basis for defining the construct as **Relational Workspace Capacity** rather than simply “n-back ability” or generic “WM capacity”.
 
 ## 1. Working memory as bindings and relations, not just items
 
@@ -849,7 +849,7 @@ The classic simple-span framing asks: *how many items can be held?* But a more u
 
 Halford, Wilson, and Phillips’ relational-complexity theory is central here. They argue that processing capacity is best defined by the **complexity of relations processed in parallel**, where complexity increases with the number of related dimensions or arguments: unary, binary, ternary, quaternary, etc. Their review links relational complexity to load in reasoning and sentence comprehension, developmental change, and comparative cognition. ([Cambridge University Press & Assessment][1])
 
-Oberauer’s binding account is even closer to your proposed measure. In *Working Memory Capacity Limits Memory for Bindings*, he argues that WM capacity specifically limits the maintenance of **temporary bindings**, not merely memory for items. In his experiments, increasing set size impaired binding memory much more than item memory, and the errors were largely binding confusions within the current memory set. ([Journal of Cognition][2]) He explicitly links this to building new structural representations, stating that temporary bindings are needed for reasoning and language comprehension, and that WM capacity limits the complexity of new relational representations. ([Journal of Cognition][2])
+Oberauer’s binding account is even closer to the proposed measure. In *Working Memory Capacity Limits Memory for Bindings*, he argues that WM capacity specifically limits the maintenance of **temporary bindings**, not merely memory for items. In his experiments, increasing set size impaired binding memory much more than item memory, and the errors were largely binding confusions within the current memory set. ([Journal of Cognition][2]) He explicitly links this to building new structural representations, stating that temporary bindings are needed for reasoning and language comprehension, and that WM capacity limits the complexity of new relational representations. ([Journal of Cognition][2])
 
 Oberauer and colleagues’ broader individual-differences work supports the same direction. In *Which working memory functions predict intelligence?*, they argue that typical WM tasks require short-term maintenance of elements **and relations between elements**, such as word–position or digit–location bindings. They conclude that their results are better explained by theories of WM as a system for building relational representations through temporary bindings than by a simple storage-plus-processing account. ([Psychologisches Institut UZH][3])
 
@@ -861,7 +861,7 @@ So the first literature strand supports this formulation:
 
 The hippocampal literature strengthens the relational interpretation. Olsen, Moses, Riggs, and Ryan review evidence that the hippocampus is not only involved in long-term recognition memory, but also in relational binding and comparison across short delays and perceptual tasks. They argue that the hippocampus binds disparate elements across space and time and compares externally presented information with internally maintained or stored relational representations. ([Frontiers][4])
 
-This matters for your construct because arbitrary association binding in the Gabor task:
+This matters for the construct because arbitrary association binding in the Gabor task:
 
 ```text
 orientation ↔ spatial frequency
@@ -873,7 +873,7 @@ is structurally similar to episodic binding: “what went with what, in which co
 
 The successor-representation literature then adds the predictive-map extension. Stachenfeld, Botvinick, and Gershman argue that hippocampal representations can be understood as predictive maps, representing each state partly in terms of its likely successor states. Their account explicitly frames the hippocampus as encoding predictions of future states rather than merely current states.  Ekman, Kusch, and de Lange provide human evidence that visual and hippocampal cortex can form successor-like predictive maps after visual sequence learning. ([eLife][5])
 
-So the second strand supports two subcomponents of your task:
+So the second strand supports two subcomponents of the task:
 
 ```text
 Arbitrary Associative Binding
@@ -889,7 +889,7 @@ That gives a principled bridge from episodic feature binding to predictive relat
 
 The same relational logic appears in the fluid intelligence literature. Kyllonen and Christal’s influential paper framed reasoning ability as very closely related to working-memory capacity. ([ETS][6]) Süß, Oberauer, Wittmann, Wilhelm, and Schulze found that a broad battery of WM tasks was highly related to general intelligence and reasoning ability. ([ZORA][7])
 
-However, the more precise modern interpretation is not simply “WM causes Gf”. Shipstead, Harrison, and Engle argue that the WMC–Gf relation should not be reduced to passive maintenance. They emphasise that problem solving requires representing a problem stably, testing hypotheses, and disengaging from outdated representations when they fail. ([Engle Lab][8]) That fits your Trident-G emphasis on stability plus flexible re-entry.
+However, the more precise modern interpretation is not simply “WM causes Gf”. Shipstead, Harrison, and Engle argue that the WMC–Gf relation should not be reduced to passive maintenance. They emphasise that problem solving requires representing a problem stably, testing hypotheses, and disengaging from outdated representations when they fail. ([Engle Lab][8]) That fits the Trident-G emphasis on stability plus flexible re-entry.
 
 Chuderski’s relational-integration work is particularly important. The Relational Integration Task was designed to measure the ability to bind mental representations into more complex relational structures, and it predicted fluid reasoning above other WM tasks. ([PMC][9]) Jastrzębski, Ociepka, and Chuderski go even further: using three relation-processing tasks and three hallmark Gf tests, they found that the relation-processing factor was statistically equivalent to the Gf factor, and that much of their shared residual variance remained after controlling for WMC. ([ScienceDirect][10])
 
@@ -897,9 +897,9 @@ This supports the core continuity claim:
 
 > **Working memory capacity and fluid reasoning meet at relational binding and relational validation. WMC supplies the temporary workspace for binding and maintaining relations; Gf expresses the ability to use, validate, transform and generalise those relations under novel demands.**
 
-## 4. Implication for your construct: Relational Workspace Capacity
+## 4. Implication for the construct: Relational Workspace Capacity
 
-Your proposed construct sits cleanly between WMC and Gf:
+the proposed construct sits cleanly between WMC and Gf:
 
 ```text
 Relational Workspace Capacity
@@ -922,7 +922,7 @@ feature extraction
 
 That gives continuity between:
 
-| Level                          | Construct                              | Your task analogue                    |
+| Level                          | Construct                              | the task analogue                    |
 | ------------------------------ | -------------------------------------- | ------------------------------------- |
 | Controlled evidence extraction | CCC / perceptual control               | Majority Gabor MFT-M block            |
 | Temporary binding              | WMC as bindings                        | θ↔F, θ↔L, F↔L associations            |
@@ -941,7 +941,7 @@ item identity
 → compare current item with item n trials back
 ```
 
-Your Gabor task instead asks:
+the Gabor task instead asks:
 
 ```text
 presemantic feature field
@@ -1059,7 +1059,7 @@ There is **good indirect evidence** that optic-flow variables can feed into SR-l
 
 There is good evidence that the human visual system represents global optic-flow structure. Human motion areas such as MT/MST and related dorsal-stream regions show sensitivity to radial motion, focus of expansion, heading direction and complex flow patterns, which makes optic flow a plausible stimulus family for dynamic “state-change” tasks. ([PMC][1])
 
-This supports your wrapper idea: optic flow is not just “moving dots”. It has representational structure over variables such as:
+This supports the wrapper idea: optic flow is not just “moving dots”. It has representational structure over variables such as:
 
 ```text
 expansion / contraction
@@ -1077,7 +1077,7 @@ So it can be treated as a dynamic analogue of Gabor orientation / spacing / lumi
 
 There is direct human evidence that visual and hippocampal cortex can develop **successor-like representations** for learned visual sequences. Ekman and colleagues found that after participants learned arbitrary spatiotemporal sequences, presenting a single item evoked representations biased toward future sequence items, not merely the current or past item. Their interpretation is explicitly SR-like: visual and hippocampal cortex represented a predictive map of the visual world. ([eLife][2])
 
-That matters for your task because it shows that SR-like structure is not restricted to literal spatial navigation. It can emerge over learned **visual event sequences**. An optic-flow sequence such as:
+That matters for the task because it shows that SR-like structure is not restricted to literal spatial navigation. It can emerge over learned **visual event sequences**. An optic-flow sequence such as:
 
 ```text
 outward spiral → faster outward spiral → rotation-dominant flow → contraction
@@ -1131,7 +1131,7 @@ Or, for the app spec:
 
 > **The optic-flow wrapper tests whether relational workspace training transfers from static feature-state transitions to dynamic motion-state transitions. It is SR-inspired because the user tracks how current motion states predict or constrain future motion states.**
 
-## 6. Relevance to your task
+## 6. Relevance to the task
 
 This gives a good rationale for an optic-flow horizontal wrapper.
 
@@ -1176,7 +1176,7 @@ The strongest defensible statement is:
 
 > **Optic flow is used by humans for path integration, remembered-goal navigation and closed-loop sensory evidence accumulation, and human visual/hippocampal systems can form successor-like predictive maps over visual sequences. Therefore, optic-flow majority and n-back variants are a plausible way to test whether relational workspace operations transfer from static Gabor features to dynamic motion-state transitions.**
 
-The gap to validate is whether your specific optic-flow R-WMC task predicts problem solving, navigation-style planning, or later puzzle-transfer outcomes better than the Gabor version alone.
+The gap to validate is whether the specific optic-flow R-WMC task predicts problem solving, navigation-style planning, or later puzzle-transfer outcomes better than the Gabor version alone.
 
 [1]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6675273/?utm_source=chatgpt.com "Representation of Head-Centric Flow in the Human Motion ..."
 [2]: https://elifesciences.org/articles/78904?utm_source=chatgpt.com "Successor-like representation guides the prediction of ..."
