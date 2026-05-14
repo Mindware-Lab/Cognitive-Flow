@@ -1,3 +1,5 @@
+# Cognitive Control Capacity (CCC)
+
 Wu, T., Dufford, A. J., Mackie, M.-A., Egan, L. J., & Fan, J. (2016). The capacity of cognitive control estimated from a perceptual decision making task. Scientific Reports, 6, Article 34025. https://doi.org/10.1038/srep34025
 The **bits/sec claim** is a model-based information-theoretic estimate of how much task-relevant information a person can bring under cognitive control per unit time in the MFT-M paradigm. The paper’s central claim is that cognitive control capacity, estimated from the backward-masking Majority Function Task, is approximately **3–4 bits per second**.  Nature’s summary of the paper states the same core logic: the authors varied stimulus uncertainty and exposure time, then fitted response accuracy as a function of information rate to estimate CCC in bps. ([Nature][1])
 
@@ -826,7 +828,7 @@ state readiness
 
 ## Bottom line
 
-Yes — the theory could explain these results very well.
+The Trident G theory could explain these results very well.
 
 The uploaded study suggests that better cognitive-control capacity supports optimal decision-making because it helps people sustain cautious, goal-consistent evidence thresholds and resist probability matching. Your expanded theory adds the missing training logic: to produce transferable improvement, training should not just increase perceptual bits/sec, but build a **relational workspace control policy** that can be mobilised under uncertainty, linked to prompts, and reused across changed wrappers and real-world niches.
 
@@ -834,9 +836,355 @@ The careful claim would be:
 
 > **The CCC decision-making findings are consistent with the Trident-G / PS-RWC theory: better controlled evidence throughput matters, but its behavioural value depends on whether the person can bind, sustain and deploy the relevant relational control policy under uncertainty.**
 
- 
 
 ---
+
+# Relational Processing
+
+Yes. There is a coherent literature trail from **working memory as temporary binding**, through **relational complexity**, into **fluid intelligence as relation processing**. That gives a strong theoretical basis for defining your construct as **Relational Workspace Capacity** rather than simply “n-back ability” or generic “WM capacity”.
+
+## 1. Working memory as bindings and relations, not just items
+
+The classic simple-span framing asks: *how many items can be held?* But a more useful tradition asks: *how many relations among items, features, positions, contexts, or transformations can be held and processed?*
+
+Halford, Wilson, and Phillips’ relational-complexity theory is central here. They argue that processing capacity is best defined by the **complexity of relations processed in parallel**, where complexity increases with the number of related dimensions or arguments: unary, binary, ternary, quaternary, etc. Their review links relational complexity to load in reasoning and sentence comprehension, developmental change, and comparative cognition. ([Cambridge University Press & Assessment][1])
+
+Oberauer’s binding account is even closer to your proposed measure. In *Working Memory Capacity Limits Memory for Bindings*, he argues that WM capacity specifically limits the maintenance of **temporary bindings**, not merely memory for items. In his experiments, increasing set size impaired binding memory much more than item memory, and the errors were largely binding confusions within the current memory set. ([Journal of Cognition][2]) He explicitly links this to building new structural representations, stating that temporary bindings are needed for reasoning and language comprehension, and that WM capacity limits the complexity of new relational representations. ([Journal of Cognition][2])
+
+Oberauer and colleagues’ broader individual-differences work supports the same direction. In *Which working memory functions predict intelligence?*, they argue that typical WM tasks require short-term maintenance of elements **and relations between elements**, such as word–position or digit–location bindings. They conclude that their results are better explained by theories of WM as a system for building relational representations through temporary bindings than by a simple storage-plus-processing account. ([Psychologisches Institut UZH][3])
+
+So the first literature strand supports this formulation:
+
+> **WMC is not just the number of items held. It is partly the capacity to establish, maintain, update and protect temporary bindings among representational elements.**
+
+## 2. Hippocampal-episodic continuity: binding across space and time
+
+The hippocampal literature strengthens the relational interpretation. Olsen, Moses, Riggs, and Ryan review evidence that the hippocampus is not only involved in long-term recognition memory, but also in relational binding and comparison across short delays and perceptual tasks. They argue that the hippocampus binds disparate elements across space and time and compares externally presented information with internally maintained or stored relational representations. ([Frontiers][4])
+
+This matters for your construct because arbitrary association binding in the Gabor task:
+
+```text
+orientation ↔ spatial frequency
+orientation ↔ luminance
+flow type ↔ speed
+```
+
+is structurally similar to episodic binding: “what went with what, in which context, at which moment?”
+
+The successor-representation literature then adds the predictive-map extension. Stachenfeld, Botvinick, and Gershman argue that hippocampal representations can be understood as predictive maps, representing each state partly in terms of its likely successor states. Their account explicitly frames the hippocampus as encoding predictions of future states rather than merely current states.  Ekman, Kusch, and de Lange provide human evidence that visual and hippocampal cortex can form successor-like predictive maps after visual sequence learning. ([eLife][5])
+
+So the second strand supports two subcomponents of your task:
+
+```text
+Arbitrary Associative Binding
+= what belongs with what?
+
+Relational / SR Binding
+= what state-change or future-state relation follows from this state?
+```
+
+That gives a principled bridge from episodic feature binding to predictive relational mapping.
+
+## 3. Continuity with fluid intelligence: Gf as relational processing
+
+The same relational logic appears in the fluid intelligence literature. Kyllonen and Christal’s influential paper framed reasoning ability as very closely related to working-memory capacity. ([ETS][6]) Süß, Oberauer, Wittmann, Wilhelm, and Schulze found that a broad battery of WM tasks was highly related to general intelligence and reasoning ability. ([ZORA][7])
+
+However, the more precise modern interpretation is not simply “WM causes Gf”. Shipstead, Harrison, and Engle argue that the WMC–Gf relation should not be reduced to passive maintenance. They emphasise that problem solving requires representing a problem stably, testing hypotheses, and disengaging from outdated representations when they fail. ([Engle Lab][8]) That fits your Trident-G emphasis on stability plus flexible re-entry.
+
+Chuderski’s relational-integration work is particularly important. The Relational Integration Task was designed to measure the ability to bind mental representations into more complex relational structures, and it predicted fluid reasoning above other WM tasks. ([PMC][9]) Jastrzębski, Ociepka, and Chuderski go even further: using three relation-processing tasks and three hallmark Gf tests, they found that the relation-processing factor was statistically equivalent to the Gf factor, and that much of their shared residual variance remained after controlling for WMC. ([ScienceDirect][10])
+
+This supports the core continuity claim:
+
+> **Working memory capacity and fluid reasoning meet at relational binding and relational validation. WMC supplies the temporary workspace for binding and maintaining relations; Gf expresses the ability to use, validate, transform and generalise those relations under novel demands.**
+
+## 4. Implication for your construct: Relational Workspace Capacity
+
+Your proposed construct sits cleanly between WMC and Gf:
+
+```text
+Relational Workspace Capacity
+=
+the amount of structured relational information
+that can be extracted, bound, maintained, updated, compared and protected
+over short temporal horizons.
+```
+
+This is not merely item memory. It is not merely n-back level. It is closer to:
+
+```text
+feature extraction
+→ temporary binding
+→ relation maintenance
+→ transformation tracking
+→ lure suppression
+→ successor/path prediction
+```
+
+That gives continuity between:
+
+| Level                          | Construct                              | Your task analogue                    |
+| ------------------------------ | -------------------------------------- | ------------------------------------- |
+| Controlled evidence extraction | CCC / perceptual control               | Majority Gabor MFT-M block            |
+| Temporary binding              | WMC as bindings                        | θ↔F, θ↔L, F↔L associations            |
+| Relational complexity          | n-tuple processing                     | binary / ternary feature relations    |
+| Relational integration         | Gf-relevant structure building         | same-change / transformation tracking |
+| Predictive mapping             | SR-style state transitions             | successor/path horizon mode           |
+| Problem solving                | relational reasoning under constraints | later puzzle + prompt layer           |
+
+## 5. How this maps onto the Gabor majority-function n-back
+
+A classic n-back task usually asks:
+
+```text
+item identity
+→ hold over n steps
+→ compare current item with item n trials back
+```
+
+Your Gabor task instead asks:
+
+```text
+presemantic feature field
+→ extract majority state
+→ bind feature dimensions
+→ maintain relation across time
+→ compare current relation with prior relation
+→ resist lure states
+→ predict or validate successor states
+```
+
+So the two core measures are well justified:
+
+### 1. Arbitrary Associative Binding Capacity
+
+This captures temporary, episodic-style binding:
+
+```text
+Can the user bind feature A with feature B across time?
+```
+
+Example:
+
+```text
+Was this majority orientation previously paired with this spatial frequency?
+```
+
+A simple information demand could be:
+
+```text
+H_binding = log2(|θ| × |F|)
+binding load = H_binding × n
+```
+
+This is directly aligned with the temporary-binding tradition in WMC.
+
+### 2. Relational / SR Binding Capacity
+
+This captures transformation and predictive structure:
+
+```text
+Can the user track how one state changes into another?
+Can the user predict or validate what follows?
+```
+
+Example:
+
+```text
+Did the majority orientation change in the same way as before?
+Can this state still lead to the target state?
+```
+
+This is closer to relational integration, fluid reasoning, and SR-style predictive mapping.
+
+## 6. Theoretical payoff
+
+The construct is attractive because it avoids two weak framings:
+
+```text
+weak framing 1:
+n-back level = intelligence
+
+weak framing 2:
+CCC bits/sec = full cognitive capacity
+```
+
+A stronger framing is:
+
+> **CCC measures controlled evidence throughput. Relational Workspace Capacity measures how much relational structure can be kept operational once evidence has been extracted.**
+
+That gives a cleaner behavioural bridge to Gf:
+
+```text
+CCC
+= rate of controlled evidence extraction
+
+RWC
+= amount of bound relational structure maintained over time
+
+Gf / relational reasoning
+= flexible validation, transformation and transfer of that structure
+```
+
+## 7. Key references
+
+Halford, G. S., Wilson, W. H., & Phillips, S. (1998). Processing capacity defined by relational complexity: Implications for comparative, developmental, and cognitive psychology. *Behavioral and Brain Sciences, 21*(6), 803–831. [https://doi.org/10.1017/S0140525X98001769](https://doi.org/10.1017/S0140525X98001769)
+
+Oberauer, K. (2019). Working memory capacity limits memory for bindings. *Journal of Cognition, 2*(1), Article 40. [https://doi.org/10.5334/joc.86](https://doi.org/10.5334/joc.86)
+
+Oberauer, K., Süß, H.-M., Wilhelm, O., & Sander, N. (2008). Which working memory functions predict intelligence? *Intelligence, 36*(6), 641–652. [https://doi.org/10.1016/j.intell.2008.01.007](https://doi.org/10.1016/j.intell.2008.01.007)
+
+Süß, H.-M., Oberauer, K., Wittmann, W. W., Wilhelm, O., & Schulze, R. (2002). Working-memory capacity explains reasoning ability—and a little bit more. *Intelligence, 30*(3), 261–288. [https://doi.org/10.1016/S0160-2896(01)00100-3](https://doi.org/10.1016/S0160-2896%2801%2900100-3)
+
+Kyllonen, P. C., & Christal, R. E. (1990). Reasoning ability is (little more than) working-memory capacity?! *Intelligence, 14*(4), 389–433. [https://doi.org/10.1016/S0160-2896(05)80012-1](https://doi.org/10.1016/S0160-2896%2805%2980012-1)
+
+Chuderski, A. (2014). The relational integration task explains fluid reasoning above and beyond other working memory tasks. *Memory & Cognition, 42*(3), 448–463. [https://doi.org/10.3758/s13421-013-0366-x](https://doi.org/10.3758/s13421-013-0366-x)
+
+Jastrzębski, J., Ociepka, M., & Chuderski, A. (2020). Fluid reasoning is equivalent to relation processing. *Intelligence, 82*, Article 101489. [https://doi.org/10.1016/j.intell.2020.101489](https://doi.org/10.1016/j.intell.2020.101489)
+
+Olsen, R. K., Moses, S. N., Riggs, L., & Ryan, J. D. (2012). The hippocampus supports multiple cognitive processes through relational binding and comparison. *Frontiers in Human Neuroscience, 6*, Article 146. [https://doi.org/10.3389/fnhum.2012.00146](https://doi.org/10.3389/fnhum.2012.00146)
+
+Stachenfeld, K. L., Botvinick, M. M., & Gershman, S. J. (2017). The hippocampus as a predictive map. *Nature Neuroscience, 20*(11), 1643–1653. [https://doi.org/10.1038/nn.4650](https://doi.org/10.1038/nn.4650)
+
+Ekman, M., Kusch, S., & de Lange, F. P. (2023). Successor-like representation guides the prediction of future events in human visual cortex and hippocampus. *eLife, 12*, Article e78904. [https://doi.org/10.7554/eLife.78904](https://doi.org/10.7554/eLife.78904)
+
+---
+
+# Optic Flow SRs
+
+There is **good indirect evidence** that optic-flow variables can feed into SR-like predictive/state-transition representations, especially in navigation. There is **not yet strong direct evidence** that “optic-flow type” representations themselves are encoded as formal successor representations in humans. The stronger claim is:
+
+> **Optic flow provides action-linked state-transition evidence that can be integrated into predictive spatial/cognitive maps. Those maps can be SR-like, but the optic-flow signal is probably an input to, or wrapper for, SR construction rather than the SR itself.**
+
+## 1. Evidence for optic-flow representations
+
+There is good evidence that the human visual system represents global optic-flow structure. Human motion areas such as MT/MST and related dorsal-stream regions show sensitivity to radial motion, focus of expansion, heading direction and complex flow patterns, which makes optic flow a plausible stimulus family for dynamic “state-change” tasks. ([PMC][1])
+
+This supports your wrapper idea: optic flow is not just “moving dots”. It has representational structure over variables such as:
+
+```text
+expansion / contraction
+rotation
+translation
+heading direction
+focus of expansion
+speed
+coherence
+```
+
+So it can be treated as a dynamic analogue of Gabor orientation / spacing / luminance.
+
+## 2. Evidence for SR-like visual predictive maps
+
+There is direct human evidence that visual and hippocampal cortex can develop **successor-like representations** for learned visual sequences. Ekman and colleagues found that after participants learned arbitrary spatiotemporal sequences, presenting a single item evoked representations biased toward future sequence items, not merely the current or past item. Their interpretation is explicitly SR-like: visual and hippocampal cortex represented a predictive map of the visual world. ([eLife][2])
+
+That matters for your task because it shows that SR-like structure is not restricted to literal spatial navigation. It can emerge over learned **visual event sequences**. An optic-flow sequence such as:
+
+```text
+outward spiral → faster outward spiral → rotation-dominant flow → contraction
+```
+
+could, in principle, be used as a perceptual event sequence for successor-like prediction.
+
+## 3. Evidence that optic flow supports human navigation and spatial problem solving
+
+There is good evidence that humans use optic flow in navigation tasks that require more than passive perception. Kirschen and colleagues found that optic flow helped participants learn synthetic environments, reduced disorientation and backtracking in virtual mazes, and helped participants locate remembered target positions more accurately in a virtual city-block environment. Their abstract explicitly links optic flow to wayfinding and path integration, which involves updating a mental representation of place from travelled paths. ([memory.psych.upenn.edu][3])
+
+A more recent naturalistic VR study found that humans and monkeys navigated to a remembered location by integrating optic flow generated by their own joystick movements. The researchers manipulated optic-flow perturbations, joystick gain and optic-flow density, and concluded that participants relied heavily on optic flow in a closed-loop navigation task. ([Journal of Neuroscience][4])
+
+So for **spatial problem solving**, the evidence is strong enough to say:
+
+> **Optic flow supports human path integration, route learning, remembered-goal navigation and closed-loop sensory evidence accumulation.**
+
+That is problem solving in the spatial/navigation sense: the user must maintain a goal, update self-motion evidence, choose actions and correct trajectory.
+
+## 4. Evidence for predictive hippocampal/prefrontal maps in human navigation
+
+There is also evidence that human navigation uses predictive representations in hippocampal and prefrontal systems. Brunec and colleagues argue for multiscale predictive representations guiding naturalistic navigation, organised along posterior–anterior axes in hippocampal and prefrontal cortex. ([PMC][5])
+
+The hippocampal SR theory itself claims that the hippocampus represents current states partly in terms of anticipated future states, providing a compact summary of likely future occupancy rather than only representing the current location. ([Google DeepMind][6])
+
+This is the link you want:
+
+```text
+optic flow
+→ self-motion / heading evidence
+→ path integration
+→ predictive map of reachable states
+→ SR-like navigation representation
+```
+
+## 5. The cautious interpretation
+
+I would not yet say:
+
+```text
+optic flow is encoded as a successor representation
+```
+
+That is too strong.
+
+I would say:
+
+> **Optic-flow variables are plausible dynamic state variables for building or probing successor-like predictive maps, especially in navigation-like tasks.**
+
+Or, for the app spec:
+
+> **The optic-flow wrapper tests whether relational workspace training transfers from static feature-state transitions to dynamic motion-state transitions. It is SR-inspired because the user tracks how current motion states predict or constrain future motion states.**
+
+## 6. Relevance to your task
+
+This gives a good rationale for an optic-flow horizontal wrapper.
+
+The Gabor version trains:
+
+```text
+static feature state
+→ feature binding
+→ transformation relation
+→ successor-like prediction
+```
+
+The optic-flow version would train:
+
+```text
+dynamic motion state
+→ flow/speed/heading binding
+→ motion transformation
+→ path-like successor prediction
+```
+
+A clean experimental progression would be:
+
+```text
+Gabor relation learned:
+orientation change + spacing change
+
+Horizontal wrapper:
+optic-flow angle change + speed change
+
+Transfer question:
+Can the same relation-tracking operation survive the shift from static visual pattern to dynamic motion flow?
+```
+
+That fits the attached Trident-G principle that horizontal transfer tests whether the same invariant survives changed wrappers, while vertical transfer connects state, attention, WM/SR inference, prompts, action and delayed reuse.  The Seeing Patterns spec already frames Motion Flow as a later lane for testing the same relation across visual and motion variants, while warning that motion flow should remain experimental until device timing and optic-flow parameters are validated. 
+
+## Bottom line
+
+Yes, there is a good evidence base for using optic flow as a **horizontal wrapper** and as a **dynamic SR-inspired state-transition task**.
+
+The strongest defensible statement is:
+
+> **Optic flow is used by humans for path integration, remembered-goal navigation and closed-loop sensory evidence accumulation, and human visual/hippocampal systems can form successor-like predictive maps over visual sequences. Therefore, optic-flow majority and n-back variants are a plausible way to test whether relational workspace operations transfer from static Gabor features to dynamic motion-state transitions.**
+
+The gap to validate is whether your specific optic-flow R-WMC task predicts problem solving, navigation-style planning, or later puzzle-transfer outcomes better than the Gabor version alone.
+
+[1]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6675273/?utm_source=chatgpt.com "Representation of Head-Centric Flow in the Human Motion ..."
+[2]: https://elifesciences.org/articles/78904?utm_source=chatgpt.com "Successor-like representation guides the prediction of ..."
+[3]: https://memory.psych.upenn.edu/files/pubs/KirsEtal00.pdf "p3096 801..818"
+[4]: https://www.jneurosci.org/content/42/27/5451.abstract?utm_source=chatgpt.com "Sensory Evidence Accumulation Using Optic Flow in a ..."
+[5]: https://pmc.ncbi.nlm.nih.gov/articles/PMC8802932/?utm_source=chatgpt.com "Predictive Representations in Hippocampal and Prefrontal ..."
+[6]: https://deepmind.google/blog/the-hippocampus-as-a-predictive-map/ "The hippocampus as a predictive map — Google DeepMind"
+
 
 
 [1]: https://pubmed.ncbi.nlm.nih.gov/38777117/?utm_source=chatgpt.com "Attention control training and transfer effects on cognitive ..."
