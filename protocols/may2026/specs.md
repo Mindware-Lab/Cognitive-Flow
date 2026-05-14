@@ -806,6 +806,382 @@ Implementation cue / delayed probe
 = niche and consolidation test
 ```
 
+## 2. Optic Flow CCC & RWMC
+
+An **optic-flow version** would be a very natural horizontal wrapper for the Gabor R-WMC task.
+
+The Gabor version trains majority extraction over relatively static feature dimensions:
+
+```text
+orientation / direction
+spatial frequency / spacing
+luminance / contrast
+```
+
+An optic-flow wrapper would train the same abstract operations, but over **dynamic motion-field variables**:
+
+```text
+local motion direction
+radial expansion / contraction
+rotation
+translation
+speed
+heading / focus-of-expansion location
+motion coherence
+```
+
+That is useful because it tests whether the learner has acquired the deeper invariant:
+
+```text
+extract majority state
+→ bind feature relations
+→ update over time
+→ track transformations
+→ resist lures
+→ recover the same rule under a new surface
+```
+
+rather than simply becoming skilled at static Gabor patch patterns. This fits the Trident-G horizontal-transfer principle: the same relational invariant should survive changed wrappers, boundary cases and delayed re-checks. 
+
+## Why optic flow is a good wrapper
+
+Optic flow is already a standard way of studying global motion perception, self-motion and heading judgement. Random-dot kinematograms are commonly used to manipulate global motion coherence, where some elements carry signal motion and others act as noise. ([Frontiers][1]) Studies also use radial optic-flow displays to measure expansion/contraction discrimination and motion coherence thresholds, which is directly analogous to your majority-function logic. ([ScienceDirect][2])
+
+So the optic-flow wrapper gives you a principled dynamic equivalent of the Gabor majority task:
+
+```text
+Gabor majority:
+Which static feature dominates?
+
+Optic-flow majority:
+Which motion-flow pattern dominates?
+```
+
+## Basic design
+
+Instead of Gabor patches, show multiple small **motion apertures/windows** at random screen locations.
+
+Each aperture contains a mini random-dot or texture-flow field.
+
+Example trial:
+
+```text
+12 small windows appear at random locations.
+
+Majority windows:
+radial expansion
+
+Minority / lure windows:
+radial contraction or rotation
+
+User response:
+What is the majority flow type?
+```
+
+The windows should be randomly located each trial, so the user cannot rely on fixed positions. The task object becomes the **population-level motion relation**, not “the top-left patch”.
+
+## Candidate optic-flow variables
+
+| Variable                     | Example values                                                                      | Use                           |
+| ---------------------------- | ----------------------------------------------------------------------------------- | ----------------------------- |
+| **Flow type**                | expansion, contraction, clockwise rotation, counter-clockwise rotation, translation | primary majority feature      |
+| **Heading / focus location** | centre, left, right, upper, lower                                                   | SR / path-like wrapper        |
+| **Speed**                    | slow, medium, fast                                                                  | discrimination and difficulty |
+| **Coherence**                | 80%, 60%, 40%, etc.                                                                 | signal-to-noise manipulation  |
+| **Aperture count**           | 5, 7, 9, 12 windows                                                                 | set-size / sampling load      |
+| **Aperture lifetime**        | brief vs stable windows                                                             | temporal evidence pressure    |
+| **Noise motion**             | random direction, opposite flow, lure flow                                          | interference control          |
+
+This gives you the optic-flow equivalents of the Gabor levers:
+
+```text
+Gabor orientation gap      → motion direction / heading gap
+Gabor majority ratio       → flow coherence / majority-window ratio
+Gabor exposure time        → motion duration
+Gabor luminance/contrast   → dot contrast / coherence / speed
+Gabor relation tracking    → flow transition tracking
+```
+
+## Majority-function optic-flow block
+
+This would be the Zone-compatible version.
+
+User task:
+
+```text
+Which flow pattern is in the majority?
+```
+
+Examples:
+
+```text
+expanding vs contracting
+clockwise vs counter-clockwise
+leftward vs rightward translation
+centre-expansion vs off-centre expansion
+```
+
+Adaptive variables:
+
+```text
+exposure duration
+motion coherence
+number of windows
+majority ratio
+speed difference
+mask / post-motion noise
+```
+
+Possible internal output:
+
+```text
+Motion-Control Capacity
+= controlled extraction of global motion majority under time/noise pressure
+```
+
+I would not call this CCC in the strict original sense yet. It would be an **optic-flow CCC analogue** until validated against the original MFT-M.
+
+## WM / n-back variants
+
+Once the majority-flow task works, it can extend into the same R-WMC ladder.
+
+### 1. Flow-state n-back
+
+```text
+Was the current majority flow type the same as 1-back?
+```
+
+Example:
+
+```text
+Trial t-1: expansion
+Trial t: expansion
+Answer: same
+```
+
+Measures:
+
+```text
+dynamic feature-state maintenance
+motion-field majority extraction
+updating under motion noise
+```
+
+### 2. Arbitrary association binding
+
+Bind a motion variable to another feature.
+
+```text
+Was this flow type previously paired with this speed?
+```
+
+or:
+
+```text
+Was this expansion pattern previously paired with this aperture colour?
+```
+
+Internal relation:
+
+```text
+flow type ↔ speed
+flow type ↔ heading location
+flow type ↔ colour/context cue
+```
+
+This gives the optic-flow equivalent of:
+
+```text
+θ ↔ F
+```
+
+in the Gabor version.
+
+### 3. Relational transformation n-back
+
+Track changes in flow patterns:
+
+```text
+Did the majority flow change in the same way as before?
+```
+
+Example:
+
+```text
+expansion → contraction
+then
+clockwise rotation → counter-clockwise rotation
+```
+
+The user judges whether the **relation** is the same:
+
+```text
+opposite-flow transformation
+same-change
+different-change
+directional shift
+```
+
+This is closer to the transfer target than simply remembering “expansion”.
+
+### 4. SR / path-horizon mode
+
+This is where optic flow becomes especially interesting.
+
+Because optic flow naturally implies self-motion, path, heading and reachable states, you can ask:
+
+```text
+Given this flow path, is the next motion state expected?
+```
+
+or:
+
+```text
+Can this heading still reach the target?
+```
+
+This connects nicely to successor-representation style training:
+
+```text
+current motion state
+→ likely next motion state
+→ reachable path
+→ predicted consequence
+```
+
+Optic flow has been used in human and animal sensory-evidence tasks involving navigation to remembered locations, which makes it a plausible wrapper for path-like evidence accumulation and prediction. ([Journal of Neuroscience][3])
+
+## Why small windows are a good idea
+
+Using arbitrary small windows helps preserve the majority-function structure:
+
+```text
+many local samples
+→ extract dominant relation
+→ ignore minority/lure samples
+```
+
+If you use one full-field optic-flow display, the task becomes more like standard heading perception. That is useful, but less directly analogous to MFT-M majority sampling.
+
+Small windows let you keep the MFT-M logic:
+
+```text
+sample multiple elements
+find the dominant feature/relation
+respond before evidence disappears
+```
+
+A good starting version would be:
+
+```text
+9 apertures
+5 majority flow
+4 lure flow
+750 ms duration
+binary response
+random aperture positions
+```
+
+Then adapt:
+
+```text
+9 apertures → 12 apertures
+5:4 majority → 7:5 majority
+750 ms → 500 ms → 250 ms
+high coherence → lower coherence
+single flow dimension → flow + speed binding
+```
+
+## How it supports horizontal transfer
+
+The key is to preserve the **same abstract training operation** while changing the surface.
+
+| Gabor wrapper            | Optic-flow wrapper        | Invariant                 |
+| ------------------------ | ------------------------- | ------------------------- |
+| majority orientation     | majority flow type        | extract dominant variable |
+| orientation-spacing pair | flow-speed pair           | arbitrary binding         |
+| orientation change       | flow transformation       | relational update         |
+| Gabor path               | optic-flow path           | successor horizon         |
+| minority patches         | lure-flow windows         | interference control      |
+| new layout               | new aperture distribution | wrapper recovery          |
+
+So a horizontal-transfer probe could be:
+
+```text
+Train:
+Gabor θ↔F binding
+
+Probe:
+optic-flow type↔speed binding
+
+Question:
+Does the user recover the same binding operation under a new dynamic wrapper?
+```
+
+That is a much stronger transfer test than simply using more Gabor variants.
+
+## Main cautions
+
+The optic-flow version will be more visually demanding, so I would treat it as a later wrapper, not the first MVP.
+
+Key confounds:
+
+```text
+motion sensitivity
+screen refresh rate
+device performance
+vestibular/motion discomfort
+low-level visual acuity
+contrast sensitivity
+speed perception
+motion coherence threshold
+```
+
+Also, optic flow may engage more dorsal-stream/global-motion processing than the static Gabor task. That is useful, but it means poor performance could reflect motion-processing limitations rather than relational workspace limitations. There is evidence that optic-flow/global motion tasks are sensitive to visual motion processing differences across groups and development, so calibration matters. ([PMC][4])
+
+## Best implementation path
+
+I would sequence it like this:
+
+```text
+Phase 1:
+Gabor R-WMC engine
+static majority + binding + relation modes
+
+Phase 2:
+Optic-flow majority block
+flow type, speed, coherence, exposure time
+
+Phase 3:
+Optic-flow n-back
+flow-state and flow-speed binding
+
+Phase 4:
+Optic-flow relational mode
+same-change / opposite-change / heading-shift relations
+
+Phase 5:
+Cross-wrapper probes
+Gabor relation → optic-flow relation
+optic-flow relation → puzzle relation
+```
+
+## Bottom line
+
+An optic-flow version is a strong horizontal wrapper.
+
+The clean formulation is:
+
+> **The optic-flow wrapper tests whether the same majority extraction, binding, relational updating and successor-horizon operations survive when the perceptual surface changes from static Gabor feature fields to dynamic motion-flow fields.**
+
+That makes it valuable for far transfer because it prevents the system from becoming merely “good at Gabor patches”. It gives you a dynamic, motion-based wrapper for testing whether the deeper relational workspace operation is actually portable.
+
+[1]: https://www.frontiersin.org/journals/psychology/articles/10.3389/fpsyg.2014.00583/full?utm_source=chatgpt.com "Global processing in amblyopia: a review"
+[2]: https://www.sciencedirect.com/science/article/pii/S0042698915000942?utm_source=chatgpt.com "Development of radial optic flow pattern sensitivity at ..."
+[3]: https://www.jneurosci.org/content/42/27/5451?utm_source=chatgpt.com "Sensory Evidence Accumulation Using Optic Flow in a ..."
+[4]: https://pmc.ncbi.nlm.nih.gov/articles/PMC3061234/?utm_source=chatgpt.com "Distinct Visual Motion Processing Impairments In Aging and ..."
+
+
 The safe claim is:
 
 > **The modified Gabor MFT-M R-WMC protocol implements the lower and middle layers of the Trident-G far-transfer architecture: Ψ-band gating, variable abstraction, relational binding, SR-style transition tracking, wrapper perturbation and delayed portability testing. Full far-transfer claims require the added puzzle, prompt, implementation and niche-validation layers.**
