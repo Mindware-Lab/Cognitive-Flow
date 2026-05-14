@@ -1103,7 +1103,7 @@ There is also evidence that human navigation uses predictive representations in 
 
 The hippocampal SR theory itself claims that the hippocampus represents current states partly in terms of anticipated future states, providing a compact summary of likely future occupancy rather than only representing the current location. ([Google DeepMind][6])
 
-This is the link you want:
+This is the link we want:
 
 ```text
 optic flow
@@ -1217,7 +1217,7 @@ More specifically, the same review places posterior parietal cortex, retrospleni
 
 Recent connectivity work strengthens this. Rolls and colleagues report a ventromedial visual “where” stream from early visual cortex through retrosplenial/ventromedial visual regions to medial parahippocampal regions and then hippocampus during scene memory. They also note effective connectivity from motion-sensitive MT/MST-related regions into ventromedial visual regions, and onward connectivity from medial parahippocampal cortex to hippocampus. ([Nature][4])
 
-That supports your convergence claim:
+That supports the 'two stream convergence' claim:
 
 ```text
 static/form-feature information
@@ -1233,7 +1233,7 @@ The optic-flow evidence is especially relevant because optic flow is not merely 
 
 The same meta-analysis concludes that optic-flow and egocentric navigation share common activation in anterior precuneus, while optic flow and allocentric map-like navigation do not show the same overlap. It interprets anterior precuneus as a hub for transforming egomotion-relevant visual information into egocentric representations useful for navigation, and notes that optic flow has a dominant role in signalling changes in direction and location for spatial updating. ([Iris][2])
 
-This is directly useful for your task design. An optic-flow majority task can be treated as a dynamic state-transition wrapper:
+This is directly useful for the proposed task design. An optic-flow majority task can be treated as a dynamic state-transition wrapper:
 
 ```text
 current motion state
@@ -1346,7 +1346,7 @@ Gabor majority
 → puzzle/problem-space handoff
 ```
 
-The dorsal–ventral convergence and hippocampal predictive-map literature supports your hypothesis, but the transfer claim needs to be demonstrated behaviourally through wrapper-swap costs, recovery slopes, delayed probes and prediction of puzzle/problem-solving outcomes.
+The dorsal–ventral convergence and hippocampal predictive-map literature supports my hypothesis, but the transfer claim needs to be demonstrated behaviourally through wrapper-swap costs, recovery slopes, delayed probes and prediction of puzzle/problem-solving outcomes.
 
 [1]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6740414/?utm_source=chatgpt.com "Orientation-Specific Adaptation in Human Visual Cortex - PMC"
 [2]: https://iris.uniroma1.it/bitstream/11573/1707959/1/Sulpizio_common_specific_activations_2024.pdf "Common and specific activations supporting optic flow processing and navigation as revealed by a meta-analysis of neuroimaging studies"
@@ -1354,8 +1354,6 @@ The dorsal–ventral convergence and hippocampal predictive-map literature suppo
 [4]: https://www.nature.com/articles/s42003-024-06719-z "A ventromedial visual cortical ‘Where’ stream to the human hippocampus for spatial scenes revealed with magnetoencephalography | Communications Biology"
 [5]: https://gershmanlab.com/pubs/Stachenfeld17.pdf?utm_source=chatgpt.com "The hippocampus as a predictive map"
 [6]: https://pmc.ncbi.nlm.nih.gov/articles/PMC9894584/?utm_source=chatgpt.com "Successor-like representation guides the prediction of future ..."
-
-
 
 
 [1]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6675273/?utm_source=chatgpt.com "Representation of Head-Centric Flow in the Human Motion ..."
@@ -1369,3 +1367,183 @@ The dorsal–ventral convergence and hippocampal predictive-map literature suppo
 [2]: https://www.nature.com/articles/s41539-023-00161-2?utm_source=chatgpt.com "A dual-process model for cognitive training"
 [3]: https://pubmed.ncbi.nlm.nih.gov/27474138/?utm_source=chatgpt.com "Working Memory Training Does Not Improve Performance on ..."
 [4]: https://pubmed.ncbi.nlm.nih.gov/24213250/?utm_source=chatgpt.com "Effects and mechanisms of working memory training"
+
+
+---
+
+# Problem Space Puzzles
+
+> **There is good evidence for problem-space theory, strategy instruction, inductive-reasoning training and some puzzle/game-based problem-solving transfer. There is much weaker direct evidence that simply practising logic puzzles such as Towers, Bridges, Pattern, Mines, etc., produces broad transfer by itself.**
+
+## 1. Direct evidence for Tatham-style puzzles: not really yet
+
+Simon Tatham’s collection is a very useful source of **well-defined, generative, one-player logic puzzles**, with adjustable difficulty and clean rules. That makes it excellent as a *task platform*. ([chiark.greenend.org.uk][1])
+
+There is also emerging computational interest in the collection: the 2024 **PUZZLES** benchmark is explicitly based on Simon Tatham’s Portable Puzzle Collection and frames it as a diverse benchmark for algorithmic and logical reasoning in reinforcement-learning agents. ([openreview.net][2])
+
+But that is **not human cognitive-training evidence**. It supports the idea that these puzzles instantiate clean logical/problem-space structures, not that practising them transfers to human intelligence or real-world problem solving.
+
+## 2. The stronger evidence is for problem-space practice plus strategy support
+
+Newell and Simon’s problem-space framework gives the theoretical basis: problem solving involves representing an initial state, goal state, operators, constraints and paths through the space. ([iiif.library.cmu.edu][3]) Tatham-like puzzles are very good examples of this because each puzzle has:
+
+```text
+state
+→ legal operators
+→ constraints
+→ goal test
+→ search / pruning / backtracking
+```
+
+So they are useful for training **problem-space navigation**, especially if you make the hidden operations explicit:
+
+```text
+What is the current state?
+What variables matter?
+What moves are legal?
+What constraints eliminate possibilities?
+What would make this path fail?
+Can this state still reach the goal?
+```
+
+That is where the meta-epistemic prompts become important. Without prompts, the learner may just acquire puzzle-specific tricks. With prompts, the puzzle becomes a vehicle for training reusable control policies.
+
+## 3. Puzzle/game evidence: mixed but encouraging in some cases
+
+There is some evidence that puzzle-like games can improve problem-solving-related outcomes. The strongest frequently cited example is **Portal 2**. Shute and colleagues randomly assigned undergraduates to play either Portal 2 or Lumosity for eight hours, then assessed problem solving, spatial skill and persistence. Portal 2 outperformed Lumosity on problem-solving and spatial outcomes. ([myweb.fsu.edu][4])
+
+However, Portal 2 is not a pure logic-puzzle task. It combines spatial reasoning, physics-like causal reasoning, embodied exploration, feedback, persistence and level progression. So it supports **interactive problem-space learning**, not “logic puzzles alone”.
+
+By contrast, studies using word/number puzzles as active controls often find limited or narrow transfer. Souders et al. used word and number puzzles as an active control in an older-adult cognitive-training study and reported little evidence for broad transfer from short-term cognitive training, with puzzle-type activities treated as plausible but not clearly powerful transfer engines. ([Frontiers][5])
+
+There are also casual puzzle-app studies showing small effects on global cognition, but these are not the same as strong evidence for transfer to Gf or general problem-solving ability. ([MDPI][6])
+
+## 4. Inductive-reasoning training is the closest stronger precedent
+
+The strongest adjacent evidence is not from puzzles per se, but from **inductive reasoning training**. Klauer and Phye’s review presents a structured training approach based on comparison processes, and Klauer’s work reports transfer from inductive-reasoning training to fluid-intelligence measures in children. ([Sage Journals][7])
+
+That matters because many Tatham-style puzzles require:
+
+```text
+comparison
+rule induction
+constraint propagation
+exclusion
+counterexample testing
+state-space search
+```
+
+So the best evidence bridge is:
+
+```text
+logic puzzles alone
+= weak direct evidence
+
+logic puzzles + explicit relational/epistemic strategy training
+= much stronger theoretical and empirical basis
+```
+
+## 5. How to frame it for IQ Coach
+
+> **Well-defined logic puzzles provide structured problem spaces for practising variable abstraction, constraint tracking, search control, counterexample testing and goal-directed state transitions. The direct evidence for puzzle-only far transfer is limited, but the evidence is stronger for strategy-supported problem solving, inductive-reasoning training and metacognitive/self-regulated learning interventions.**
+
+That gives you a clean evidence position:
+
+```text
+CCC / MFT-M evidence
+= controlled evidence throughput and selective transfer
+
+WM training evidence
+= near transfer to trained/related WM tasks
+
+Puzzle problem-space layer
+= structured vehicle for state/operator/constraint practice
+
+Meta-epistemic strategy evidence
+= transfer-relevant control-policy training
+
+Implementation intentions
+= real-world deployment support
+```
+
+## Bottom line
+
+For Tatham-type puzzles, the evidence is best described as **promising but indirect**.
+
+They are ideal as **problem-space exercises**, but they need to be embedded in:
+
+```text
+explicit prompts
+worked strategy reflection
+wrapper variation
+boundary cases
+delayed probes
+implementation cues
+```
+
+That is exactly where the Trident-G framing adds value: the puzzles are not assumed to cause far transfer by repetition. They become the **problem-space substrate** for training and testing portable relational control policies.
+
+Yes — that is the strongest role for them.
+
+Tatham-style logic puzzles should not be framed as an independently proven far-transfer engine. They are better framed as a **controlled problem-space substrate** that lets you apply and test the WM/CCC gains through explicit relational and epistemic prompts.
+
+The chain would be:
+
+```text
+WM / CCC training
+→ raises or stabilises controlled evidence extraction, feature binding and workspace control
+
+logic-puzzle problem spaces
+→ give concrete states, operators, constraints, paths and goal tests
+
+inductive / epistemic prompts
+→ force abstraction of the reusable relation or control policy
+
+delayed / wrapper-swapped puzzle probes
+→ test whether the policy survives beyond the trained surface
+```
+
+## Why puzzles fit this role
+
+Simon Tatham’s Portable Puzzle Collection is useful because it consists of small, generative, one-player logic puzzles, many of which run in browser form and have adjustable size/difficulty. That makes them good candidates for controlled, repeatable problem-space exercises rather than open-ended “brain games”. ([chiark.greenend.org.uk][1])
+
+The direct human training evidence for Tatham-style puzzles specifically is limited. But the adjacent evidence is supportive. Inductive-reasoning training has a stronger evidence base: Klauer and Phye describe a procedural comparison-based training approach for inductive reasoning, and Klauer’s transfer work reports effects on fluid but not crystallised intelligence in children. ([Sage Journals][2]) Self-explanation prompts also have meta-analytic support as a learning intervention, and game-based work such as Portal 2 suggests that richly structured puzzle environments can support problem-solving and spatial-skill gains under some conditions. ([gwern.net][3])
+
+So the rationale is not “puzzles magically transfer”. It is:
+
+> **Puzzles instantiate problem spaces. Prompts train the reusable epistemic operations inside those spaces. WM/CCC training supplies the lower-level workspace and control substrate.**
+
+
+Example mapping:
+
+| WM/CCC operation          | Puzzle-space analogue                                         | Prompt                                         |
+| ------------------------- | ------------------------------------------------------------- | ---------------------------------------------- |
+| Feature discrimination    | Identify the relevant variable                                | “Which feature actually changed?”              |
+| Arbitrary binding         | Track which rule/object/constraint belongs with which element | “What belongs with what?”                      |
+| Relational transformation | Track how a move changes the state                            | “What changed, and what stayed invariant?”     |
+| Lure resistance           | Avoid tempting but invalid moves                              | “What is tempting but wrong?”                  |
+| SR/path horizon           | Check whether a state can still reach the goal                | “Can this path still reach the target?”        |
+| Wrapper recovery          | Solve same relation in a new puzzle format                    | “What is the same rule under the new surface?” |
+
+## Best claim boundary
+
+The safe claim is:
+
+> **The puzzles provide structured problem spaces for practising and testing relational control policies after WM/CCC training. The transfer leverage comes from combining puzzle practice with inductive comparison, self-explanation, meta-epistemic prompts, wrapper variation and delayed probes.**
+
+That is much stronger than claiming puzzle practice alone produces far transfer. It makes the puzzles the **application layer** where the trained lower-level workspace operations are forced into explicit, transferable problem-solving routines.
+
+[1]: https://www.chiark.greenend.org.uk/~sgtatham/puzzles/?utm_source=chatgpt.com "Simon Tatham's Portable Puzzle Collection"
+[2]: https://journals.sagepub.com/doi/abs/10.3102/0034654307313402?utm_source=chatgpt.com "Inductive Reasoning: A Training Approach"
+[3]: https://gwern.net/doc/psychology/spaced-repetition/2018-bisra.pdf?utm_source=chatgpt.com "Inducing Self-Explanation: a Meta-Analysis"
+
+
+[1]: https://www.chiark.greenend.org.uk/~sgtatham/puzzles/?utm_source=chatgpt.com "Simon Tatham's Portable Puzzle Collection"
+[2]: https://openreview.net/forum?id=BKu8JPQdQD&referrer=%5Bthe+profile+of+Benjamin+Estermann%5D%28%2Fprofile%3Fid%3D~Benjamin_Estermann1%29&utm_source=chatgpt.com "PUZZLES: A Benchmark for Neural Algorithmic Reasoning"
+[3]: https://iiif.library.cmu.edu/file/Newell_box00018_fld01301_doc0001/Newell_box00018_fld01301_doc0001.pdf?utm_source=chatgpt.com "Reasoning, Problem Solving, and Decision Processes"
+[4]: https://myweb.fsu.edu/vshute/pdf/portal.pdf?utm_source=chatgpt.com "The Effects of Portal 2 and Lumosity on Cognitive and ..."
+[5]: https://www.frontiersin.org/journals/aging-neuroscience/articles/10.3389/fnagi.2017.00041/pdf?utm_source=chatgpt.com "Evidence for Narrow Transfer after Short-Term Cognitive ..."
+[6]: https://www.mdpi.com/1660-4601/19/23/15454?utm_source=chatgpt.com "The Effect of Daily Practice of Puzzle-Game Apps on ..."
+[7]: https://journals.sagepub.com/doi/abs/10.3102/0034654307313402?utm_source=chatgpt.com "Inductive Reasoning: A Training Approach"
+
+
