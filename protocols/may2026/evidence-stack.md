@@ -425,18 +425,58 @@ The intervention evidence is strongest when problem-space control is operational
 
 For IQ Coach, this supports using bounded puzzle spaces as application tasks after WM/CCC training. The source notes make the same point: puzzles instantiate constrained problem spaces, while prompts make the epistemic policy portable and implementation intentions/missions test deployment. 
 
-### 6. Implementation deployment
+---
 
-Implementation intentions are the clearest evidence base for moving from strategy possession to strategy deployment. Gollwitzer and Sheeran’s meta-analysis examined implementation intentions as if–then plans that link situational cues to goal-directed responses, and this work is widely cited as showing medium-to-large effects on goal attainment (Gollwitzer & Sheeran, 2006).  
+## 6. Implementation deployment and real-world missions
 
-In Trident-G terms, implementation intentions should not be treated as reasoning skills. They are **deployment scripts**. They help a trained control policy fire in the right context:
+Implementation intentions are the clearest evidence base for moving from strategy possession to strategy deployment. Gollwitzer and Sheeran’s meta-analysis found that if–then plans had a medium-to-large effect on goal attainment, supporting the idea that cue-linked plans help people initiate action, protect goal pursuit and act under real-world conditions (Gollwitzer & Sheeran, 2006). More recent meta-analytic evidence on mental contrasting with implementation intentions also supports the value of pairing desired outcomes with anticipated obstacles and cue-linked action plans (Wang et al., 2021).
+
+In Trident-G terms, implementation intentions should not be treated as reasoning skills. They are **deployment scripts**. They help a trained control policy fire in the right context.
+
+A simple in-app version is:
 
 ```text
 If I am stuck for 30 seconds,
 then I will identify the current state, goal, constraint and next test.
 ```
 
-This is also why the source protocol treats implementation intentions as necessary but not sufficient: a good implementation intention must be tied to an ecologically valid cue in the actual niche, not only to an abstract plan. 
+A stronger mission version is:
+
+```text
+If I face a confusing real-world problem today,
+then I will write:
+state → goal → constraints → next test,
+take one small action,
+and record what happened.
+```
+
+The mission is not just homework. It is the **niche-coupling test**. It asks whether the trained policy activates under live cues, survives ordinary noise and produces informative feedback. In Trident-G language, this is where vertical transfer becomes niche transfer: the learner is not merely able to reconstruct a control policy in the app, but can deploy it in the environment that gives the policy meaning. This is consistent with transfer-of-training evidence showing that transfer depends not only on training content, but also on trainee factors, intervention design and the environment in which the trained skill must be used (Blume et al., 2010).
+
+The mission outcome then becomes reinforcement for the vertical stack. Feedback should not merely reward completion. Effective feedback should help the learner understand the goal, their current progress and the next action to take (Hattie & Timperley, 2007). This is important because feedback interventions can improve performance, but they can also be ineffective or counterproductive when they direct attention away from the task or process level (Kluger & DeNisi, 1996).
+
+This creates **vertical credit assignment**. The system can reinforce accurate cue detection, correct variable selection, useful prompt use, effective action, good outcome logging and later reuse. At a mechanistic level, this is compatible with reinforcement-learning accounts in which prediction-error signals help update policies when outcomes are better or worse than expected (Schultz et al., 1997; Schultz, 2016). The Trident-G protocol already frames this as the reinforced chain linking state readiness, attention control, variable binding, SR-style inference, epistemic prompt selection, mission action, real-world implementation and delayed reuse. 
+
+## Mission examples
+
+| Trained layer             | Mission cue                                       | Mission action                                              | Reinforcement signal                    |
+| ------------------------- | ------------------------------------------------- | ----------------------------------------------------------- | --------------------------------------- |
+| **Problem-space control** | “I feel stuck on a task.”                         | Write state → goal → constraint → next test.                | Did this produce a clearer next action? |
+| **Epistemic judgement**   | “I feel certain too quickly.”                     | Ask, “What would make this wrong?”                          | Did this reveal a missing assumption?   |
+| **Inductive abstraction** | “This problem reminds me of another one.”         | Ask, “What is the same relation underneath?”                | Did the analogy suggest a useful move?  |
+| **Lure resistance**       | “An obvious answer appears.”                      | Ask, “What is tempting but wrong?”                          | Did it prevent a premature move?        |
+| **Reappraisal**           | “I feel threat/arousal.”                          | Separate sensation → prediction → action urge → next probe. | Did the outcome update the appraisal?   |
+| **Strategy switching**    | “My current method is not producing information.” | Switch from trying moves to listing constraints.            | Did uncertainty reduce?                 |
+
+**Implementation intentions have strong evidence for cue-linked goal deployment (Gollwitzer & Sheeran, 2006). Real-world missions are a theoretically coherent extension because they convert trained mindware scripts into cue-triggered actions that generate environmental feedback. This supports the Trident-G vertical-transfer and niche-transfer logic, but the full mission-based reinforcement stack still needs direct validation.**
+
+The compact protocol wording would be:
+
+```text
+Implementation intentions train deployment.
+Missions test niche coupling.
+Outcome feedback reinforces the vertical chain.
+Delayed reuse tests whether the policy consolidated.
+```
 
 ### 7. Zone and epistemic-emotion regulation
 
@@ -483,6 +523,8 @@ Abrami, P. C., Bernard, R. M., Borokhovski, E., Waddington, D. I., Wade, C. A., 
 
 Bisra, K., Liu, Q., Nesbit, J. C., Salimi, F., & Winne, P. H. (2018). Inducing self-explanation: A meta-analysis. *Educational Psychology Review, 30*, 703–725. [https://doi.org/10.1007/s10648-018-9434-x](https://doi.org/10.1007/s10648-018-9434-x)
 
+Blume, B. D., Ford, J. K., Baldwin, T. T., & Huang, J. L. (2010). Transfer of training: A meta-analytic review. *Journal of Management, 36*(4), 1065–1105. [https://doi.org/10.1177/0149206309352880](https://doi.org/10.1177/0149206309352880)
+
 Credé, M., Tynan, M. C., & Harms, P. D. (2017). Much ado about grit: A meta-analytic synthesis of the grit literature. *Journal of Personality and Social Psychology, 113*(3), 492–511. [https://doi.org/10.1037/pspp0000102](https://doi.org/10.1037/pspp0000102)
 
 Dignath, C., Buettner, G., & Langfeldt, H.-P. (2008). How can primary school students learn self-regulated learning strategies most effectively? A meta-analysis on self-regulation training programmes. *Educational Research Review, 3*(2), 101–129. [https://doi.org/10.1016/j.edurev.2008.02.003](https://doi.org/10.1016/j.edurev.2008.02.003)
@@ -495,9 +537,13 @@ Gollwitzer, P. M., & Sheeran, P. (2006). Implementation intentions and goal achi
 
 Harris, D. J., Allen, K. L., Vine, S. J., & Wilson, M. R. (2023). A systematic review and meta-analysis of the relationship between flow states and performance. *International Review of Sport and Exercise Psychology, 16*(1), 693–721. [https://doi.org/10.1080/1750984X.2021.1929402](https://doi.org/10.1080/1750984X.2021.1929402)
 
+Hattie, J., & Timperley, H. (2007). The power of feedback. *Review of Educational Research, 77*(1), 81–112. [https://doi.org/10.3102/003465430298487](https://doi.org/10.3102/003465430298487)
+
 Howard, J. L., Bureau, J. S., Guay, F., Chong, J. X. Y., & Ryan, R. M. (2021). Student motivation and associated outcomes: A meta-analysis from self-determination theory. *Perspectives on Psychological Science, 16*(6), 1300–1323. [https://doi.org/10.1177/1745691620966789](https://doi.org/10.1177/1745691620966789)
 
 Klauer, K. J., & Phye, G. D. (2008). Inductive reasoning: A training approach. *Review of Educational Research, 78*(1), 85–123. [https://doi.org/10.3102/0034654307313402](https://doi.org/10.3102/0034654307313402)
+
+Kluger, A. N., & DeNisi, A. (1996). The effects of feedback interventions on performance: A historical review, a meta-analysis, and a preliminary feedback intervention theory. *Psychological Bulletin, 119*(2), 254–284. [https://doi.org/10.1037/0033-2909.119.2.254](https://doi.org/10.1037/0033-2909.119.2.254)
 
 Locke, E. A., & Latham, G. P. (2002). Building a practically useful theory of goal setting and task motivation: A 35-year odyssey. *American Psychologist, 57*(9), 705–717. [https://doi.org/10.1037/0003-066X.57.9.705](https://doi.org/10.1037/0003-066X.57.9.705)
 
@@ -507,11 +553,12 @@ Newell, A., & Simon, H. A. (1972). *Human problem solving*. Prentice-Hall.
 
 Peltier, C., & Vannest, K. J. (2017). A meta-analysis of schema instruction on the problem-solving performance of elementary school students. *Review of Educational Research, 87*(5), 899–920. [https://doi.org/10.3102/0034654317720163](https://doi.org/10.3102/0034654317720163)
 
+Schultz, W. (2016). Dopamine reward prediction error coding. *Dialogues in Clinical Neuroscience, 18*(1), 23–32. [https://doi.org/10.31887/DCNS.2016.18.1/wschultz](https://doi.org/10.31887/DCNS.2016.18.1/wschultz)
+
+Schultz, W., Dayan, P., & Montague, P. R. (1997). A neural substrate of prediction and reward. *Science, 275*(5306), 1593–1599. [https://doi.org/10.1126/science.275.5306.1593](https://doi.org/10.1126/science.275.5306.1593)
+
 Vogl, E., Pekrun, R., Murayama, K., & Loderer, K. (2020). Surprised–curious–confused: Epistemic emotions and knowledge exploration. *Emotion, 20*(4), 625–641. [https://doi.org/10.1037/emo0000578](https://doi.org/10.1037/emo0000578)
 
+Wang, G., Wang, Y., & Gai, X. (2021). A meta-analysis of the effects of mental contrasting with implementation intentions on goal attainment. *Frontiers in Psychology, 12*, Article 565202. [https://doi.org/10.3389/fpsyg.2021.565202](https://doi.org/10.3389/fpsyg.2021.565202)
 
-[14]: https://pmc.ncbi.nlm.nih.gov/articles/PMC5393794/?utm_source=chatgpt.com "Visual Perceptual Learning and its Specificity and Transfer"
-[15]: https://pubmed.ncbi.nlm.nih.gov/20844128/?utm_source=chatgpt.com "Rule-based learning explains visual perceptual ... - PubMed"
-[16]: https://www.sciencedirect.com/science/article/pii/S0042698917300536?utm_source=chatgpt.com "Time course influences transfer of visual perceptual ..."
-[17]: https://pubmed.ncbi.nlm.nih.gov/25711183/?utm_source=chatgpt.com "Piecewise power laws in individual learning curves"
-[18]: https://www.pnas.org/doi/10.1073/pnas.2523012122?utm_source=chatgpt.com "Heavy-tailed update distributions arise from information ..."
+```
