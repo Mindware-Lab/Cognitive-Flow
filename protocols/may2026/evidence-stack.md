@@ -25,7 +25,7 @@ The Majority Function Task with masking (MFT-M) provides the most direct evidenc
 
 He et al. (2022) then adapted this into a more efficient computerised adaptive test. Instead of administering all MFT-M conditions, the adaptive version selects the next condition that is most informative for the current CCC estimate. This supports the Trident-G design principle that training should be routed around a **trainable threshold zone**, rather than simply making a task harder after correct responses.
 
-The most relevant training evidence comes from Zhang et al. (2024), who trained healthy young adults on MFT-M for seven days and found increased CCC plus selective transfer to attention-control, verbal-learning and ERP indices of working-memory/task-switching processing. Importantly, the transfer was patterned rather than global: behavioural transfer was strongest where the transfer task shared attentional-selection structure with MFT-M, and neural transfer appeared more clearly than behavioural gains on some executive tasks (Zhang et al., 2024). ([PubMed][1])
+The most relevant training evidence comes from Zhang et al. (2024), who trained healthy young adults on MFT-M for seven days and found increased CCC plus selective transfer to attention-control, verbal-learning and ERP indices of working-memory/task-switching processing. Importantly, the transfer was patterned rather than global: behavioural transfer was strongest where the transfer task shared attentional-selection structure with MFT-M, and neural transfer appeared more clearly than behavioural gains on some executive tasks (Zhang et al., 2024).  
 
 This fits the Trident-G interpretation: MFT-M plausibly trains **controlled evidence extraction**, attentional allocation and uncertainty reduction. It does not, by itself, train arbitrary binding, relational transformation tracking, SR-style horizon mapping or explicit problem-space control. The attached evidence document makes the same point: MFT-M appears to support the lower half of the stack, but not the full far-transfer architecture. 
 
@@ -35,7 +35,7 @@ This fits the Trident-G interpretation: MFT-M plausibly trains **controlled evid
 
 ## 2. Working-memory training: useful near transfer, weak far transfer by itself
 
-The working-memory training literature gives a useful but cautionary foundation. Melby-Lervåg et al. (2016) concluded that WM training produces reliable improvement on trained and closely related WM tasks, but no convincing evidence for broad far transfer to intelligence or other general cognitive outcomes when compared with active controls. ([PubMed][2])
+The working-memory training literature gives a useful but cautionary foundation. Melby-Lervåg et al. (2016) concluded that WM training produces reliable improvement on trained and closely related WM tasks, but no convincing evidence for broad far transfer to intelligence or other general cognitive outcomes when compared with active controls.  
 
 This is not a reason to exclude WM training. It is a reason to avoid the claim:
 
@@ -57,7 +57,7 @@ Ericson and Klingberg’s (2023) dual-process model also helps here. They distin
 
 The rationale for **Relational Working Memory Capacity** is grounded in a serious tradition that treats WMC as more than item storage.
 
-Oberauer’s binding account is central. He argues that WM capacity limits the short-term maintenance of **temporary bindings**, such as which item was linked to which other item, position or context. In his binding-memory experiments, increasing set size impaired binding memory more than item memory, supporting the idea that WMC is partly a limit on temporary relational structure (Oberauer, 2019). ([Journal of Cognition][3])
+Oberauer’s binding account is central. He argues that WM capacity limits the short-term maintenance of **temporary bindings**, such as which item was linked to which other item, position or context. In his binding-memory experiments, increasing set size impaired binding memory more than item memory, supporting the idea that WMC is partly a limit on temporary relational structure (Oberauer, 2019).  
 
 This supports the Trident-G move from classic item n-back:
 
@@ -96,9 +96,9 @@ The role of WM in perceptual transfer is also relevant. Zhang et al. (2016) argu
 
 Relational processing provides the main theoretical bridge from WM to Gf. Chuderski’s (2014) relational integration task was designed to measure the ability to bind mental representations into more complex relational structures, and it predicted fluid reasoning above other WM tasks.
 
-Jastrzębski et al. (2020) extend this further. Their work suggests that a factor capturing relation-processing variance can be statistically equivalent to a Gf factor loaded by hallmark fluid-reasoning tests, with much shared residual variance unexplained by WMC alone. This is important because it implies that the bridge from WMC to Gf may specifically run through **relation processing**, not just generic storage capacity. ([ScienceDirect][4])
+Jastrzębski et al. (2020) extend this further. Their work suggests that a factor capturing relation-processing variance can be statistically equivalent to a Gf factor loaded by hallmark fluid-reasoning tests, with much shared residual variance unexplained by WMC alone. This is important because it implies that the bridge from WMC to Gf may specifically run through **relation processing**, not just generic storage capacity.  
 
-Wang et al. (2025) provide especially relevant mechanistic evidence for the relational-processing layer of the Trident-G protocol. The study used a randomised controlled design in which participants were assigned to either a relational integration training group or an active control group for one month. Fluid intelligence was assessed with the Sandia Matrices task, and resting EEG was recorded before and after training. The authors frame relational integration as a key subcomponent of working memory and a strong predictor of fluid intelligence, with both relational integration and Gf relying substantially on frontoparietal network function (Wang et al., 2025). ([PubMed][5])
+Wang et al. (2025) provide especially relevant mechanistic evidence for the relational-processing layer of the Trident-G protocol. The study used a randomised controlled design in which participants were assigned to either a relational integration training group or an active control group for one month. Fluid intelligence was assessed with the Sandia Matrices task, and resting EEG was recorded before and after training. The authors frame relational integration as a key subcomponent of working memory and a strong predictor of fluid intelligence, with both relational integration and Gf relying substantially on frontoparietal network function (Wang et al., 2025).  
 
 The training task was more relationally demanding than standard item n-back. Participants had to judge whether a numerical relation or difference matched a previous relation, with both 1-back and 2-back versions. In other words, the trained unit was not simply item identity but the **relation between items across temporal positions**. This is directly aligned with the Trident-G distinction between item-memory training and relational workspace training.
 
@@ -175,7 +175,7 @@ Vertical transfer is therefore not merely knowing a rule. A vertically integrate
 
 Several empirical strands support this kind of layered view. First, strategy-based WM training provides a more promising route than pure drill. Chan et al. (2019) tested strategy-based WM training in children and reported transfer to a novel problem-solving task, suggesting that explicit strategy training can produce transfer beyond the trained WM surface.
 
-Second, metacognitive or strategy-enriched WM interventions can produce maintained WM benefits. Jones et al. (2020) compared Cogmed WM training, Cogmed plus metacognitive strategy training, and adaptive visual-search control training in children. The combined WM and metacognitive strategy condition produced stronger maintained WM benefits than WM training alone, supporting the idea that metacognitive strategy instruction can extend the value of lower-level training (Jones et al., 2020). ([PubMed][6])
+Second, metacognitive or strategy-enriched WM interventions can produce maintained WM benefits. Jones et al. (2020) compared Cogmed WM training, Cogmed plus metacognitive strategy training, and adaptive visual-search control training in children. The combined WM and metacognitive strategy condition produced stronger maintained WM benefits than WM training alone, supporting the idea that metacognitive strategy instruction can extend the value of lower-level training (Jones et al., 2020).  
 
 Third, the previously reviewed metacognitive evidence supports the higher layers: self-explanation, inductive-reasoning training, metacognitive strategy instruction, strategic problem-space control and implementation intentions. The important Trident-G point is that these should not be treated as separate interventions. They are vertical connectors:
 
@@ -204,7 +204,7 @@ Second, training time course and variation appear to matter. Larcombe et al. (20
 
 Third, Donner and Hardy’s (2015) piecewise power-law account supports the idea that individual learning curves may contain breakpoints or transitions rather than one smooth function. The piecewise model better explained individual learning curves, and later pieces often surpassed earlier pieces after a brief transition cost. This does not prove the wrapper-swap principle, but it supports the plausibility of designing training around controlled perturbations, dip-and-recovery patterns and local reorganisation.
 
-Fourth, Zhang and Tang’s (2025) PNAS paper provides a formal analogy for the Trident-G entropy–mutual-information balance. They identify critical-like signatures during neural-network training and argue that heavy-tailed update distributions arise from information-driven self-organisation, balancing maximum entropy exploration with mutual-information constraint. This is not human cognitive-training evidence, but it gives a useful formal model for why productive learning should not collapse into rigid exploitation or unstructured exploration. ([Semantic Scholar][7])
+Fourth, Zhang and Tang’s (2025) PNAS paper provides a formal analogy for the Trident-G entropy–mutual-information balance. They identify critical-like signatures during neural-network training and argue that heavy-tailed update distributions arise from information-driven self-organisation, balancing maximum entropy exploration with mutual-information constraint. This is not human cognitive-training evidence, but it gives a useful formal model for why productive learning should not collapse into rigid exploitation or unstructured exploration.  
 
 So the evidence status is:
 
@@ -228,7 +228,7 @@ This matters because the Trident-G protocol distinguishes **flat task improvemen
 
 ### Sleep and systems consolidation
 
-The sleep literature provides a strong basis for treating consolidation as part of the protocol. Active systems consolidation theory proposes that sleep supports the redistribution and reorganisation of newly encoded memories, especially through hippocampal–neocortical interaction during slow-wave sleep (Born & Wilhelm, 2012). More recent reviews emphasise replay as a basic mechanism of memory consolidation during both sleep and wake, with sleep replay involving hippocampal assemblies, ripples, thalamic spindles and neocortical slow oscillations (Brodt et al., 2023). ([PubMed][8])
+The sleep literature provides a strong basis for treating consolidation as part of the protocol. Active systems consolidation theory proposes that sleep supports the redistribution and reorganisation of newly encoded memories, especially through hippocampal–neocortical interaction during slow-wave sleep (Born & Wilhelm, 2012). More recent reviews emphasise replay as a basic mechanism of memory consolidation during both sleep and wake, with sleep replay involving hippocampal assemblies, ripples, thalamic spindles and neocortical slow oscillations (Brodt et al., 2023). 
 
 This maps well onto the Trident-G view that relational/SR training should not simply be pushed harder within a single session. If the target is slow schematic Gc, the system needs intervals in which recent patterns can be replayed, integrated and partially decoupled from the surface conditions in which they were learned.
 
@@ -363,14 +363,6 @@ Zhang, X.-Y., & Tang, D.-L. (2025). Heavy-tailed update distributions arise from
 
 Zhang, Y.-X., Moore, D. R., Guiraud, J., Molloy, K., Yan, T.-T., & Amitay, S. (2016). Auditory discrimination learning: Role of working memory. *PLOS ONE, 11*(1), Article e0147320. [https://doi.org/10.1371/journal.pone.0147320](https://doi.org/10.1371/journal.pone.0147320)
 
-[1]: https://pubmed.ncbi.nlm.nih.gov/38777117/?utm_source=chatgpt.com "Attention control training and transfer effects on cognitive ..."
-[2]: https://pubmed.ncbi.nlm.nih.gov/27474138/?utm_source=chatgpt.com "Working Memory Training Does Not Improve Performance on ..."
-[3]: https://journalofcognition.org/articles/10.5334/joc.86?utm_source=chatgpt.com "Working Memory Capacity Limits Memory for Bindings"
-[4]: https://www.sciencedirect.com/science/article/pii/S0160289620300672?utm_source=chatgpt.com "Fluid reasoning is equivalent to relation processing"
-[5]: https://pubmed.ncbi.nlm.nih.gov/39843684/?utm_source=chatgpt.com "Relational Integration Training Modulated the ..."
-[6]: https://pubmed.ncbi.nlm.nih.gov/31134713/?utm_source=chatgpt.com "The academic outcomes of working memory and ..."
-[7]: https://www.semanticscholar.org/paper/Relational-Integration-Training-Modulated-the-for-Wang-Sun/2eacba83c94874144d0481fc0b6212aef5611275?utm_source=chatgpt.com "Relational Integration Training Modulated the ..."
-[8]: https://pubmed.ncbi.nlm.nih.gov/21541757/?utm_source=chatgpt.com "System consolidation of memory during sleep"
 
 ---
 
@@ -517,18 +509,6 @@ Peltier, C., & Vannest, K. J. (2017). A meta-analysis of schema instruction on t
 
 Vogl, E., Pekrun, R., Murayama, K., & Loderer, K. (2020). Surprised–curious–confused: Epistemic emotions and knowledge exploration. *Emotion, 20*(4), 625–641. [https://doi.org/10.1037/emo0000578](https://doi.org/10.1037/emo0000578)
 
-[1]: https://journals.sagepub.com/doi/10.3102/0034654314551063?utm_source=chatgpt.com "Strategies for Teaching Students to Think Critically"
-[2]: https://pubmed.ncbi.nlm.nih.gov/30883147/?utm_source=chatgpt.com "Surprised-curious-confused: Epistemic emotions and ..."
-[3]: https://journals.sagepub.com/doi/abs/10.3102/0034654307313402?utm_source=chatgpt.com "Inductive Reasoning: A Training Approach"
-[4]: https://gwern.net/doc/psychology/spaced-repetition/2018-bisra.pdf?utm_source=chatgpt.com "Inducing Self-Explanation: a Meta-Analysis"
-[5]: https://www.sciencedirect.com/science/article/abs/pii/S1747938X13000420?utm_source=chatgpt.com "Effectiveness of learning strategy instruction on academic ..."
-[6]: https://worrydream.com/refs/Simon_1970_-_Human_Problem_Solving%2C_The_State_of_the_Theory_in_1970.pdf?utm_source=chatgpt.com "HUMAN PROBLEM SOLVING:"
-[7]: https://journals.sagepub.com/doi/abs/10.3102/0034654317720163?utm_source=chatgpt.com "A Meta-Analysis of Schema Instruction on the Problem ..."
-[8]: https://www.sciencedirect.com/science/chapter/bookseries/pii/S0065260106380021?utm_source=chatgpt.com "Implementation Intentions and Goal Achievement: A Meta‐ ..."
-[9]: https://www.tandfonline.com/doi/abs/10.1080/17439760.2014.967799?utm_source=chatgpt.com "The challenge–skill balance and antecedents of flow"
-[10]: https://pubmed.ncbi.nlm.nih.gov/33593153/?utm_source=chatgpt.com "Student Motivation and Associated Outcomes: A Meta- ..."
-[11]: https://med.stanford.edu/content/dam/sm/s-spire/documents/PD.locke-and-latham-retrospective_Paper.pdf?utm_source=chatgpt.com "Building a Practically Useful Theory of Goal Setting and ..."
-[12]: https://www.researchgate.net/publication/232450715_Relation_of_Self-Efficacy_Beliefs_to_Academic_Outcomes_A_Meta-Analytic_Investigation?utm_source=chatgpt.com "(PDF) Relation of Self-Efficacy Beliefs to Academic Outcomes"
 
 [14]: https://pmc.ncbi.nlm.nih.gov/articles/PMC5393794/?utm_source=chatgpt.com "Visual Perceptual Learning and its Specificity and Transfer"
 [15]: https://pubmed.ncbi.nlm.nih.gov/20844128/?utm_source=chatgpt.com "Rule-based learning explains visual perceptual ... - PubMed"
