@@ -596,7 +596,71 @@ controlled evidence extraction
 
 That is much stronger than standard n-back because the training target is not “remember more items”. It is **expand, differentiate and sample the relational state space under goal constraints**.
 
+---
 
+## The integrated session design
+
+You can collapse the two into a single session flow:
+
+```
+Minute 0–2   CCC Calibration Block
+             → 40-60 trials, no memory load
+             → yields: pure C-Control (bits/sec), baseline cog_rate
+             → feeds: MIND_READY / MIND_FLAT detection
+
+Minute 2–6   State n-back
+             → yields: State-WM capacity
+
+Minute 6–11  Binding / Relation n-back
+             → yields: A-Bind, R-Bind
+             → feeds: classifier dynamics under load
+
+Minute 11–13 Wrapper perturbation
+             → yields: W-Recovery
+             → feeds: MIND_LOCKED_IN vs MIND_IN_ZONE discrimination
+
+Minute 13–15 Prompt / micro-mission
+             → yields: transfer bridge
+```
+
+In this design, the **first 2 minutes are the Zone Check**. The classifier runs on the **entire session's trial series**, but the `cog_rate` feature is anchored to the clean opening block. The later blocks add the capacity and load-sensitive dynamics layers.
+
+---
+
+## Why you still want a standalone shortcut
+
+From a product perspective, users will not always want a 15-minute WM training session just to check their state. The **Express mode** in the classifier spec (40–50 trials, ~2–3 minutes) exists precisely for this use case.
+
+| User intent | Session type | What they get |
+|-------------|--------------|-------------|
+| *"How am I right now?"* | Standalone Express (2–3 min) | `MIND_IN_ZONE` vs `MIND_FLAT` + `cog_rate` |
+| *"Train my relational workspace"* | Full WM session (15 min) | Capacity profile + state-under-load + daily baseline |
+
+So the **standalone Zone Check** should remain as an entry point and daily dashboard tool. The **full WM session** embeds the same Zone Check as its opening block, then extends into capacity training.
+
+---
+
+## The criticality angle
+
+There is a deeper reason not to drop the clean CCC block. The classifier distinguishes `MIND_IN_ZONE` from `MIND_LOCKED_IN` partly by comparing **throughput** against **persistence/entropy**. If your throughput measure is already confounded by WM load, you lose the ability to detect the dangerous case where:
+
+- A user has **high n-back performance** (apparent throughput)
+- But is actually **rigidly locked-in** to a shallow strategy (high `cog_lag1`, low flexibility)
+
+The clean CCC block provides the **unloaded baseline** against which loaded performance can be compared. If CCC is high but WM performance drops sharply, that signals load sensitivity. If both are high but dynamics are rigid, that signals `MIND_LOCKED_IN`.
+
+---
+
+## Bottom line
+
+**Do not build a separate *game*.** Build a single task engine where:
+
+1. **Express / Zone Check** = first 2–3 minutes (clean CCC block, 40–60 trials)
+2. **Core / WM Training** = full 15-minute progression (CCC → state → binding → relation → wrapper)
+
+The same trial-level data feeds both the capacity model (PS-RWC) and the criticality classifier. The clean opening block gives you the pure `cog_rate` baseline; the later blocks give you the capacity and dynamical-load measures.
+
+Keep the **Express mode accessible as a standalone shortcut** for daily state checks, but it is technically just the first block of the same unified protocol.
 ---
 
 ### A. Core Architectural Claims
