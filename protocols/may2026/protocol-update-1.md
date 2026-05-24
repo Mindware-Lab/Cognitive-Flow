@@ -1,8 +1,30 @@
 
-**IQ Coach — Working Memory Protocol Specification**
+# IQ Coach — Working Memory Protocol Specification 
 *High-Level Design: Gabor & Optic Flow Relational Engine*
 
 ---
+Trident-G far-transfer training may expand and reshape the learner’s effective SR relational space by training variable abstraction and predictive transition structure across multiple relation families. With repeated wrapper variation, boundary testing, feedback and consolidation, these SR-style maps may become sufficiently compiled that candidate inferences are generated semi-automatically, while the global workspace selectively samples, verbalises, tests and stabilises the most relevant candidates.
+
+The key is that the “expansion” should not be described simply as adding more facts or more strategies. It is better described as increasing the dimensionality, reach and usability of the relational state space. Training over sameness/difference, order, exclusion, transitivity, containment, causal/probabilistic relations, path constraints, counterfactuals, etc., would give the learner more abstract variables and transition operators. The Trident-G summary already makes this two-stage sequence explicit: first the system has to carve the state space into usable variables, then SR training learns transitions over those variables, and only then can boundary testing and slow Gc extraction produce a portable schema.
+
+The “relatively automatically” part is also plausible, but needs careful wording. In Trident-G terms, the system should not become automatic in the sense of rigid stimulus–response habit. It should become automatic in the sense that candidate relational trajectories are pre-activated or cheaply sampled. That is, the learner no longer has to consciously construct every possible inference from scratch. Instead, trained SR maps make some paths, constraints, likely consequences and possible next moves more available to attention.
+
+This would make the global workspace less like a brute-force reasoning engine and more like a selective broadcast and validation layer. The SR system supplies candidate transitions:
+
+this state may lead there
+this constraint blocks that path
+this move opens that future state
+this relation resembles a previously validated relation
+Then the global workspace picks up the most task-relevant candidates through meta-epistemic prompts such as:
+
+What must be true?
+Can this path still reach the goal?
+Which feature changed?
+What would make this wrong?
+What else could explain this?
+That is also consistent with your protocol’s claim that meta-epistemic prompts do not train the reasoning operator directly. Instead, they act as global-workspace control handles that coordinate lower-level processes and make them reusable across tasks.
+
+The recursive reasoning paper you uploaded gives a useful AI analogy. GRAM is not evidence for human SR training directly, but it supports the architectural plausibility of the idea that reasoning can improve when a system maintains multiple latent trajectories rather than collapsing into a single deterministic path. The paper explicitly argues that stochastic recursive latent reasoning allows multiple hypotheses, alternative strategies and parallel trajectory sampling. That maps neatly onto the Trident-G idea that an enriched SR relational space should allow multiple possible inference paths to be generated below full explicit reasoning, with conscious reasoning selecting and stabilising one or more of them.
 
 ## 1. System Architecture
 
