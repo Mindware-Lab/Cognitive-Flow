@@ -964,3 +964,294 @@ The protocol addresses (1) and (2) well, but (3) and (4) are underdeveloped. The
 3. **Consolidation and delayed re-entry:** The 15-minute session structure needs to be embedded in a spaced, multi-week protocol with delayed post-tests to claim slow schematic Gc.
 
 **Most testable prediction:** If this protocol works, near transfer to untrained n-back variants should be substantial, and *the degree of near transfer to relation-n-back variants should mediate far transfer to matrix reasoning*—replicating and extending the mediation pattern found in standard n-back studies. If that mediation fails, the far-transfer claim collapses regardless of the theory's elegance.
+
+---
+
+# Update 
+
+Here are the specific definitions, formulas, and structural elements from the original protocol that should be **preserved verbatim** in the simplified two-wrapper spec, plus notes on what adapts because gratings are gone.
+
+---
+
+## 1. Information-Theoretic Load Definitions (Keep Exactly)
+
+These are the core formalism. They do not depend on the number of wrappers.
+
+| Load Type | Formula | Meaning |
+|-----------|---------|---------|
+| **State Load** | `H_feature × n` | Feature maintenance over *n* steps |
+| **Binding Load** | `H_binding × n` | Arbitrary association hold |
+| **Relation Load** | `H_relation × n` | Transformation tracking hold |
+| **SR Load** | `successor surprisal × horizon` | Predictive path cost |
+
+**Concrete bit-step examples to keep:**
+
+```text
+orientation = 3 bits, 2-back → State Load = 6 bit-steps
+orientation + spacing = 5 bits, 2-back → Binding Load = 10 binding-bit steps
+Δorientation + Δspacing = 5 bits, 2-back → Relation Load = 10 relation-bit steps
+```
+
+**Adaptation:** The examples now reference only Gabor `[θ, f]` and Flow `[φ, v]`. The 3-bit + 2-bit logic remains identical.
+
+---
+
+## 2. Trial Demand Model & Psychometric Function (Keep Exactly)
+
+The original demand formula is architecturally clean and should not change:
+
+```text
+D_trial =
+  H_extract / ET
+  + α(H_binding × n)
+  + β(H_relation × h)
+  + γ(lure pressure)
+  + δ(wrapper shift)
+```
+
+**Adaptation for two wrappers:** `wrapper_shift` is now simpler. It captures:
+- Gabor ↔ Flow domain switch (the main transfer cost)
+- Layout/density/colour perturbations within a wrapper (secondary cost)
+
+The psychometric function stays:
+
+```text
+P(correct) = chance + usable_range × sigmoid(capacity - D_trial)
+```
+
+---
+
+## 3. The Four Modes: Questions, Lures, and Internal Logic (Keep Exactly)
+
+The original question templates are product-ready and theoretically precise. Port them directly:
+
+### Mode 1 — State n-back
+> "Was the current [majority orientation / majority flow angle] the same as 2-back?"
+
+### Mode 2 — Binding n-back
+> "Did this [orientation] belong with this [spacing] from 2-back?"  
+> (or: "Was this [flow angle] paired with this [speed] before?")
+
+**Lure definitions to preserve verbatim:**
+```text
+same orientation, wrong spacing
+same spacing, wrong orientation
+recent correct pair, wrong n-back position
+```
+
+### Mode 3 — Relation n-back
+> "Did the [majority orientation and spacing / flow angle and speed] change together in the same way?"
+
+With the transformation encoding:
+```text
+R_t = S_t - S_{t-n}
+R_t = [Δorientation, Δspacing]  or  [Δangle, Δspeed]
+```
+
+### Mode 4 — SR Horizon
+> "Can this current state still reach the target in two moves?"  
+> "Is this the expected next state?"
+
+And the surprisal definition:
+```text
+successor surprisal = -log2 P(S_future | S_current)
+```
+
+---
+
+## 4. Multi-Parameter Scoring Framework (Keep Exactly)
+
+The original 7-parameter output table is methodologically superior to a single score. Preserve it entirely:
+
+| Score | Meaning | Best Wrapper |
+|-------|---------|--------------|
+| **C-Control** | controlled perceptual evidence throughput | Gabor (single patch) / Gabor field |
+| **State-WM** | feature maintenance over *n* steps | both |
+| **A-Bind** | arbitrary feature binding | Gabor |
+| **R-Bind** | transformation relation capacity | Gabor / Flow |
+| **S-Horizon** | successor/path prediction capacity | Flow / Gabor |
+| **I-Lure** | interference susceptibility | Gabor |
+| **W-Recovery** | wrapper-swap recovery | Gabor → Flow |
+
+**Adaptation:** "Gratings" is removed from the C-Control row. Single Gabor patch (set size = 1) serves the same clean-calibration role.
+
+---
+
+## 5. Session Architecture & Timing (Keep Structure, Adapt Block 1)
+
+The original 15-minute session is a strong template:
+
+```text
+1. Zone / calibration block       2 min
+2. State or binding block         4 min
+3. Relation / SR block            5 min
+4. Wrapper perturbation           2 min
+5. Prompt + micro-mission         2 min
+```
+
+**Adaptation:** Block 1 now uses **single Gabor patches** (set size = 1) for the CCC-style calibration, replacing simple gratings. The later blocks use multi-patch Gabor fields and flow fields as specified in the new spec.
+
+The minute-by-minute example from the original also adapts cleanly:
+
+```text
+Minute 0–2   Single Gabor patch CCC calibration (no majority extraction)
+Minute 2–6   Gabor field: 2-back orientation–spacing binding
+Minute 6–11  Gabor field: Relation n-back (change pattern repeat)
+Minute 11–13 Wrapper swap: same relation, flow-patch surface
+Minute 13–15 Prompt: "What changed, what stayed invariant, what next?"
+```
+
+---
+
+## 6. Adaptive Progression Rules (Keep Exactly)
+
+The near-critical band and rotation schedule are evidence-informed and should not change:
+
+**Target band:**
+```text
+70–82% balanced accuracy
+```
+
+**Rules:**
+```text
+If >85% for two mini-blocks: increase one demand only.
+If 70–82%: stay.
+If 60–70%: repeat with slight support.
+If <60%: reduce n-level, relation arity, speed, or lure pressure.
+```
+
+**Daily rotation (keep verbatim):**
+```text
+Day 1: speed / exposure
+Day 2: feature discrimination
+Day 3: n-back horizon
+Day 4: binding load
+Day 5: relation load
+Day 6: lure pressure
+Day 7: wrapper transfer
+Day 8: SR horizon
+```
+
+---
+
+## 7. Training Arc & Mindware Bridge (Keep Exactly)
+
+The six-stage arc is the Trident-G backbone and should be preserved verbatim:
+
+```text
+Stage 1: identify variables       → Which feature matters?
+Stage 2: bind variables           → What belongs with what?
+Stage 3: track transformations    → What changed, and how?
+Stage 4: infer successors         → What future state becomes likely?
+Stage 5: transfer the relation    → Can the same relation be recovered under a new wrapper?
+Stage 6: apply as mindware script → How does this help with a puzzle, plan or decision?
+```
+
+**The mindware script table (keep exactly):**
+
+| Perceptual operation | Mindware script | Reasoning analogue |
+|----------------------|-----------------|-------------------|
+| State n-back | "Which feature matters?" | identify the variable |
+| Binding n-back | "What belongs with what?" | map roles, constraints, evidence |
+| Relation n-back | "What changed, what stayed invariant?" | infer transformation |
+| SR horizon | "Can this path still reach the goal?" | evaluate next move |
+| Lure control | "What is tempting but wrong?" | inhibit misleading solution |
+| Wrapper swap | "What is the same rule in the new surface?" | transfer the strategy |
+
+**The micro-mission prompt (keep exactly):**
+```text
+Today, when facing a task decision, pause and ask:
+1. What is the current state?
+2. Which variable changed?
+3. What future state does this move make reachable?
+4. What tempting move is actually a lure?
+```
+
+---
+
+## 8. Theoretical Framing & Caution (Keep Exactly)
+
+The original caution about claims is essential and becomes even more important when simplifying:
+
+> **"The claim should remain behavioural rather than neural: this is an SR-inspired relational workspace task, not a direct hippocampal SR measure."**
+
+And:
+> **"The task reduces semantic and verbal scaffolding, but it is not literally outside the global workspace because the user still receives instructions and makes conscious responses."**
+
+These boundary definitions protect the protocol from overclaiming.
+
+---
+
+## 9. MVP Progression (Keep Structure, Already Aligned)
+
+The original MVP roadmap is actually perfectly aligned with the simplified two-wrapper design:
+
+```text
+MVP 1:
+Gabor majority state n-back
++ arbitrary binding n-back
++ relation n-back
++ lures
++ adaptive scoring
+
+MVP 2:
+Add wrapper swaps:
+Gabor layout change
+colour theme change
+density change
+masking change
+
+MVP 3:
+Add optic-flow SR horizon mode:
+trajectory → successor → target reachability
+```
+
+**Note:** In the simplified spec, MVP 2's "wrapper swaps" explicitly include the Gabor → Flow switch as the primary transfer test, with layout/colour/density as secondary within-wrapper perturbations.
+
+---
+
+## 10. The "Bottom Line" Stack (Keep Exactly)
+
+The original summary of the training target is clearer than most academic abstracts. Preserve it:
+
+```text
+controlled evidence extraction
+→ variable abstraction
+→ binding
+→ transformation tracking
+→ successor prediction
+→ wrapper recovery
+→ prompt-guided problem solving
+→ real-world strategic action
+→ delayed re-check
+```
+
+---
+
+## What Explicitly Adapts Due to Dropping Gratings
+
+| Original Element | Simplified Adaptation | Rationale |
+|------------------|----------------------|-----------|
+| **Simple gratings** as clean baseline | **Single Gabor patch** (set size = 1) | Same psychometric function, no need for separate stimulus class |
+| **3-wrapper progression** (gratings → Gabor → flow) | **Set-size progression** (1 patch → small field → full field → flow field) | Clean variable → noisy majority → dynamic relation |
+| **3D state vector** `[θ, f, L]` | **2D core** `[θ, f]` / `[φ, v]` with **optional 3rd dimension** (luminance/coherence) added later for load scaling | Simplifies MVP; third dimension can be reintroduced as a difficulty parameter |
+| **Wrapper shift cost δ** across 3 formats | **Wrapper shift cost δ** across 2 formats + within-wrapper layout shifts | Easier to interpret: δ now isolates feature-domain transfer (orientation/frequency → angle/speed) |
+
+---
+
+## Consolidated: The "Keep List"
+
+If you are editing the high-level spec, **copy-paste these sections directly** from the original with only wrapper-name substitutions:
+
+1. All bit-step formulas and concrete examples
+2. The `D_trial` demand equation and `P(correct)` psychometric function
+3. The four mode question templates and lure definitions
+4. The 7-parameter scoring table
+5. The adaptive band rules and daily rotation schedule
+6. The six-stage training arc
+7. The mindware script table
+8. The micro-mission prompt text
+9. The theoretical caution / claim boundary
+10. The bottom-line training stack
+
+**The only material that needs rewriting** is anything referencing "simple gratings" (repoint to single Gabor patch) and the wrapper-specific role descriptions (now two wrappers instead of three).
