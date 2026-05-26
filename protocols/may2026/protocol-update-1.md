@@ -321,6 +321,8 @@ Classifier outputs are structurally aligned with body-state classification (e.g.
 
 ---
 
+# SR Inference Space
+
 ## 1. Transitive / Ordinal Chains
 **Logic:** If A > B and B > C, then A > C.
 
