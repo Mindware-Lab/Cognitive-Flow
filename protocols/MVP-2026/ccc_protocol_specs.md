@@ -1,4 +1,4 @@
-# IQ Coach — Component 1 MVP Specification
+# IQ Coach — CCC Layer (Component 1) MVP Specification
 
 ## Arrow-Based Adaptive Cognitive Control Capacity Layer
 
