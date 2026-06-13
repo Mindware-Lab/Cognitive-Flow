@@ -24,6 +24,7 @@ Diagonal, spiral, mixed-wrapper, population-norm, leaderboard, Zone-state, and I
 - [Stimulus and scoring algorithms](docs/STIMULUS_AND_SCORING.md)
 - [Architecture, data, and deployment](docs/ARCHITECTURE_AND_DATA.md)
 - [Build roadmap](docs/BUILD_ROADMAP.md)
+- [Partner evaluation prototype protocol](docs/PARTNER_EVALUATION_PROTOCOL.md)
 
 ## Planned Stack
 
@@ -53,4 +54,3 @@ The primary protocol files are:
 ## Current Status
 
 Planning and implementation documentation only. Runtime code has not yet been scaffolded.
-
