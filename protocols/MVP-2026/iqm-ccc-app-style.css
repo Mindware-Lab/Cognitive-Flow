@@ -1,0 +1,1112 @@
+/*
+  IQ Mindware CCC Protocol App Style
+  Version: 0.1
+  Purpose: mobile-first CSS foundation for the CCC Protocol webapp.
+
+  Design direction:
+  - Screen C aesthetic from the selected mock-up: clean white interface, centred task card,
+    cyan action colour, sparse lime validation signal, soft grey structure, thin outlines,
+    rounded cards and calm feedback.
+  - Built for phone-first use, with responsive widening for tablets/desktops.
+  - Framework neutral: can be used with plain HTML, React, Vue, Svelte, etc.
+
+  Naming convention:
+  - .app-*    overall app layout
+  - .ui-*     reusable interface components
+  - .task-*   CCC trial/task components
+  - .metric-* result/summary components
+  - .is-*     state classes
+*/
+
+/* =========================================================
+   1. Design tokens
+   ========================================================= */
+
+:root {
+  /* IQ Mindware palette */
+  --iqm-cyan: #22aaff;
+  --iqm-cyan-rgb: 34, 170, 255;
+  --iqm-white: #ffffff;
+  --iqm-lime: #ccff66;
+  --iqm-lime-rgb: 204, 255, 102;
+  --iqm-charcoal: #333333;
+  --iqm-light-grey: #e0e0e0;
+  --iqm-deep-blue: #2764b7;
+  --iqm-mid-grey: #6d6d6d;
+
+  /* Derived neutrals */
+  --iqm-bg: #f7fbff;
+  --iqm-bg-soft: #f3f8fc;
+  --iqm-surface: #ffffff;
+  --iqm-surface-soft: #f9fbfd;
+  --iqm-border: #dce8f1;
+  --iqm-border-strong: #c5d9e8;
+
+  /* Feedback colours */
+  --iqm-success: #9be62f;
+  --iqm-success-soft: rgba(var(--iqm-lime-rgb), 0.18);
+  --iqm-error: #ff5a5f;
+  --iqm-error-soft: rgba(255, 90, 95, 0.12);
+  --iqm-warning: #ffb020;
+  --iqm-warning-soft: rgba(255, 176, 32, 0.12);
+
+  /* Text */
+  --text-main: #0d1730;
+  --text-secondary: var(--iqm-mid-grey);
+  --text-muted: #8a98a8;
+  --text-on-primary: #ffffff;
+
+  /* Brand actions */
+  --action-primary: var(--iqm-cyan);
+  --action-primary-strong: var(--iqm-deep-blue);
+  --action-primary-soft: rgba(var(--iqm-cyan-rgb), 0.12);
+  --action-lime: var(--iqm-lime);
+  --focus-ring: rgba(var(--iqm-cyan-rgb), 0.38);
+
+  /* Typography */
+  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+
+  --font-size-xs: 0.75rem;   /* 12px */
+  --font-size-sm: 0.875rem;  /* 14px */
+  --font-size-md: 1rem;      /* 16px */
+  --font-size-lg: 1.125rem;  /* 18px */
+  --font-size-xl: 1.35rem;   /* 21.6px */
+  --font-size-2xl: 1.65rem;  /* 26.4px */
+
+  --line-tight: 1.15;
+  --line-normal: 1.5;
+
+  /* Spacing: 8px base system */
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-5: 1.25rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-10: 2.5rem;
+  --space-12: 3rem;
+
+  /* Shape */
+  --radius-sm: 0.5rem;
+  --radius-md: 0.85rem;
+  --radius-lg: 1.15rem;
+  --radius-xl: 1.45rem;
+  --radius-pill: 999px;
+
+  /* Shadows */
+  --shadow-card: 0 14px 34px rgba(13, 23, 48, 0.08);
+  --shadow-soft: 0 8px 20px rgba(13, 23, 48, 0.06);
+  --shadow-control: 0 8px 18px rgba(var(--iqm-cyan-rgb), 0.24);
+
+  /* Layout */
+  --phone-width: 390px;
+  --phone-min-height: 760px;
+  --desktop-max: 1160px;
+  --tap-size: 48px;
+  --header-height: 64px;
+  --bottom-nav-height: 72px;
+
+  /* Motion */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --duration-fast: 160ms;
+  --duration-standard: 260ms;
+}
+
+/* =========================================================
+   2. Base reset and accessibility
+   ========================================================= */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  font-family: var(--font-sans);
+  color: var(--text-main);
+  background: var(--iqm-bg);
+  text-rendering: geometricPrecision;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  min-height: 100%;
+  margin: 0;
+  font-size: var(--font-size-md);
+  line-height: var(--line-normal);
+  background:
+    radial-gradient(circle at 6% 8%, rgba(var(--iqm-cyan-rgb), 0.12), transparent 30%),
+    radial-gradient(circle at 94% 4%, rgba(var(--iqm-lime-rgb), 0.10), transparent 24%),
+    linear-gradient(180deg, #ffffff 0%, var(--iqm-bg) 100%);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+button {
+  border: 0;
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+img,
+svg {
+  display: block;
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 3px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 1ms !important;
+  }
+}
+
+/* =========================================================
+   3. App shell
+   ========================================================= */
+
+.app-root {
+  width: 100%;
+  min-height: 100dvh;
+  padding: var(--space-4);
+}
+
+.app-shell {
+  width: min(100%, var(--desktop-max));
+  min-height: calc(100dvh - var(--space-8));
+  margin: 0 auto;
+  display: grid;
+  gap: var(--space-6);
+}
+
+/* Single phone-sized screen centred on desktop. */
+.app-phone-frame {
+  width: min(100%, var(--phone-width));
+  min-height: var(--phone-min-height);
+  margin: 0 auto;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid var(--iqm-border-strong);
+  border-radius: 2rem;
+  background: var(--iqm-surface);
+  box-shadow: var(--shadow-card);
+}
+
+/* Use this for desktop/tablet implementation without an artificial phone frame. */
+.app-responsive-frame {
+  width: min(100%, 720px);
+  min-height: 100dvh;
+  margin: 0 auto;
+  background: var(--iqm-surface);
+}
+
+.app-screen {
+  min-height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  background: var(--iqm-surface);
+}
+
+.app-screen.has-bottom-nav {
+  padding-bottom: var(--bottom-nav-height);
+}
+
+.app-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4);
+}
+
+.app-main.is-centred {
+  justify-content: center;
+}
+
+.app-header {
+  min-height: var(--header-height);
+  padding: var(--space-3) var(--space-4);
+  display: grid;
+  grid-template-columns: var(--tap-size) 1fr auto;
+  align-items: center;
+  gap: var(--space-2);
+  background: rgba(255, 255, 255, 0.86);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(224, 224, 224, 0.55);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+}
+
+.app-title {
+  margin: 0;
+  text-align: center;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  letter-spacing: 0.03em;
+  color: var(--iqm-deep-blue);
+  text-transform: uppercase;
+}
+
+.app-subtitle {
+  margin: var(--space-1) 0 0;
+  text-align: center;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.app-header-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-1);
+}
+
+/* =========================================================
+   4. Typography utilities
+   ========================================================= */
+
+.ui-eyebrow {
+  margin: 0 0 var(--space-2);
+  color: var(--iqm-deep-blue);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ui-heading-xl,
+.ui-heading-lg,
+.ui-heading-md {
+  margin: 0;
+  color: var(--text-main);
+  line-height: var(--line-tight);
+  letter-spacing: -0.02em;
+}
+
+.ui-heading-xl {
+  font-size: clamp(1.65rem, 6vw, 2.4rem);
+  font-weight: 850;
+}
+
+.ui-heading-lg {
+  font-size: var(--font-size-2xl);
+  font-weight: 800;
+}
+
+.ui-heading-md {
+  font-size: var(--font-size-xl);
+  font-weight: 750;
+}
+
+.ui-body {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.ui-body-strong {
+  color: var(--text-main);
+  font-weight: 650;
+}
+
+.text-blue {
+  color: var(--iqm-deep-blue);
+}
+
+.text-cyan {
+  color: var(--iqm-cyan);
+}
+
+.text-lime {
+  color: var(--iqm-success);
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+/* =========================================================
+   5. Cards and panels
+   ========================================================= */
+
+.ui-card {
+  position: relative;
+  width: 100%;
+  padding: var(--space-4);
+  border: 1px solid var(--iqm-border);
+  border-radius: var(--radius-lg);
+  background: var(--iqm-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.ui-card.is-flat {
+  box-shadow: none;
+}
+
+.ui-card.is-soft {
+  background: var(--iqm-surface-soft);
+}
+
+.ui-card.is-glass {
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(16px);
+}
+
+.ui-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-3);
+}
+
+.ui-card-title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 750;
+  letter-spacing: -0.01em;
+}
+
+.ui-card-caption {
+  margin: var(--space-1) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--text-muted);
+}
+
+.ui-tip-card {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: linear-gradient(180deg, #f6faff 0%, #eef7fd 100%);
+  color: var(--text-main);
+}
+
+.ui-tip-card p {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  line-height: 1.45;
+}
+
+.ui-footer-band {
+  margin-top: auto;
+  padding: var(--space-4);
+  border-top: 1px solid rgba(224, 224, 224, 0.7);
+  background: var(--iqm-bg-soft);
+}
+
+/* =========================================================
+   6. Buttons and icon controls
+   ========================================================= */
+
+.ui-icon-button {
+  width: var(--tap-size);
+  height: var(--tap-size);
+  display: inline-grid;
+  place-items: center;
+  border-radius: var(--radius-pill);
+  color: var(--iqm-deep-blue);
+  background: transparent;
+  transition:
+    background var(--duration-fast) var(--ease-standard),
+    transform var(--duration-fast) var(--ease-standard);
+}
+
+.ui-icon-button:hover {
+  background: var(--action-primary-soft);
+}
+
+.ui-icon-button:active {
+  transform: scale(0.96);
+}
+
+.ui-button {
+  min-height: 52px;
+  width: 100%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-5);
+  border-radius: var(--radius-md);
+  font-weight: 800;
+  text-decoration: none;
+  transition:
+    transform var(--duration-fast) var(--ease-standard),
+    box-shadow var(--duration-fast) var(--ease-standard),
+    background var(--duration-fast) var(--ease-standard),
+    border-color var(--duration-fast) var(--ease-standard);
+}
+
+.ui-button:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.ui-button-primary {
+  color: var(--text-on-primary);
+  background: linear-gradient(135deg, var(--iqm-cyan) 0%, #0086e6 100%);
+  box-shadow: var(--shadow-control);
+}
+
+.ui-button-primary:hover {
+  background: linear-gradient(135deg, #1e96e6 0%, var(--iqm-deep-blue) 100%);
+}
+
+.ui-button-secondary {
+  color: var(--iqm-deep-blue);
+  background: var(--iqm-surface);
+  border: 2px solid var(--iqm-cyan);
+}
+
+.ui-button-secondary:hover {
+  background: var(--action-primary-soft);
+}
+
+.ui-button-ghost {
+  color: var(--iqm-deep-blue);
+  background: transparent;
+}
+
+.ui-button-ghost:hover {
+  background: var(--action-primary-soft);
+}
+
+.ui-button-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+}
+
+/* Trial response buttons are deliberately large, readable and thumb-friendly. */
+.task-response-button {
+  min-height: 64px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-lg);
+  font-weight: 850;
+  letter-spacing: -0.01em;
+}
+
+.task-response-button .arrow-left,
+.task-response-button .arrow-right {
+  font-size: 1.25em;
+  line-height: 1;
+}
+
+/* =========================================================
+   7. Progress and status
+   ========================================================= */
+
+.ui-progress-card {
+  padding: var(--space-3);
+  border-radius: var(--radius-md);
+  background: var(--iqm-surface-soft);
+  border: 1px solid rgba(224, 224, 224, 0.7);
+}
+
+.ui-progress-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  margin-bottom: var(--space-2);
+  color: var(--text-main);
+  font-size: var(--font-size-xs);
+  font-weight: 650;
+}
+
+.ui-progress-track {
+  height: 7px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--iqm-light-grey);
+}
+
+.ui-progress-fill {
+  width: var(--progress, 0%);
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--iqm-deep-blue), var(--iqm-cyan));
+  transition: width var(--duration-standard) var(--ease-standard);
+}
+
+.ui-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
+  font-weight: 800;
+  color: var(--iqm-deep-blue);
+  background: var(--action-primary-soft);
+}
+
+.ui-badge.is-success {
+  color: #4c8600;
+  background: var(--iqm-success-soft);
+}
+
+.ui-badge.is-muted {
+  color: var(--text-secondary);
+  background: var(--iqm-bg-soft);
+}
+
+/* =========================================================
+   8. CCC task screen
+   ========================================================= */
+
+.task-shell {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.task-question-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5) var(--space-4);
+  border: 1px solid rgba(224, 224, 224, 0.82);
+  border-radius: var(--radius-xl);
+  background: var(--iqm-surface);
+  box-shadow: var(--shadow-soft);
+}
+
+.task-question-block {
+  text-align: center;
+}
+
+.task-question {
+  max-width: 18rem;
+  margin: 0 auto var(--space-2);
+  font-size: clamp(1.25rem, 6vw, 1.75rem);
+  font-weight: 850;
+  line-height: 1.18;
+  letter-spacing: -0.03em;
+}
+
+.task-question-mark {
+  width: 34px;
+  height: 4px;
+  margin: var(--space-3) auto;
+  border-radius: var(--radius-pill);
+  background: var(--iqm-lime);
+}
+
+.task-instruction {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-sm);
+}
+
+.task-timing-pill {
+  width: fit-content;
+  margin: 0 auto;
+  padding: var(--space-2) var(--space-5);
+  border: 2px solid var(--iqm-cyan);
+  border-radius: var(--radius-pill);
+  color: var(--iqm-deep-blue);
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+/* Stimulus area: radial/dashed network look from selected C style. */
+.task-stimulus-field {
+  --field-size: min(76vw, 300px);
+  width: var(--field-size);
+  height: var(--field-size);
+  margin: 0 auto;
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.task-orbit {
+  position: absolute;
+  inset: 17%;
+  border: 2px dashed rgba(39, 100, 183, 0.16);
+  border-radius: 50%;
+}
+
+.task-fixation {
+  width: 40px;
+  height: 40px;
+  position: absolute;
+  display: grid;
+  place-items: center;
+  color: var(--text-main);
+  font-size: 2rem;
+  line-height: 1;
+  z-index: 5;
+}
+
+.task-fixation::before,
+.task-fixation::after {
+  content: "";
+  position: absolute;
+  background: currentColor;
+  border-radius: 99px;
+}
+
+.task-fixation::before {
+  width: 2px;
+  height: 26px;
+}
+
+.task-fixation::after {
+  width: 26px;
+  height: 2px;
+}
+
+.task-node {
+  --node-size: 58px;
+  width: var(--node-size);
+  height: var(--node-size);
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--iqm-border);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  box-shadow: 0 6px 18px rgba(13, 23, 48, 0.06);
+}
+
+/* Position helper classes for five sampled nodes around the orbit. */
+.task-node.pos-top {
+  top: 7%;
+  left: 50%;
+  transform: translate(-50%, 0);
+}
+
+.task-node.pos-upper-left {
+  top: 31%;
+  left: 13%;
+  transform: translate(-50%, -50%);
+}
+
+.task-node.pos-upper-right {
+  top: 31%;
+  right: 13%;
+  transform: translate(50%, -50%);
+}
+
+.task-node.pos-lower-left {
+  bottom: 11%;
+  left: 24%;
+  transform: translate(-50%, 0);
+}
+
+.task-node.pos-lower-right {
+  bottom: 11%;
+  right: 24%;
+  transform: translate(50%, 0);
+}
+
+.task-arrow {
+  width: 34px;
+  height: 18px;
+  position: relative;
+  color: var(--iqm-cyan);
+  transform: rotate(var(--angle, 0deg));
+}
+
+.task-arrow::before {
+  content: "";
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 25px;
+  height: 6px;
+  border-radius: 99px;
+  background: currentColor;
+}
+
+.task-arrow::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 0;
+  height: 0;
+  border-top: 9px solid transparent;
+  border-bottom: 9px solid transparent;
+  border-left: 12px solid currentColor;
+}
+
+.task-arrow.is-muted {
+  color: #aab4bf;
+}
+
+.task-arrow.is-majority {
+  color: var(--iqm-cyan);
+}
+
+.task-node.is-masked .task-arrow {
+  opacity: 0;
+}
+
+.task-mask {
+  display: none;
+  width: 28px;
+  height: 28px;
+  border-radius: 7px;
+  background: rgba(var(--iqm-cyan-rgb), 0.12);
+  border: 1px solid rgba(39, 100, 183, 0.08);
+  transform: rotate(45deg);
+}
+
+.task-node.is-masked .task-mask {
+  display: block;
+}
+
+.task-node.is-faded {
+  opacity: 0.34;
+}
+
+/* =========================================================
+   9. Feedback and results
+   ========================================================= */
+
+.feedback-panel {
+  display: grid;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.feedback-icon {
+  width: 86px;
+  height: 86px;
+  margin: 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 2.5rem;
+  font-weight: 900;
+}
+
+.feedback-icon.is-correct {
+  color: #ffffff;
+  background: radial-gradient(circle at 30% 25%, var(--iqm-lime), #8fdb1f);
+  box-shadow: 0 0 0 10px var(--iqm-success-soft);
+}
+
+.feedback-icon.is-incorrect {
+  color: #ffffff;
+  background: var(--iqm-error);
+  box-shadow: 0 0 0 10px var(--iqm-error-soft);
+}
+
+.feedback-title {
+  margin: 0;
+  font-size: var(--font-size-2xl);
+  font-weight: 850;
+  line-height: var(--line-tight);
+}
+
+.feedback-title.is-correct {
+  color: #8fdc20;
+}
+
+.feedback-title.is-incorrect {
+  color: var(--iqm-error);
+}
+
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+.metric-card {
+  min-height: 94px;
+  padding: var(--space-3);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: var(--space-1);
+  border: 1px solid var(--iqm-border);
+  border-radius: var(--radius-md);
+  background: var(--iqm-surface);
+}
+
+.metric-label {
+  margin: 0;
+  font-size: 0.68rem;
+  color: var(--text-secondary);
+  line-height: 1.25;
+}
+
+.metric-value {
+  margin: 0;
+  color: var(--iqm-deep-blue);
+  font-size: var(--font-size-lg);
+  font-weight: 850;
+  letter-spacing: -0.02em;
+}
+
+.metric-unit {
+  color: var(--iqm-deep-blue);
+  font-size: 0.62rem;
+  font-weight: 800;
+}
+
+.summary-list {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.summary-row {
+  min-height: 64px;
+  display: grid;
+  grid-template-columns: 44px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--iqm-border);
+}
+
+.summary-row:last-child {
+  border-bottom: 0;
+}
+
+.summary-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-md);
+  color: var(--iqm-deep-blue);
+  background: var(--action-primary-soft);
+}
+
+.summary-title {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.summary-caption {
+  margin: var(--space-1) 0 0;
+  color: var(--text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.summary-value {
+  color: var(--iqm-deep-blue);
+  font-size: var(--font-size-xl);
+  font-weight: 900;
+  letter-spacing: -0.03em;
+}
+
+.summary-value.is-lime {
+  color: #84d000;
+}
+
+/* =========================================================
+   10. Navigation
+   ========================================================= */
+
+.app-bottom-nav {
+  height: var(--bottom-nav-height);
+  width: 100%;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-3);
+  border-top: 1px solid var(--iqm-border);
+  background: rgba(255, 255, 255, 0.93);
+  backdrop-filter: blur(14px);
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 40;
+}
+
+.app-phone-frame .app-bottom-nav {
+  position: absolute;
+}
+
+.nav-item {
+  min-width: 0;
+  min-height: 54px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  background: transparent;
+  text-decoration: none;
+  font-size: 0.68rem;
+  font-weight: 700;
+}
+
+.nav-item svg,
+.nav-item .nav-icon {
+  width: 22px;
+  height: 22px;
+}
+
+.nav-item.is-active {
+  color: var(--iqm-deep-blue);
+  background: var(--action-primary-soft);
+}
+
+/* =========================================================
+   11. Desktop and tablet adaptations
+   ========================================================= */
+
+@media (min-width: 760px) {
+  .app-root {
+    padding: var(--space-8);
+  }
+
+  .app-screen {
+    min-height: min(860px, calc(100dvh - var(--space-12)));
+  }
+
+  .app-bottom-nav {
+    max-width: 720px;
+    margin: 0 auto;
+    border-left: 1px solid var(--iqm-border);
+    border-right: 1px solid var(--iqm-border);
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+
+  .task-stimulus-field {
+    --field-size: 340px;
+  }
+}
+
+@media (min-width: 1040px) {
+  .app-shell.is-two-zone {
+    grid-template-columns: minmax(320px, 0.8fr) minmax(460px, 1fr);
+    align-items: center;
+  }
+
+  .app-side-panel {
+    display: block;
+    padding: var(--space-8);
+  }
+
+  .app-side-panel .ui-heading-xl {
+    max-width: 12ch;
+  }
+}
+
+/* =========================================================
+   12. Optional CSS documentation panel for designer handoff
+   ========================================================= */
+
+.doc-panel {
+  padding: var(--space-5);
+  border: 1px solid var(--iqm-border);
+  border-radius: var(--radius-xl);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--shadow-soft);
+}
+
+.doc-panel h2,
+.doc-panel h3 {
+  margin: 0 0 var(--space-3);
+  color: var(--iqm-deep-blue);
+  line-height: var(--line-tight);
+}
+
+.doc-token-list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.doc-token {
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: var(--space-3);
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+}
+
+.doc-swatch {
+  width: 22px;
+  height: 22px;
+  border: 1px solid var(--iqm-border);
+  border-radius: 50%;
+  background: var(--swatch, var(--iqm-cyan));
+}
+
+/* =========================================================
+   13. Utility classes
+   ========================================================= */
+
+.stack-sm { display: grid; gap: var(--space-2); }
+.stack-md { display: grid; gap: var(--space-4); }
+.stack-lg { display: grid; gap: var(--space-6); }
+
+.cluster {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.cluster-between {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+}
+
+.centre { text-align: center; }
+
+.full-width { width: 100%; }
+
+.visually-hidden {
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  border: 0;
+  position: absolute;
+  white-space: nowrap;
+}
