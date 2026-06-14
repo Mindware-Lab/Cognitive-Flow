@@ -16,6 +16,30 @@ Later validation phases may add `abs_ud`, `rel_cwccw`, mixed blocks, diagonal, a
 
 Use eight possible positions on a fixed-radius octagon. Sample five unique positions per trial.
 
+The launch protocol preserves the published MFT-M spatial proportions:
+
+```text
+arrow length = 0.37 degrees visual angle
+mask diamond diameter = 0.37 degrees visual angle
+fixation-to-item-centre radius = approximately 1.5 degrees visual angle
+arrow length / radius = mask diameter / radius = 0.37 / 1.5
+```
+
+The responsive browser renderer guarantees these relative proportions. Exact degrees of
+visual angle require screen-size and viewing-distance calibration and therefore cannot be
+guaranteed on an uncalibrated partner device.
+
+The paper specifies total arrow length but does not specify the full internal silhouette.
+Protocol geometry version 1 uses:
+
+```text
+arrowhead length = 35% of total arrow length
+arrowhead width = 54% of total arrow length
+shaft width = 18% of total arrow length
+```
+
+These values are fixed for scored trials and covered by geometry tests.
+
 For item `i`:
 
 ```text
@@ -93,6 +117,12 @@ Initial scoring pool:
 ```
 
 Quantize every exposure to whole measured display frames.
+
+The fixed-five adaptive pool crosses both incongruent five-arrow ratios (`4:1`, `3:2`)
+with all four exposure times, producing eight core conditions. The published adaptive
+MFT-M-R pool also includes `2:1`, which requires set size three. This app deliberately
+holds set size at five under the MVP protocol, so it is a fixed-five MFT-M adaptation
+rather than a reproduction of the complete 12-condition MFT-M-R pool.
 
 Only add shorter or intermediate exposures after a user has a stable estimate and Good timing quality.
 
@@ -196,4 +226,3 @@ Frame Cost = Direction Bandwidth - Frame Bandwidth
 ```
 
 Label Frame Bandwidth as `relational bits/sec`. It is an experimental extension, not an already validated MFT-M measure.
-

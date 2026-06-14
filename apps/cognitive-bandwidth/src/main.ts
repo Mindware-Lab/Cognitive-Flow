@@ -1,6 +1,11 @@
 import "./styles.css";
 import { generateTrial } from "./generator";
-import { vectorAngleDegrees, OCTAGON_POSITIONS } from "./geometry";
+import {
+  arrowPolygonPoints,
+  diamondPolygonPoints,
+  vectorAngleDegrees,
+  OCTAGON_POSITIONS,
+} from "./geometry";
 import { hashSeed, mulberry32 } from "./random";
 import { chooseNextCondition, estimateCapacity } from "./scoring";
 import { loadRuns, saveRun } from "./storage";
@@ -355,13 +360,13 @@ function tutorialContent(wrapper: WrapperId): string {
 }
 
 function arrowSvg(trial: TrialDefinition): string {
+  const points = arrowPolygonPoints();
   return trial.items
     .map((item) => {
       const angle = vectorAngleDegrees(item.vector);
       return `
         <g transform="translate(${item.position.x} ${item.position.y}) rotate(${angle})">
-          <line x1="-4.4" y1="0" x2="3.2" y2="0" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" />
-          <path d="M 1.1 -3.2 L 5 0 L 1.1 3.2 Z" fill="currentColor" />
+          <polygon points="${points}" fill="currentColor" />
         </g>
       `;
     })
@@ -370,8 +375,7 @@ function arrowSvg(trial: TrialDefinition): string {
 
 function masksSvg(): string {
   return OCTAGON_POSITIONS.map(
-    (position) =>
-      `<rect x="${position.x - 4}" y="${position.y - 4}" width="8" height="8" rx="1.2" transform="rotate(45 ${position.x} ${position.y})" />`,
+    (position) => `<polygon points="${diamondPolygonPoints(position)}" />`,
   ).join("");
 }
 

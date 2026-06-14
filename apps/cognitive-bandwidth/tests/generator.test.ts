@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { generateTrial } from "../src/generator";
+import { DEMO_CONDITIONS, generateTrial } from "../src/generator";
 
 describe("trial generator", () => {
   it("is deterministic for a seed and index", () => {
@@ -27,5 +27,13 @@ describe("trial generator", () => {
       const dot = radialX * item.vector.x + radialY * item.vector.y;
       expect(item.category === "out" ? dot : -dot).toBeGreaterThan(0);
     }
+  });
+
+  it("includes every fixed-five incongruent ratio at all four published exposure times", () => {
+    expect(DEMO_CONDITIONS).toEqual(
+      ["4:1", "3:2"].flatMap((ratio) =>
+        [250, 500, 1000, 2000].map((exposureMs) => ({ ratio, exposureMs })),
+      ),
+    );
   });
 });

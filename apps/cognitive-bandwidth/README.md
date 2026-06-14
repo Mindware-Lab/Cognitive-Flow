@@ -62,6 +62,7 @@ The partner-evaluation vertical slice is implemented. It includes:
 - Direction and Frame tutorials
 - guided and adaptive demonstration trials
 - SVG stimulus and mask rendering
+- paper-proportional, versioned arrow and mask geometry
 - provisional MFT-M grouping-search estimates
 - illustrative results and Frame Cost
 - product roadmap and partner feedback flow

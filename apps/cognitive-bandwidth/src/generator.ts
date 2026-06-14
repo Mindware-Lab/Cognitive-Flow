@@ -19,6 +19,8 @@ export const DEMO_CONDITIONS: TrialCondition[] = [
   { ratio: "4:1", exposureMs: 250 },
   { ratio: "4:1", exposureMs: 500 },
   { ratio: "4:1", exposureMs: 1000 },
+  { ratio: "4:1", exposureMs: 2000 },
+  { ratio: "3:2", exposureMs: 250 },
   { ratio: "3:2", exposureMs: 500 },
   { ratio: "3:2", exposureMs: 1000 },
   { ratio: "3:2", exposureMs: 2000 },
