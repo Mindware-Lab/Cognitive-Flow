@@ -41,7 +41,6 @@ interface AppState {
   consentedTelemetry: boolean;
   timing: TimingCheck | null;
   timingRunning: boolean;
-  leftHanded: boolean;
   soundEnabled: boolean;
   wrapper: WrapperId | null;
   taskStage: TaskStage;
@@ -66,7 +65,6 @@ const state: AppState = {
   consentedTelemetry: false,
   timing: null,
   timingRunning: false,
-  leftHanded: false,
   soundEnabled: false,
   wrapper: null,
   taskStage: "ready",
@@ -112,6 +110,12 @@ function categories(wrapper: WrapperId): [Category, Category] {
 
 function categoryLabel(category: Category): string {
   return category[0].toUpperCase() + category.slice(1);
+}
+
+function responseButtonContent(category: Category, key: "left" | "right"): string {
+  const symbol = key === "left" ? "&larr;" : "&rarr;";
+  const keyLabel = key === "left" ? "Left arrow key" : "Right arrow key";
+  return `<span>${categoryLabel(category)}</span><kbd aria-label="${keyLabel}">${symbol}</kbd>`;
 }
 
 function header(title: string, subtitle = "Partner evaluation prototype", backAction = ""): string {
@@ -289,22 +293,18 @@ function renderPreferences(): string {
     <main class="app-main">
       <section class="stack-sm">
         <p class="ui-eyebrow">Response setup</p>
-        <h1 class="ui-heading-lg">Choose a comfortable layout</h1>
-        <p class="ui-body">The choice changes button order only. It does not change the scored stimulus.</p>
+        <h1 class="ui-heading-lg">Choose how you respond</h1>
+        <p class="ui-body">Click the buttons or use the left and right arrow keys. Both methods are scored identically.</p>
       </section>
       <section class="ui-card preview-card">
         <p class="task-preview-question">Were most arrows pointing left or right?</p>
         ${renderStimulus(generateTrial("preview", "abs_lr", 1, { ratio: "4:1", exposureMs: 1000 }, true), "stimulus")}
-        <div class="response-grid ${state.leftHanded ? "is-reversed" : ""}">
-          <button class="task-response-button preview-response">Left</button>
-          <button class="task-response-button preview-response">Right</button>
+        <div class="response-grid">
+          <button class="task-response-button preview-response">${responseButtonContent("left", "left")}</button>
+          <button class="task-response-button preview-response">${responseButtonContent("right", "right")}</button>
         </div>
       </section>
       <div class="preference-list">
-        <button class="setting-row" data-action="toggle-handed">
-          <span><strong>Left-handed layout</strong><small>Place the first response on the right.</small></span>
-          <span class="toggle ${state.leftHanded ? "is-on" : ""}"><i></i></span>
-        </button>
         <button class="setting-row" data-action="toggle-sound">
           <span><strong>Sound feedback</strong><small>Use a quiet tone after each response.</small></span>
           <span class="toggle ${state.soundEnabled ? "is-on" : ""}"><i></i></span>
@@ -421,11 +421,11 @@ function renderTask(): string {
           }
         </div>
       </section>
-      <div class="response-grid task-responses ${state.leftHanded ? "is-reversed" : ""}">
-        <button class="task-response-button" data-response="${first}" ${showResponses ? "" : "disabled"}>${categoryLabel(first)}</button>
-        <button class="task-response-button" data-response="${second}" ${showResponses ? "" : "disabled"}>${categoryLabel(second)}</button>
+      <div class="response-grid task-responses">
+        <button class="task-response-button" data-response="${first}" aria-keyshortcuts="ArrowLeft" ${showResponses ? "" : "disabled"}>${responseButtonContent(first, "left")}</button>
+        <button class="task-response-button" data-response="${second}" aria-keyshortcuts="ArrowRight" ${showResponses ? "" : "disabled"}>${responseButtonContent(second, "right")}</button>
       </div>
-      <p class="task-footnote">${state.taskIndex < 3 ? "Guided practice: no estimate is recorded." : "Prototype estimate: illustrative only."}</p>
+      <p class="task-footnote">Click or use &larr; / &rarr;. ${state.taskIndex < 3 ? "Guided practice: no estimate is recorded." : "Prototype estimate: illustrative only."}</p>
     </main>
   `, { task: true });
 }
@@ -809,7 +809,6 @@ app.addEventListener("click", async (event) => {
     state.timingRunning = false;
   } else if (action === "timing-continue") state.phase = "preferences";
   else if (action === "back-timing") state.phase = "timing";
-  else if (action === "toggle-handed") state.leftHanded = !state.leftHanded;
   else if (action === "toggle-sound") state.soundEnabled = !state.soundEnabled;
   else if (action === "preferences-continue") state.phase = "direction-tutorial";
   else if (action === "back-preferences") state.phase = "preferences";
@@ -905,8 +904,14 @@ app.addEventListener("submit", async (event) => {
 window.addEventListener("keydown", (event) => {
   if (!responseResolver || state.taskStage !== "response" || !state.wrapper) return;
   const [first, second] = categories(state.wrapper);
-  if (event.key === "ArrowLeft" || event.key.toLowerCase() === "f") responseResolver(first);
-  if (event.key === "ArrowRight" || event.key.toLowerCase() === "j") responseResolver(second);
+  if (event.repeat) return;
+  if (event.key === "ArrowLeft") {
+    event.preventDefault();
+    responseResolver(first);
+  } else if (event.key === "ArrowRight") {
+    event.preventDefault();
+    responseResolver(second);
+  }
 });
 
 render();

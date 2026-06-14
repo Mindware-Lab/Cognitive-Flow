@@ -58,7 +58,7 @@ The partner-evaluation vertical slice is implemented. It includes:
 - scientific scope and prototype boundaries
 - optional anonymous usability consent
 - browser frame-timing check
-- response preferences
+- mouse and left/right arrow-key response controls
 - Direction and Frame tutorials
 - guided and adaptive demonstration trials
 - SVG stimulus and mask rendering

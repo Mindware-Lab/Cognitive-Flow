@@ -545,8 +545,8 @@ button:disabled {
 }
 
 .stimulus-masks {
-  fill: rgba(39, 100, 183, 0.17);
-  stroke: rgba(39, 100, 183, 0.22);
+  fill: currentColor;
+  stroke: currentColor;
   stroke-width: 0.35;
 }
 
@@ -556,21 +556,31 @@ button:disabled {
   gap: 12px;
 }
 
-.response-grid.is-reversed > :first-child {
-  order: 2;
-}
-
 .task-response-button,
 .tutorial-answer {
   min-height: 60px;
-  display: grid;
-  place-items: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
   border: 2px solid var(--cyan);
   border-radius: 14px;
   color: var(--blue);
   background: #fff;
   font-size: 1.05rem;
   font-weight: 900;
+}
+
+.task-response-button kbd {
+  min-width: 34px;
+  padding: 3px 8px 5px;
+  border: 1px solid rgba(39, 100, 183, 0.28);
+  border-bottom-width: 3px;
+  border-radius: 7px;
+  color: var(--blue);
+  background: var(--soft);
+  font: inherit;
+  line-height: 1;
 }
 
 .preview-response {
