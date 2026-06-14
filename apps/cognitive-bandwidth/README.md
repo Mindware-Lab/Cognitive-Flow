@@ -53,4 +53,44 @@ The primary protocol files are:
 
 ## Current Status
 
-Planning and implementation documentation only. Runtime code has not yet been scaffolded.
+The partner-evaluation vertical slice is implemented. It includes:
+
+- scientific scope and prototype boundaries
+- optional anonymous usability consent
+- browser frame-timing check
+- response preferences
+- Direction and Frame tutorials
+- guided and adaptive demonstration trials
+- SVG stimulus and mask rendering
+- provisional MFT-M grouping-search estimates
+- illustrative results and Frame Cost
+- product roadmap and partner feedback flow
+- optional Supabase magic-link entry when environment variables are configured
+- deployable Supabase partner-feedback storage and Edge Function
+
+Run locally:
+
+```powershell
+npm.cmd install
+npm.cmd run dev
+```
+
+Build and test:
+
+```powershell
+npm.cmd run build
+npm.cmd test
+```
+
+Cloudflare Pages:
+
+```powershell
+npm.cmd run build
+npx.cmd wrangler pages deploy dist --project-name iq-coach-cognitive-bandwidth
+```
+
+Supabase backend:
+
+1. Apply `supabase/migrations/202606140001_partner_feedback.sql`.
+2. Deploy `supabase/functions/partner-feedback`.
+3. Configure `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`.
