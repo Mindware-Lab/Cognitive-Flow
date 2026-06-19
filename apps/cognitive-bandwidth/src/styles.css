@@ -3243,6 +3243,222 @@ button:disabled {
 }
 
 @media (max-width: 620px) {
+  .exam-score-page {
+    padding: 6px 8px 8px;
+  }
+
+  .exam-score-content {
+    max-width: 100%;
+    gap: 6px;
+  }
+
+  .exam-score-page .hero h1,
+  .exam-session-page .hero h1 {
+    max-width: 100%;
+    font-size: clamp(1.35rem, 7vw, 1.72rem);
+    line-height: 1.08;
+    overflow-wrap: anywhere;
+  }
+
+  .exam-score-page .hero p,
+  .exam-session-page .hero p {
+    max-width: 100%;
+    font-size: 0.76rem;
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+
+  .exam-score-page .card,
+  .exam-session-page .card {
+    min-width: 0;
+    padding: 8px 10px;
+    border-radius: 15px;
+  }
+
+  .exam-score-page .readiness {
+    min-height: 70px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(102px, 0.78fr);
+    gap: 8px;
+  }
+
+  .exam-score-page .readiness-left,
+  .exam-score-page .readiness-trend {
+    min-width: 0;
+  }
+
+  .exam-score-page .readiness-left h2 {
+    font-size: 0.82rem;
+  }
+
+  .exam-score-page .readiness-score {
+    gap: 6px;
+  }
+
+  .exam-score-page .readiness-score .num {
+    font-size: 2rem;
+  }
+
+  .exam-score-page .pill {
+    padding: 4px 10px;
+    font-size: 0.68rem;
+  }
+
+  .exam-score-page .readiness-mid,
+  .exam-score-page .readiness-icon {
+    display: none;
+  }
+
+  .exam-score-page .readiness-trend svg {
+    max-width: 118px;
+    height: 36px;
+  }
+
+  .exam-score-page .readiness-trend p,
+  .exam-score-page .readiness-left .sub {
+    font-size: 0.68rem;
+  }
+
+  .exam-score-page .section-title {
+    font-size: 0.86rem;
+  }
+
+  .exam-score-page .level-card {
+    min-height: 58px;
+    display: grid;
+    grid-template-columns: 28px 36px minmax(0, 1fr) 74px;
+    gap: 7px;
+    padding: 8px 9px;
+  }
+
+  .exam-score-page .level-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 0.76rem;
+  }
+
+  .exam-score-page .level-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .exam-score-page .level-info {
+    min-width: 0;
+  }
+
+  .exam-score-page .level-info h3 {
+    font-size: 0.8rem;
+    line-height: 1.12;
+  }
+
+  .exam-score-page .level-info p {
+    font-size: 0.66rem;
+    line-height: 1.18;
+  }
+
+  .exam-score-page .level-score {
+    min-width: 0;
+    flex-basis: auto;
+  }
+
+  .exam-score-page .level-score .num-row {
+    gap: 3px;
+  }
+
+  .exam-score-page .level-score .num {
+    font-size: 1.45rem;
+  }
+
+  .exam-score-page .level-score .denom {
+    font-size: 0.68rem;
+  }
+
+  .exam-score-page .bar-track {
+    width: 72px;
+  }
+
+  .exam-score-page .level-status {
+    display: none;
+  }
+
+  .exam-score-page .legend {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .exam-score-page .legend-item {
+    min-width: 0;
+  }
+
+  .exam-score-page .legend-item .label {
+    gap: 3px;
+    font-size: 0.66rem;
+    white-space: normal;
+  }
+
+  .exam-score-page .legend-item .desc {
+    font-size: 0.6rem;
+  }
+
+  .exam-score-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .exam-score-actions .ui-button,
+  .exam-session-page .ui-button {
+    min-height: 46px;
+    padding: 8px 12px;
+    line-height: 1.15;
+    white-space: normal;
+  }
+
+  .exam-score-actions .ui-button:only-child {
+    width: min(100%, 340px);
+  }
+
+  .exam-session-page {
+    padding: 6px 8px 8px;
+  }
+
+  .exam-session-content {
+    max-width: 100%;
+    gap: 6px;
+  }
+
+  .exam-session-page .level-card {
+    grid-template-columns: 32px minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+
+  .exam-session-page .level-info {
+    min-width: 0;
+  }
+
+  .exam-session-page .level-info h3 {
+    font-size: 0.82rem;
+    line-height: 1.15;
+  }
+
+  .exam-session-page .level-info p {
+    font-size: 0.66rem;
+  }
+
+  .exam-session-page .status-pill {
+    padding: 5px 8px;
+    font-size: 0.62rem;
+  }
+
+  .exam-session-page .legend {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+  }
+
+  .exam-session-page .legend-item {
+    min-width: 0;
+  }
+
   .exam-dashboard {
     width: 100%;
     gap: 6px;
@@ -4075,6 +4291,115 @@ button:disabled {
 }
 
 @media (max-width: 620px) and (max-height: 700px) {
+  .exam-score-page {
+    padding-top: 5px;
+    padding-bottom: 6px;
+  }
+
+  .exam-score-content {
+    gap: 5px;
+  }
+
+  .exam-score-page .hero h1 {
+    font-size: 1.32rem;
+  }
+
+  .exam-score-page .hero p {
+    font-size: 0.68rem;
+  }
+
+  .exam-score-page .readiness {
+    min-height: 56px;
+    grid-template-columns: minmax(0, 1fr) 94px;
+  }
+
+  .exam-score-page .readiness-left h2,
+  .exam-score-page .readiness-left .sub,
+  .exam-score-page .readiness-trend p {
+    display: none;
+  }
+
+  .exam-score-page .readiness-score {
+    margin-bottom: 0;
+  }
+
+  .exam-score-page .readiness-score .num {
+    font-size: 1.7rem;
+  }
+
+  .exam-score-page .readiness-trend svg {
+    max-width: 92px;
+    height: 30px;
+  }
+
+  .exam-score-page .section-title {
+    font-size: 0.76rem;
+  }
+
+  .exam-score-page .level-card {
+    min-height: 48px;
+    grid-template-columns: 24px 30px minmax(0, 1fr) 58px;
+    gap: 5px;
+    padding: 5px 7px;
+  }
+
+  .exam-score-page .level-badge {
+    width: 23px;
+    height: 23px;
+    font-size: 0.65rem;
+  }
+
+  .exam-score-page .level-icon {
+    width: 29px;
+    height: 29px;
+  }
+
+  .exam-score-page .level-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .exam-score-page .level-info h3 {
+    font-size: 0.68rem;
+  }
+
+  .exam-score-page .level-info p,
+  .exam-score-page .legend-item .desc {
+    display: none;
+  }
+
+  .exam-score-page .level-score .num {
+    font-size: 1.22rem;
+  }
+
+  .exam-score-page .level-score .denom {
+    font-size: 0.56rem;
+  }
+
+  .exam-score-page .bar-track {
+    width: 56px;
+    height: 6px;
+  }
+
+  .exam-score-page .legend-card {
+    min-height: 34px;
+    padding-top: 5px;
+    padding-bottom: 5px;
+  }
+
+  .exam-score-page .legend-title {
+    font-size: 0.7rem;
+  }
+
+  .exam-score-page .legend-item .label {
+    font-size: 0.58rem;
+  }
+
+  .exam-score-actions .ui-button {
+    min-height: 42px;
+    font-size: 0.78rem;
+  }
+
   .exam-dashboard {
     gap: 4px;
     padding-top: 6px;
