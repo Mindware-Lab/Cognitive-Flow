@@ -1848,7 +1848,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         )}
         ${examScoreLevelCard(
           5,
-          "Recover & Adapt",
+          "Implement & Adapt",
           "Learn from mistakes and keep going.",
           72,
           "#1fa34a",
@@ -1884,8 +1884,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         ${
           isIntro
             ? button("Begin the exam-resilience demo", "start-pathway")
-            : `${button("View partner pilot outputs", "dashboard-continue")}
-               ${button("Run the demo again", "restart", "secondary")}`
+            : button("Please provide pilot feedback", "dashboard-continue")
         }
         </div>
       </div>
@@ -1903,7 +1902,7 @@ function renderExamSessionStep(
     ["Hold the Information", "Keep rules and details in mind.", "#7c3aed"],
     ["Predict the Next Step", "See what comes next and spot problems.", "#0f9b8e"],
     ["Think It Through", "Test your thoughts and make smarter choices.", "#ea7c1f"],
-    ["Recover & Adapt", "Learn from mistakes and keep going.", "#1fa34a"],
+    ["Implement & Adapt", "Learn from mistakes and keep going.", "#1fa34a"],
   ] as const;
   const progress = (currentStep - 1) * 25;
   return shell(`
@@ -1959,7 +1958,7 @@ function renderTransferCheck(): string {
     <main class="exam-session-page">
       <div class="exam-session-content is-transfer-check">
         <div class="hero">
-          <h1>Recover & Adapt</h1>
+          <h1>Implement & Adapt</h1>
           <p>Turn the reasoning practice into a small exam-pressure plan.</p>
         </div>
         <div class="card progress-card">
@@ -2000,7 +1999,7 @@ function renderPathway(): string {
       bandwidth: [2, "Continue to hold-the-information task", "continue-memory"],
       memory: [3, "Continue to predict-the-next-step task", "continue-sr"],
       prediction: [4, "Continue to think-it-through task", "continue-reasoning"],
-      recovery: [5, "Start recover-and-adapt check", "start-transfer-check"],
+      recovery: [5, "Start implement-and-adapt check", "start-transfer-check"],
     }[state.pathwayCheckpoint] as [1 | 2 | 3 | 4 | 5, string, string];
     return renderExamSessionStep(sessionStep[0], sessionStep[1], sessionStep[2]);
   }

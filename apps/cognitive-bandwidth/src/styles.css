@@ -2494,6 +2494,8 @@ button:disabled {
 
 .exam-score-actions .ui-button:only-child {
   grid-column: 1 / -1;
+  width: min(100%, 420px);
+  justify-self: center;
 }
 
 .exam-session-page {

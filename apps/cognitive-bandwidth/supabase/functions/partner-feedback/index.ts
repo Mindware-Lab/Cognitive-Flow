@@ -95,6 +95,14 @@ Deno.serve(async (request) => {
         : null,
     user_agent: cleanText(request.headers.get("User-Agent"), 500),
   });
-  if (error) return json(500, { error: "Feedback could not be stored." });
+  if (error) {
+    console.error("partner-feedback insert failed", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return json(500, { error: "Feedback could not be stored." });
+  }
   return json(200, { accepted: true });
 });
