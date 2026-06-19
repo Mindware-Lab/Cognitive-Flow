@@ -1,25 +1,25 @@
 import { DEMO_CONDITIONS } from "./generator";
+import {
+  CAPACITY_CONDITIONS,
+  CAPACITY_GUESS_RATE,
+  CAPACITY_MIN_RT_MS,
+  CAPACITY_P0,
+  CAPACITY_RESPONSE_WINDOW_MS,
+} from "./capacityModel";
 import type { CapacityEstimate, Ratio, TrialCondition, TrialResult } from "./types";
-
-const GROUP_PROBABILITY: Record<Ratio, number> = {
-  "5:0": 1,
-  "4:1": 0.4,
-  "3:2": 0.1,
-};
-
-const P0 = 0.98;
-const GUESS = 0.5;
 
 export function predictedCorrect(
   capacityBps: number,
   ratio: Ratio,
   exposureMs: number,
-  p0 = P0,
+  p0 = CAPACITY_P0,
 ): number {
-  const groupProbability = GROUP_PROBABILITY[ratio];
-  const samples = (2 ** capacityBps * (exposureMs / 1000)) / 3;
+  const condition = CAPACITY_CONDITIONS[ratio];
+  const samples =
+    (2 ** capacityBps * (exposureMs / 1000)) / condition.nMajoritySample;
+  const groupProbability = condition.groupProbability;
   const searchProbability = 1 - (1 - groupProbability) ** samples;
-  return p0 * searchProbability + GUESS * (1 - searchProbability);
+  return p0 * searchProbability + CAPACITY_GUESS_RATE * (1 - searchProbability);
 }
 
 function likelihood(capacityBps: number, trials: readonly TrialResult[]): number {
@@ -41,7 +41,15 @@ function likelihood(capacityBps: number, trials: readonly TrialResult[]): number
 
 export function estimateCapacity(results: readonly TrialResult[]): CapacityEstimate {
   const valid = results.filter(
-    (result) => !result.trial.practice && !result.timingContaminated && result.response !== null,
+    (result) =>
+      !result.trial.practice &&
+      !CAPACITY_CONDITIONS[result.trial.ratio].isCatch &&
+      !result.timingContaminated &&
+      result.response !== null &&
+      result.rtMs !== null &&
+      result.rtMs >= CAPACITY_MIN_RT_MS &&
+      result.rtMs <= CAPACITY_RESPONSE_WINDOW_MS &&
+      result.exposureMsActual > 0,
   );
   if (!valid.length) {
     return {
@@ -103,7 +111,7 @@ export function chooseNextCondition(
   const candidates = DEMO_CONDITIONS.filter(
     (condition) => !timingLimited || condition.exposureMs >= 500,
   );
-  if (results.filter((result) => !result.trial.practice).length % 9 === 8) {
+  if (results.filter((result) => !result.trial.practice).length % 10 === 9) {
     return { ratio: "5:0", exposureMs: timingLimited ? 1000 : 500 };
   }
   const weighted = candidates.map((condition) => {

@@ -10,24 +10,9 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
-export async function sendMagicLink(email: string): Promise<void> {
-  if (!supabase) throw new Error("Email sign-in is not configured for this preview.");
-  const { error } = await supabase.auth.signInWithOtp({
-    email,
-    options: {
-      emailRedirectTo: `${window.location.origin}${window.location.pathname}`,
-      shouldCreateUser: true,
-    },
-  });
-  if (error) throw error;
-}
-
 export interface PartnerFeedbackPayload {
   runId: string;
   prototypeVersion: string;
-  audience: string;
-  clarity: number;
-  credibility: number;
   fit: string;
   evidence: string;
   interest: string;
@@ -39,9 +24,8 @@ export interface PartnerFeedbackPayload {
   website: string;
 }
 
-export async function submitPartnerFeedback(payload: PartnerFeedbackPayload): Promise<boolean> {
-  if (!supabase) return false;
+export async function submitPartnerFeedback(payload: PartnerFeedbackPayload): Promise<void> {
+  if (!supabase) throw new Error("Feedback storage is not configured for this demo.");
   const { error } = await supabase.functions.invoke("partner-feedback", { body: payload });
   if (error) throw new Error(error.message);
-  return true;
 }

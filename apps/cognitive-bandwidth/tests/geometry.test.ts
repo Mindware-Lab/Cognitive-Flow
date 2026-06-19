@@ -44,8 +44,8 @@ describe("geometry", () => {
   });
 
   it("uses a bounded, versioned arrow silhouette", () => {
-    expect(ARROW_HEAD_LENGTH_RATIO).toBe(0.35);
-    expect(ARROW_HEAD_WIDTH_RATIO).toBe(0.54);
+    expect(ARROW_HEAD_LENGTH_RATIO).toBe(0.5);
+    expect(ARROW_HEAD_WIDTH_RATIO).toBe(1);
     expect(ARROW_SHAFT_WIDTH_RATIO).toBe(0.18);
     const coordinates = arrowPolygonPoints()
       .split(" ")

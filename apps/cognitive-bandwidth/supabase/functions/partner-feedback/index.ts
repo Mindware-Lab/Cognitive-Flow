@@ -6,16 +6,6 @@ const CORS = {
   "Access-Control-Allow-Methods": "POST, OPTIONS",
 };
 
-const AUDIENCES = new Set([
-  "Education or training",
-  "Corporate learning",
-  "Research or university",
-  "Cognitive performance practice",
-  "Affiliate or referral partner",
-  "Funding or product development",
-  "Other",
-]);
-
 const INTERESTS = new Set([
   "Discuss a pilot",
   "Discuss an affiliate relationship",
@@ -27,9 +17,6 @@ const INTERESTS = new Set([
 interface FeedbackPayload {
   runId: string;
   prototypeVersion?: string;
-  audience: string;
-  clarity: number;
-  credibility: number;
   fit?: string;
   evidence?: string;
   interest: string;
@@ -54,10 +41,6 @@ function cleanText(value: unknown, maximum: number): string | null {
   return cleaned ? cleaned.slice(0, maximum) : null;
 }
 
-function validRating(value: unknown): value is number {
-  return typeof value === "number" && Number.isInteger(value) && value >= 1 && value <= 5;
-}
-
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (request.method !== "POST") return json(405, { error: "Method not allowed." });
@@ -78,10 +61,6 @@ Deno.serve(async (request) => {
   if (typeof payload.runId !== "string" || !/^[a-f0-9]{16,128}$/i.test(payload.runId)) {
     return json(400, { error: "Invalid run identifier." });
   }
-  if (!AUDIENCES.has(payload.audience)) return json(400, { error: "Invalid audience." });
-  if (!validRating(payload.clarity) || !validRating(payload.credibility)) {
-    return json(400, { error: "Ratings must be between 1 and 5." });
-  }
   if (!INTERESTS.has(payload.interest)) return json(400, { error: "Invalid interest selection." });
 
   const email = cleanText(payload.email, 320);
@@ -95,9 +74,6 @@ Deno.serve(async (request) => {
   const { error } = await supabase.from("cognitive_bandwidth_partner_feedback").insert({
     run_id: payload.runId,
     prototype_version: cleanText(payload.prototypeVersion, 80) || "partner-prototype-v1",
-    audience: payload.audience,
-    clarity: payload.clarity,
-    credibility: payload.credibility,
     fit: cleanText(payload.fit, 2000),
     evidence_needed: cleanText(payload.evidence, 2000),
     interest: payload.interest,

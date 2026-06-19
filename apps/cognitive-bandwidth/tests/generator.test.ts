@@ -29,10 +29,12 @@ describe("trial generator", () => {
     }
   });
 
-  it("includes every fixed-five incongruent ratio at all four published exposure times", () => {
+  it("includes every fixed-five estimation ratio across the adaptive MVP exposure grid", () => {
     expect(DEMO_CONDITIONS).toEqual(
       ["4:1", "3:2"].flatMap((ratio) =>
-        [250, 500, 1000, 2000].map((exposureMs) => ({ ratio, exposureMs })),
+        [120, 160, 200, 250, 320, 400, 500, 650, 800, 1000].map(
+          (exposureMs) => ({ ratio, exposureMs }),
+        ),
       ),
     );
   });

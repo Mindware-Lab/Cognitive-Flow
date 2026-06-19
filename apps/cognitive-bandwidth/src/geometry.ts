@@ -9,10 +9,11 @@ export const PAPER_ARROW_TO_RADIUS_RATIO = 0.37 / 1.5;
 export const ARROW_LENGTH = STIMULUS_RADIUS * PAPER_ARROW_TO_RADIUS_RATIO;
 export const MASK_DIAMETER = ARROW_LENGTH;
 
-// The paper fixes total arrow length but not the internal silhouette proportions.
-// These versioned proportions produce a conventional, legible arrow at small sizes.
-export const ARROW_HEAD_LENGTH_RATIO = 0.35;
-export const ARROW_HEAD_WIDTH_RATIO = 0.54;
+// Match the arrowhead triangle to approximately one half of the diamond mask.
+// The mask and full arrow share a diameter, so this uses half that length and
+// the full mask width for a consistent silhouette at every rendered size.
+export const ARROW_HEAD_LENGTH_RATIO = 0.5;
+export const ARROW_HEAD_WIDTH_RATIO = 1;
 export const ARROW_SHAFT_WIDTH_RATIO = 0.18;
 
 export const OCTAGON_POSITIONS: Point[] = Array.from({ length: 8 }, (_, index) => {
