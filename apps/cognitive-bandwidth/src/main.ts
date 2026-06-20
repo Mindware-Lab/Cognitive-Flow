@@ -1790,7 +1790,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         ${examScoreLevelCard(
           1,
           "Focus Under Pressure",
-          "Stay focused when things get tough.",
+          "Stay with the cue despite worry and time pressure.",
           80,
           "#1d56d8",
           "#e7eefd",
@@ -1804,7 +1804,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         ${examScoreLevelCard(
           2,
           "Hold the Information",
-          "Keep rules and details in mind.",
+          "Hold what the question asks and how ideas connect.",
           62,
           "#7c3aed",
           "#f1e9fc",
@@ -1818,7 +1818,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         ${examScoreLevelCard(
           3,
           "Predict the Next Step",
-          "See what comes next and spot problems.",
+          "Predict the next move: try, skip, check or return.",
           48,
           "#0f9b8e",
           "#e3f6f4",
@@ -1833,7 +1833,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         ${examScoreLevelCard(
           4,
           "Think It Through",
-          "Test your thoughts and make smarter choices.",
+          "Infer what follows and resist catastrophic appraisals.",
           55,
           "#ea7c1f",
           "#fdedda",
@@ -1849,7 +1849,7 @@ function renderExamResilienceDashboard(mode: "intro" | "final" = "final"): strin
         ${examScoreLevelCard(
           5,
           "Implement & Adapt",
-          "Learn from mistakes and keep going.",
+          "Carry out the plan, then adapt from feedback.",
           72,
           "#1fa34a",
           "#e3f6e8",
@@ -1898,11 +1898,11 @@ function renderExamSessionStep(
   action: string,
 ): string {
   const tasks = [
-    ["Focus Under Pressure", "Stay focused when things get tough.", "#1d56d8"],
-    ["Hold the Information", "Keep rules and details in mind.", "#7c3aed"],
-    ["Predict the Next Step", "See what comes next and spot problems.", "#0f9b8e"],
-    ["Think It Through", "Test your thoughts and make smarter choices.", "#ea7c1f"],
-    ["Implement & Adapt", "Learn from mistakes and keep going.", "#1fa34a"],
+    ["Focus Under Pressure", "Stay with the cue despite worry and time pressure.", "#1d56d8"],
+    ["Hold the Information", "Hold what the question asks and how ideas connect.", "#7c3aed"],
+    ["Predict the Next Step", "Predict the next move: try, skip, check or return.", "#0f9b8e"],
+    ["Think It Through", "Infer what follows and resist catastrophic appraisals.", "#ea7c1f"],
+    ["Implement & Adapt", "Carry out the plan, then adapt from feedback.", "#1fa34a"],
   ] as const;
   const progress = (currentStep - 1) * 25;
   return shell(`
