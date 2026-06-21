@@ -1959,3 +1959,785 @@ The final graph-engine principle is:
 ```text
 Capacity is estimated by how much typed graph complexity the user can handle while maintaining criterion performance across memory, binding, prediction and reasoning projections.
 ```
+---
+Yes — that is almost exactly the right architecture. I would make one refinement:
+
+```text id="f51o9c"
+Do not generate separate graphs for each layer.
+Generate 1–3 session graphs, then project those same graphs into each layer.
+```
+
+The graph spec explicitly supports this: one shared graph engine should generate structured tasks for **Relational Memory → Binding Memory → Path Prediction → Reasoning**, with the same hidden graph projected into different cognitive operations. It also states that Attention Control/CCC remains the lower-level signal-extraction layer rather than the main graph-learning layer. 
+
+## Recommended session design
+
+For a normal training session, I would use:
+
+```text id="9w9kne"
+1 primary graph class
++ 1 secondary/review graph class
++ optional delayed probe graph
+```
+
+So usually:
+
+```text id="dyyz5p"
+1–2 graph classes per session
+```
+
+not all four every time.
+
+For a benchmark session, you can use:
+
+```text id="m6bk68"
+2–4 graph classes
+```
+
+because the goal is broader profiling rather than efficient learning.
+
+## Why not train all four reasoning classes every game?
+
+If every session trains:
+
+```text id="p79xvk"
+Order
+Transformation
+Context / Constraint
+Probabilistic Path
+```
+
+then each graph gets too little depth. The user may experience variety, but you lose a clean learning curve and clean recovery signal.
+
+Better:
+
+```text id="il5oyf"
+standard session:
+one focus family deeply
+one review/bridge family lightly
+
+benchmark:
+all four families sampled
+```
+
+A good weekly rotation would be:
+
+| Day/session | Primary graph                | Secondary graph       |
+| ----------- | ---------------------------- | --------------------- |
+| 1           | Order / Chain                | Transformation        |
+| 2           | Transformation / Analogy     | Order review          |
+| 3           | Context / Constraint         | Transformation review |
+| 4           | Probabilistic Path           | Context review        |
+| 5           | Mixed review                 | weakest family        |
+| 6           | Wrapper-transfer focus       | delayed graph         |
+| 7           | Benchmark / delayed re-check | all families lightly  |
+
+## Your proposed pipeline, refined
+
+### 1. Generate session graphs
+
+At session start, generate a small graph bundle:
+
+```ts id="y97tzk"
+SessionGraphBundle = {
+  primaryGraph: GraphSpec,
+  secondaryGraph?: GraphSpec,
+  delayedProbeGraph?: GraphSpec,
+  benchmarkGraphs?: GraphSpec[]
+}
+```
+
+For a standard session:
+
+```text id="ooa3yo"
+primaryGraph = the main family being trained
+secondaryGraph = previous family or adjacent family
+delayedProbeGraph = old graph from a prior session
+```
+
+Each graph should have a stored graph class, active states, transitions, lures, wrappers and difficulty vector. The spec says every generated block should store graph ID, version, graph class, difficulty vector, wrapper set, lure rules and projection rules. 
+
+### 2. Run CCC as a wrapper-readiness gate
+
+Yes. CCC should run before the graph games and answer:
+
+```text id="d9s8m9"
+Which stimulus wrappers can this user currently extract reliably today?
+```
+
+For example:
+
+```text id="lixl5o"
+arrow absolute: ready
+arrow relational: ready
+Gabor orientation: ready
+Gabor frequency: stretch
+optic-flow expansion/contraction: probe only
+optic-flow rotation: not ready today
+```
+
+Then the graph games use this to select renderings.
+
+```ts id="u4k8s1"
+eligibleWrappers = {
+  train: ["arrow.absolute", "arrow.relational", "gabor.orientation"],
+  probe: ["optic_flow.radial"],
+  exclude: ["optic_flow.rotation"]
+}
+```
+
+Important: CCC should **not** generate the graph. It constrains the graph’s rendering layer.
+
+So the logic is:
+
+```text id="jaxfwl"
+CCC:
+Can the user extract this wrapper?
+
+Graph games:
+Can the user use the graph relation through that wrapper?
+```
+
+### 3. Use the same graphs for Relational n-back
+
+Yes.
+
+The Relational Memory projection should use the graph to generate:
+
+```text id="81bfdr"
+state-token n-back
+relation-token n-back
+operator-token n-back
+edge-token n-back
+context-bound token n-back
+```
+
+Example with a transformation graph:
+
+```text id="1vjeex"
+Graph:
+blue-IN → blue-CW
+green-IN → green-CW
+
+Relational n-back token:
+operator = rotate one step clockwise
+
+Task:
+Did the same transformation occur n-back?
+```
+
+The graph spec defines Relational Memory exactly this way: the graph acts as the target and lure generator, and the task asks whether the current graph-derived token matches the one n trials back. 
+
+### 4. Use the same graphs for Binding Memory
+
+Yes.
+
+Binding Memory should use the same graph but change the token type:
+
+```text id="44sytl"
+relation
+→ relation × colour
+→ relation × colour × context
+→ edge × context
+→ path-fragment × context
+```
+
+Example:
+
+```text id="36kpqx"
+Relational Memory:
+OUT matches OUT
+
+Binding Memory:
+OUT + blue matches OUT + blue
+but not OUT + green
+```
+
+This is where the same graph becomes a binding task rather than just a relation-maintenance task. The spec defines Binding Memory as comparing bound graph states, with bound tokens such as `relation × colour`, `relation × colour × context`, `edge × context`, and `path-fragment × context`. 
+
+### 5. Use the same graphs for Path Prediction
+
+Yes — this is the strongest part of the design.
+
+The same graph now becomes the thing the user learns:
+
+```text id="2pbsbc"
+What usually follows?
+Did the graph break?
+Can this path still reach the target?
+Was this transition rare, invalid or blocked?
+```
+
+Example:
+
+```text id="vwq8ci"
+A → B → C → D
+```
+
+Relational n-back asks:
+
+```text id="gbl902"
+Did this edge match the one 2-back?
+```
+
+Binding n-back asks:
+
+```text id="hzsyvq"
+Did this bound state match the one 2-back?
+```
+
+Path Prediction asks:
+
+```text id="6iqmwu"
+If A appeared, was B expected?
+Can A reach C?
+Is C→A a reversal lure?
+```
+
+The graph spec’s Path Prediction projection uses expected transitions, rare-valid transitions, invalid transitions, wrong-context transitions, blocked-path events and wrapper-shifted valid transitions. 
+
+### 6. Use the same graphs for Explicit Reasoning
+
+Yes.
+
+The explicit reasoning layer should express the same graph as:
+
+```text id="m5ubcw"
+symbolic
+nonsense-semantic
+domain-semantic
+```
+
+For example:
+
+```text id="pz6kj1"
+Visual graph:
+A → B → C
+
+Symbolic:
+A leads to B.
+B leads to C.
+Therefore, A can reach C.
+
+Nonsense:
+The flarn leads to the nidge.
+The nidge leads to the borp.
+Therefore, the flarn can reach the borp.
+
+Domain:
+Step A leads to Step B.
+Step B leads to Step C.
+Therefore, Step A can eventually reach Step C.
+```
+
+The spec says Reasoning should express the same graph as premises, rules, analogies or path claims, with symbolic, nonsense-semantic and domain-semantic wrappers. 
+
+## Concrete session flow
+
+A standard session could look like this:
+
+```text id="4gvfi8"
+0. Select session focus
+   Example: Transformation / Analogy
+
+1. Generate graph bundle
+   primaryGraph = transformation_analogy
+   secondaryGraph = order_chain review
+   delayedProbeGraph = previous context_constraint graph
+
+2. CCC wrapper check
+   Test arrow absolute / arrow relational / Gabor / optic-flow as needed
+
+3. Select rendering wrappers
+   trainWrapper = best reliable wrapper
+   probeWrapper = one stretch wrapper
+   excludeWrapper = currently unreliable wrapper
+
+4. Relational Memory block
+   same graph, relation/operator token n-back
+
+5. Binding Memory block
+   same graph, relation × colour or operator × colour n-back
+
+6. Path Prediction block
+   same graph, expected / invalid / rare-valid stream
+
+7. Reasoning bridge
+   same graph expressed symbolically or verbally
+
+8. Optional delayed re-check
+   old graph, changed wrapper, short block
+
+9. Update graph and wrapper states
+   Store graph performance, wrapper recovery, lures, delay status
+```
+
+## Example: one graph across all layers
+
+### Graph class
+
+```text id="icgo6u"
+transformation_analogy
+```
+
+### Hidden graph
+
+```text id="z5arcl"
+blue-IN → blue-CW
+green-IN → green-CW
+purple-IN → purple-CW
+```
+
+### Core invariant
+
+```text id="qwg2yo"
+same operator: rotate relation one step clockwise
+```
+
+### CCC
+
+```text id="ylyhpe"
+Can the user extract IN, OUT, CW, CCW in the selected wrapper?
+```
+
+### Relational Memory
+
+```text id="onw10p"
+Did the same transformation occur 2-back?
+```
+
+### Binding Memory
+
+```text id="5hbemo"
+Did the same transformation occur with the same colour 2-back?
+```
+
+### Path Prediction
+
+```text id="tktq6p"
+Given blue-IN, is blue-CW the expected successor?
+Is blue-OUT a wrong-operator lure?
+```
+
+### Reasoning
+
+```text id="j5psku"
+A changes to B in the same way C changes to D.
+Same relation or different relation?
+```
+
+This gives you a clean vertical line:
+
+```text id="edx5h6"
+extract relation
+→ hold transformation
+→ bind transformation to colour
+→ predict transformation outcome
+→ reason explicitly about same-change
+```
+
+## How many graphs per game?
+
+My recommendation:
+
+| Session type                | Graph classes | Graph objects | Purpose                            |
+| --------------------------- | ------------: | ------------: | ---------------------------------- |
+| Short daily                 |             1 |             1 | Focused training                   |
+| Standard 15–20 min          |           1–2 |           2–3 | Primary training + review/probe    |
+| Benchmark                   |             4 |           4–8 | Broad profile                      |
+| Delayed transfer session    |           2–3 |           3–5 | Old graph recovery across wrappers |
+| Adaptive bottleneck session |             1 |           1–2 | Repair one weak layer              |
+
+For the normal product:
+
+```text id="o6ki69"
+one primary graph class per session
+one secondary or delayed graph for review
+```
+
+That is enough.
+
+## Key design rule
+
+The graph should be the stable object. The layer should change the question.
+
+```text id="m94jw5"
+Same graph.
+Different cognitive operation.
+Different wrapper.
+Different lure.
+Different delay.
+```
+
+So yes, your six steps work, with this refinement:
+
+```text id="s0vm22"
+CCC constrains wrappers.
+The graph bundle drives WM, Binding, Path Prediction and Reasoning.
+Each block uses a projection of the same graph, not a newly unrelated graph.
+```
+
+That gives the game a coherent vertical stack rather than five separate mini-games.
+
+---
+
+Yes — exactly. The graph should define the **depth of the skill**, not just the visual sequence.
+
+A good formulation is:
+
+```text
+graph class = type of inference
+graph depth = complexity of that inference
+layer projection = how that inference is tested
+```
+
+So an `order_chain` graph, for example, can be shallow or deep:
+
+```text
+L1: A → B
+L2: A → B → C
+L3: A → B → C → D
+L4: A → B → C with reversal lures
+L5: delayed / mixed-wrapper chain recovery
+```
+
+The attached graph spec says the graph engine should generate “structured, typed, reusable relational worlds”, with capacity estimated by how much **typed graph complexity** the user can handle across memory, binding, prediction and reasoning projections. 
+
+## 1. Graphs define inference type
+
+The graph class determines the kind of skill being trained:
+
+| Graph class              | Skill / inference type                             | Core invariant                        |
+| ------------------------ | -------------------------------------------------- | ------------------------------------- |
+| `order_chain`            | chain / transitive / reachability inference        | ordered relations compose             |
+| `transformation_analogy` | same-change / analogy inference                    | same operator maps different states   |
+| `context_constraint`     | rule / condition / constraint inference            | context determines what is valid      |
+| `probabilistic_path`     | likely / rare / blocked / counterfactual inference | current state constrains future paths |
+
+So the graph class answers:
+
+```text
+What kind of inference is this?
+```
+
+## 2. Graph depth defines skill complexity
+
+The graph depth answers:
+
+```text
+How much structure must the learner maintain, bind, predict or reason through?
+```
+
+That depth can be controlled through the graph complexity vector:
+
+```text
+state count
+edge count
+relation alphabet size
+bound-state space
+operator count
+context count
+branching entropy
+probability contrast
+successor surprisal
+prediction horizon
+n-back level
+lure pressure
+wrapper shift
+delay
+response-set complexity
+```
+
+So yes: the graph is not just the content. It is the **difficulty object**.
+
+## 3. For relational n-back
+
+The graph specifies:
+
+```text
+token type
+n-level
+relation alphabet size
+lure type
+wrapper shift
+delay
+```
+
+Example:
+
+```text
+Graph:
+A → B → C → D
+
+Relational n-back token:
+edge token
+
+n = 2
+
+Task:
+Does the current edge match the edge 2-back?
+```
+
+Lures are graph-derived:
+
+```text
+wrong-lag edge
+reversal edge
+broken-chain edge
+same successor / wrong source
+same relation / wrong wrapper
+```
+
+So difficulty is not just:
+
+```text
+2-back vs 3-back
+```
+
+It is:
+
+```text
+2-back over what kind of graph token, with what lure pressure?
+```
+
+That is a much better model.
+
+## 4. For binding / associative-memory n-back
+
+The same graph specifies the bound state space:
+
+```text
+relation
+→ relation × colour
+→ relation × colour × context
+→ edge × context
+→ path-fragment × context
+```
+
+Example:
+
+```text
+A = OUT + blue
+B = CW + yellow
+C = IN + green
+
+Task:
+Does the current bound state match the one 2-back?
+```
+
+Lures:
+
+```text
+same relation, wrong colour
+same colour, wrong relation
+wrong context
+wrong graph role
+wrong-lag conjunction
+wrapper-shifted conjunction
+```
+
+So Binding Memory depth is controlled by:
+
+```text
+binding arity × n-level × lure pressure × wrapper shift
+```
+
+In simple terms:
+
+```text
+Relational n-back:
+Can you hold the relation?
+
+Binding n-back:
+Can you hold what belongs with what?
+```
+
+## 5. For predictive path games
+
+The graph determines the **inference structure of prediction**.
+
+For example:
+
+```text
+P(B | A) = .80
+P(C | A) = .20
+P(D | B) = .90
+P(E | C) = .90
+```
+
+Shallow Path Prediction:
+
+```text
+What usually follows A?
+```
+
+Deeper Path Prediction:
+
+```text
+If A goes to C, can the path still reach D?
+```
+
+Even deeper:
+
+```text
+Was C rare, impossible, blocked, or counterfactual?
+```
+
+The depth is determined by:
+
+```text
+branching factor
+transition entropy
+probability contrast
+successor surprisal
+horizon length
+rare-valid lures
+invalid-edge lures
+blocked-path lures
+counterfactual lures
+context gates
+wrapper shifts
+```
+
+So yes: the graph specifies the complexity of the **predictive inference**, not just the next stimulus.
+
+## 6. For reasoning
+
+The reasoning layer should express the same graph as an explicit inference problem.
+
+Example graph:
+
+```text
+A → B → C
+```
+
+Shallow reasoning item:
+
+```text
+A leads to B.
+B leads to C.
+Therefore, A can reach C.
+```
+
+Deeper item:
+
+```text
+A leads to B.
+B leads to C.
+D also leads to C.
+Therefore, A leads to D.
+```
+
+Correct answer:
+
+```text
+Cannot tell
+```
+
+So the graph determines the reasoning demand:
+
+```text
+graph distance
+premise count
+relation count
+identity bindings
+context gates
+branching entropy
+lure pressure
+wrapper difficulty
+response-set complexity
+delay
+```
+
+I would avoid making the reasoning layer purely `true / false`. Use:
+
+```text
+Valid / Invalid / Cannot tell
+```
+
+or:
+
+```text
+Likely / Rare / Impossible
+```
+
+or:
+
+```text
+On path / Blocked / Cannot tell
+```
+
+That preserves the distinction between invalid, unsupported, rare and merely uncertain.
+
+## 7. The core implementation principle
+
+Each session graph should produce a set of **projection specifications**:
+
+```ts
+GraphProjectionDepth = {
+  relationalMemory: {
+    tokenType: "relation" | "edge" | "operator" | "path_fragment",
+    nLevel: 1 | 2 | 3 | 4,
+    lurePressure: number,
+    wrapperShift: number
+  },
+
+  bindingMemory: {
+    boundTokenType: "relation_colour" | "relation_colour_context" | "edge_context",
+    nLevel: 1 | 2 | 3 | 4,
+    partialMatchLures: number,
+    swapLures: number,
+    wrapperShift: number
+  },
+
+  pathPrediction: {
+    horizon: 1 | 2 | 3,
+    branchingEntropy: number,
+    probabilityContrast: number,
+    rareValidRate: number,
+    invalidRate: number,
+    blockedPathRate: number
+  },
+
+  reasoning: {
+    premiseCount: number,
+    graphDistance: number,
+    relationCount: number,
+    contextGateCount: number,
+    lureType: string[],
+    responseFormat: "valid_invalid_cannot_tell" | "likely_rare_impossible" | "on_path_blocked"
+  }
+}
+```
+
+So the graph does two jobs:
+
+```text
+1. Defines the inference family.
+2. Defines the depth of the inference across layers.
+```
+
+## 8. Best final formulation
+
+I would define capacity like this:
+
+```text
+Capacity = the amount of typed graph complexity a user can handle at criterion performance.
+```
+
+Then each layer estimates a different version of that:
+
+```text
+Relational Memory:
+How much graph-token complexity can be held across delay?
+
+Binding Memory:
+How much bound-state complexity can be held across delay?
+
+Path Prediction:
+How much successor-graph complexity can be used to predict futures?
+
+Reasoning:
+How much explicit graph-inference complexity can be solved across symbolic, nonsense and domain wrappers?
+```
+
+ e skill.
