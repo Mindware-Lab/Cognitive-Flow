@@ -1,3 +1,217 @@
+The CCC / Attention Control level can use the **same stimulus vocabulary** that later feeds Relational Memory and Binding Memory, but with a different task demand.
+
+The clean structure is:
+
+```text
+CCC-A: Feature majority
+→ extracts the relation token used later in Relational Memory
+
+CCC-B: Conjunction majority
+→ extracts the bound-state token used later in Binding Memory
+```
+
+So CCC becomes the **signal-extraction layer** for the later memory layers.
+
+## 1. CCC-A: relation / feature majority
+
+This is the simple arrow or optic-flow majority task.
+
+### Arrow examples
+
+```text
+5 arrows:
+3 OUT, 2 IN
+Correct response: OUT
+```
+
+or:
+
+```text
+5 arrows:
+4 CW, 1 CCW
+Correct response: CW
+```
+
+### Optic-flow examples
+
+```text
+5 flow patches:
+3 EXPAND, 2 CONTRACT
+Correct response: EXPAND
+```
+
+or:
+
+```text
+5 flow patches:
+4 CW flow, 1 CCW flow
+Correct response: CW
+```
+
+This extracts the **relation token**:
+
+```text
+OUT
+IN
+CW
+CCW
+LEFT
+RIGHT
+EXPAND
+CONTRACT
+```
+
+That same relation token then becomes the object of the **Relational Memory** task:
+
+```text
+Does the current relation match 2-back?
+```
+
+So yes:
+
+```text
+CCC-A extracts the relation.
+Relational Memory holds the relation.
+```
+
+This fits the full app logic that Attention Control estimates how efficiently the user extracts a target relation from a brief, masked, noisy display, while Relational Memory asks whether the user can hold and compare relation tokens across delay. 
+
+## 2. CCC-B: conjunction / bound-state majority
+
+This is the binding precursor.
+
+Instead of asking:
+
+```text
+Were most items OUT or IN?
+```
+
+you ask:
+
+```text
+Which relation × colour pair was most common?
+```
+
+Example 10-stimulus display:
+
+```text
+OUT + blue
+OUT + yellow
+IN + blue
+OUT + blue
+IN + yellow
+OUT + blue
+IN + blue
+OUT + blue
+OUT + yellow
+IN + yellow
+```
+
+Counts:
+
+```text
+OUT + blue = 4
+OUT + yellow = 2
+IN + blue = 2
+IN + yellow = 2
+```
+
+Correct response:
+
+```text
+OUT + blue
+```
+
+This extracts the **bound-state token**:
+
+```text
+OUT + blue
+CW + yellow
+LEFT + green
+EXPAND + purple
+```
+
+That same bound state then becomes the object of the **Binding Memory** task:
+
+```text
+Does the current bound state match 2-back?
+```
+
+The full app spec already defines bound states as relation × colour, relation × colour × context, carrier × relation × colour, etc., and gives examples such as `OUT + blue`, `CW + yellow`, `LEFT + green`, and `IN + purple`. 
+
+## 3. The 10-stimulus ratio structure
+
+For the conjunction-majority CCC task, the Kimi-style ratio structure works well:
+
+| Ratio        | Meaning                             | Use                       |
+| ------------ | ----------------------------------- | ------------------------- |
+| **10:0:0:0** | one bound pair dominates completely | easy / tutorial           |
+| **7:1:1:1**  | strong bound-pair majority          | medium                    |
+| **4:2:2:2**  | weak bound-pair majority            | hard / interference-heavy |
+
+This is not a pure feature-extraction task anymore. It is better labelled internally as:
+
+```text
+Bound Signal Extraction
+```
+
+or:
+
+```text
+Conjunction Control
+```
+
+Publicly, it can still sit under **Attention Control**, but internally it should be treated as the bridge into **Binding Memory**.
+
+## Recommended final mapping
+
+| CCC subtask              | Stimulus type                            | Output token        | Feeds into           |
+| ------------------------ | ---------------------------------------- | ------------------- | -------------------- |
+| **Feature majority**     | 5 arrows or flow patches                 | relation            | Relational Memory    |
+| **Conjunction majority** | 10 arrow/flow + colour items             | bound state         | Binding Memory       |
+| **Graph stream**         | same bound states in transition sequence | path relation       | Path WM / Prediction |
+| **Reasoning**            | same graph made explicit                 | inference structure | Reasoning            |
+
+So the vertical chain becomes:
+
+```text
+CCC-A:
+extract relation
+
+Relational Memory:
+hold relation
+
+CCC-B:
+extract bound state
+
+Binding Memory:
+hold bound state
+
+Path WM / Prediction:
+learn transitions between bound states
+
+Reasoning:
+recover the graph explicitly
+```
+
+## Key implementation rule
+
+Use the **same stimulus vocabulary**, but change whether the order is graph-neutral or graph-structured:
+
+```text
+CCC:
+brief majority extraction, no graph transitions
+
+Relational / Binding Memory:
+same tokens, transition-neutral order
+
+Path WM / Prediction:
+same tokens, graph transitions switched on
+```
+
+That gives you clean measurement while preserving one coherent stimulus universe.
+
+---
 ## The Binary Stimulus Space
 
 Every stimulus is a conjunction of binary dimensions:
