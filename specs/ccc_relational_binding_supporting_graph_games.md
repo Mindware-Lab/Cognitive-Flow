@@ -1,4 +1,142 @@
-## Core rule
+
+
+```text
+Attention Control
+→ extract the signal
+
+Relational Memory
+→ hold the relation
+
+Binding Memory
+→ hold the bound state
+
+Path WM and Prediction
+→ learn transitions between bound states
+→ probe them through graph n-back, graph n-forward and surprise / prediction-error tasks
+
+Reasoning
+→ recover the same graph explicitly
+```
+
+That preserves the five public score cards already in the full app spec — **Attention Control, Relational Memory, Binding Memory, Path Prediction, Reasoning** — while making the internal fourth layer more precise as **Path WM + Prediction**. The full spec already says the app should use one shared graph engine across the stack, with the user moving from extracting the signal, to holding the relation, to binding it to context, to predicting from it, and then reasoning with it explicitly.  
+
+The key refinement is that **Path Prediction** is not just “watch a stream and predict what comes next”. It should include three related operations:
+
+| Path-layer task                 | What it probes                                       | Example                                       |
+| ------------------------------- | ---------------------------------------------------- | --------------------------------------------- |
+| **Graph n-back**                | Can the user hold path states or edges across delay? | “Does this bound state / edge match 2-back?”  |
+| **Graph n-forward**             | Can the user predict future recurrence?              | “Will this bound state return in 2 steps?”    |
+| **Surprise / prediction-error** | Can the user detect graph violations or foils?       | “Did the transition break the learned graph?” |
+
+This works because n-back is the retrospective WM operation — matching the current stimulus to one presented *n* trials earlier — while n-forward is the prospective mirror of that task. ([PMC][1]) The SR-style rationale is that path learning depends on expected future state structure, not just the current item, so transitions between bound states become the natural target for the prediction layer. ([PMC][2])
+
+For a given inference class, the path layer should be built from the **relations** and **bindings** established in the two previous levels:
+
+```text
+Relational Memory:
+OUT
+CW
+LEFT
+EXPAND
+
+Binding Memory:
+OUT + blue
+CW + yellow
+LEFT + green
+EXPAND + purple
+
+Path WM and Prediction:
+OUT + blue → CW + yellow → LEFT + green
+```
+
+So the inference-class graph is not independent of the lower levels. It is assembled from their outputs.
+
+For example:
+
+### Order / Chain
+
+```text
+A = OUT + blue
+B = CW + yellow
+C = IN + green
+D = CCW + purple
+
+A → B → C → D
+```
+
+The path tasks then become:
+
+```text
+Graph n-back:
+Did A → B match the edge 2-back?
+
+Graph n-forward:
+Will A return in 3 steps?
+
+Surprise:
+Did B suddenly jump to D when the graph expects C?
+```
+
+### Transformation / Analogy
+
+```text
+A = LEFT + blue
+B = RIGHT + blue
+C = LEFT + yellow
+D = RIGHT + yellow
+
+A → B
+C → D
+```
+
+The learned invariant is:
+
+```text
+same relation change, colour preserved
+```
+
+### Context / Constraint
+
+```text
+If FAST:
+A → B
+
+If SLOW:
+A → C
+```
+
+Here speed/size becomes a context cue rather than a third everyday binding dimension.
+
+### Probabilistic Path
+
+```text
+A → B with 85%
+A → C with 15%
+B → D
+C → E
+```
+
+The path layer then trains likely / rare / invalid discrimination.
+
+So the final vertical stack becomes:
+
+```text
+signal
+→ relation
+→ bound state
+→ transition graph
+→ explicit inference
+```
+
+That is the cleanest form of the IQ Coach paradigm because each layer changes the **operation**, not the underlying stimulus universe.
+
+[1]: https://pmc.ncbi.nlm.nih.gov/articles/PMC11618482/?utm_source=chatgpt.com "A computational approach to the N-back task - PMC - NIH"
+[2]: https://pmc.ncbi.nlm.nih.gov/articles/PMC6941356/?utm_source=chatgpt.com "The successor representation in human reinforcement learning"
+
+
+---
+
+## Core graph vs no-graph rule
 
 For **Relational Memory** and **Binding Memory**, the stimuli should come from the same state grammar used later in the graph:
 
