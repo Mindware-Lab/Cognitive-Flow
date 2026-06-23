@@ -1,3 +1,380 @@
+
+## 1. Current CCC game design
+
+The latest CCC spec has shifted from the older “arrows only” version into a cleaner **Attention Control / signal-extraction layer** using the same stimulus vocabulary as later Relational Memory and Binding Memory, but without graph structure. The core split is:
+
+```text
+CCC-A: Feature majority
+→ extracts a relation token
+
+CCC-B: Conjunction majority
+→ extracts a bound-state token
+```
+
+The spec explicitly says CCC is the “signal-extraction layer” for later memory layers.
+
+### CCC-A: feature / relation majority
+
+This is the purest MFT-M-style layer. The user sees a brief masked array and reports the majority relation.
+
+For arrows:
+
+```text
+5 arrows
+3 OUT, 2 IN
+correct response = OUT
+```
+
+or:
+
+```text
+5 arrows
+4 CW, 1 CCW
+correct response = CW
+```
+
+For optic flow:
+
+```text
+5 flow patches
+3 EXPAND, 2 CONTRACT
+correct response = EXPAND
+```
+
+or:
+
+```text
+5 flow patches
+4 CW flow, 1 CCW flow
+correct response = CW
+```
+
+The extracted token is a relation such as `OUT`, `IN`, `CW`, `CCW`, `LEFT`, `RIGHT`, `EXPAND`, or `CONTRACT`, and this same relation token becomes the object later held by Relational Memory.
+
+For the current version, I would lock CCC-A to:
+
+```text
+Carrier:
+arrows
+optic_flow
+
+Frame:
+absolute
+relational
+
+Binary relation axes:
+LEFT / RIGHT
+UP / DOWN
+OUT / IN
+CW / CCW
+EXPAND / CONTRACT for optic flow radial blocks
+
+Trial format:
+5 items
+majority ratios = 5:0, 4:1, 3:2
+brief exposure
+mask
+binary response
+```
+
+The 5:0, 4:1 and 3:2 ratios already exist in the spec as the feature-majority ratio ladder, with 3:2 as the high-conflict condition requiring robust accumulation.
+
+## 2. CCC-B: conjunction majority
+
+CCC-B is not a pure control task anymore. It becomes the bridge into Binding Memory. The task changes from:
+
+```text
+Were most items OUT or IN?
+```
+
+to:
+
+```text
+Which relation × feature pair was most common?
+```
+
+The current spec gives colour as the binding dimension and uses 10-item displays with ratios such as 10:0:0:0, 7:1:1:1 and 4:2:2:2. It also states that this should be labelled internally as “Bound Signal Extraction” or “Conjunction Control”, while still sitting publicly under Attention Control.
+
+For the current app direction, I would define CCC-B as:
+
+```text
+Carrier:
+arrows or optic_flow
+
+Primary relation:
+LEFT / RIGHT
+UP / DOWN
+OUT / IN
+CW / CCW
+EXPAND / CONTRACT
+
+Conjunction dimension:
+colour, initially
+
+Optional later context dimension:
+speed
+```
+
+The reason I would use **colour first** for optic-flow conjunctions is that colour is a clean arbitrary binding dimension across both carriers. It lets you ask whether the user can bind:
+
+```text
+EXPAND + blue
+CONTRACT + yellow
+CW + green
+CCW + purple
+```
+
+without changing the motion dynamics themselves. The optic-flow rationale file does allow “colour/speed” as parametric feature variation, but it frames these as dimensions superimposed on standard optic flow.
+
+I would treat **speed** differently: useful, but not ideal as the first conjunction dimension in CCC. Speed changes the motion signal itself and can confound “direction extraction” with motion salience, temporal sampling, device timing, and perceived flow strength. It is better as either:
+
+```text
+1. an optic-flow difficulty parameter
+2. a later context cue: FAST vs SLOW
+3. a Path Prediction / context-gated graph variable
+```
+
+This is already consistent with the graph-supporting note, where speed/size is described as a context cue rather than simply another everyday binding dimension.
+
+## 3. Important constraint: CCC is graph-neutral
+
+This is the most important design correction for the current stage.
+
+CCC should use the same token vocabulary as the graph stack, but **not the underlying graph transitions**. The current CCC spec states the key implementation rule clearly:
+
+```text
+CCC:
+brief majority extraction, no graph transitions
+
+Relational / Binding Memory:
+same tokens, transition-neutral order
+
+Path WM / Prediction:
+same tokens, graph transitions switched on
+```
+
+That gives clean measurement while preserving a coherent stimulus universe.
+
+So for CCC, do **not** generate sequences from Order/Chain, Transformation, Context/Constraint, or Probabilistic Path graphs. Use balanced randomised trial ordering. The user is extracting the current relation or bound relation, not learning a transition structure.
+
+## 4. Counterbalanced transfer test for CCC
+
+The counterbalanced transfer test is already well specified. For CCC specifically, the relevant transfer is:
+
+```text
+CCC arrows ↔ CCC optic flow
+```
+
+This tests whether signal extraction survives a carrier swap from static symbolic direction to dynamic motion direction.
+
+The basic counterbalanced design should be:
+
+```text
+Group A:
+arrows first → optic-flow transfer probe
+
+Group B:
+optic flow first → arrows transfer probe
+```
+
+The spec explicitly supports the 50/50 random start logic and notes that order/carryover effects should be modelled rather than ignored.
+
+For CCC only, I would implement the micro-cycle as:
+
+```text
+1. Baseline arrows
+2. Baseline optic flow
+3. Train assigned carrier
+4. Probe untrained carrier
+5. Mix arrows + optic flow
+6. Delayed re-check
+```
+
+This mirrors the recommended experimental structure: baseline A, baseline B, train A, probe B, mix A+B, delayed re-check, with the order reversed for the counterbalanced group.
+
+## 5. CCC transfer metrics
+
+Use four transfer outputs, not just one.
+
+### A. Transfer recovery ratio
+
+```text
+Transfer recovery ratio =
+performance on untrained wrapper after training
+/
+performance on trained wrapper before swap
+```
+
+This is already specified in the transfer-test file.
+
+For CCC:
+
+```text
+Arrow → optic-flow recovery =
+optic-flow probe score after arrow training
+/
+arrow score before swap
+```
+
+and:
+
+```text
+Optic-flow → arrow recovery =
+arrow probe score after optic-flow training
+/
+optic-flow score before swap
+```
+
+### B. Asymmetry index
+
+```text
+Asymmetry =
+Transfer(A → B) - Transfer(B → A)
+```
+
+The current spec gives this as the way to detect directional dependency, such as optic flow transferring better to arrows than arrows to optic flow.
+
+### C. Recovery slope
+
+After the first transfer dip, measure how quickly the user climbs back toward their trained-wrapper level.
+
+```text
+recovery_slope =
+change in untrained-wrapper score across post-swap mini-blocks
+```
+
+### D. Mixed-wrapper stability
+
+After recovery, mix arrows and optic flow in random order and compute whether performance remains stable under carrier uncertainty.
+
+```text
+mixed stability =
+mixed-wrapper performance / mean(blocked-wrapper performance)
+```
+
+The transfer spec also says to track the initial transfer dip, recovery slope, final mixed-wrapper stability, delayed recovery and lure resistance.
+
+## 6. Bits/sec: what file is missing?
+
+I did not find a dedicated GitHub implementation/spec file in `/specs` that objectively computes the CCC bits/sec quantities from gameplay. The current `ccc_specs.md` is strong on stimulus design, ratios and transfer logic, but a search of that file did not find `bits/sec`. ([GitHub][2])
+
+The bits/sec computation is present in the full app specification rather than the current GitHub CCC file: Attention Control is the CCC / MFT-M / adaptive CCC model family, its unit is bits/sec, and its demand model is:
+
+```text
+D_ACC =
+  H_extract / ET_adjusted
+  + wrapper_cost
+  + frame_cost
+  + lure_cost
+```
+
+with `H_extract` as the entropy/information demand of the majority condition and `ET_adjusted` as actual frame-counted exposure duration. 
+
+So I would add a new GitHub file:
+
+```text
+specs/attention_control_scoring.md
+```
+
+or, if moving toward implementation:
+
+```text
+src/scoring/attentionControl.ts
+```
+
+It should define:
+
+```text
+raw trial fields required:
+carrier
+frame
+relation_axis
+majority_ratio
+set_size
+target_relation
+response
+correct
+rt_ms
+requested_exposure_ms
+actual_exposure_ms
+actual_frames_displayed
+refresh_rate_estimate
+mask_ms
+timing_quality
+wrapper_id
+is_transfer_probe
+is_mixed_wrapper
+```
+
+and the objective score:
+
+```text
+effective_information =
+H_ratio × accuracy_adjustment
+
+bits_per_sec =
+effective_information / ET_adjusted_seconds
+```
+
+For a first scoring version:
+
+```text
+H_ratio table:
+5:0 = calibration-table low demand
+4:1 = calibration-table medium demand
+3:2 = calibration-table high demand
+```
+
+Do not hard-code the final entropy values permanently. Store them in a calibration table so they can be updated when empirical data arrives.
+
+## 7. Recommended lock for CCC v1
+
+I would lock CCC v1 like this:
+
+```text
+Public label:
+Attention Control
+
+Internal:
+CCC / adaptive MFT-style majority task
+
+Stimulus carriers:
+arrows
+optic_flow
+
+CCC-A:
+5-item feature-majority extraction
+ratios: 5:0, 4:1, 3:2
+outputs: relation token, bits/sec
+
+CCC-B:
+10-item relation × colour conjunction-majority extraction
+ratios: 10:0:0:0, 7:1:1:1, 4:2:2:2
+outputs: bound-state token, conjunction-control score
+
+Graph status:
+off
+no transition probabilities
+no graph walks
+no SR structure
+
+Transfer test:
+counterbalanced arrows-first vs optic-flow-first
+baseline both carriers
+train one carrier
+probe the other
+mix
+delayed re-check
+```
+
+Bottom line: the CCC layer is now best understood as **graph-neutral controlled signal extraction**. It creates the relation and bound-state tokens that later layers hold, bind, predict from and reason with, but it should not itself use the graph engine yet.
+
+[1]: https://github.com/Mindware-Lab/IQ-Coach/tree/main/specs "IQ-Coach/specs at main · Mindware-Lab/IQ-Coach · GitHub"
+[2]: https://github.com/Mindware-Lab/IQ-Coach/blob/main/specs/ccc_specs.md "IQ-Coach/specs/ccc_specs.md at main · Mindware-Lab/IQ-Coach · GitHub"
+
+
+---
+
 The CCC / Attention Control level can use the **same stimulus vocabulary** that later feeds Relational Memory and Binding Memory, but with a different task demand.
 
 The clean structure is:
