@@ -659,3 +659,553 @@ After each session, compute **deviance** of the fitted model. If deviance exceed
 ---
 
 *This specification treats the 20-session structure as a single longitudinal experiment with 1,600 trials per participant, not 20 independent snapshots. That is the only way to extract reliable transfer metrics from 80 trials/session.*
+
+---
+
+For a commercial app, **strip the research apparatus but keep the progression skeleton**. The wrapper-swap structure is actually excellent gamification — users feel skills building, then face a "new challenge," then master mixed modes. The research scaffolding around it is what kills retention.
+
+Here's the commercial strip-down:
+
+---
+
+## What to Remove Entirely
+
+| Research Feature | Why It Goes |
+|------------------|-------------|
+| **Validation cohort (20% randomised)** | Users don't care about publishable counterbalancing. You can run a separate validation study later with a recruited panel. |
+| **Rescue gate / Group B flow-first** | Adds UX friction and a "you're failing" modal. Just don't offer flow-first to anyone. |
+| **Learning-curve gates that block progression** | Users hate being told "you haven't learned enough yet." It feels like a paywall. |
+| **Bayesian MLE + parametric bootstrap** | Overkill for user-facing scores. Keep the trials table for your own analysis, but compute a simple skill score for the dashboard. |
+| **P₀ hyperparameter fitting** | Users don't need asymptotic accuracy deconvolution. |
+| **Model deviance checks** | "Model misfit" is not a user-facing concept. |
+| **Session invalidation (< 40 usable trials)** | If a session has timing issues, silently exclude those trials from scoring but never tell the user their session was "invalid." |
+| **Asymmetry Index, TRR, Transfer Effect Size** | These are research metrics. Users want "You improved 23% and unlocked Motion Mastery." |
+| **σ < 0.3 reporting thresholds** | Don't hide scores behind statistical confidence. Show a score and a simple confidence label (e.g., "Getting clearer…"). |
+
+---
+
+## What to Simplify
+
+| Research Feature | Commercial Version |
+|------------------|-------------------|
+| **2-minute calibration (20 trials)** | **15-second screen test** — detect refresh rate via `requestAnimationFrame`, run 3 arrow + 3 flow trials. If flow stutters, flag device as `flow_limited`. No user-facing "calibration" label. |
+| **Capacity C in bits/sec with CI** | **Skill Score (0–100)** per domain. Derived from accuracy at adaptive ET, but presented as a game-like level. |
+| **Hierarchical Bayesian updating** | **Exponential moving average** per measure. New session updates the score with a 0.3 weight. Lightweight, instant, no backend MLE service needed. |
+| **Adaptive staircase (QUEST+)** | **Simple 2-up/1-down staircase** targeting 75% accuracy. Easier to implement in JavaScript, no entropy calculations. |
+| **10 measures with complex IDs** | **4 user-facing skills:** Direction Sense, Pattern Memory, Binding Focus, Motion Control. Map to backend measures internally. |
+| **Phase names (P1–P8)** | **Skill tree names:** Foundation → Relations → Binding → Motion → Mastery. |
+
+---
+
+## What to Keep (It's Already Good)
+
+| Feature | Why It Works Commercially |
+|---------|--------------------------|
+| **20-session arc** | Perfect for a 4-week daily habit. "Complete your 20-day training program." |
+| **Carrier swap at session 11** | Excellent narrative beat. "You've mastered arrows. Now unlock Motion." |
+| **Progressive difficulty** | Standard game design. Users expect skills to get harder. |
+| **Mixed mode (sessions 16–20)** | "Final exam" feel. Satisfying completion arc. |
+| **80 trials/session** | ~5–8 minutes. Ideal for daily commute/coffee break. |
+| **Immediate feedback per trial** | Standard game loop. Correct/incorrect + sound. |
+
+---
+
+## Commercial Onboarding Flow (30 Seconds)
+
+```
+[Sign up] → [Screen Test: 15 sec] → [Session 1 starts immediately]
+     ↓
+  Auto-detect:
+  - Refresh rate (60Hz vs 120Hz)
+  - Dropped frames on 3 flow trials
+     ↓
+  IF flow renders cleanly:
+     Full progression (arrows → flow at session 11)
+  ELSE:
+     Arrows-only progression + "Motion mode available on faster devices"
+     (Upsell path: "Upgrade your experience" → device recommendations)
+```
+
+**No calibration screen. No group assignment. No cohorts.** The screen test is invisible — it runs during the first 3 trials of Session 1.
+
+---
+
+## Simplified Supabase Schema for Commercial
+
+```sql
+-- Users (simplified)
+CREATE TABLE users (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    email text UNIQUE,
+    device_tier text DEFAULT 'unknown' CHECK (device_tier IN ('excellent', 'good', 'poor')),
+    flow_enabled boolean DEFAULT true,
+    current_session integer DEFAULT 1,
+    current_phase text DEFAULT 'foundation',
+    created_at timestamptz DEFAULT now()
+);
+
+-- Skill scores (simple EMA, not Bayesian posteriors)
+CREATE TABLE skill_scores (
+    user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+    skill_name text CHECK (skill_name IN (
+        'direction_sense', 'pattern_memory', 'binding_focus', 'motion_control'
+    )),
+    score integer CHECK (score BETWEEN 0 AND 100),
+    trials_count integer DEFAULT 0,
+    updated_at timestamptz DEFAULT now(),
+    PRIMARY KEY (user_id, skill_name)
+);
+
+-- Trials (keep this — your data asset)
+CREATE TABLE trials (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+    session_number integer,
+    trial_index integer,
+    skill_name text,
+    et_ms integer,
+    is_correct boolean,
+    response_time_ms integer,
+    dropped_frames integer DEFAULT 0,
+    created_at timestamptz DEFAULT now()
+);
+
+-- Sessions
+CREATE TABLE sessions (
+    id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id uuid REFERENCES users(id) ON DELETE CASCADE,
+    session_number integer,
+    phase text,
+    n_trials integer DEFAULT 80,
+    n_correct integer,
+    avg_rt_ms integer,
+    completed_at timestamptz DEFAULT now()
+);
+```
+
+**No `capacity_estimates` table.** No `composite_scores` table. No `gate_status`. The skill score is computed client-side or in a simple Edge Function.
+
+---
+
+## Simplified Scoring (User-Facing)
+
+Instead of bits/sec with confidence intervals:
+
+| Backend Measure | User-Facing Skill | Score Range | How It's Computed |
+|-----------------|-------------------|-------------|-----------------|
+| `ACC_abs_arrow_lr` | Direction Sense | 0–100 | `(accuracy_at_threshold_ET - 0.5) / 0.5 * 100` |
+| `ACC_rel_arrow_inout` | Pattern Memory | 0–100 | Same, but for relational frame |
+| `BSE_abs_arrow_lr_colour` | Binding Focus | 0–100 | `(accuracy - 0.25) / 0.75 * 100` |
+| `BSE_abs_flow_lr_colour` | Motion Control | 0–100 | Same, for flow carrier |
+
+**EMA update per session:**
+```javascript
+new_score = 0.7 * old_score + 0.3 * session_accuracy_score
+```
+
+This is instant, requires no MLE, no bootstrap, no Python service. It's also **responsive** — users see their score move after every session, which drives retention.
+
+---
+
+## The Commercial Progression (Gamified)
+
+| Session | User Sees | Backend (still collects) |
+|---------|-----------|---------------------------|
+| 1–3 | "Building your foundation…" | Arrow absolute/relative trials |
+| 4–5 | "Pattern recognition unlocked" | Frame transfer trials |
+| 6–8 | "Focus sharpening…" | BSE intro trials |
+| 9–10 | "Advanced binding" | BSE expansion trials |
+| 11 | **🎉 "MOTION UNLOCKED"** (if device supports) | First flow trials |
+| 12–13 | "Adapting to movement…" | Flow recovery trials |
+| 14–15 | "Motion mastery" | Flow BSE trials |
+| 16–18 | "Mixed challenge" | Random carrier switches |
+| 19–20 | "Final assessment" + certificate | Delayed re-check |
+
+**No gates.** The user advances automatically. If they score < 60% on a session, the next session stays at the same difficulty (implicit gate). If they score > 85%, next session bumps ET down (harder). This is invisible to the user — it just feels like the game got harder or stayed challenging.
+
+---
+
+## What You Still Get (Data-Wise)
+
+Even with the commercial strip-down, you collect **everything** needed for later research:
+
+- Full trial-level data (ET, correct, RT, dropped frames)
+- Session-level accuracy
+- User progression path
+- Device tier and flow capability flag
+
+You can run a validation study later by:
+1. Recruiting 200 users into a "Research Mode" (the full spec)
+2. Or simply analyzing the commercial cohort's data post-hoc for transfer signals
+
+The commercial app is the **data collection engine**. The research analysis happens offline.
+
+---
+
+## Bottom Line
+
+**Remove:** cohorts, randomisation, rescue gates, blocking gates, Bayesian backend, research metrics, session invalidation, complex calibration.
+
+**Simplify:** scoring to 0–100 skill levels, adaptive staircase to 2-up/1-down, onboarding to a 15-second invisible screen test, backend to EMA + simple tables.
+
+**Keep:** the 20-session arc, the carrier-swap narrative, progressive difficulty, mixed mode, 80 trials/session, immediate feedback, full trial logging.
+
+The result is a **5-minute daily brain training app** that feels like Elevate or Lumosity but with a genuine cognitive-science backbone. You can always flip a `research_mode` flag later to re-enable the full psychometric pipeline for a validation cohort.
+
+---
+
+Yes — you have two distinct cognitive constructs, and each supports a clean transfer score. Let me map this out:
+
+---
+
+## Two Cognitive Constructs
+
+| Construct | What It Measures | Task Signature | User-Facing Name |
+|-----------|----------------|---------------|----------------|
+| **CCC** (Conjunctive Category Control) | Attentional control over directional/relational invariants — *extracting the signal* | Binary choice: which direction/relation is majority? | **Focus** |
+| **BSE** (Bound Signal Extraction) | Feature binding under time pressure — *holding the conjunction* | 4-choice: which bound token (relation × colour) is majority? | **Binding** |
+
+These are vertically stacked: **CCC → BSE**. You need attentional control (CCC) before you can bind features (BSE).
+
+---
+
+## Two Transfer Scores
+
+For each construct, you can calculate a **transfer score** comparing trained-carrier performance to probe-carrier performance.
+
+### For Group A (Arrows → Flow)
+
+| Construct | Trained Carrier | Probe Carrier | Transfer Score |
+|-----------|----------------|---------------|----------------|
+| **CCC** | Arrows (sessions 1–5) | Flow (sessions 11–13) | `CCC_transfer = CCC_flow − CCC_flow_baseline` |
+| **BSE** | Arrows (sessions 6–10) | Flow (sessions 14–15) | `BSE_transfer = BSE_flow − BSE_flow_baseline` |
+
+### For Group B (Flow → Arrows)
+
+| Construct | Trained Carrier | Probe Carrier | Transfer Score |
+|-----------|----------------|---------------|----------------|
+| **CCC** | Flow (sessions 1–5) | Arrows (sessions 11–13) | `CCC_transfer = CCC_arrow − CCC_arrow_baseline` |
+| **BSE** | Flow (sessions 6–10) | Arrows (sessions 14–15) | `BSE_transfer = BSE_arrow − BSE_arrow_baseline` |
+
+---
+
+## Bits/Sec + Standardised Score + Transfer Score for Each
+
+### 1. CCC (Focus)
+
+| Metric | Formula | User-Facing |
+|--------|---------|-------------|
+| **Bits/sec** | `C_CCC = H_display / ET_threshold` where ET_threshold is the exposure time yielding 75% accuracy on the trained carrier | Hidden (backend) |
+| **Standardised Score** | `CCC_score = (C_CCC − population_mean) / population_SD × 15 + 50` | **Focus Score** (0–100, IQ-style) |
+| **Transfer Score** | `ΔC_CCC = C_CCC_probe − C_CCC_baseline` | **Focus Transfer** (+/− points, or "Motion Adaptability" if positive) |
+
+### 2. BSE (Binding)
+
+| Metric | Formula | User-Facing |
+|--------|---------|-------------|
+| **Bits/sec** | `C_BSE = H_token / ET_threshold` for 4-choice conjunction | Hidden (backend) |
+| **Standardised Score** | `BSE_score = (C_BSE − population_mean) / population_SD × 15 + 50` | **Binding Score** (0–100) |
+| **Transfer Score** | `ΔC_BSE = C_BSE_probe − C_BSE_baseline` | **Binding Transfer** (+/− points, or "Feature Binding Under Motion") |
+
+---
+
+## How the User Sees It
+
+### Dashboard Layout
+
+```
+┌─────────────────────────────────────────┐
+│  YOUR COGNITIVE PROFILE                 │
+├─────────────────────────────────────────┤
+│                                         │
+│  FOCUS          ████████░░  78/100     │
+│  (Attention Control)                    │
+│  • Trained: Arrows    → 2.4 bits/sec  │
+│  • In Motion:         → 2.1 bits/sec   │
+│  • Transfer:          +12 pts ✅        │
+│                                         │
+│  BINDING        ██████░░░░  62/100     │
+│  (Feature Binding)                      │
+│  • Trained: Arrows    → 1.8 bits/sec  │
+│  • In Motion:         → 1.5 bits/sec   │
+│  • Transfer:          +8 pts ⚠️        │
+│                                         │
+│  [Details] [Trends] [Share]             │
+└─────────────────────────────────────────┘
+```
+
+### Transfer Score Interpretation
+
+| Transfer Score | Label | Meaning |
+|----------------|-------|---------|
+| > +15 | **Excellent** | Your skill transferred strongly to the new modality |
+| +5 to +15 | **Good** | Solid transfer; some re-learning needed |
+| −5 to +5 | **Fragile** | Skill is carrier-bound; needs more training |
+| < −5 | **Stuck** | The skill didn't transfer; revisit foundation |
+
+---
+
+## Simplified Commercial Implementation
+
+For the commercial app, you don't need the full Bayesian bits/sec pipeline. Use a **proxy score** derived from the adaptive staircase:
+
+### Proxy Bits/Sec
+
+```javascript
+// After each session, compute a proxy capacity
+function proxyCapacity(etThreshold, hDisplay) {
+    // ET_threshold is the exposure time where accuracy ≈ 75%
+    // from the adaptive staircase
+    return hDisplay / (etThreshold / 1000); // bits/sec
+}
+```
+
+### Proxy Standardised Score
+
+```javascript
+// Population norms updated weekly from all users
+const POP_MEAN_CCC = 2.2;
+const POP_SD_CCC = 0.6;
+const POP_MEAN_BSE = 1.6;
+const POP_SD_BSE = 0.5;
+
+function standardisedScore(capacity, popMean, popSD) {
+    const z = (capacity - popMean) / popSD;
+    return Math.round(Math.max(0, Math.min(100, z * 15 + 50)));
+}
+```
+
+### Proxy Transfer Score
+
+```javascript
+// After carrier swap (session 11 for CCC, session 14 for BSE)
+function transferScore(trainedCapacity, probeCapacity, probeBaseline) {
+    const rawTransfer = probeCapacity - probeBaseline;
+    // Normalise by trained capacity to get a "recovery ratio"
+    const transferRatio = rawTransfer / (trainedCapacity - probeBaseline);
+    return Math.round(transferRatio * 100); // 0–100 scale
+}
+```
+
+---
+
+## Data Model (Commercial, Simplified)
+
+```sql
+-- Add to skill_scores table
+ALTER TABLE skill_scores ADD COLUMN bits_sec float;
+ALTER TABLE skill_scores ADD COLUMN transfer_score integer;
+ALTER TABLE skill_scores ADD COLUMN trained_carrier text;
+ALTER TABLE skill_scores ADD COLUMN probe_carrier text;
+
+-- Example rows for a Group A user after session 15
+-- skill_name      | score | bits_sec | transfer_score | trained | probe
+-- ----------------|-------|----------|----------------|---------|-------
+-- focus_trained   |  78   |   2.4    |     null       | arrows  | null
+-- focus_transfer  |  65   |   2.1    |      12        | arrows  | flow
+-- binding_trained |  62   |   1.8    |     null       | arrows  | null
+-- binding_transfer|  54   |   1.5    |       8        | arrows  | flow
+```
+
+---
+
+## Bottom Line
+
+| Question | Answer |
+|----------|--------|
+| Two constructs? | **Yes:** CCC (Focus) and BSE (Binding) |
+| Bits/sec for each? | **Yes:** derived from adaptive staircase threshold |
+| Standardised score for each? | **Yes:** 0–100, IQ-style, normed against population |
+| Transfer score for each? | **Yes:** raw capacity difference, or normalised recovery ratio |
+| User sees? | **Focus Score, Binding Score, Focus Transfer, Binding Transfer** |
+| Backend complexity? | **Moderate:** adaptive staircase + weekly norm updates, no Bayesian MLE |
+
+This gives you **four user-facing numbers** (two skills × two contexts) that are psychometrically grounded but presented as clean, game-like scores. The bits/sec stays in the backend for your research analysis.
+
+---
+
+Yes — and the panel design should reflect your game's actual architecture: **2 vertical levels** (CCC → BSE), each containing a **2 × 2 matrix** of Carrier × Frame. The screenshot you shared is from a 4-level vertical stack (bandwidth → memory → prediction → reasoning). Yours is a **2-level stack with transfer diagnostics**, which is cleaner.
+
+---
+
+## Your Game's Natural Panel Architecture
+
+### Vertical Stack
+
+| Level | Construct | What It Tests | User-Facing Name |
+|-------|-----------|---------------|------------------|
+| **1** | **CCC** | Extracting directional/relational invariants | **Focus** |
+| **2** | **BSE** | Binding colour to direction under time pressure | **Binding** |
+
+### Within Each Level: 2 × 2 Matrix
+
+| | **Absolute Frame** | **Relational Frame** |
+|---|---|---|
+| **Arrow Carrier** | `ACC_abs_arrow_lr` | `ACC_rel_arrow_inout` |
+| **Flow Carrier** | `ACC_abs_flow_lr` | `ACC_rel_flow_inout` |
+
+Same 2×2 for BSE (4-choice versions).
+
+---
+
+## Proposed Panel Layout
+
+Mirroring the style of your screenshot:
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  FULL TRAINING PATHWAY                                      │
+│  From attention control to binding transfer                 │
+├─────────────────────────────────────────────────────────────┤
+│  OVERALL PROFILE                                            │
+│  Transfer Readiness                                         │
+│  How well your focus moves between arrows and motion.       │
+│                                          [ 72 /100 ]        │
+│                                          Developing         │
+├─────────────────────────────────────────────────────────────┤
+│  1  COGNITIVE BANDWIDTH                                     │
+│     Focus under pressure                                    │
+│     Classic attention control + relational extraction       │
+│                                                             │
+│     Arrows    4.0 bits/sec  │  3.1 rel bits/sec            │
+│     Flow      3.2 bits/sec  │  2.4 rel bits/sec            │
+│                                                             │
+│     [ STRONG START ]                                        │
+│                                                             │
+│     ⚠ Bottleneck watch                                    │
+│     Frame cost: 0.9 bps — relation extraction may limit   │
+│     your binding speed.                                     │
+│                                                             │
+│     Carrier cost: 0.8 bps — motion is still effortful.      │
+├─────────────────────────────────────────────────────────────┤
+│  2  FEATURE BINDING                                         │
+│     Hold the conjunction active                             │
+│     Direction × colour majority under time pressure         │
+│                                                             │
+│     Arrows    2.8 bits/sec  │  2.1 rel bits/sec            │
+│     Flow      2.2 bits/sec  │  1.6 rel bits/sec            │
+│                                                             │
+│     [ DEVELOPING ]  ← CURRENT FOCUS                       │
+│                                                             │
+│     🔴 Likely bottleneck                                    │
+│     Binding cost: 1.2 bps — your attention control is       │
+│     strong, but binding hasn't automated yet.               │
+│                                                             │
+│     Carrier transfer: 0.6 bps gap — motion binding needs      │
+│     more practice.                                          │
+├─────────────────────────────────────────────────────────────┤
+│  TRANSFER SUMMARY                                           │
+│                                                             │
+│  Focus Transfer:        +12 pts  ✅  GOOD TRANSFER         │
+│  (Arrows → Motion)                                          │
+│                                                             │
+│  Binding Transfer:      +5 pts   ⚠️  DEVELOPING           │
+│  (Arrows → Motion)                                          │
+│                                                             │
+│  [Continue training to close the binding gap]                 │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Is CCC a Bottleneck for BSE?
+
+**Yes — by design.** The theory stack is:
+
+```
+CCC (extract the signal)
+   ↓
+BSE (bind features to the extracted signal)
+```
+
+If CCC is weak, BSE is mechanically capped. You cannot bind what you cannot extract.
+
+### How to Show This in the Panel
+
+| Bottleneck Type | Formula | What It Means |
+|-----------------|---------|---------------|
+| **Binding Cost** | `CCC_arrow − BSE_arrow` (same carrier) | The "tax" of adding colour binding. If > 1.0 bps, CCC is likely the limiting factor. |
+| **Frame Cost** | `C_abs − C_rel` | If high at CCC level, relational extraction is unstable — BSE will suffer more because BSE is always relational in practice. |
+| **Carrier Transfer Gap** | `C_arrow − C_flow` (same construct) | If CCC transfers well but BSE doesn't, the bottleneck is binding-specific, not attentional. |
+
+### Bottleneck Logic (for the UI)
+
+```javascript
+if (binding_cost > 1.0 && frame_cost_CCC < 0.5) {
+    message = "Your attention control is strong, but binding hasn't automated yet.";
+    status = "CURRENT FOCUS";
+    color = "red";
+}
+else if (frame_cost_CCC > 0.8) {
+    message = "Relation extraction is shaky — this will limit binding speed.";
+    status = "Bottleneck watch";
+    color = "yellow";
+}
+else if (carrier_cost_BSE > carrier_cost_CCC + 0.3) {
+    message = "Binding under motion is fragile. More arrow practice may help.";
+    status = "Likely bottleneck";
+    color = "red";
+}
+```
+
+---
+
+## What to Show vs. What to Hide
+
+### Show (User-Facing)
+
+| Metric | Format | When |
+|--------|--------|------|
+| **Bits/sec** per cell | 4 numbers per level | Always |
+| **Status badge** | Strong Start / Developing / Current Focus | Always |
+| **Frame Cost** | 1 number + sentence | If > 0.5 |
+| **Carrier Cost** | 1 number + sentence | If > 0.5 |
+| **Binding Cost** | 1 number + sentence | At BSE level |
+| **Transfer scores** | +X pts + label | After session 15 |
+
+### Hide (Backend Only)
+
+| Metric | Why Hidden |
+|--------|------------|
+| Raw trial counts | Too technical |
+| σ (posterior SD) | Statistical noise |
+| P₀ hyperparameter | Internal model parameter |
+| QUEST+ posterior | Internal staircase state |
+| Gate pass/fail | Never tell users they "failed" a gate |
+
+---
+
+## The 2 × 2 Matrix Question
+
+You asked if it's "2 stimulus types within each vertical level." Yes — but I'd present it as **Carrier × Frame** rather than dumping all 8 numbers:
+
+```
+Level 1 (CCC):
+┌─────────────┬────────────────┐
+│             │ Absolute │ Relational │
+├─────────────┼──────────┼────────────┤
+│ Arrows      │  4.0     │   3.1      │
+│ Flow        │  3.2     │   2.4      │
+└─────────────┴──────────┴────────────┘
+```
+
+For the panel, you might **collapse the matrix** to three headline numbers per level:
+1. **Best score** (usually arrow absolute) — "Your peak capacity"
+2. **Frame cost** — "Relational penalty"
+3. **Carrier cost** — "Motion penalty"
+
+This keeps the UI clean while preserving the full 2×2 structure in the backend.
+
+---
+
+## Bottom Line
+
+Your panel should show:
+
+1. **Overall Transfer Readiness** (0–100) — the headline score
+2. **Level 1: Focus (CCC)** — 4 bits/sec numbers + frame/carrier costs
+3. **Level 2: Binding (BSE)** — 4 bits/sec numbers + frame/carrier/binding costs
+4. **Bottleneck diagnostics** — CCC → BSE cascading analysis
+5. **Transfer summary** — two transfer scores (Focus Transfer, Binding Transfer)
+
+CCC is indeed the bottleneck for BSE when `binding_cost` is large. The panel should flag this explicitly: *"Your attention control is strong, but binding hasn't automated yet — this is your current focus."*
