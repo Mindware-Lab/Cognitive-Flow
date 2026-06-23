@@ -1,0 +1,267 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.screen{max-width:390px;margin:0 auto;padding:0 0 24px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.topbar-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.06em;text-transform:uppercase}
+.session-badge{font-size:12px;font-weight:500;padding:4px 10px;border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-secondary);border:0.5px solid var(--color-border-tertiary)}
+.section-header{padding:18px 20px 10px}
+.eyebrow{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:4px}
+.section-title{font-size:20px;font-weight:500;color:var(--color-text-primary);line-height:1.2}
+.section-sub{font-size:13px;color:var(--color-text-secondary);margin-top:3px;line-height:1.4}
+.overall-card{margin:0 16px 4px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:16px 18px;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.overall-label{font-size:11px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:#0C447C;margin-bottom:4px}
+.overall-name{font-size:17px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.overall-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.4;max-width:190px}
+.overall-score-wrap{display:flex;flex-direction:column;align-items:center;min-width:80px}
+.market-lens{font-size:10px;font-weight:500;color:#0C447C;background:#E6F1FB;padding:3px 8px;border-radius:var(--border-radius-md);margin-bottom:8px;text-align:center;white-space:nowrap}
+.score-ring{width:64px;height:64px;position:relative;display:flex;align-items:center;justify-content:center}
+.score-ring svg{position:absolute;top:0;left:0;width:64px;height:64px}
+.score-num{font-size:22px;font-weight:500;color:var(--color-text-primary);position:relative;z-index:1}
+.score-denom{font-size:11px;color:var(--color-text-secondary);margin-top:4px}
+.score-status-lbl{font-size:11px;color:var(--color-text-secondary);margin-top:2px}
+.level-card{margin:10px 16px 0;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.level-header{padding:14px 16px 12px;display:flex;align-items:flex-start;gap:12px}
+.level-num{width:28px;height:28px;border-radius:50%;background:#378ADD;color:#fff;font-size:13px;font-weight:500;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.level-num.lv2{background:#639922}
+.level-meta{flex:1}
+.level-eyebrow{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--color-text-tertiary);margin-bottom:2px}
+.level-name{font-size:15px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.level-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.4}
+.badge{font-size:10px;font-weight:500;letter-spacing:.05em;text-transform:uppercase;padding:4px 9px;border-radius:var(--border-radius-md)}
+.badge-green{background:#EAF3DE;color:#3B6D11}
+.badge-yellow{background:#FAEEDA;color:#854F0B}
+.badge-blue{background:#E6F1FB;color:#185FA5}
+.matrix-wrap{margin:0 16px 14px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);overflow:hidden}
+.mrow{display:grid;grid-template-columns:90px minmax(0,1fr) minmax(0,1fr)}
+.mrow+.mrow{border-top:0.5px solid var(--color-border-tertiary)}
+.mcell{padding:9px 10px;font-size:12px;color:var(--color-text-secondary)}
+.mcell+.mcell{border-left:0.5px solid var(--color-border-tertiary)}
+.mcell-head{background:var(--color-background-secondary);font-size:10px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;color:var(--color-text-tertiary);display:flex;align-items:center}
+.mval{font-size:16px;font-weight:500;color:var(--color-text-primary);display:block;margin-bottom:1px}
+.mbps{font-size:11px;color:var(--color-text-tertiary)}
+.alert-wrap{border-top:0.5px solid var(--color-border-tertiary)}
+.alert{display:flex;align-items:flex-start;gap:8px;padding:10px 16px}
+.alert+.alert{border-top:0.5px solid var(--color-border-tertiary)}
+.adot{width:8px;height:8px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.adot-y{background:#EF9F27}
+.adot-b{background:#378ADD}
+.alert-title{font-size:12px;font-weight:500;color:var(--color-text-primary);margin-bottom:1px}
+.alert-text{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.flex-card{margin:10px 16px 0;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.flex-header{padding:12px 16px 10px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.flex-row{padding:11px 16px}
+.flex-row+.flex-row{border-top:0.5px solid var(--color-border-tertiary)}
+.flex-label{font-size:13px;color:var(--color-text-primary);font-weight:500;margin-bottom:2px}
+.flex-sub{font-size:11px;color:var(--color-text-secondary);margin-bottom:6px}
+.flex-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.flex-right{display:flex;align-items:center;gap:8px;margin-top:6px}
+.norm-note{margin:10px 16px 0;padding:10px 12px;background:var(--color-background-secondary);border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);display:flex;align-items:flex-start;gap:8px}
+.norm-note-text{font-size:11px;color:var(--color-text-secondary);line-height:1.5}
+.cta-wrap{margin:14px 16px 0}
+.cta-btn{width:100%;padding:13px;background:#378ADD;color:#fff;border:none;border-radius:var(--border-radius-lg);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;gap:6px}
+.cta-btn:active{opacity:.88}
+</style>
+
+<div class="screen" role="main">
+<h2 class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0)">Adaptive attention training profile showing signal focus and binding control scores</h2>
+
+<div class="topbar">
+  <span class="topbar-title">Training pathway</span>
+  <span class="session-badge">Session 7 of 20</span>
+</div>
+
+<div class="section-header">
+  <div class="eyebrow">Overall profile</div>
+  <div class="section-title">Adaptive Attention</div>
+  <div class="section-sub">How well you pick out the important signal and keep it stable when the display changes.</div>
+</div>
+
+<div class="overall-card">
+  <div>
+    <div class="overall-label">Attention capacity</div>
+    <div class="overall-name">Adaptive Attention</div>
+    <div class="overall-desc">Your current ability to extract the key signal, shift between formats and stay accurate under added load.</div>
+  </div>
+  <div class="overall-score-wrap">
+    <div class="market-lens">Attention capacity</div>
+    <div class="score-ring">
+      <svg viewBox="0 0 64 64" fill="none" aria-hidden="true">
+        <circle cx="32" cy="32" r="27" stroke="#E6F1FB" stroke-width="5"/>
+        <circle cx="32" cy="32" r="27" stroke="#378ADD" stroke-width="5"
+          stroke-dasharray="169.6" stroke-dashoffset="47.5"
+          stroke-linecap="round" transform="rotate(-90 32 32)"/>
+      </svg>
+      <span class="score-num">72</span>
+    </div>
+    <div class="score-denom">/100</div>
+    <div class="score-status-lbl">Developing</div>
+  </div>
+</div>
+
+<div style="height:2px"></div>
+
+<!-- Level 1: Signal Focus -->
+<div class="level-card">
+  <div class="level-header">
+    <div class="level-num">1</div>
+    <div class="level-meta">
+      <div class="level-eyebrow">Signal focus</div>
+      <div class="level-name">Pick out the key direction</div>
+      <div class="level-desc">How efficiently you detect the main direction or relation in a brief display.</div>
+    </div>
+    <div style="flex-shrink:0;align-self:flex-start"><span class="badge badge-green">Strong start</span></div>
+  </div>
+
+  <div style="padding:0 16px 14px">
+    <div class="matrix-wrap" style="margin:0">
+      <div class="mrow">
+        <div class="mcell mcell-head"></div>
+        <div class="mcell mcell-head">Direction</div>
+        <div class="mcell mcell-head">Relative direction</div>
+      </div>
+      <div class="mrow">
+        <div class="mcell mcell-head">Static patterns</div>
+        <div class="mcell">
+          <span class="mval">115</span>
+          <span class="mbps">4.0 bps</span>
+        </div>
+        <div class="mcell">
+          <span class="mval">108</span>
+          <span class="mbps">3.1 bps</span>
+        </div>
+      </div>
+      <div class="mrow">
+        <div class="mcell mcell-head">Moving patterns</div>
+        <div class="mcell">
+          <span class="mval">105</span>
+          <span class="mbps">3.2 bps</span>
+        </div>
+        <div class="mcell">
+          <span class="mval">96</span>
+          <span class="mbps">2.4 bps</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-wrap">
+    <div class="alert">
+      <div class="adot adot-y"></div>
+      <div>
+        <div class="alert-title">Training focus</div>
+        <div class="alert-text">Relative direction is a little harder than simple direction. We'll keep practising this so your attention can shift frames more smoothly.</div>
+      </div>
+    </div>
+    <div class="alert">
+      <div class="adot adot-y"></div>
+      <div>
+        <div class="alert-title">Format gap</div>
+        <div class="alert-text">Moving patterns are currently harder than static patterns. This is normal while your attention is learning to carry the same skill into a new format.</div>
+      </div>
+    </div>
+  </div>
+  <div style="height:14px"></div>
+</div>
+
+<!-- Level 2: Binding Control -->
+<div class="level-card">
+  <div class="level-header">
+    <div class="level-num lv2">2</div>
+    <div class="level-meta">
+      <div class="level-eyebrow">Binding control</div>
+      <div class="level-name">Keep direction and colour together</div>
+      <div class="level-desc">How well you hold the right colour–direction pairing while responding quickly.</div>
+    </div>
+    <div style="flex-shrink:0;align-self:flex-start"><span class="badge badge-blue">Current focus</span></div>
+  </div>
+
+  <div style="padding:0 16px 14px">
+    <div class="matrix-wrap" style="margin:0">
+      <div class="mrow">
+        <div class="mcell mcell-head"></div>
+        <div class="mcell mcell-head">Direction + colour</div>
+        <div class="mcell mcell-head">Relative dir. + colour</div>
+      </div>
+      <div class="mrow">
+        <div class="mcell mcell-head">Static patterns</div>
+        <div class="mcell">
+          <span class="mval">98</span>
+          <span class="mbps">2.8 bps</span>
+        </div>
+        <div class="mcell">
+          <span class="mval">89</span>
+          <span class="mbps">2.1 bps</span>
+        </div>
+      </div>
+      <div class="mrow">
+        <div class="mcell mcell-head">Moving patterns</div>
+        <div class="mcell">
+          <span class="mval">84</span>
+          <span class="mbps">2.2 bps</span>
+        </div>
+        <div class="mcell">
+          <span class="mval">78</span>
+          <span class="mbps">1.6 bps</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert-wrap">
+    <div class="alert">
+      <div class="adot adot-b"></div>
+      <div>
+        <div class="alert-title">Current training target</div>
+        <div class="alert-text">Your basic signal focus is stronger than your colour–direction binding. The next useful step is making the pairing more automatic.</div>
+      </div>
+    </div>
+    <div class="alert">
+      <div class="adot adot-y"></div>
+      <div>
+        <div class="alert-title">Moving-pattern binding</div>
+        <div class="alert-text">Binding is harder when the pattern moves. We'll keep this in the training mix so the skill becomes more flexible.</div>
+      </div>
+    </div>
+  </div>
+  <div style="height:14px"></div>
+</div>
+
+<!-- Attention flexibility summary -->
+<div class="flex-card">
+  <div class="flex-header">
+    <div class="eyebrow">Attention flexibility</div>
+  </div>
+
+  <div class="flex-row">
+    <div class="flex-label">Signal flexibility</div>
+    <div class="flex-sub">Static → moving patterns</div>
+    <div class="flex-desc">You are getting better at carrying the same attention skill into motion-based displays.</div>
+    <div class="flex-right">
+      <span class="badge badge-green">Improving</span>
+    </div>
+  </div>
+
+  <div class="flex-row">
+    <div class="flex-label">Binding flexibility</div>
+    <div class="flex-sub">Static → moving patterns</div>
+    <div class="flex-desc">Colour–direction binding is beginning to carry over, but it still needs more practice.</div>
+    <div class="flex-right">
+      <span class="badge badge-yellow">Developing</span>
+    </div>
+  </div>
+</div>
+
+<div class="norm-note">
+  <i class="ti ti-info-circle" aria-hidden="true" style="font-size:16px;color:var(--color-text-tertiary);flex-shrink:0;margin-top:1px"></i>
+  <span class="norm-note-text">Scores compare today's performance with your own recent baseline and, where enough data are available, with population norms. These are training indicators, not a diagnosis. More sessions make the profile more reliable.</span>
+</div>
+
+<div class="cta-wrap">
+  <button class="cta-btn" onclick="sendPrompt('Start the next training session')">
+    <i class="ti ti-player-play" aria-hidden="true" style="font-size:16px"></i>
+    Continue training
+  </button>
+</div>
+
+</div>
