@@ -1,0 +1,165 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+.screen{max-width:390px;margin:0 auto;padding:0 0 28px;font-family:var(--font-sans)}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:0.5px solid var(--color-border-tertiary)}
+.topbar-title{font-size:13px;font-weight:500;color:var(--color-text-secondary);letter-spacing:.06em;text-transform:uppercase}
+.ready-badge{font-size:12px;font-weight:500;padding:4px 10px;border-radius:var(--border-radius-md);background:#EAF3DE;color:#3B6D11;border:0.5px solid #C0DD97}
+.unlock-hero{padding:24px 20px 20px;text-align:center}
+.unlock-icon-wrap{width:56px;height:56px;border-radius:50%;background:#EAF3DE;display:flex;align-items:center;justify-content:center;margin:0 auto 14px}
+.unlock-eyebrow{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:#3B6D11;margin-bottom:6px}
+.unlock-title{font-size:22px;font-weight:500;color:var(--color-text-primary);line-height:1.2;margin-bottom:8px}
+.unlock-desc{font-size:14px;color:var(--color-text-secondary);line-height:1.6;max-width:300px;margin:0 auto}
+.proof-card{margin:0 16px;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.proof-header{padding:10px 14px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;justify-content:space-between}
+.proof-label{font-size:10px;font-weight:500;letter-spacing:.07em;text-transform:uppercase;color:var(--color-text-tertiary)}
+.badge{font-size:10px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;padding:3px 8px;border-radius:var(--border-radius-md)}
+.badge-green{background:#EAF3DE;color:#3B6D11}
+.badge-yellow{background:#FAEEDA;color:#854F0B}
+.metric-grid{display:grid;grid-template-columns:1fr 1fr}
+.metric-cell{padding:11px 14px}
+.metric-cell+.metric-cell{border-left:0.5px solid var(--color-border-tertiary)}
+.metric-row-2{border-top:0.5px solid var(--color-border-tertiary)}
+.metric-label{font-size:10px;color:var(--color-text-tertiary);text-transform:uppercase;letter-spacing:.05em;margin-bottom:3px}
+.metric-val{font-size:18px;font-weight:500;color:var(--color-text-primary)}
+.metric-sub{font-size:11px;margin-top:4px;display:flex;align-items:center;gap:5px}
+.metric-detail{font-size:11px;color:var(--color-text-tertiary);margin-top:3px}
+.sparkline-card{margin:10px 16px 0;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.sparkline-header{padding:10px 14px 6px;border-bottom:0.5px solid var(--color-border-tertiary);display:flex;align-items:center;gap:6px}
+.sparkline-title{font-size:12px;font-weight:500;color:var(--color-text-primary)}
+.sparkline-caption{padding:4px 14px 10px;font-size:11px;color:var(--color-text-tertiary);line-height:1.5}
+.sparkline-wrap{padding:10px 14px 4px}
+.dip-callout{margin:10px 16px 0;padding:11px 14px;font-size:12px;color:#854F0B;line-height:1.6;border-left:2.5px solid #EF9F27;background:#FAEEDA22;border-radius:0 var(--border-radius-md) var(--border-radius-md) 0}
+.dip-title{font-size:13px;font-weight:500;color:#633806;margin-bottom:4px}
+.insight-list{margin:10px 16px 0;background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);overflow:hidden}
+.insight-row{display:flex;align-items:flex-start;gap:10px;padding:11px 14px}
+.insight-row+.insight-row{border-top:0.5px solid var(--color-border-tertiary)}
+.insight-icon{font-size:16px;flex-shrink:0;margin-top:1px}
+.insight-title{font-size:13px;font-weight:500;color:var(--color-text-primary);margin-bottom:2px}
+.insight-desc{font-size:12px;color:var(--color-text-secondary);line-height:1.5}
+.cta-wrap{margin:16px 16px 0;display:flex;flex-direction:column;gap:8px}
+.cta-primary{width:100%;padding:13px;background:#378ADD;color:#fff;border:none;border-radius:var(--border-radius-lg);font-size:14px;font-weight:500;cursor:pointer;font-family:var(--font-sans);display:flex;align-items:center;justify-content:center;gap:6px}
+.cta-primary:active{opacity:.88}
+.cta-secondary{width:100%;padding:11px;background:transparent;color:var(--color-text-secondary);border:0.5px solid var(--color-border-secondary);border-radius:var(--border-radius-lg);font-size:13px;cursor:pointer;font-family:var(--font-sans)}
+</style>
+
+<div class="screen" role="main">
+
+<div class="topbar">
+  <span class="topbar-title">Next step ready</span>
+  <span class="ready-badge"><i class="ti ti-check" aria-hidden="true" style="font-size:11px;margin-right:3px"></i>Binding Control ready</span>
+</div>
+
+<div class="unlock-hero">
+  <div class="unlock-icon-wrap">
+    <i class="ti ti-check" aria-hidden="true" style="font-size:26px;color:#3B6D11"></i>
+  </div>
+  <div class="unlock-eyebrow">Moving-pattern challenge ready</div>
+  <div class="unlock-title">Your Binding Control is ready for the next step</div>
+  <div class="unlock-desc">You've built enough colour–direction control in static patterns to try the same skill with moving patterns. A short adjustment period is expected.</div>
+</div>
+
+<!-- Proof card -->
+<div class="proof-card">
+  <div class="proof-header">
+    <span class="proof-label">Why this is ready</span>
+    <span class="badge badge-green">Readiness check passed</span>
+  </div>
+  <div class="metric-grid">
+    <div class="metric-cell">
+      <div class="metric-label">Colour–direction effort</div>
+      <div class="metric-val">0.7</div>
+      <div class="metric-detail">capacity detail</div>
+      <div class="metric-sub"><span class="badge badge-green">Ready range</span></div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-label">Relative-direction effort</div>
+      <div class="metric-val">0.4</div>
+      <div class="metric-detail">capacity detail</div>
+      <div class="metric-sub"><span class="badge badge-green">Stable</span></div>
+    </div>
+  </div>
+  <div class="metric-grid metric-row-2">
+    <div class="metric-cell">
+      <div class="metric-label">Signal Focus today</div>
+      <div class="metric-val">115</div>
+      <div class="metric-detail">+43 from start</div>
+    </div>
+    <div class="metric-cell">
+      <div class="metric-label">Binding Control today</div>
+      <div class="metric-val">92</div>
+      <div class="metric-detail">+47 from start</div>
+    </div>
+  </div>
+</div>
+
+<!-- Sparkline -->
+<div class="sparkline-card">
+  <div class="sparkline-header">
+    <i class="ti ti-trending-down" aria-hidden="true" style="font-size:15px;color:#3B6D11"></i>
+    <span class="sparkline-title">Colour–direction effort across your sessions</span>
+  </div>
+  <div class="sparkline-caption">Lower means the pairing is becoming easier to keep together.</div>
+  <div class="sparkline-wrap">
+    <svg viewBox="0 0 290 72" width="100%" aria-label="Sparkline showing colour-direction effort decreasing across sessions">
+      <!-- target line -->
+      <line x1="0" y1="52" x2="280" y2="52" stroke="#C0DD97" stroke-width="1" stroke-dasharray="3,3"/>
+      <text x="284" y="55" font-size="8" fill="#3B6D11" text-anchor="start">0.8</text>
+      <!-- effort line falling -->
+      <polyline points="10,58 56,52 102,45 148,38 194,32 241,23 274,17"
+        fill="none" stroke="#3B6D11" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="10"  cy="58" r="2.5" fill="#3B6D11" opacity="0.5"/>
+      <circle cx="56"  cy="52" r="2.5" fill="#3B6D11" opacity="0.5"/>
+      <circle cx="102" cy="45" r="2.5" fill="#3B6D11" opacity="0.5"/>
+      <circle cx="148" cy="38" r="2.5" fill="#3B6D11" opacity="0.5"/>
+      <circle cx="194" cy="32" r="2.5" fill="#3B6D11" opacity="0.5"/>
+      <circle cx="241" cy="23" r="2.5" fill="#3B6D11" opacity="0.5"/>
+      <circle cx="274" cy="17" r="4.5" fill="#3B6D11"/>
+      <circle cx="274" cy="17" r="8"   fill="#3B6D11" opacity="0.12"/>
+      <text x="10"  y="68" font-size="8" fill="#888780" text-anchor="middle">S1</text>
+      <text x="56"  y="68" font-size="8" fill="#888780" text-anchor="middle">S2</text>
+      <text x="102" y="68" font-size="8" fill="#888780" text-anchor="middle">S3</text>
+      <text x="148" y="68" font-size="8" fill="#888780" text-anchor="middle">S4</text>
+      <text x="194" y="68" font-size="8" fill="#888780" text-anchor="middle">S5</text>
+      <text x="241" y="68" font-size="8" fill="#888780" text-anchor="middle">S6</text>
+      <text x="274" y="68" font-size="8" fill="#3B6D11" text-anchor="middle" font-weight="500">S7</text>
+      <text x="10"  y="54" font-size="8" fill="#888780" text-anchor="middle">2.1</text>
+      <text x="274" y="13" font-size="8" fill="#3B6D11" text-anchor="middle" font-weight="500">0.7</text>
+    </svg>
+  </div>
+  <div style="height:6px"></div>
+</div>
+
+<div class="dip-callout">
+  <div class="dip-title">A short dip is normal</div>
+  Moving patterns are a new format. Your scores may drop at first while your attention learns to use the same skill in motion. The goal is steady recovery — not matching your old score immediately.
+</div>
+
+<div class="insight-list">
+  <div class="insight-row">
+    <i class="ti ti-arrows-transfer-down insight-icon" aria-hidden="true" style="color:#378ADD"></i>
+    <div>
+      <div class="insight-title">Signal Focus usually adapts first</div>
+      <div class="insight-desc">Picking out the key direction often improves in moving patterns before colour–direction binding catches up.</div>
+    </div>
+  </div>
+  <div class="insight-row">
+    <i class="ti ti-target insight-icon" aria-hidden="true" style="color:#854F0B"></i>
+    <div>
+      <div class="insight-title">Aim for clean attempts</div>
+      <div class="insight-desc">For the next few sessions, focus on accurate moving-pattern attempts. Your score should become steadier as the new format becomes familiar.</div>
+    </div>
+  </div>
+</div>
+
+<div class="cta-wrap">
+  <button class="cta-primary" onclick="sendPrompt('Start moving-pattern challenge')">
+    <i class="ti ti-player-play" aria-hidden="true" style="font-size:16px"></i>
+    Start moving-pattern challenge
+  </button>
+  <button class="cta-secondary" onclick="sendPrompt('Practise static patterns first')">
+    Practise static patterns first
+  </button>
+</div>
+
+</div>
