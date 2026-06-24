@@ -1,4 +1,4 @@
-# Clinical Rationale Proposal: Attention Coach Attention-Control Training Paradigm
+# Rationale Proposal: Attention Coach Attention-Control Training Paradigm
 
 ## Potential Applications for Anxiety-Related Dysfunctions and Preclinical ADHD Symptoms
 
