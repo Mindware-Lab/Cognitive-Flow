@@ -1,4 +1,4 @@
-# IQ Coach: Wrapper-Swap Progression & Metric Calculation Specification
+# Attention Coach: Wrapper-Swap Progression & Metric Calculation Specification
 ## v2.0 — Webapp / Supabase Implementation
 
 ---
