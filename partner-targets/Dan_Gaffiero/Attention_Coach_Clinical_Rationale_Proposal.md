@@ -6,7 +6,7 @@
 
 ## Suummary
 
-The Attention Coach paradigm extends the Multiple Object Tracking (MFT-M) framework into relational stimuli, two-dimensional motion, feature-binding tasks, and cross-modality carrier swaps. This document reviews the empirical evidence supporting its potential as a digital therapeutic intervention for (a) anxiety-related dysfunctions, particularly exam/test anxiety, and (b) preclinical attention-deficit/hyperactivity disorder (ADHD) symptoms. The rationale draws on attentional control theory, metacognitive models of emotional disorder, Theory of Visual Attention (TVA) research, hippocampal function research, and the cognitive training literature.
+The Attention Coach paradigm extends the Majority Function Task (Backward masked) (MFT-M) framework into relational stimuli, two-dimensional motion, feature-binding tasks, and cross-modality carrier swaps. This document reviews the empirical evidence supporting its potential as a digital therapeutic intervention for (a) anxiety-related dysfunctions, particularly exam/test anxiety, and (b) preclinical attention-deficit/hyperactivity disorder (ADHD) symptoms. The rationale draws on attentional control theory, metacognitive models of emotional disorder, Theory of Visual Attention (TVA) research, hippocampal function research, and the cognitive training literature.
 
 ---
 
@@ -141,7 +141,7 @@ Semrud-Clikeman, Nielsen, Clinton, Sylvester, and Parle (1999) found that Attent
 
 ### 3. Multiple Object Tracking and ADHD
 
-Multiple Object Tracking (MOT) paradigms share conceptual and mechanistic overlap with the Attention Coach framework. Trick, Jaspers-Fayer, and Sethi (2005) found that children with ADHD showed reduced MOT capacity compared to typically developing peers, tracking fewer objects successfully. Importantly, MOT capacity in children with ADHD improved significantly with targeted training, suggesting that dynamic attention tasks are both sensitive to ADHD-related deficits and amenable to remediation (Trick et al., 2005).
+Multiple Object Tracking (MOT) paradigms share conceptual and mechanistic overlap with the Attention Coach MFT-M framework. Trick, Jaspers-Fayer, and Sethi (2005) found that children with ADHD showed reduced MOT capacity compared to typically developing peers, tracking fewer objects successfully. Importantly, MOT capacity in children with ADHD improved significantly with targeted training, suggesting that dynamic attention tasks are both sensitive to ADHD-related deficits and amenable to remediation (Trick et al., 2005).
 
 More recently, Tullo, Bertone, and colleagues (2018) adapted a standard MOT protocol for students with autism spectrum disorder and ADHD, reducing the number of targets to accommodate developmental differences. After 15 sessions over five weeks, the intervention group showed a 41% improvement in speed thresholds (p < 0.001), with gains observed on near-transfer measures of executive function including cognitive flexibility (Tullo et al., 2018).
 
