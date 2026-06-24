@@ -46,7 +46,37 @@ Critically, theta oscillations are modulated by attentional states. During class
 
 For the Attention Coach paradigm, the engagement of relational and optic flow stimuli may enhance hippocampal theta activity, thereby strengthening the temporal coordination between hippocampal and prefrontal attention networks. Theta-mediated hippocampal-prefrontal interactions are thought to support the binding of distributed representations into coherent cognitive episodes—a process that is directly analogous to the binding demands of the BSE (Bound Signal Extraction) tasks, where participants must integrate direction and colour information under time pressure.
 
+### 1.2 Direct Evidence for MFT-M Training Efficacy 
 
+A recent randomised controlled trial by Zhang and colleagues (2024) provides direct empirical support for the Attention Coach paradigm's foundational training task. The study recruited 84 healthy young adults and randomised them to either seven consecutive days of MFT-M training or a sham control program. Critically, this is the first study to systematically examine training transfer effects from the MFT-M to established measures of executive function, using both behavioural performance and event-related potential (ERP) markers of neural efficiency.
+
+#### 1.2.1 Transfer to Attention Network Function
+
+Participants were assessed on the revised Attention Network Test (ANT-R), which independently measures alerting, orienting, and executive attention (conflict resolution). Compared to the sham control group, the MFT-M training group showed significant improvements on the congruent condition of the Flanker task and the double-congruency condition of Flanker and Location within the ANT-R. These findings demonstrate that MFT-M training transfers to tasks requiring selective attention and conflict resolution—core components of the attention networks that are impaired in both anxiety and ADHD.
+
+The ANT-R is particularly relevant as a transfer measure because its three attention networks (alerting, orienting, executive control) map directly onto the cognitive functions targeted by clinical interventions for anxiety and ADHD. Alerting deficits are associated with ADHD inattention; orienting abnormalities characterise anxiety-related threat bias; and executive attention impairments are found in both conditions. That MFT-M training improved ANT-R performance suggests the paradigm exercises domain-general attention control mechanisms with clinical relevance.
+
+#### 1.2.2 Transfer to Working Memory and Cognitive Flexibility
+
+The training group also showed significant improvements on learning trials in a verbal memory test (AVLT), and ERP analyses revealed neural efficiency changes in both working memory and task-switching paradigms. Specifically, the MFT-M group exhibited a larger P2 amplitude decrease and P3 amplitude increase in the 2-back working memory task, alongside a larger P3 amplitude increase in the task-switching repeat condition. These ERP changes indicate improved neural efficiency in attentional processes underlying working memory maintenance and cognitive flexibility.
+
+The P2 component reflects early attentional selection and stimulus evaluation, while the P3 indexes attentional resource allocation and working memory updating. The pattern observed—reduced P2 (more efficient early processing) coupled with enhanced P3 (better resource allocation)—suggests that MFT-M training optimises the temporal dynamics of attentional control. This neural efficiency profile is precisely what would be predicted to improve performance under the high cognitive demands characteristic of anxiety-provoking situations (e.g., examinations) and the sustained attention requirements of ADHD.
+
+#### 1.2.3 Moderation by Personality: Clinical Implications
+
+A particularly noteworthy finding was that introversion moderated transfer effects. Significant group-by-introversion interactions were observed for post-training 1-back efficiency and task-switching switching costs, with introversion facilitating transfer to working memory while hindering transfer to cognitive flexibility. This moderation effect has direct clinical implications: individuals with higher anxiety traits (who tend toward introversion) may show preferential benefits in working memory domains, while extraverted individuals (potentially including some ADHD presentations) may benefit more from flexibility training.
+
+The Attention Coach paradigm's multi-level structure—progressing from absolute to relational frames, then to binding, and finally to carrier swap—may address this moderation by providing comprehensive training across both working memory and flexibility domains, ensuring that all personality types receive adequate challenge in their relative areas of need.
+
+#### 1.2.4 Baseline Correlations: CCC as a Foundation for Executive Function
+
+At baseline, the Conjunctive Category Control capacity (CCC) estimated from MFT-M performance showed significant correlations with verbal memory performance and task-switching efficiency, and near-significant correlations with inhibition control and ANT-R performance. These correlations corroborate prior research establishing CCC as a common substrate underlying working memory, inhibition, shifting, and fluid intelligence (Chen et al., 2019; He et al., 2019). The baseline CCC in healthy young adults was approximately 3.82 bits per second—substantially higher than the 3.06 bps reported in older adults with mild cognitive impairment, suggesting that CCC is sensitive to both developmental and clinical variation.
+
+For the Attention Coach paradigm, these findings establish that the core MFT-M task is not merely a perceptual exercise but a genuine cognitive control training tool that produces measurable transfer to the executive functions most relevant to anxiety and ADHD intervention. The Zhang et al. (2024) study provides the critical bridge between the basic cognitive science of the MFT-M and its potential clinical application, demonstrating that the task's attention-control demands are sufficiently intensive and domain-general to drive plasticity in the neural systems underlying real-world cognitive performance.
+
+#### 1.2.5 Limitations and Extensions
+
+The Zhang et al. (2024) study was conducted with healthy young adults over a relatively brief training period (seven days). The Attention Coach paradigm extends this foundation in several clinically relevant directions: (a) a longer training duration (20 sessions vs. 7 days) to promote more durable plasticity; (b) the addition of relational and optic flow stimuli to engage hippocampal mechanisms not targeted by the standard arrow-based MFT-M; (c) adaptive QUEST+ staircasing to maintain optimal challenge across the training arc; and (d) the inclusion of feature-binding (BSE) demands to exercise working memory-updating mechanisms beyond those engaged by the binary-choice MFT-M. These extensions are designed to amplify the transfer effects demonstrated by Zhang et al. while targeting the specific cognitive vulnerabilities identified in anxiety and ADHD populations.
 ### 2. Mechanism of Change: Attention Flexibility
 
 Metacognitive therapy (Wells, 2009) posits that emotional disorders are maintained by the Cognitive Attentional Syndrome (CAS)—a perseverative style of thinking involving worry, rumination, threat monitoring, and unhelpful coping strategies. The Attention Training TechnAttentionue (ATT), a core component of metacognitive therapy, was designed to strengthen attentional control and promote external focus of attention, thereby disrupting the CAS (Wells, 2009).
@@ -411,6 +441,8 @@ Wells, A. (2009). *Metacognitive therapy for anxiety and depression*. Guilford P
 Wittchen, H. U., Jacobi, F., Rehm, J., Gustavsson, A., Svensson, M., Jönsson, B., ... & Steinhausen, H. C. (2011). The size and burden of mental disorders and other disorders of the brain in Europe 2010. *European Neuropsychopharmacology, 21*(9), 655–679. https://doi.org/10.1016/j.euroneuro.2011.07.018
 
 Yassa, M. A., & Stark, C. E. (2011). Pattern separation in the hippocampus. *Trends in Neurosciences, 34*(10), 515–525. https://doi.org/10.1016/j.tins.2011.06.006
+
+Zhang, H., Fan, S., Yang, J., & Yi, J. (2024). Attention control training and transfer effects on cognitive tasks. Neuropsychologia, 198, Article 108854. https://doi.org/10.1016/j.neuropsychologia.2024.108854
 
 Zhao, X., & Dang, C. (2020). Working memory training improves social anxiety: Evidence from a randomized controlled trial. *Journal of Affective Disorders, 274*, 1084–1091. https://doi.org/10.1016/j.jad.2020.05.115
 
