@@ -1,6 +1,6 @@
 # Attention Coach Training Protocol Specs - Game Logic and Measurements
 
-## v3.3 — 20-session target envelope with learning-curve-triggered wrapper swaps, timing, staircase and bits/sec scoring
+##  20-session target envelope with learning-curve-triggered wrapper swaps, timing, staircase and bits/sec scoring
 
 **Status:** revised measurement specification with a 20-session target envelope, learning-curve-triggered wrapper swaps, explicit stimulus timing, adaptive staircase sampling and canonical bits/sec scoring  
 **Supersedes:** v3.2, v3.1, v3.0 and v2.0 “Wrapper-Swap Progression & Metric Calculation Specification”  
