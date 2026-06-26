@@ -1,4 +1,4 @@
-# Attention Coach / IQ Coach — Wrapper-Swap Progression & Transfer Measurement Specification
+# Attention Coach Training Protocol Specs - Game Logic and Measurems
 
 ## v3.2 — fixed 20-session carrier-swap transfer programme with timing, staircase and bits/sec scoring
 
