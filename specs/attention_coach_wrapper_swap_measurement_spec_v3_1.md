@@ -250,7 +250,12 @@ Any extension must be recorded as `research_mode_extension = true` and excluded 
 
 ---
 
-### 4.3 Within-session allocation
+### 4.3 Post-programme self-guided gameplay
+
+After the structured 20-session programme is complete, users may continue in a self-guided gameplay mode. This mode should preserve the same trained stimulus lattice and scoring logic, but it should no longer present progress as part of the formal coach-led transfer programme. Instead, users can replay unlocked challenges, practise weaker cells, run mixed carrier × frame sessions, or complete optional delayed re-checks. Self-guided play should continue logging raw trials, timing quality, wrapper state, accuracy, response time and adaptive difficulty, so that ongoing gameplay can still contribute to personal baselines and exploratory research analysis. However, formal transfer claims should remain tied to the completed 20-session programme and any later benchmark or delayed-recovery sessions.
+
+
+### 4.4 Within-session allocation
 
 For 80 scored trials per session:
 
@@ -266,7 +271,7 @@ For 80 scored trials per session:
 Recheck trials are not “transfer probes”; they are reference anchors for estimating trajectory shape, retention and mixed stability.
 
 
-### 4.4 Construct scheduling inside the 20-session programme
+### 4.5 Construct scheduling inside the 20-session programme
 
 The 20-session schedule defines the **carrier × frame progression**. It can be applied to `ACC` alone or to both `ACC` and `BSE`, but the trial budget must be explicit.
 
