@@ -1,8 +1,17 @@
 # Attention Coach / IQ Coach — Consumer UX Scores and Progress Specification
 
+## v2.0 — WAP-consistent adaptive progression UX
+
+**Status:** revised consumer UX specification aligned with Wrapper Adaptive Progression (WAP)  
+**Supersedes:** earlier UX specification that implied a fixed 20-session pathway  
+**Scope:** consumer-facing screens, score language, progress display, transfer access, target-envelope completion and self-guided continuation  
+**Core UX change:** the app is presented as an adaptive training programme with a typical 20-session target envelope. New wrappers appear when the user’s learning curve is stable enough, not when a fixed session number is reached.
+
+---
+
 ## Purpose
 
-This UX specification defines the consumer-facing score screens for the 20-session Attention Coach / IQ Coach programme.
+This UX specification defines the consumer-facing score screens for the Attention Coach / IQ Coach standalone app.
 
 The user should see meaningful, simple, motivational feedback about:
 
@@ -16,7 +25,7 @@ Mixed Flexibility
 Return Strength
 ```
 
-The user should not see research metrics such as MI recovery, alpha stability, beta alignment, ET thresholds, entropy values, trajectory windows or scratch-baseline models.
+The user should not see research metrics such as MI recovery, alpha stability, beta alignment, ET thresholds, entropy values, trajectory windows, scratch-baseline models or WAP gate thresholds.
 
 The consumer experience should answer three questions:
 
@@ -25,6 +34,14 @@ The consumer experience should answer three questions:
 2. How well am I keeping signal + colour/features stable?
 3. Is this skill carrying over when the display format changes?
 ```
+
+The consumer experience should also make one progression rule clear:
+
+```text
+New challenges appear when your learning curve is stable.
+```
+
+The app should not imply that a wrapper swap occurs because a particular session number has been reached.
 
 ---
 
@@ -48,6 +65,11 @@ Training Score
 bits/sec
 confidence
 trend
+current phase
+next challenge
+learning curve
+ready soon
+calibrating
 ```
 
 Avoid:
@@ -55,6 +77,7 @@ Avoid:
 ```text
 CCC
 BSE
+WAP
 MIR
 ASI
 CBA
@@ -70,6 +93,8 @@ condition entropy
 ET_75
 lapse rate
 psychometric fit
+slope threshold
+gate failed
 ```
 
 ## 1.2 What the user should understand
@@ -110,7 +135,37 @@ how bits/sec is fitted
 what entropy values are used
 what model confidence threshold applies
 how transfer metrics are computed
+what exact learning-curve thresholds are used
 ```
+
+## 1.4 Adaptive progression rule
+
+The app should not be presented as a fixed 20-session course.
+
+Use this framing:
+
+```text
+A typical 20-session adaptive programme.
+New challenges appear when your learning curve is stable.
+```
+
+The app may still show:
+
+```text
+Session 7
+Typical pathway: about 20 sessions
+Current phase: Motion Foundation
+```
+
+Avoid:
+
+```text
+Session 7 of 20 means Motion Foundation starts now.
+You unlocked the next phase because you reached session 8.
+You failed to unlock the next phase.
+```
+
+The backend may use a 20-session target envelope for planning and completion messaging, but the UX should make clear that phase changes are readiness-based.
 
 ---
 
@@ -132,8 +187,10 @@ Purpose:
 
 ```text
 Start the next session.
-Show the current programme phase.
+Show the current adaptive phase.
+Show current phase status.
 Show a small score summary.
+Show Transfer Score access.
 ```
 
 ## 2.2 Train
@@ -143,6 +200,7 @@ Purpose:
 ```text
 Start or resume the active training task.
 Access tutorial or practice mode.
+Show the current task focus.
 ```
 
 ## 2.3 Progress
@@ -151,8 +209,9 @@ Purpose:
 
 ```text
 Show smoothed score curves across sessions.
-Show 20-session journey.
+Show the adaptive journey through the target envelope.
 Show capacity trends.
+Show phase movement as learning-curve based, not date based.
 ```
 
 ## 2.4 Transfer
@@ -162,7 +221,7 @@ Purpose:
 ```text
 Make Transfer Score accessible at any time.
 Show Motion Recovery, Relation Recovery, Mixed Flexibility and Return Strength.
-Explain what is available now and what unlocks later.
+Explain what is available now and what is still calibrating.
 ```
 
 This tab or card must always be available, even when the Transfer Score is still calibrating.
@@ -195,22 +254,45 @@ When there is not enough data yet, the Transfer Score card should not disappear.
 Transfer Score
 Calibrating
 
-This score becomes clearer as you complete motion, relation, mixed and return-check sessions.
+This score becomes clearer as new challenge formats are introduced and enough data are collected.
 ```
 
-Availability states:
+## 3.1 Transfer availability by actual WAP events
 
-| Programme stage  | Transfer Score display          |
-| ---------------- | ------------------------------- |
-| Sessions 1–5     | Calibrating · building baseline |
-| Sessions 6–8     | Early Motion Recovery available |
-| Sessions 9–12    | Relation baseline building      |
-| Sessions 13–15   | Relation Recovery available     |
-| Sessions 16–18   | Mixed Flexibility available     |
-| Sessions 19–20   | Return Strength available       |
-| After session 20 | Full 20-session Transfer Score  |
+Transfer availability should depend on actual training events, not fixed session numbers.
 
-The user should never have to wait until session 20 to find the Transfer area. It should be visible from the start, with clear “not enough data yet” states.
+| Actual event / state | Transfer display |
+|---|---|
+| Before first carrier swap | Calibrating · building baseline |
+| After `T_CM_BASE` has enough post-transition evidence | Motion Recovery available |
+| Before relational carrier swap has occurred | Relation Recovery · coming up / not enough evidence |
+| After `T_CM_REL` has enough post-transition evidence | Relation Recovery available |
+| After mixed phase has enough evidence | Mixed Flexibility available |
+| After delayed / return-check evidence | Return Strength available |
+| Target envelope reached before all events | Available components shown; unfinished components remain not enough evidence |
+| Self-guided continuation adds enough data | Previously unavailable components may become available later |
+
+The user should never have to wait until the target-envelope completion point to find the Transfer area. It should be visible from the start, with clear calibrating and not-enough-evidence states.
+
+## 3.2 Transfer access copy
+
+Use:
+
+```text
+Transfer Score
+Calibrating
+
+We are building the baseline needed to test whether your attention skill carries into changed formats.
+```
+
+Later:
+
+```text
+Transfer Score
+Developing
+
+Some parts are available now. Other parts will become clearer after more adaptive sessions.
+```
 
 ---
 
@@ -252,6 +334,15 @@ Plain-language description:
 How well you keep direction and colour together while responding quickly.
 ```
 
+If Binding Focus has less evidence than Attention Control, show:
+
+```text
+Binding Focus
+Calibrating
+
+This score is based on fewer trials, so it will update more gradually.
+```
+
 ## 4.3 Transfer Score
 
 Display:
@@ -269,14 +360,23 @@ Plain-language description:
 How well your trained attention skill carries across new display formats.
 ```
 
+If not enough data exist:
+
+```text
+Transfer Score
+Calibrating
+
+This becomes clearer after your learning curve reaches new challenge formats.
+```
+
 ## 4.4 Transfer sub-scores
 
-| Score             | User-facing meaning                         | Appears                          |
-| ----------------- | ------------------------------------------- | -------------------------------- |
-| Motion Recovery   | Static → moving patterns                    | After motion foundation sessions |
-| Relation Recovery | Relative-direction skill in moving patterns | After motion relations sessions  |
-| Mixed Flexibility | Switching across all formats                | During mixed mastery             |
-| Return Strength   | Recovery after spacing                      | During return check              |
+| Score | User-facing meaning | Appears when |
+|---|---|---|
+| Motion Recovery | Static → moving patterns | after the motion foundation transition has enough evidence |
+| Relation Recovery | Relative-direction skill in moving patterns | after the relational motion transition has enough evidence |
+| Mixed Flexibility | Switching across all formats | after enough mixed-format evidence |
+| Return Strength | Recovery after spacing | after enough return-check evidence |
 
 ---
 
@@ -286,14 +386,16 @@ How well your trained attention skill carries across new display formats.
 
 ### Purpose
 
-Daily entry point. The user should know what to do next and where they are in the 20-session pathway.
+Daily entry point. The user should know what to do next, what phase they are currently in and whether the next challenge is ready yet.
 
 ### Required elements
 
 ```text
 Greeting
-Session count
+Session number
+Target-envelope progress label
 Current phase
+Current phase status
 Primary CTA
 Mini score summary
 Transfer Score mini-card
@@ -304,10 +406,12 @@ Transfer Score mini-card
 ```text
 Welcome back
 
-Session 7 of 20
-Current phase: Motion Foundation
+Session 7
+Typical pathway: about 20 sessions
+Current phase: Direction Foundation
+Status: building a stable baseline
 
-Today you’ll practise carrying your attention skill into moving patterns.
+New challenges appear when your learning curve is stable.
 
 [Start today’s session]
 
@@ -315,6 +419,20 @@ Current profile
 Attention Control: 3.4 bits/sec · 104
 Binding Focus: calibrating
 Transfer Score: calibrating
+```
+
+### Alternative example when next wrapper is ready
+
+```text
+Welcome back
+
+Session 9
+Current phase: Direction Foundation
+Next challenge: Motion Foundation is ready
+
+Today you’ll practise the same attention skill in moving patterns. A short dip is normal when the display format changes.
+
+[Start today’s session]
 ```
 
 ### Transfer access
@@ -348,10 +466,32 @@ Prepare the user for the current phase without technical explanation.
 
 ```text
 Current phase name
+Current phase status
 One-sentence task explanation
-Normalise expected dips
+Normalise expected dips, where relevant
 Estimated duration
 Start button
+```
+
+### Phase-status copy
+
+Use simple readiness language.
+
+| Internal phase status | User-facing wording |
+|---|---|
+| `active` | Today continues your current training phase. |
+| `extended_for_learning_curve` | We are keeping you in this phase a little longer so the baseline becomes clearer. |
+| `ready_next_session` | Your next challenge is ready. |
+| `timing_limited` | Device timing looked a little unstable, so today’s scores may be lower confidence. |
+| `calibrating` | We are still collecting enough data for a stable estimate. |
+
+Do not say:
+
+```text
+failed
+not passed
+gate failed
+phase blocked
 ```
 
 ### Phase-specific copy
@@ -406,6 +546,7 @@ Keep attention on the task.
 central stimulus area
 two or four large response buttons, depending on task
 thin progress indicator
+mini-block progress
 minimal feedback pulse
 sound toggle
 pause button
@@ -422,12 +563,54 @@ staircase level
 difficulty
 entropy
 ET threshold
+learning-curve status
+WAP status
 research metrics
 ```
 
 ---
 
-## Screen D — Session complete screen
+## Screen D — Mini-block transition / pause screen
+
+### Purpose
+
+Make the four-mini-block structure feel like a guided game rather than a long undifferentiated task.
+
+### Required elements
+
+```text
+block complete message
+next block label
+short instruction if task mix changes
+resume CTA
+optional pause / exit
+```
+
+### Example
+
+```text
+Block 2 complete
+
+Next: moving-pattern practice
+
+The display format changes, but your job is the same: pick out the main direction.
+
+[Continue]
+```
+
+For mixed phases:
+
+```text
+Next: mixed challenge
+
+Static and moving patterns may switch from trial to trial. Watch the response buttons carefully.
+
+[Continue]
+```
+
+---
+
+## Screen E — Session complete screen
 
 ### Purpose
 
@@ -439,6 +622,7 @@ Give immediate feedback and reinforce progress.
 Session complete message
 Attention Control card
 Binding Focus card, when available
+Transfer mini-card
 Today’s interpretation
 Next-session preview
 Button to view full progress
@@ -456,15 +640,24 @@ Training Score: 104
 Trend: improving
 
 Binding Focus
-2.1 bits/sec
-Training Score: 96
-Trend: developing
+Calibrating
+Trend: needs more data
+
+Transfer Score
+Calibrating
 
 Today’s note
-Moving patterns were harder than static patterns, which is normal during a format change. Your next session will keep practising motion recovery.
+Your current phase is still building a stable baseline. New challenges appear when the learning curve is ready.
 
 [View progress]
 [Done]
+```
+
+### Example after a format shift
+
+```text
+Today’s note
+Moving patterns were harder than static patterns, which is normal during a format change. Your next sessions will help your attention recover in this new format.
 ```
 
 ### Transfer access
@@ -479,7 +672,7 @@ This opens the Transfer screen.
 
 ---
 
-## Screen E — Main profile dashboard
+## Screen F — Main profile dashboard
 
 ### Purpose
 
@@ -493,7 +686,7 @@ Attention Control card
 Binding Focus card
 Transfer Score card
 2 × 2 format matrix
-training focus note
+current phase / training focus note
 confidence note
 ```
 
@@ -511,6 +704,13 @@ Show:
 Transfer Score
 68 / 100
 Developing
+```
+
+If insufficient data:
+
+```text
+Transfer Score
+Calibrating
 ```
 
 The top card should link to the full Transfer screen.
@@ -543,10 +743,10 @@ How well you keep direction and colour together.
 
 Use plain labels:
 
-|                 | Simple direction | Relative direction |
-| --------------- | ---------------: | -----------------: |
-| Static patterns | score + bits/sec |   score + bits/sec |
-| Moving patterns | score + bits/sec |   score + bits/sec |
+| | Simple direction | Relative direction |
+|---|---:|---:|
+| Static patterns | score + bits/sec | score + bits/sec |
+| Moving patterns | score + bits/sec | score + bits/sec |
 
 Example:
 
@@ -560,25 +760,55 @@ Moving patterns / Simple direction
 
 Do not label this as `arrow_abs`, `flow_abs`, `arrow_rel` or `flow_rel`.
 
+### Matrix low-data rule
+
+For cells not yet available, show:
+
+```text
+Coming up
+```
+
+or:
+
+```text
+Not enough evidence yet
+```
+
+Do not show zero, blank, or a misleading low score.
+
 ### Training focus card
 
 Example:
 
 ```text
 Current training focus
-Moving patterns are still more effortful than static patterns. This is expected during Motion Foundation.
+You are still building a stable baseline in static direction patterns. This makes the later moving-pattern challenge more meaningful.
 ```
 
-or:
+Example after extension:
 
 ```text
 Current training focus
-Your attention control is stronger than your binding focus, so the next useful step is making colour–direction pairings more automatic.
+We are keeping you in this phase a little longer so your learning curve becomes clearer. This is normal in an adaptive programme.
+```
+
+Example in motion phase:
+
+```text
+Current training focus
+Moving patterns are still more effortful than static patterns. This is expected during Motion Foundation.
+```
+
+Example for BSE lag:
+
+```text
+Current training focus
+Your Attention Control score is clearer than your Binding Focus score. Binding Focus will update more slowly because it has fewer trials.
 ```
 
 ---
 
-## Screen F — Progress over time
+## Screen G — Progress over time
 
 ### Purpose
 
@@ -589,8 +819,9 @@ Show change across sessions.
 ```text
 smoothed trend curve
 raw session dots
-phase shading
-session count
+actual phase shading
+target-envelope marker
+current phase marker
 toggle between Capacity and Transfer
 ```
 
@@ -619,7 +850,7 @@ Mixed Flexibility
 Return Strength
 ```
 
-The Transfer chart mode is always available. If not enough data exist, show locked/calibrating segments as faint future lines or placeholders.
+The Transfer chart mode is always available. If not enough data exist, show calibrating segments as faint future lines or placeholders.
 
 ### Smoothing rule
 
@@ -648,7 +879,7 @@ The design should not hide session variability. Variability is normal, especiall
 
 ### Phase labels
 
-Use the 20-session phase names:
+Use the adaptive phase names:
 
 ```text
 Direction Foundation
@@ -659,56 +890,126 @@ Mixed Mastery
 Return Check
 ```
 
+### Phase shading rule
+
+Phase shading should reflect actual WAP phase start and end points, not fixed session ranges.
+
+If the user remains in a phase beyond the typical band, extend that phase’s shading and show:
+
+```text
+extended for clearer learning curve
+```
+
+If the user advances early, begin the next phase shading when the transition actually occurred.
+
 ---
 
-## Screen G — 20-session journey screen
+## Screen H — Adaptive journey screen
 
 ### Purpose
 
-Show the full programme pathway.
+Show the full target-envelope pathway without implying fixed phase dates.
 
 ### Required elements
 
 ```text
-20-session progress bar
+target-envelope progress bar
 phase cards
 current phase marker
-next phase preview
+next challenge preview
+readiness status
 simple explanation of expected dips
 ```
 
-### Phase schedule
-
-| Sessions | Phase                | User explanation                                             |
-| -------: | -------------------- | ------------------------------------------------------------ |
-|      1–5 | Direction Foundation | Build your baseline with static direction patterns.          |
-|      6–8 | Motion Foundation    | Practise the same attention skill in moving patterns.        |
-|     9–12 | Relation Foundation  | Shift from simple direction to centre-relative direction.    |
-|    13–15 | Motion Relations     | Recover relative-direction skill in moving patterns.         |
-|    16–18 | Mixed Mastery        | Switch between static, moving, simple and relative displays. |
-|    19–20 | Return Check         | Re-check what still carries over after spacing.              |
-
-### Language rule
+### Heading
 
 Use:
 
 ```text
+Your adaptive journey
+```
+
+or:
+
+```text
+Typical 20-session pathway
+```
+
+Avoid:
+
+```text
+20-session schedule
+fixed programme
+locked phases
+```
+
+### Nominal pathway table
+
+| Typical stage | Phase | User explanation |
+|---|---|---|
+| Early baseline | Direction Foundation | Build your baseline with static direction patterns. |
+| First format change | Motion Foundation | Practise the same attention skill in moving patterns. |
+| Relation build | Relation Foundation | Shift from simple direction to centre-relative direction. |
+| Relation in motion | Motion Relations | Recover relative-direction skill in moving patterns. |
+| Flexible practice | Mixed Mastery | Switch between static, moving, simple and relative displays. |
+| Return check | Return Check | Re-check what still carries over after spacing. |
+
+### Phase-card states
+
+Use:
+
+```text
+Current phase
 Coming up next
+Available when ready
+Calibrating
+Completed
 ```
 
 Avoid:
 
 ```text
 Locked
+Failed
+Not passed
 ```
 
-Do not imply that users must “pass” hidden gates to continue the 20-session programme.
+### Example current-phase card
 
-The backend may adapt difficulty and confidence labels, but the consumer programme should feel like a clear 20-session journey.
+```text
+Current phase
+Direction Foundation
+
+You are building the baseline that later motion challenges will compare against.
+
+Status:
+Still calibrating
+```
+
+### Example next-phase card
+
+```text
+Coming up next
+Motion Foundation
+
+This begins when your static direction learning curve is stable enough.
+```
+
+### If behind the target envelope
+
+```text
+This phase is taking a little longer, which is normal in an adaptive programme. The next challenge appears when the learning curve is stable enough.
+```
+
+### If ahead of the target envelope
+
+```text
+Your next challenge appeared earlier because the current learning curve was stable.
+```
 
 ---
 
-## Screen H — Transfer screen
+## Screen I — Transfer screen
 
 ### Purpose
 
@@ -743,10 +1044,21 @@ How well your trained attention skill carries across changing display formats.
 Transfer Score
 Calibrating
 
-You are still building the baseline needed to test carry-over. Your first transfer signal appears after Motion Foundation.
+You are still building the baseline needed to test carry-over. Your first transfer signal appears after the moving-pattern challenge has started and enough evidence has been collected.
 ```
 
 ### Motion Recovery card
+
+Before available:
+
+```text
+Motion Recovery
+Coming up
+
+This appears after you have practised both static and moving patterns.
+```
+
+After available:
 
 ```text
 Motion Recovery
@@ -762,7 +1074,7 @@ Before available:
 
 ```text
 Relation Recovery
-Coming later
+Coming up
 
 This appears after you practise relative direction in both static and moving patterns.
 ```
@@ -779,20 +1091,44 @@ You are learning to recover relative direction when the display changes into mot
 
 ### Mixed Flexibility card
 
+Before available:
+
 ```text
 Mixed Flexibility
-Coming in sessions 16–18
+Coming up
 
 This checks how well you switch between formats when they appear unpredictably.
 ```
 
+After available:
+
+```text
+Mixed Flexibility
+70 / 100
+Developing
+
+You are learning to switch between static, moving, simple and relative displays.
+```
+
 ### Return Strength card
+
+Before available:
 
 ```text
 Return Strength
-Coming in sessions 19–20
+Coming up
 
 This checks what still carries over after spacing.
+```
+
+After available:
+
+```text
+Return Strength
+68 / 100
+Developing
+
+This shows how well the skill returned after spacing.
 ```
 
 ### Explanation note
@@ -803,7 +1139,7 @@ Transfer Score is a training indicator. It shows whether skills practised in one
 
 ---
 
-## Screen I — Score-detail screens
+## Screen J — Score-detail screens
 
 ### Purpose
 
@@ -811,7 +1147,7 @@ Explain each score clearly.
 
 Each visible score should have a detail screen.
 
-## I.1 Attention Control detail
+## J.1 Attention Control detail
 
 Show:
 
@@ -838,7 +1174,7 @@ Explanation:
 Bits/sec is an estimate of how much useful visual information you can extract per second in this task. It is a training measure, not an IQ score.
 ```
 
-## I.2 Binding Focus detail
+## J.2 Binding Focus detail
 
 Show:
 
@@ -865,7 +1201,13 @@ Explanation:
 This is harder than simple attention control because you are keeping the right pairing active, not just detecting a direction.
 ```
 
-## I.3 Transfer Score detail
+If BSE is lagging:
+
+```text
+This score is still calibrating because Binding Focus has fewer trials than Attention Control in the first version of the app.
+```
+
+## J.3 Transfer Score detail
 
 Show:
 
@@ -906,11 +1248,13 @@ This is a training indicator, not proof of general intelligence change.
 
 ---
 
-## Screen J — Programme complete screen
+## Screen K — Target-envelope complete screen
 
 ### Purpose
 
-Summarise the 20-session programme and guide the next step.
+Summarise the target-envelope period and guide the next step.
+
+This screen may appear around the target-envelope completion point, but it must not imply that all transfer components are complete if WAP has not yet generated enough evidence.
 
 ### Required elements
 
@@ -919,16 +1263,18 @@ completion message
 Attention Control change
 Binding Focus change
 Transfer Score
+available transfer components
+unfinished transfer components
 strongest area
 current focus area
 recommended next step
 self-guided mode CTA
 ```
 
-### Example
+### Example when all main components are available
 
 ```text
-20-session programme complete
+Target-envelope complete
 
 Your strongest gain:
 Attention Control
@@ -948,13 +1294,36 @@ Your results suggest that your attention skill is beginning to carry across form
 [View full progress]
 ```
 
+### Example when not all transfer components are available
+
+```text
+Target-envelope complete
+
+Your programme has reached the target-envelope point, but some transfer components still need more evidence.
+
+Available now:
+Attention Control
+Binding Focus
+Motion Recovery
+
+Still calibrating:
+Relation Recovery
+Mixed Flexibility
+Return Strength
+
+You can continue in self-guided practice to complete these checks.
+
+[Continue self-guided practice]
+[View Transfer Score]
+```
+
 ---
 
-## Screen K — Self-guided gameplay mode
+## Screen L — Self-guided gameplay mode
 
 ### Purpose
 
-Allow continued use after the formal 20-session pathway.
+Allow continued use after the target-envelope period.
 
 ### Required elements
 
@@ -965,6 +1334,7 @@ free practice
 mixed challenge
 return check
 progress logging
+unfinished transfer components
 ```
 
 ### Copy
@@ -972,9 +1342,9 @@ progress logging
 ```text
 Self-guided practice
 
-You have completed the structured 20-session programme. You can now keep practising, revisit weaker areas, run mixed challenges or schedule return checks.
+You have completed the target-envelope period. You can now keep practising, revisit weaker areas, run mixed challenges or schedule return checks.
 
-Your scores will continue to update, but the formal 20-session Transfer Score remains the main programme summary.
+Your scores will continue to update. Any transfer components that were still calibrating may become available as more evidence is collected.
 ```
 
 Mode options:
@@ -1007,17 +1377,19 @@ moderate confidence
 high confidence
 timing limited
 unstable today
+not enough evidence
 ```
 
 ## 6.2 Consumer wording
 
-| Confidence label    | User-facing meaning                                       |
-| ------------------- | --------------------------------------------------------- |
-| Calibrating         | More sessions are needed before this score is stable.     |
+| Confidence label | User-facing meaning |
+|---|---|
+| Calibrating | More sessions are needed before this score is stable. |
 | Moderate confidence | Enough data are available for a useful training estimate. |
-| High confidence     | This score is based on repeated stable sessions.          |
-| Timing limited      | Device timing may have affected the estimate.             |
-| Unstable today      | Today’s session looked unusually variable.                |
+| High confidence | This score is based on repeated stable sessions. |
+| Timing limited | Device timing may have affected the estimate. |
+| Unstable today | Today’s session looked unusually variable. |
+| Not enough evidence | This component has not had enough relevant trials yet. |
 
 ## 6.3 Low-data display
 
@@ -1030,7 +1402,13 @@ Calibrating
 or:
 
 ```text
-Coming later
+Coming up
+```
+
+or:
+
+```text
+Not enough evidence yet
 ```
 
 with a clear explanation.
@@ -1042,6 +1420,15 @@ Binding Focus
 Calibrating
 
 This score becomes clearer after more colour–direction trials.
+```
+
+Example:
+
+```text
+Relation Recovery
+Not enough evidence yet
+
+This appears after the relative-direction skill has been practised in both static and moving formats.
 ```
 
 ---
@@ -1139,7 +1526,7 @@ Use this note especially on:
 ```text
 Profile dashboard
 Transfer screen
-Programme complete screen
+Target-envelope complete screen
 Score-detail screens
 ```
 
@@ -1167,6 +1554,9 @@ staircase level
 lapse rate
 model parameters
 calibration-table IDs
+WAP gate thresholds
+capacity slope
+minimum trial thresholds
 ```
 
 These may be shown only in:
@@ -1188,14 +1578,15 @@ The minimum viable consumer UX should include:
 1. Today screen
 2. Pre-session briefing
 3. Task screen
-4. Session complete screen
-5. Main profile dashboard
-6. Progress over time screen
-7. 20-session journey screen
-8. Transfer screen
-9. Score-detail screens
-10. Programme complete screen
-11. Self-guided gameplay screen
+4. Mini-block transition / pause screen
+5. Session complete screen
+6. Main profile dashboard
+7. Progress over time screen
+8. Adaptive journey screen
+9. Transfer screen
+10. Score-detail screens
+11. Target-envelope complete screen
+12. Self-guided gameplay screen
 ```
 
 If build scope is tight, the most important screens are:
@@ -1235,10 +1626,11 @@ carrier-swap boundaries
 validation signatures
 scratch baselines
 model versions
+learning-curve controller events
 ```
 
 In one line:
 
 ```text
-Show the user what is improving and whether it carries over; keep the transfer machinery in the background.
+Show the user what is improving, when the next challenge is ready, and whether skill carries over; keep the transfer machinery in the background.
 ```
