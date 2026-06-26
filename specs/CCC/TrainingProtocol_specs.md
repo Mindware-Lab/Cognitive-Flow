@@ -1,4 +1,4 @@
-# Attention Coach Training Protocol Specs - Game Logic and Measurems
+# Attention Coach Training Protocol Specs - Game Logic and Meassures
 
 ## v3.2 — fixed 20-session carrier-swap transfer programme with timing, staircase and bits/sec scoring
 
