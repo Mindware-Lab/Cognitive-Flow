@@ -2083,7 +2083,534 @@ Frame ramp = validation boundary.
 Mixed phase = flexibility test.
 Delayed phase = consolidation test.
 ```
+# Independent Tests - 'Proof' Component
 
-In one line:
+## Part D: Proof Layer and Independent Psychometric Benchmarks
+
+### 1. Rationale for a Separate Proof Layer
+
+A central challenge for cognitive training interventions is distinguishing improvement on the trained task from broader cognitive change. The Attention Coach paradigm is designed to train attention-control processes through adaptive visual tasks, carrier swaps, relational-frame changes, mixed-wrapper phases and delayed re-checks. However, improvement within the Attention Coach task should not by itself be treated as evidence of broad transfer.
+
+For this reason, the app should include a separate **Proof** layer. The Proof layer is not part of the daily training mechanism. It is an evidence and validation layer that links app-native training data to independent psychometric benchmarks. Its purpose is to answer a different question from the training score.
+
+The training score asks:
+
+```text
+Is the user improving inside the Attention Coach protocol?
+```
+
+The Proof layer asks:
+
+```text
+Do changes in the training protocol correspond to changes on independent measures of attention, working memory or reasoning?
+```
+
+This distinction is essential for scientific and product integrity. The app-native Attention Control score estimates performance within the adaptive training paradigm. External benchmark tests provide independent evidence about whether performance changes generalise beyond the trained task surface.
+
+The Proof layer should therefore be framed as:
+
+> A separate evidence layer that checks whether training changes are reflected in independent attention, working-memory and reasoning measures.
+
+It should not be framed as:
+
+```text
+proof of IQ increase
+diagnosis
+clinical assessment
+medical monitoring
+guaranteed far transfer
+```
+
+---
+
+### 2. Core Proof-Layer Principle
+
+The Proof layer should separate three kinds of evidence.
+
+| Evidence type          | Source                                             | Meaning                                                                   |
+| ---------------------- | -------------------------------------------------- | ------------------------------------------------------------------------- |
+| **Training evidence**  | Attention Coach sessions                           | Change within the adaptive training protocol                              |
+| **Transfer evidence**  | Wrapper recovery, mixed formats, delayed re-checks | Whether the trained rule survives changed task surfaces                   |
+| **Benchmark evidence** | Independent psychometric tests                     | Whether performance changes appear on tasks outside the training protocol |
+
+The app should not collapse these into one global score. A user may improve inside the training task without improving on independent benchmarks. Conversely, benchmark improvement may be noisy, delayed or limited by test reliability, motivation, device timing or sampling.
+
+The Proof layer should therefore use cautious language:
+
+> Your benchmark results provide an independent check on whether training-related changes appear outside the coach task.
+
+Avoid:
+
+> This proves your attention has improved.
+
+Use:
+
+> This gives additional evidence that can be compared with your training trend.
+
+---
+
+### 3. Recommended Psychometric Benchmarks
+
+The Proof layer should support three optional benchmark domains:
+
+```text
+Attention
+Working Memory
+Fluid Reasoning
+```
+
+These should ideally live in a separate reusable **Cognitive Tests** or **HRP Lab Tests** app, while sharing the same Supabase participant and score database. Attention Coach should request benchmark sessions at key timepoints rather than embedding long tests inside the daily training loop.
+
+---
+
+## 3.1 Attention Benchmark
+
+### Purpose
+
+The Attention Benchmark provides an external measure of attention performance outside the Attention Coach training task.
+
+Recommended test family:
+
+```text
+ANT-style attention network task
++ SART-style sustained attention task
+```
+
+### Construct coverage
+
+| Test                                    | Main construct                                                      |
+| --------------------------------------- | ------------------------------------------------------------------- |
+| Attention Network Test / ANT-style task | alerting, orienting and executive attention / conflict control      |
+| SART-style task                         | sustained attention, lapses, response inhibition and RT variability |
+
+### Why this matters
+
+Attention Coach trains controlled extraction of relevant visual information under time pressure. An independent attention benchmark can test whether training-related changes are associated with improvements in more established attention constructs, especially sustained attention, conflict control, response stability and lapse resistance.
+
+### User-facing label
+
+Use:
+
+> **Attention Benchmark**
+
+or:
+
+> **Attention Check**
+
+Avoid:
+
+```text
+ADHD test
+clinical attention test
+diagnostic attention profile
+```
+
+### User-facing copy
+
+> This is a separate attention benchmark. It checks attention performance outside the daily coach task, including focus stability and response control.
+
+### Outputs
+
+Recommended outputs:
+
+```text
+Executive Attention
+Sustained Attention Stability
+Lapse Rate
+Response Variability
+Attention Benchmark Composite
+Confidence label
+```
+
+### Interpretation boundary
+
+The app may say:
+
+> Your benchmark gives an independent snapshot of attention performance.
+
+The app should not say:
+
+```text
+This diagnoses ADHD.
+This proves clinical improvement.
+This measures your brain state.
+```
+
+---
+
+## 3.2 Working Memory Benchmark
+
+### Purpose
+
+The Working Memory Benchmark provides an external measure of how well users hold and update information across delay.
+
+Recommended test family:
+
+```text
+visual n-back
+relation n-back
+complex span or spatial span, if later implemented
+```
+
+### Construct coverage
+
+| Test            | Main construct                                     |
+| --------------- | -------------------------------------------------- |
+| Visual n-back   | updating and maintenance under load                |
+| Relation n-back | holding abstract or relational labels across delay |
+| Complex span    | storage plus processing                            |
+| Spatial span    | spatial working-memory capacity                    |
+
+### Why this matters
+
+Attention Coach itself is primarily an attention-control training app. However, its rationale includes the possibility that improved attention control may support downstream working-memory efficiency. A separate working-memory benchmark can test whether attention-control gains are associated with better maintenance, updating or resistance to interference.
+
+### User-facing label
+
+Use:
+
+> **Working Memory Benchmark**
+
+or:
+
+> **Memory Under Load Check**
+
+Avoid:
+
+```text
+memory diagnosis
+working-memory disorder screen
+clinical memory profile
+```
+
+### User-facing copy
+
+> This benchmark checks how well you hold and update information over a short delay. It is separate from the Attention Coach training score.
+
+### Outputs
+
+Recommended outputs:
+
+```text
+Working Memory Level
+Updating Accuracy
+Lure Resistance
+RT Stability
+Working Memory Benchmark Composite
+Confidence label
+```
+
+### Interpretation boundary
+
+The app may say:
+
+> This benchmark helps test whether training-related changes are reflected in short-term information maintenance and updating.
+
+The app should not say:
+
+```text
+This diagnoses working-memory impairment.
+This proves treatment response.
+This proves far transfer.
+```
+
+---
+
+## 3.3 Fluid Reasoning Benchmark
+
+### Purpose
+
+The Fluid Reasoning Benchmark provides an external reasoning anchor, separate from the Attention Coach training task.
+
+Recommended test family:
+
+```text
+matrix reasoning
+series reasoning
+analogy or abstract rule reasoning
+```
+
+For the first implementation, matrix reasoning is the cleanest external anchor.
+
+### Construct coverage
+
+| Test                 | Main construct                                 |
+| -------------------- | ---------------------------------------------- |
+| Matrix reasoning     | abstract pattern inference and fluid reasoning |
+| Letter/number series | sequential rule induction                      |
+| Analogy reasoning    | relational mapping                             |
+| 3D rotation, if used | spatial transformation                         |
+
+### Why this matters
+
+The strongest transfer claim would be that attention-control training contributes to broader reasoning performance. This cannot be assumed from in-app gains. A separate reasoning benchmark is needed to test whether users show changes on independent reasoning tasks.
+
+### User-facing label
+
+Use:
+
+> **Reasoning Benchmark**
+
+or:
+
+> **Matrix Reasoning Benchmark**
+
+Avoid:
+
+```text
+IQ test
+official IQ score
+intelligence diagnosis
+clinical reasoning test
+```
+
+### User-facing copy
+
+> This is a separate reasoning benchmark. It helps test whether changes in training are reflected in an independent problem-solving task.
+
+### Outputs
+
+Recommended outputs:
+
+```text
+Raw correct
+Theta estimate, if item calibration supports it
+Standard error
+Sample-norm standard score, only when norm data are sufficient
+Reasoning Benchmark trend
+Confidence label
+```
+
+### Interpretation boundary
+
+The app may say:
+
+> This benchmark tracks performance on a separate reasoning task.
+
+The app should not say:
+
+```text
+This is your IQ.
+This proves your IQ changed.
+This is a clinical or educational diagnosis.
+```
+
+---
+
+# 4. Recommended Benchmark Schedule
+
+The Proof layer should not interrupt daily training. Benchmarks should be offered at milestone points.
+
+## 4.1 Standard consumer schedule
+
+```text
+Baseline:
+before or after session 1
+
+Post-training:
+after session 20
+
+Follow-up:
+2–6 weeks later, optional
+```
+
+This gives a clean pre/post/follow-up structure without overburdening the user.
+
+## 4.2 Research or partner schedule
+
+```text
+T0 baseline:
+attention + working memory + reasoning
+
+T1 midpoint:
+brief attention or working-memory checkpoint
+
+T2 post:
+attention + working memory + reasoning
+
+T3 delayed follow-up:
+attention + reasoning, with working memory optional
+```
+
+The midpoint test should be short. Long benchmark batteries should not be inserted into the main daily programme unless the user has explicitly enrolled in a research or partner study.
+
+---
+
+# 5. Proof Page UX
+
+The Attention Coach Proof page should contain four sections.
+
+## 5.1 What the coach measures
+
+> Attention Coach estimates how efficiently you extract the relevant signal from brief visual displays and how well that performance recovers when the display format changes.
+
+## 5.2 What the benchmark tests measure
+
+> Benchmark checks are separate tasks. They test attention, working memory or reasoning outside the daily coach task.
+
+## 5.3 Your benchmark options
+
+| Benchmark                | Approximate use                    | Status   |
+| ------------------------ | ---------------------------------- | -------- |
+| Attention Benchmark      | baseline, post-training, follow-up | optional |
+| Working Memory Benchmark | optional deeper check              | optional |
+| Reasoning Benchmark      | transfer / external anchor         | optional |
+
+## 5.4 What we do not claim
+
+```text
+Not an official IQ test
+Not a diagnosis
+Not a clinical treatment
+Not proof of guaranteed transfer
+Not a medical device
+```
+
+---
+
+# 6. Data Architecture
+
+The benchmark tests should share the same Supabase participant identity as Attention Coach, but they should be stored as separate benchmark attempts.
+
+Recommended table groups:
+
+```text
+participants
+app_enrolments
+training_sessions
+training_trials
+training_scores
+benchmark_batteries
+benchmark_attempts
+benchmark_trials
+benchmark_scores
+score_snapshots
+training_benchmark_links
+```
+
+The linking table should connect benchmark results to the relevant Attention Coach programme.
+
+Example fields:
+
+```text
+participant_id
+app_id
+programme_id
+benchmark_battery_id
+benchmark_attempt_id
+timepoint
+linked_training_session_range
+created_at
+```
+
+Recommended timepoint values:
+
+```text
+baseline
+midpoint
+post
+follow_up
+ad_hoc
+```
+
+This allows the app to analyse:
+
+```text
+Did Attention Control improve during training?
+Did Attention Benchmark scores change from baseline to post?
+Did Working Memory Benchmark scores change?
+Did Matrix Reasoning Benchmark scores change?
+Did any benchmark change survive follow-up?
+```
+
+---
+
+# 7. Proof-Layer Composite
+
+The app may eventually compute a Proof Summary, but it should not be presented as a global “brain score”.
+
+Recommended internal composite:
+
+```text
+ProofSummary =
+  training_change
++ wrapper_recovery
++ delayed_recovery
++ attention_benchmark_change
++ working_memory_benchmark_change
++ reasoning_benchmark_change
+```
+
+However, this should remain exploratory until validated.
+
+User-facing wording:
+
+> Your proof summary combines training evidence, format-recovery evidence and optional benchmark checks. It is designed to show what evidence has been collected, not to make a diagnosis or guarantee transfer.
+
+Avoid:
+
+```text
+Your cognitive ability increased by X.
+Your IQ increased by X.
+Your attention disorder improved.
+```
+
+---
+
+# 8. Claims Boundary for the Proof Layer
+
+Allowed claims:
+
+```text
+Attention Coach tracks training change within an adaptive attention-control task.
+The Proof layer can compare training change with independent attention, working-memory and reasoning benchmarks.
+Benchmark scores are separate from training scores.
+Repeated testing can help estimate whether changes persist after training.
+```
+
+Avoided claims:
+
+```text
+Attention Coach proves IQ improvement.
+Attention Coach diagnoses ADHD or anxiety.
+Attention Coach is a clinical treatment.
+Benchmark improvement proves real-world transfer.
+A single benchmark result is stable or definitive.
+```
+
+Safe summary claim:
+
+> Attention Coach includes an optional Proof layer that compares app-native training progress with independent benchmark checks for attention, working memory and reasoning.
+
+---
+
+# 9. Rationale-Level Interpretation
+
+The Proof layer strengthens the Attention Coach rationale in three ways.
+
+First, it protects against task-specific overclaiming. Training gains inside Attention Coach are treated as app-native evidence, not as automatic proof of broader cognitive change.
+
+Second, it provides external anchors. Attention benchmarks test whether attention-control changes appear on separate attention tasks; working-memory benchmarks test whether downstream maintenance and updating change; reasoning benchmarks test whether any broader problem-solving trend is detectable.
+
+Third, it supports staged validation. The app can initially make conservative claims about training, wrapper recovery and delayed re-checks, while collecting data for stronger future claims only if independent benchmarks show reliable change.
+
+In compact form:
+
+```text
+Training score:
+Did the user improve in the coach?
+
+Transfer score:
+Did the rule survive changed formats and delay?
+
+Benchmark score:
+Did an independent cognitive test change?
+
+Proof layer:
+How do these lines of evidence relate?
+```
+
+This structure makes Attention Coach an evidence-generating intervention rather than an overclaiming cognitive-training product.
+
 
 > **Measure transfer efficiency where the carrier changes; use absolute→relative ramps to test whether the transferred invariant is deep enough to support relational abstraction.**
