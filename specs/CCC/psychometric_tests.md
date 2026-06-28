@@ -423,7 +423,9 @@ Show the composite only as an **external attention benchmark**, not as the Atten
 [6]: https://github.com/shamrt/jsSART "GitHub - shamrt/jsSART: A customizable Sustained Attention to Response Task (SART; described in Robertson et al, 1997) measure, built with jsPsych. · GitHub"
 
 
-Yes. I would implement **standardised scores from day 1**, but label them as **provisional calibration scores** until your own sample is large enough. The attached test plan already gives the two-test battery: **Short ANT: 32 practice + 128 scored trials** and **SART: 18 practice + 225 scored trials**, using MIT-licensed Experiment Factory ANT and jsSART sources. 
+# Standardised Scores
+
+I would implement **standardised scores from day 1**, but label them as **provisional calibration scores** until your own sample is large enough. The attached test plan already gives the two-test battery: **Short ANT: 32 practice + 128 scored trials** and **SART: 18 practice + 225 scored trials**, using MIT-licensed Experiment Factory ANT and jsSART sources. 
 
 The key product rule is: show a score immediately, but never imply it is an official general-population norm until calibration supports it. Your IQ Coach spec already requires confidence labels, server-side canonical scoring, raw-trial preservation, norm-group IDs, standard scores where supported, and fallback bands when calibration is weak. 
 
