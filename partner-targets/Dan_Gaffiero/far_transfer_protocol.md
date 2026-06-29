@@ -35,7 +35,7 @@ This generalises across attention training, working-memory training, SR-style pr
 Training begins by placing the learner in a task environment where the relevant relation is not immediately overlearned. The learner must search for what matters:
 
 ```text
-surface cue
+→ surface cue
 → relevant variable
 → candidate relation
 → testable structure
@@ -68,7 +68,7 @@ Wrapper C
 The behavioural signature should be:
 
 ```text
-local learning
+→ local learning
 → flattening
 → wrapper perturbation
 → temporary dip
@@ -110,7 +110,7 @@ Can the same relation be extracted, held, bound, predicted from, reasoned with a
 The general stack is:
 
 ```text
-readiness / trainable state
+→ readiness / trainable state
 → attention / evidence extraction
 → variable abstraction
 → relational invariant abstraction
@@ -131,7 +131,7 @@ This is why the model is not “attention training” versus “working-memory t
 A key implication is that far transfer may fail at different points in the vertical chain. A learner may extract the signal accurately but fail to identify the relevant variable; identify the variable but fail to recover the invariant relation; recover the relation but fail to hold it under delay; hold it locally but fail to use it for path prediction; predict the path but fail to express the structure in explicit reasoning; or reason correctly in-app but fail to deploy the policy in a real-world context. The protocol therefore treats transfer failure as a **bottleneck problem**, not a global capacity problem. The aim is to locate where the relation stops moving upward through the stack:
 
 ```text
-signal
+→ signal
 → variable
 → relation
 → memory
@@ -193,7 +193,7 @@ Far transfer is hypothesised to depend on learning not only the relation, but al
 For SR-based tasks, the relation becomes predictive:
 
 ```text
-state
+→ state
 → transition
 → consequence
 → reachable future
@@ -206,7 +206,7 @@ This is the bridge from pattern learning to inference. The learner is not just d
 A relation becomes more transferable when it can be made explicit, selected and reused:
 
 ```text
-visual relation
+→ visual relation
 → symbolic relation
 → verbal relation
 → applied scenario
@@ -219,7 +219,7 @@ This is why explicit inference is not just an “extra test”. It is a vertical
 The protocol should reinforce the whole route, not just the answer:
 
 ```text
-state
+→ state
 → evidence sampling
 → variable abstraction
 → relation recovery
@@ -240,7 +240,7 @@ A correct answer by surface shortcut has low transfer value. A correct answer af
 The theory is not a simple practice loop:
 
 ```text
-practice
+→ practice
 → improvement
 → more practice
 ```
@@ -260,7 +260,7 @@ Later Gf re-enters with richer material.
 So Gc is not just stored knowledge. In this model, good Gc is a **bounded predictive-control module**:
 
 ```text
-relation
+→ relation
 + variables
 + boundary conditions
 + foils
@@ -311,7 +311,7 @@ This maps naturally onto the proposed far-transfer protocol. In a standard train
 The hypothesis is that useful far-transfer training should not maximise repetition or novelty in isolation. It should regulate the alternation between stability and perturbation:
 
 ```text
-learn a relation
+→ learn a relation
 → approach local asymptote
 → perturb the wrapper
 → recover the invariant
@@ -332,7 +332,7 @@ This is highly relevant to transfer-focused training. A temporary dip after a wr
 The proposed protocol uses this logic directly. It treats the pattern:
 
 ```text
-local improvement
+→ local improvement
 → flattening
 → perturbation
 → temporary dip
