@@ -1,5 +1,5 @@
 
-## Trident G Far Transfer Protocol - General theoretical hypothesis
+## Trident G Far Transfer Protocol - General Hypothesis
 
 The central hypothesis is that far transfer is more likely when cognitive training does **not** merely increase fluency on a practised task, but repeatedly trains the learner to recover the same underlying relational structure across changed task surfaces, cognitive layers, interference, delay and applied use.
 
