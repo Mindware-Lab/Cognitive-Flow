@@ -1,3 +1,4 @@
+
 ## Trident G Far Transfer Protocol - General theoretical hypothesis
 
 The central hypothesis is that far transfer is more likely when cognitive training does **not** merely increase fluency on a practised task, but repeatedly trains the learner to recover the same underlying relational structure across changed task surfaces, cognitive layers, interference, delay and applied use.
@@ -330,6 +331,12 @@ The key measurement question is therefore not only whether performance improves 
 
 The broader cognitive-training literature motivates a cautious approach. Working-memory training and other brain-training paradigms often produce gains on trained or closely related tasks, but far transfer to broad intelligence measures is much less reliable. This does not imply that cognitive training is impossible. It suggests that task repetition alone is an insufficient design principle.
 
+This is the problem of “thin automation” in conventional brain training. Repeated practice on a narrow task can improve performance by making the trained response more efficient, but this efficiency may reflect increasing specialisation within segregated task routines rather than the construction of portable predictive structures. Finc et al. (2020) provide direct motivation for this concern: during six weeks of dual n-back training, behavioural improvement was accompanied by increased whole-brain modularity, greater segregation of default-mode and task-positive systems, increased frontoparietal recruitment, reduced default-mode–frontoparietal integration, and nonlinear changes in subcortical coupling. Their interpretation is that even a demanding working-memory task, once mastered, may become executable within a more segregated and less globally integrated network architecture. 
+
+<img width="1157" height="632" alt="image" src="https://github.com/user-attachments/assets/70581d85-9825-4751-b705-4ef217ea5125" />
+
+In Trident-G terms, this raises the possibility that standard brain training may often produce efficient local automation without necessarily producing generalisable hippocampal-prefrontal or SR-style predictive maps. The learner may become better at the trained surface, but the learned code may remain thin: tied to the original stimulus-response policy, weakly connected to broader relational inference, and poorly recoverable under changed wrappers. The present protocol is designed to counter this risk by deliberately disrupting surface-specific automation before it hardens. Wrapper swaps, near-miss foils, mixed formats, SR-style prediction probes, explicit reasoning bridges and delayed re-checks force the learner to recover the underlying relation rather than merely repeat the trained response. The intended outcome is not automation of a narrow task routine, but consolidation of a bounded predictive-control structure: a relation with known variables, boundary conditions, valid wrappers, lures, transition consequences and reasoning handles. In this sense, the protocol attempts to convert training from local task automation into reusable Gc that can later support new Gf search.
+
 The proposed protocol responds to this limitation by making transfer the object of training and measurement from the beginning. It separates:
 
 ```text
@@ -399,6 +406,8 @@ Barnett, S. M., & Ceci, S. J. (2002). When and where do we apply what we learn? 
 
 Donner, Y., & Hardy, J. L. (2015). Piecewise power laws in individual learning curves. *Psychonomic Bulletin & Review, 22*(5), 1308–1319. doi: 10.3758/s13423-015-0811-x
 
+Finc, K., Bonna, K., He, X., Lydon-Staley, D. M., Kühn, S., Duch, W., & Bassett, D. S. (2020). Dynamic reconfiguration of functional brain networks during working memory training. Nature Communications, 11, 2435. https://doi.org/10.1038/s41467-020-15631-z
+
 Klauer, K. J., & Phye, G. D. (2008). Inductive reasoning: A training approach. *Review of Educational Research, 78*(1), 85–123. doi: 10.3102/0034654307313402
 
 Mashour, G. A., Roelfsema, P., Changeux, J.-P., & Dehaene, S. (2020). Conscious processing and the global neuronal workspace hypothesis. *Neuron, 105*(5), 776–798. doi: 10.1016/j.neuron.2020.01.026
@@ -410,6 +419,6 @@ Stachenfeld, K. L., Botvinick, M. M., & Gershman, S. J. (2017). The hippocampus 
 Zhang, X.-Y., & Tang, C. (2025). Heavy-tailed update distributions arise from information-driven self-organization in nonequilibrium learning. *Proceedings of the National Academy of Sciences, 122*(51), e2523012122. doi: 10.1073/pnas.2523012122
 
 
-## Grant-ready summary paragraph
+## Summary paragraph
 
 The proposed training framework is based on the hypothesis that far transfer is more likely when cognitive training targets portable relational structure rather than task-specific fluency. Across attention, working memory, predictive learning and explicit inference, the protocol trains users to identify task-relevant variables, recover relational invariants under changed wrappers, resist near-miss lures, maintain relations under delay, use them for prediction and reasoning, and re-enter them after time or applied use. Mechanistically, the framework treats learning as a regulated alternation between entropy-driven search and mutual-information constraint: task practice stabilises a candidate relation, wrapper perturbation reopens search while preserving the invariant, vertical reconstruction tests whether the relation can be held, bound, predicted from and reasoned with, and delayed re-checks test whether the structure has become reusable Gc. The central claim is not that any single attention, working-memory or reasoning exercise guarantees far transfer, but that a structured programme of invariant recovery, vertical reconstruction, foil sharpening, feedback and delayed consolidation provides a testable route for building and measuring portable cognitive structure.
