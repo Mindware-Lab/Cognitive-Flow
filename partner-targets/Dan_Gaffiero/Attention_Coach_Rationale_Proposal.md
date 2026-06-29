@@ -4,7 +4,7 @@
 
 ---
 
-## Suummary
+## Summary
 
 The Attention Coach paradigm extends the Majority Function Task (Backward masked) (MFT-M) framework into relational stimuli, two-dimensional motion, feature-binding tasks, and cross-modality carrier swaps. This document reviews the empirical evidence supporting its potential as a digital therapeutic intervention for (a) anxiety-related dysfunctions, particularly exam/test anxiety, and (b) preclinical attention-deficit/hyperactivity disorder (ADHD) symptoms. The rationale draws on attentional control theory, metacognitive models of emotional disorder, Theory of Visual Attention (TVA) research, hippocampal function research, and the cognitive training literature.
 
