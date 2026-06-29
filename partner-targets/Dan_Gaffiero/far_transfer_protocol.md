@@ -28,8 +28,7 @@ This generalises across attention training, working-memory training, SR-style pr
 
 ## The core process
 
-<img width="1448" height="1086" alt="attention coach transfer" src="https://github.com/user-attachments/assets/c81e4f86-7ddc-4fba-81ab-194a9d1e8ee8" />
-
+<img width="1448" height="1086" alt="Trident G Far Transfer Protocol - Latest" src="https://github.com/user-attachments/assets/0babaf52-171c-4ebc-9cca-f7d71fcf7c76" />
 
 ### 1. Gf phase: structured search under uncertainty
 
@@ -126,6 +125,24 @@ readiness / trainable state
 ```
 
 This is why the model is not “attention training” versus “working-memory training” versus “reasoning training”. Those are different layers of one transfer architecture. The IQ Coach spec expresses this as five core capacities — Attention Control, Relational Memory, Binding Memory, Path Prediction and Reasoning — where the same relational structure is encountered across multiple cognitive operations rather than in unrelated mini-games. 
+
+### Vertical bottlenecks: where transfer can fail
+
+A key implication is that far transfer may fail at different points in the vertical chain. A learner may extract the signal accurately but fail to identify the relevant variable; identify the variable but fail to recover the invariant relation; recover the relation but fail to hold it under delay; hold it locally but fail to use it for path prediction; predict the path but fail to express the structure in explicit reasoning; or reason correctly in-app but fail to deploy the policy in a real-world context. The protocol therefore treats transfer failure as a **bottleneck problem**, not a global capacity problem. The aim is to locate where the relation stops moving upward through the stack:
+
+```text
+signal
+→ variable
+→ relation
+→ memory
+→ prediction
+→ reasoning
+→ action
+→ feedback
+→ delayed reuse
+```
+
+This also makes the training adaptive. If the bottleneck is early, the next block should simplify and strengthen evidence extraction or variable abstraction. If the bottleneck is later, training should emphasise SR-style prediction, explicit reasoning, cue-action deployment or delayed recovery. In this sense, vertical transfer is not just a ladder of harder tasks. It is a diagnostic pathway for identifying which layer is currently limiting portability.
 
 ---
 
