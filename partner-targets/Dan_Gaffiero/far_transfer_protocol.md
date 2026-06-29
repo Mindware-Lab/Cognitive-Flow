@@ -358,7 +358,12 @@ This makes the programme evidence-generating rather than claim-driven. It does n
 
 ### 4. Relation to predictive-map and reasoning evidence
 
-The SR / Path Prediction layer is motivated by successor-representation and predictive-map accounts of cognition, in which current states are represented partly in terms of expected future states. This provides a principled bridge between pattern learning and flexible prediction. In the protocol, users are not only trained to recognise a current state; they are trained to learn transition structure, distinguish likely from rare or impossible transitions, and judge whether a path can still reach a target.
+The SR / Path Prediction layer is motivated by successor-representation and predictive-map accounts of cognition, in which current states are represented partly in terms of expected future states. We can envisage these represntations as conditional probability graphs.
+
+<img width="1560" height="1247" alt="image" src="https://github.com/user-attachments/assets/e50fcfc9-1a2d-427e-af2f-29ad2e025190" />
+
+
+This provides a principled bridge between pattern learning and flexible prediction. In the protocol, users are not only trained to recognise a current state; they are trained to learn transition structure, distinguish likely from rare or impossible transitions, and judge whether a path can still reach a target.
 
 The explicit inference layer then tests whether the same structure can be recovered in symbolic, nonsense-semantic and domain-semantic reasoning. This is important because far transfer should not stop at implicit pattern learning. A relation that becomes explicitly usable can support explanation, strategy selection, rule checking, counterfactual search and applied decision-making.
 
