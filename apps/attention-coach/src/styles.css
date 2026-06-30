@@ -200,6 +200,7 @@ button {
 
 .splash-title h1,
 .splash-title p,
+.splash-title small,
 .splash-protocol {
   margin: 0;
 }
@@ -216,6 +217,13 @@ button {
   color: #52637c;
   font-size: clamp(0.85rem, 2.2vmin, 1.12rem);
   letter-spacing: 0.01em;
+}
+
+.splash-title small {
+  color: #172643;
+  font-size: clamp(0.72rem, 1.7vmin, 0.9rem);
+  font-weight: 760;
+  letter-spacing: 0;
 }
 
 .splash-divider {
@@ -244,6 +252,40 @@ button {
 .splash-protocol {
   color: #172643;
   font-size: clamp(0.72rem, 1.8vmin, 0.92rem);
+}
+
+.splash-rationale-grid {
+  width: min(100%, 680px);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.splash-rationale-grid article {
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+  border: 1px solid rgba(34, 170, 255, 0.18);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 10px 24px rgba(18, 48, 102, 0.06);
+}
+
+.splash-rationale-grid strong {
+  color: #07142f;
+  font-size: 0.78rem;
+}
+
+.splash-rationale-grid span,
+.splash-claims {
+  color: #52637c;
+  font-size: 0.68rem;
+  line-height: 1.22;
+}
+
+.splash-claims {
+  max-width: 620px;
+  margin: 0;
 }
 
 .splash-footer {
@@ -275,6 +317,29 @@ button {
   font-size: 0.67rem;
   letter-spacing: 0.22em;
   text-transform: uppercase;
+}
+
+.splash-footer .splash-support-note {
+  max-width: 330px;
+  color: #52637c;
+  font-size: 0.72rem;
+  font-weight: 720;
+  letter-spacing: 0;
+  line-height: 1.28;
+  text-transform: none;
+}
+
+.splash-site-link {
+  color: #52637c;
+  font-size: 0.78rem;
+  font-weight: 760;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+}
+
+.splash-site-link:hover {
+  color: var(--blue);
+  text-decoration: underline;
 }
 
 .splash-wave {
@@ -1432,6 +1497,19 @@ button.score-card {
   .splash-logo {
     width: min(70%, 260px);
     max-height: 160px;
+  }
+
+  .splash-rationale-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .splash-rationale-grid article {
+    padding: 8px 10px;
+  }
+
+  .splash-rationale-grid span,
+  .splash-claims {
+    font-size: 0.62rem;
   }
 
   .splash-title h1 {

@@ -247,17 +247,35 @@ function renderWelcome(): string {
         <img src="/iqmindware-logo.png" alt="IQ Mindware" class="splash-logo" />
         <div class="splash-title">
           <h1>Attention <span class="iq-highlight">Coach</span></h1>
-          <p>Adaptive attention and <span class="iq-highlight">transfer</span> training</p>
+          <p>Train attention control and cognitive capacity.</p>
+          <small>First step: quick setup, then today's guided attention route.</small>
         </div>
         <div class="splash-divider" aria-hidden="true"><span></span></div>
-        <p class="splash-protocol">Powered by the Trident G Far Transfer Protocol&trade;</p>
+        <p class="splash-protocol">Based on the Trident-G transfer-training protocol&trade;</p>
+        <div class="splash-rationale-grid">
+          <article>
+            <strong>Why train?</strong>
+            <span>Attention control helps you pick out the signal and ignore visual noise.</span>
+          </article>
+          <article>
+            <strong>How it trains</strong>
+            <span>The rule stays similar while the display changes, so you practise flexible focus.</span>
+          </article>
+          <article>
+            <strong>What changes over time</strong>
+            <span>Later sessions mix formats and re-check what still holds after a delay.</span>
+          </article>
+        </div>
+        <p class="splash-claims">Training support only. Not a diagnosis, clinical treatment, brain measurement, or IQ score.</p>
       </section>
       <div class="splash-wave splash-wave-one" aria-hidden="true"></div>
       <div class="splash-wave splash-wave-two" aria-hidden="true"></div>
       <section class="splash-footer">
-        ${button("Enter Attention Coach", "start-readiness")}
-        <button class="splash-link" data-action="nav-free-play">Choose a game</button>
-        <small>Training indicators only</small>
+        ${button("Start today's guided route", "start-readiness")}
+        <small class="splash-support-note">Setup first; today's guided route takes about 5-10 minutes.</small>
+        <button class="splash-link" data-action="nav-transfer-model">How it works</button>
+        <button class="splash-link" data-action="nav-transfer">Proof &amp; science</button>
+        <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer">www.iqmindware.com</a>
       </section>
     </section>
   `, { splash: true });
