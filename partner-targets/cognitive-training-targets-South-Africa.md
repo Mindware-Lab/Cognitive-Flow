@@ -1,4 +1,4 @@
-# Zone Coach vs Cognitive Flow SA
+# Zone Coach & Capacity Coach/Gf Coach SA
 
 For Cognitive Flow, a **South Africa / Cape Town partner-target document is suited**, but it should not mirror the Zone Coach clinic-biohacking version too closely. The stronger local fit is:
 
