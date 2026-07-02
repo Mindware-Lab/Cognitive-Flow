@@ -698,7 +698,6 @@ function renderPreTaskInstructions(): string {
       <div class="pre-task-hero">
         <p class="ui-eyebrow">Before you start</p>
         <h1>${escapeHtml(copy.title)}</h1>
-        <p>Flexible attention helps you keep the right goal active under pressure, distraction, or uncertainty.</p>
       </div>
       <div class="pre-task-grid">
         <article class="instruction-card"><strong>What you'll do</strong><p>${escapeHtml(copy.what)}</p></article>
@@ -708,7 +707,6 @@ function renderPreTaskInstructions(): string {
       <div class="wrapper-swap-card">
         <strong>Why the format changes</strong>
         <p>The rule is the same, but the surface is different. This helps test whether you learned the underlying skill rather than memorising one display.</p>
-        <small>A short dip is normal when the visual format changes.</small>
       </div>
       <div class="action-row">
         ${button(copy.startLabel, "start-pending-task")}
@@ -995,18 +993,11 @@ function renderToday(): string {
         <div class="today-primary-actions">
           ${button("Start today's attention route", "start-guided-instructions")}
           <button class="secondary-link-button" data-action="start-easier-instructions">Practice only</button>
-          <small>Does not change your guided progress path.</small>
           <button class="secondary-link-button" data-action="nav-today-rationale">Why today?</button>
         </div>
       </div>
       <div class="today-plan-card">
         <div class="session-dots" aria-label="Recent completion dots">${completionDots()}</div>
-        <div class="plan-steps">
-          <span>What to do today</span>
-          <span>Why it matters</span>
-          <span>Guided task</span>
-          <span>Completion card</span>
-        </div>
         <div class="today-time-card">
           <span>Coming next</span>
           <strong>${escapeHtml(comingNextPhase(phase))}</strong>
@@ -1080,10 +1071,6 @@ function renderFreePlay(): string {
   return shell(`
     ${appTabs("train")}
     <section class="train-screen no-scroll-screen">
-      <div class="train-header-card">
-        <p class="ui-eyebrow">Train</p>
-        <p class="ui-body">Start today's coached route, practise a game without changing progress, or review how the programme is structured.</p>
-      </div>
       <figure class="train-protocol-strip">
         <img
           src="${assetPath("trident-g-far-transfer-protocol.png")}"
@@ -1592,7 +1579,7 @@ function renderTrainingMap(): string {
     <section class="training-map-screen">
       <figure class="transfer-model-figure training-map-figure">
         <img
-          src="${assetPath("attention-transfer-model.png")}"
+          src="${assetPath("attention-transfer-model-v2.png")}"
           alt="Training map showing static arrows, moving patterns, relational formats, mixed practice, and a delayed return check."
           width="1537"
           height="1023"

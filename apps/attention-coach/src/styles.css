@@ -272,7 +272,7 @@ button {
 }
 
 .app-content.view-free-play.has-app-tabs {
-  gap: 4px;
+  gap: 8px;
 }
 
 .beta-status-bar {
@@ -1523,7 +1523,7 @@ button.score-card {
 
 .today-primary-actions {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) auto minmax(180px, auto) auto;
+  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(118px, auto));
   align-items: center;
   gap: 8px;
 }
@@ -1594,6 +1594,10 @@ button.score-card {
   background:
     linear-gradient(135deg, rgba(20, 88, 255, 0.08), rgba(255, 255, 255, 0.94)),
     radial-gradient(circle at 100% 0%, rgba(138, 214, 42, 0.16), transparent 180px);
+}
+
+.today-rationale-screen .programme-rationale-card .claims-note {
+  display: none;
 }
 
 .programme-rationale-card h2,
@@ -1881,12 +1885,12 @@ button.score-card {
 }
 
 .view-free-play .train-screen {
-  gap: 6px;
-  margin-top: -26px;
+  gap: 8px;
+  margin-top: 0;
 }
 
 .train-screen.no-scroll-screen {
-  grid-template-rows: auto auto auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   align-content: start;
 }
 
@@ -1908,7 +1912,7 @@ button.score-card {
 
 .train-protocol-strip {
   width: 100%;
-  height: clamp(136px, 16dvh, 150px);
+  height: clamp(118px, 15dvh, 138px);
   min-height: 0;
   margin: 0;
   display: grid;
@@ -1999,19 +2003,22 @@ button.score-card {
 
 .training-map-figure {
   min-height: 0;
-  place-items: start center;
-  padding: clamp(6px, 1.6vmin, 12px);
+  place-items: center;
+  padding: clamp(16px, 2.4vmin, 24px);
   border: 1px solid rgba(207, 218, 235, 0.92);
   border-radius: 20px;
   background: rgba(255, 255, 255, 0.9);
   box-shadow: 0 10px 28px rgba(16, 35, 78, 0.08);
+  overflow: hidden;
 }
 
 .training-map-figure img {
   width: auto;
   height: auto;
-  max-width: 100%;
-  max-height: 100%;
+  max-width: 94%;
+  max-height: 86%;
+  object-fit: contain;
+  object-position: center;
 }
 
 .training-map-note {
@@ -2239,13 +2246,14 @@ button.score-card {
 }
 
 .block-briefing-panel {
-  gap: 12px;
+  gap: 8px;
 }
 
 .game-preview-panel {
-  grid-template-rows: auto minmax(0, 1fr) auto auto;
+  grid-template-rows: auto minmax(0, 0.82fr) auto auto;
   align-content: stretch;
-  gap: 9px;
+  gap: 7px;
+  padding: clamp(12px, 2vmin, 18px);
 }
 
 .game-preview-copy {
@@ -2257,19 +2265,22 @@ button.score-card {
 .game-preview-copy h1 {
   margin: 0;
   color: #07124a;
-  font-size: clamp(1.55rem, 4.8vmin, 2.2rem);
+  font-size: clamp(1.42rem, 4.2vmin, 2rem);
   line-height: 1;
 }
 
 .game-preview-copy .ui-body {
   max-width: 46rem;
   justify-self: center;
-  font-size: 0.86rem;
-  line-height: 1.25;
+  font-size: 0.78rem;
+  line-height: 1.18;
 }
 
 .game-preview-card {
+  grid-template-rows: auto minmax(82px, 1fr) auto;
+  gap: 5px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .game-preview-panel .block-practice-card {
@@ -2355,6 +2366,24 @@ button.score-card {
   width: min(250px, 44dvh, 68vw);
   align-self: center;
   justify-self: center;
+}
+
+.game-preview-card .stimulus-wrap {
+  width: min(130px, 20dvh, 36vw);
+  max-height: 130px;
+}
+
+.game-preview-card .practice-answer-grid {
+  gap: 6px;
+}
+
+.game-preview-panel .action-row {
+  gap: 8px;
+}
+
+.game-preview-panel .ui-button {
+  min-height: 40px;
+  padding: 0 16px;
 }
 
 .practice-answer-grid {
@@ -2882,9 +2911,9 @@ button.score-card {
 .transfer-model-figure img {
   display: block;
   width: auto;
-  height: 91%;
-  max-width: 92%;
-  max-height: 91%;
+  height: auto;
+  max-width: 94%;
+  max-height: 86%;
   object-fit: contain;
   object-position: center;
 }
@@ -2894,9 +2923,11 @@ button.score-card {
 }
 
 .training-map-figure img {
-  height: 94%;
-  max-width: 96%;
-  max-height: 94%;
+  width: auto;
+  height: auto;
+  max-width: 94%;
+  max-height: 86%;
+  object-fit: contain;
 }
 
 .dashboard-screen {
@@ -3583,7 +3614,14 @@ button.score-card {
 
 .dashboard-actions .ui-button {
   width: 100%;
-  min-height: 40px;
+  min-height: 52px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  line-height: 1.12;
+  text-align: center;
+  white-space: normal;
 }
 
 .score-explainer-strip {
@@ -4410,6 +4448,11 @@ button.score-card {
     width: min(205px, 34dvh, 62vw);
   }
 
+  .game-preview-card .stimulus-wrap {
+    width: min(148px, 24dvh, 50vw);
+    max-height: 148px;
+  }
+
   .practice-answer-grid {
     gap: 4px;
   }
@@ -4586,9 +4629,10 @@ button.score-card {
   }
 
   .transfer-model-figure img {
-    height: 94%;
-    max-width: 98%;
-    max-height: 94%;
+    width: auto;
+    height: auto;
+    max-width: 94%;
+    max-height: 84%;
   }
 
   .splash-card {
@@ -4846,9 +4890,11 @@ button.score-card {
   }
 
   .dashboard-actions .ui-button {
-    min-height: 32px;
-    padding: 0 8px;
-    font-size: 0.67rem;
+    min-height: 42px;
+    padding: 6px 8px;
+    font-size: 0.66rem;
+    line-height: 1.12;
+    white-space: normal;
   }
 
   .score-explainer-strip {
