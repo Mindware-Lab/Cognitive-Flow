@@ -6,6 +6,7 @@ Standalone WAP-based Attention Coach app.
 
 - `specs/CCC/TrainingProtocol_specs_v2.md`
 - `specs/CCC/attention_coach_ux.md`
+- `UX/digital_health.apps_ux.md`
 - `apps/cognitive-bandwidth` exam-resilience demo CSS and interaction style
 
 ## Architecture

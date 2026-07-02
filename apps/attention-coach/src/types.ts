@@ -7,6 +7,10 @@ export type PhaseLabel =
   | "P2_FLOW_ABS"
   | "P3_ARROW_REL"
   | "P4_FLOW_REL"
+  | "P1_FLOW_ABS"
+  | "P2_ARROW_ABS"
+  | "P3_FLOW_REL"
+  | "P4_ARROW_REL"
   | "P5_MIXED"
   | "P6_DELAYED";
 export type PhaseStatus =
@@ -26,6 +30,14 @@ export type TransitionKey =
   | "T_MIXED"
   | "T_DELAYED";
 export type TransitionType = "carrier_swap" | "frame_ramp" | "mixed_switch" | "delayed_recheck";
+export type ProtocolGroup = "commercial_arrows_first" | "validation_arrows_first" | "validation_flow_first";
+export type ScratchBaselineSource =
+  | "counterbalanced_cohort"
+  | "historical_norm"
+  | "device_tier_norm"
+  | "personal_early_prior"
+  | "within_user_proxy"
+  | "unavailable";
 export type ConfidenceLabel =
   | "insufficient_data"
   | "calibrating"
@@ -139,6 +151,70 @@ export interface TransferComponent {
   confidence: ConfidenceLabel;
 }
 
+export interface FarTransferWindow {
+  modelVersion: string;
+  sessionNumber: number;
+  construct: Construct;
+  cellKey: CellKey;
+  phase: PhaseLabel;
+  transitionKey: TransitionKey | null;
+  validTrials: number;
+  capacityBps: number | null;
+  balancedAccuracy: number;
+  lapseRate: number;
+  timingPenalty: number;
+  rtMedianMs: number | null;
+  rtIqrMs: number | null;
+  conditionEntropyBits: number;
+  conditionEntropyRatio: number;
+  updateMagnitude: number | null;
+  mutualInfoProxy: number | null;
+}
+
+export interface ScratchBaseline {
+  modelVersion: string;
+  source: ScratchBaselineSource;
+  construct: Construct;
+  targetCell: CellKey;
+  protocolGroup?: ProtocolGroup;
+  deviceTier?: string;
+  ageBand?: string;
+  cohortN?: number;
+  tau90Windows: number | null;
+  asymptoticCapacityBps: number | null;
+  asymptoticMiProxy: number | null;
+  stabilityCv: number | null;
+  timingPenaltyMedian: number | null;
+  confidence: ConfidenceLabel;
+}
+
+export interface FarTransferBoundarySignal {
+  boundary: TransitionKey;
+  status: "not_reached" | "calibrating" | "available";
+  sourceCell: CellKey;
+  targetCell: CellKey;
+  sourceCapacityBps: number | null;
+  targetCapacityBps: number | null;
+  recoveryRatio: number | null;
+  entropySupport: number | null;
+  mutualInfoProxy: number | null;
+  scratchBaselineSource: ScratchBaselineSource;
+  scratchBaseline: ScratchBaseline | null;
+  tau90TransferWindows: number | null;
+  transferEfficiency: number | null;
+  stabilityAdvantage: number | null;
+  functionalTransferScore: number | null;
+}
+
+export interface FarTransferEvidence {
+  modelVersion: string;
+  caveat: "functional_proxy_not_zhang_tang";
+  summary: string;
+  protocolGroup: ProtocolGroup;
+  windows: FarTransferWindow[];
+  boundarySignals: FarTransferBoundarySignal[];
+}
+
 export interface AttentionScoreSnapshot {
   sessionNumber: number;
   activePhase: PhaseLabel;
@@ -160,6 +236,7 @@ export interface AttentionScoreSnapshot {
     label: string;
     state: "current_phase" | "coming_up" | "ready_next_session" | "not_enough_evidence";
   };
+  farTransfer?: FarTransferEvidence;
 }
 
 export interface CellEvidence {
@@ -179,6 +256,7 @@ export interface WapUserState {
   currentPhase: PhaseLabel;
   sessionNumber: number;
   phaseStatus: PhaseStatus;
+  protocolGroup?: ProtocolGroup;
   completedTransitions: TransitionKey[];
   evidence: CellEvidence[];
   hasGlobalFatigueFlag?: boolean;

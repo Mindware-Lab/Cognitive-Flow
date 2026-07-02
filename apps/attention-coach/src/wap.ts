@@ -1,4 +1,4 @@
-import { PHASE_CELL, PHASE_ORDER, TARGET_ENVELOPE_SESSIONS, transitionEventsForPhaseAdvance } from "./protocol";
+import { PHASE_CELL, PHASE_ORDER_BY_GROUP, TARGET_ENVELOPE_SESSIONS, transitionEventsForPhaseAdvance } from "./protocol";
 import type { CellEvidence, PhaseLabel, PhaseStatus, WapDecision, WapUserState } from "./types";
 
 const MIN_VALID_TRIALS = 240;
@@ -50,8 +50,9 @@ function recoveryReady(evidence: CellEvidence | null, state: WapUserState): Retu
   return { ...flags, slopeStable: flags.slopeStable || recoveredToLocalAsymptote };
 }
 
-function nextPhase(phase: PhaseLabel): PhaseLabel {
-  return PHASE_ORDER[Math.min(PHASE_ORDER.indexOf(phase) + 1, PHASE_ORDER.length - 1)];
+function nextPhase(phase: PhaseLabel, state: WapUserState): PhaseLabel {
+  const order = PHASE_ORDER_BY_GROUP[state.protocolGroup || "commercial_arrows_first"];
+  return order[Math.min(order.indexOf(phase) + 1, order.length - 1)] || phase;
 }
 
 function statusForStay(state: WapUserState, flags: ReturnType<typeof readiness>): PhaseStatus {
@@ -62,11 +63,11 @@ function statusForStay(state: WapUserState, flags: ReturnType<typeof readiness>)
 
 export function chooseNextPhase(state: WapUserState): WapDecision {
   const phase = state.currentPhase;
-  const targetPhase = nextPhase(phase);
+  const targetPhase = nextPhase(phase, state);
   const cell = PHASE_CELL[phase];
   const evidence = evidenceFor(state, cell);
   const flags =
-    phase === "P2_FLOW_ABS" || phase === "P4_FLOW_REL"
+    phase === "P2_FLOW_ABS" || phase === "P4_FLOW_REL" || phase === "P2_ARROW_ABS" || phase === "P4_ARROW_REL"
       ? recoveryReady(evidence, state)
       : readiness(evidence, state);
 

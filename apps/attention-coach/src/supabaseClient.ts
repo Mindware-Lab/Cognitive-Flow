@@ -1,4 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
+import type { ScratchBaseline } from "./types";
+import type { DeviceReadiness } from "./types";
+import type { LocalProgress, ProofBenchmarkEntry } from "./storage";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -10,15 +13,117 @@ export const supabase = isSupabaseConfigured
     })
   : null;
 
+export type AuthUser = {
+  id: string;
+  email?: string;
+};
+
+export async function currentAuthUser(): Promise<AuthUser | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return { id: data.user.id, email: data.user.email || undefined };
+}
+
+export function onAuthChange(callback: (user: AuthUser | null) => void): { unsubscribe: () => void } | null {
+  if (!supabase) return null;
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback(session?.user ? { id: session.user.id, email: session.user.email || undefined } : null);
+  });
+  return { unsubscribe: () => data.subscription.unsubscribe() };
+}
+
+export async function sendEmailSignInLink(email: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo },
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function signOutUser(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.auth.signOut();
+  if (error) throw new Error(error.message);
+}
+
 export async function submitAttentionBlock(payload: Record<string, unknown>): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.functions.invoke("submit-attention-block", { body: payload });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(await functionErrorMessage(error));
 }
 
 export async function finalizeAttentionSession(payload: Record<string, unknown>): Promise<unknown> {
   if (!supabase) return null;
   const { data, error } = await supabase.functions.invoke("finalize-attention-session", { body: payload });
-  if (error) throw new Error(error.message);
+  if (error) throw new Error(await functionErrorMessage(error));
   return data;
+}
+
+export async function fetchAttentionScratchBaselines(payload: Record<string, unknown>): Promise<ScratchBaseline[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.functions.invoke("get-attention-scratch-baselines", { body: payload });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return Array.isArray(data) ? (data as ScratchBaseline[]) : [];
+}
+
+export async function loadRemoteProgress(): Promise<LocalProgress | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke("sync-attention-progress", {
+    body: { action: "load" },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return data?.progress ?? null;
+}
+
+export async function saveRemoteProgress(progress: LocalProgress): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-attention-progress", {
+    body: { action: "save", progress },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function recordDeviceCheck(readiness: DeviceReadiness): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("record-device-check", { body: readiness });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function saveProofBenchmark(entry: ProofBenchmarkEntry): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-proof-benchmark", {
+    body: { action: "upsert", entry },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function deleteProofBenchmark(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-proof-benchmark", {
+    body: { action: "delete", id },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+async function functionErrorMessage(error: unknown): Promise<string> {
+  const fallback = error instanceof Error ? error.message : "Supabase request failed.";
+  const context = error && typeof error === "object" && "context" in error
+    ? (error as { context?: Response }).context
+    : null;
+  if (!context || typeof context.clone !== "function") return fallback;
+  try {
+    const body = await context.clone().json() as { error?: unknown; message?: unknown };
+    const detail = typeof body.error === "string" ? body.error : typeof body.message === "string" ? body.message : "";
+    return detail || fallback;
+  } catch {
+    try {
+      const text = await context.clone().text();
+      return text || fallback;
+    } catch {
+      return fallback;
+    }
+  }
 }

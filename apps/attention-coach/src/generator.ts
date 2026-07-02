@@ -54,6 +54,9 @@ function transitionKeyForCell(phase: PhaseLabel, cellKey: CellKey): TransitionKe
   if (phase === "P2_FLOW_ABS" && cellKey === "flow_abs") return "T_CM_BASE";
   if (phase === "P3_ARROW_REL" && cellKey === "arrow_rel") return "T_FRAME_ARROW";
   if (phase === "P4_FLOW_REL" && cellKey === "flow_rel") return "T_CM_REL";
+  if (phase === "P2_ARROW_ABS" && cellKey === "arrow_abs") return "T_CM_BASE";
+  if (phase === "P3_FLOW_REL" && cellKey === "flow_rel") return "T_FRAME_FLOW";
+  if (phase === "P4_ARROW_REL" && cellKey === "arrow_rel") return "T_CM_REL";
   if (phase === "P5_MIXED") return "T_MIXED";
   if (phase === "P6_DELAYED") return "T_DELAYED";
   return null;
@@ -169,7 +172,7 @@ function blockPlan(id: string, index: number, construct: Construct, label: strin
 export function miniBlockPlansForPhase(phase: PhaseLabel, sessionSeed: string): MiniBlockPlan[] {
   const current = PHASE_CELL[phase];
   const random = mulberry32(hashSeed(`${sessionSeed}:${phase}:blocks`));
-  if (phase === "P1_ARROW_ABS") {
+  if (phase === "P1_ARROW_ABS" || phase === "P1_FLOW_ABS") {
     return [
       blockPlan("acc-1", 1, "ACC", "Attention Control 1", PHASE_INSTRUCTIONS[phase], Array(20).fill(current)),
       blockPlan("acc-2", 2, "ACC", "Attention Control 2", "Keep finding the majority direction.", Array(20).fill(current)),
@@ -177,8 +180,11 @@ export function miniBlockPlansForPhase(phase: PhaseLabel, sessionSeed: string): 
       blockPlan("bse-1", 4, "BSE", "Binding Focus", "Report the direction-colour pair that appears most often.", Array(20).fill(current)),
     ];
   }
-  if (phase === "P2_FLOW_ABS" || phase === "P3_ARROW_REL") {
-    const reference: CellKey = "arrow_abs";
+  if (phase === "P2_FLOW_ABS" || phase === "P3_ARROW_REL" || phase === "P2_ARROW_ABS" || phase === "P3_FLOW_REL") {
+    const reference: CellKey =
+      phase === "P2_ARROW_ABS" || phase === "P3_FLOW_REL"
+        ? "flow_abs"
+        : "arrow_abs";
     return [
       blockPlan("acc-1", 1, "ACC", "Attention Control 1", PHASE_INSTRUCTIONS[phase], Array(20).fill(current)),
       blockPlan("acc-2", 2, "ACC", "Attention Control 2", "Stay with the current format.", Array(20).fill(current)),
@@ -192,18 +198,20 @@ export function miniBlockPlansForPhase(phase: PhaseLabel, sessionSeed: string): 
       ]),
     ];
   }
-  if (phase === "P4_FLOW_REL") {
+  if (phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") {
+    const absoluteReference: CellKey = phase === "P4_ARROW_REL" ? "arrow_abs" : "flow_abs";
+    const relationalReference: CellKey = phase === "P4_ARROW_REL" ? "flow_rel" : "arrow_rel";
     return [
       blockPlan("acc-1", 1, "ACC", "Attention Control 1", PHASE_INSTRUCTIONS[phase], Array(20).fill(current)),
-      blockPlan("acc-2", 2, "ACC", "Attention Control 2", "Recover the relation in motion.", Array(20).fill(current)),
+      blockPlan("acc-2", 2, "ACC", "Attention Control 2", "Recover the relation in the new format.", Array(20).fill(current)),
       blockPlan("acc-3", 3, "ACC", "Progress Check", "A short mix checks how earlier skills are carrying forward.", [
-        ...Array<CellKey>(10).fill("flow_abs"),
-        ...Array<CellKey>(10).fill("arrow_rel"),
+        ...Array<CellKey>(10).fill(absoluteReference),
+        ...Array<CellKey>(10).fill(relationalReference),
       ]),
-      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Keep direction and colour together under motion.", [
+      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Keep direction and colour together as the format changes.", [
         ...Array<CellKey>(12).fill(current),
-        ...Array<CellKey>(4).fill("flow_abs"),
-        ...Array<CellKey>(4).fill("arrow_rel"),
+        ...Array<CellKey>(4).fill(absoluteReference),
+        ...Array<CellKey>(4).fill(relationalReference),
       ]),
     ];
   }

@@ -214,6 +214,27 @@ create table if not exists public.attention_adaptive_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.attention_progress_state (
+  user_id uuid primary key,
+  progress jsonb not null,
+  updated_at timestamptz not null default now()
+);
+
+create table if not exists public.attention_proof_benchmarks (
+  id text not null,
+  user_id uuid not null,
+  domain text not null check (domain in ('attention','working_memory','reasoning')),
+  timepoint text not null check (timepoint in ('baseline','midpoint','post','follow_up','ad_hoc')),
+  label text not null,
+  score numeric,
+  confidence text,
+  source text,
+  completed_at date,
+  notes text,
+  updated_at timestamptz not null default now(),
+  primary key (user_id, id)
+);
+
 insert into public.attention_calibration_tables
   (id, model_version, construct, set_size, majority_ratio, h_condition_bits, source_note)
 values
@@ -236,6 +257,8 @@ alter table public.attention_transfer_metrics enable row level security;
 alter table public.attention_score_snapshots enable row level security;
 alter table public.attention_calibration_tables enable row level security;
 alter table public.attention_adaptive_events enable row level security;
+alter table public.attention_progress_state enable row level security;
+alter table public.attention_proof_benchmarks enable row level security;
 
 create policy "attention read own settings" on public.attention_user_settings for select using (auth.uid() = user_id);
 create policy "attention read own device checks" on public.attention_device_checks for select using (auth.uid() = user_id);
@@ -250,6 +273,8 @@ create policy "attention read own transfer metrics" on public.attention_transfer
 create policy "attention read own snapshots" on public.attention_score_snapshots for select using (auth.uid() = user_id);
 create policy "attention read calibration tables" on public.attention_calibration_tables for select using (true);
 create policy "attention read own adaptive events" on public.attention_adaptive_events for select using (auth.uid() = user_id);
+create policy "attention read own progress state" on public.attention_progress_state for select using (auth.uid() = user_id);
+create policy "attention read own proof benchmarks" on public.attention_proof_benchmarks for select using (auth.uid() = user_id);
 
 revoke insert, update, delete on public.attention_trials from anon, authenticated;
 revoke insert, update, delete on public.attention_capacity_estimates from anon, authenticated;
@@ -258,3 +283,4 @@ revoke insert, update, delete on public.attention_score_snapshots from anon, aut
 create index if not exists attention_trials_session_idx on public.attention_trials (session_id, construct, cell_key);
 create index if not exists attention_snapshots_user_created_idx on public.attention_score_snapshots (user_id, created_at desc);
 create index if not exists attention_transitions_user_key_idx on public.attention_transition_events (user_id, transition_key, started_at desc);
+create index if not exists attention_proof_user_domain_idx on public.attention_proof_benchmarks (user_id, domain, completed_at desc);

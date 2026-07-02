@@ -24,6 +24,8 @@ Deno.serve(async (request) => {
     "attention_sessions",
     "attention_user_settings",
     "attention_adaptive_events",
+    "attention_progress_state",
+    "attention_proof_benchmarks",
   ]) {
     const { error } = await supabase.from(table).delete().eq("user_id", user.id);
     if (error) return json(500, { error: error.message, table });
