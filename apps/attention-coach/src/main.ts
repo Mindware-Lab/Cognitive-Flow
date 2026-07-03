@@ -1749,8 +1749,8 @@ function renderProof(): string {
     <section class="proof-screen proof-overview-screen no-scroll-screen">
       <div class="proof-hero">
         <p class="ui-eyebrow">Proof</p>
-        <h1>External benchmarks</h1>
-        <p>Keep benchmark scores separate from daily training.</p>
+        <h1>Valid external tests</h1>
+        <p>Prove your gains with G Track's short psychometric tests.</p>
       </div>
       <section class="proof-summary-grid">
         ${proofSummaryCard("attention")}
