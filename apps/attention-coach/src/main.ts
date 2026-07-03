@@ -642,7 +642,7 @@ function renderProgrammeRationale(): string {
 
 function phaseRationale(phase: PhaseLabel): string {
   if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") {
-    return "The rule is the same, but the surface is different. This helps test whether you learned the underlying skill rather than memorising one display. A short dip is normal when the visual format changes.";
+    return "The rule is the same, but the surface is different. This helps test whether you learned the underlying skill rather than memorising one display.";
   }
   if (phase === "P5_MIXED") return "Formats now switch. This trains flexible attention: keeping the right goal active under pressure, distraction, or uncertainty.";
   if (phase === "P6_DELAYED") return "This re-check asks whether the trained skill returns after spacing, not only during same-day practice.";
@@ -1425,10 +1425,10 @@ function renderBlockBreak(): string {
       </section>
       <div class="block-practice-card">
         <strong>Optional practice</strong>
-        <p>${escapeHtml(copy.tip)} Practice is short and does not change your progress score.</p>
+        <p>10 quick trials. No progress score.</p>
       </div>
       <div class="action-row">
-        ${button("Try short practice", "start-block-practice", "secondary")}
+        ${button("Practice first", "start-block-practice", "secondary")}
         ${button("Start training", "resume-block")}
       </div>
     </section>
@@ -1441,6 +1441,8 @@ function renderPracticeIntro(): string {
   if (!plan || !block) return renderToday();
   const copy = blockTrainingCopy(block);
   const example = exampleTrialForBlock(block, plan.phase);
+  const isPreparedPractice = state.sessionMode === "free" && !state.guidedReturn;
+  const backAction = state.sessionSource === "free_play" ? "nav-free-play-formats" : "nav-today";
   return shell(`
     <section class="panel practice-intro-panel">
       <div class="practice-intro-copy">
@@ -1461,12 +1463,14 @@ function renderPracticeIntro(): string {
       </section>
       <div class="ui-tip-card practice-tip-card">
         <span class="tip-symbol">i</span>
-        <p>${escapeHtml(copy.tip)} You will get 10 practice trials before the guided block.</p>
+        <p>${escapeHtml(copy.tip)} ${isPreparedPractice ? "Practice is short and does not change your guided progress." : "You will get 10 practice trials before the guided block."}</p>
       </div>
       <div class="action-row">
-        ${button(`Start practice block ${block.index}`, "begin-block-practice")}
-        ${button(`Begin training block ${block.index}`, "resume-block", "secondary")}
-        ${button("Back to block options", "nav-block-options", "ghost")}
+        ${
+          isPreparedPractice
+            ? `${button("Start practice", "resume-block")}${button("Back", backAction, "secondary")}`
+            : `${button(`Start practice block ${block.index}`, "begin-block-practice")}${button(`Begin training block ${block.index}`, "resume-block", "secondary")}${button("Back to block options", "nav-block-options", "ghost")}`
+        }
       </div>
     </section>
   `);
@@ -2549,7 +2553,7 @@ function beginSession(): void {
   go("block-break");
 }
 
-function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
+function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
   clearStageTimer();
   state.sessionPlan = createFreePlaySessionPlan(construct, cellKey);
   state.activeBlockIndex = 0;
@@ -2564,6 +2568,10 @@ function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSo
   state.sessionSource = source;
   state.progressionScored = false;
   state.guidedReturn = null;
+}
+
+function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
+  prepareFreePlay(construct, cellKey, source);
   go("task");
   schedule(500, startTrialPresentation);
 }
@@ -2591,10 +2599,12 @@ function startPendingTask(): void {
     return;
   }
   if (pending.kind === "easier") {
-    beginFreePlay("ACC", PHASE_CELL[state.progress.currentPhase], "easier");
+    prepareFreePlay("ACC", PHASE_CELL[state.progress.currentPhase], "easier");
+    go("practice-intro");
     return;
   }
-  beginFreePlay(pending.construct, pending.cellKey, pending.source);
+  prepareFreePlay(pending.construct, pending.cellKey, pending.source);
+  go("practice-intro");
 }
 
 function startCurrentBlockPractice(): void {
@@ -2982,7 +2992,7 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "start-easier-instructions") startEasierInstructions();
   else if (action === "start-pending-task") startPendingTask();
   else if (action === "begin-session") beginSession();
-  else if (action === "start-block-practice") go("practice-intro");
+  else if (action === "start-block-practice") startCurrentBlockPractice();
   else if (action === "begin-block-practice") startCurrentBlockPractice();
   else if (action === "nav-block-options") go("block-break");
   else if (action === "finish-practice-begin-block") beginRestoredGuidedBlock();
