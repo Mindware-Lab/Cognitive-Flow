@@ -675,14 +675,14 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
     const construct = pending.construct === "BSE" ? "Binding Stability" : "Signal Control";
     return {
       title: `${construct} practice`,
-      what: "You will practise a selected format outside today's guided route.",
+      what: "You will practise a selected format outside today's guided session.",
       focus: pending.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction. Accuracy before speed.",
       why: "Free practice helps you learn a display, but it does not change your guided progress path.",
       startLabel: "Start practice",
     };
   }
   return {
-    title: "Today's attention route",
+    title: "Today's attention session",
     what: "You will complete the guided task chosen for your current learning curve.",
     focus: "Choose the majority direction. Accuracy before speed.",
     why: phaseRationale(state.progress.currentPhase),
@@ -830,7 +830,7 @@ function renderAuth(): string {
         <img src="${assetPath("iqmindware-logo.png")}" alt="IQ Mindware" />
         <p class="ui-eyebrow">Beta access</p>
         <h1>Sign in to Attention Coach.</h1>
-        <p class="ui-body">Use your email to access the free beta. Guided training data is saved to Supabase so your route and scores can build over time.</p>
+        <p class="ui-body">Use your email to access the free beta. Guided training data is saved to Supabase so your session and scores can build over time.</p>
         ${
           isSupabaseConfigured
             ? `<label>Email
@@ -859,7 +859,7 @@ function renderWelcome(): string {
         <img src="${assetPath("attention-coach-wordmark-v3.svg")}" alt="Attention Coach" class="splash-wordmark" />
         <div class="splash-title">
           <p>Train attention control and cognitive capacity.</p>
-          <small>First step: quick setup, then today's guided attention route.</small>
+          <small>First step: quick setup, then today's guided attention session.</small>
         </div>
         <div class="splash-divider" aria-hidden="true"><span></span></div>
         <p class="splash-protocol">Based on the Trident-G transfer-training protocol&trade;</p>
@@ -882,9 +882,9 @@ function renderWelcome(): string {
       <div class="splash-wave splash-wave-one" aria-hidden="true"></div>
       <div class="splash-wave splash-wave-two" aria-hidden="true"></div>
       <section class="splash-footer">
-        ${button("Start today's route", "start-readiness")}
+        ${button("Start today's session", "start-readiness")}
         ${button("Choose a practice game", "nav-free-play", "secondary")}
-        <small class="splash-support-note">Setup first; the guided route takes about 5-10 minutes.</small>
+        <small class="splash-support-note">Setup first; the guided session takes about 5-10 minutes.</small>
         <button class="splash-link" data-action="nav-training-map">How it works</button>
         <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer">www.iqmindware.com</a>
       </section>
@@ -966,14 +966,14 @@ function renderTutorial(): string {
 function renderToday(): string {
   const phase = state.progress.currentPhase;
   const returnCopy = hasReturnGap()
-    ? `<p class="return-cue">Welcome back. Your guided route is ready; you can also choose an easier practice today.</p>`
+    ? `<p class="return-cue">Welcome back. Your guided session is ready; you can also choose an easier practice today.</p>`
     : "";
   return shell(`
     ${appTabs("today")}
     <section class="daily-loop-screen">
       <div class="today-action-card">
         <p class="ui-eyebrow">Today - Session ${state.progress.sessionNumber}</p>
-        <h1>Today's attention route</h1>
+        <h1>Today's attention session</h1>
         <p class="ui-body">Continue your guided programme. The app chooses today's task based on your current learning curve.</p>
         ${returnCopy}
         <div class="today-phase-grid">
@@ -991,7 +991,7 @@ function renderToday(): string {
           </div>
         </div>
         <div class="today-primary-actions">
-          ${button("Start today's attention route", "start-guided-instructions")}
+          ${button("Start today's attention session", "start-guided-instructions")}
           <button class="secondary-link-button" data-action="start-easier-instructions">Practice only</button>
           <button class="secondary-link-button" data-action="nav-today-rationale">Why today?</button>
         </div>
@@ -1003,7 +1003,7 @@ function renderToday(): string {
           <strong>${escapeHtml(comingNextPhase(phase))}</strong>
         </div>
         <div class="action-row">
-          ${button("Why this route?", "nav-today-rationale", "secondary")}
+          ${button("Why this session?", "nav-today-rationale", "secondary")}
           ${button("Programme map", "nav-training-map", "ghost")}
         </div>
       </div>
@@ -1031,7 +1031,7 @@ function renderTodayRationale(): string {
       ${renderProgrammeRationale()}
       <div class="action-row">
         ${button("Back to Today", "nav-today")}
-        ${button("Start today's route", "start-guided-instructions", "secondary")}
+        ${button("Start today's session", "start-guided-instructions", "secondary")}
         ${button("Training map", "nav-training-map", "ghost")}
       </div>
     </section>
@@ -1045,7 +1045,7 @@ function renderBreakPlan(): string {
       <div class="today-action-card">
         <p class="ui-eyebrow">Recovery option</p>
         <h1>Take a proper break.</h1>
-        <p class="ui-body">If today is a poor fit for training, the better route is to pause deliberately rather than force a hard session. This records continuity without changing your progress path.</p>
+        <p class="ui-body">If today is a poor fit for training, the better choice is to pause deliberately rather than force a hard session. This records continuity without changing your progress path.</p>
       </div>
       <div class="flow-rationale-card">
         <strong>Why this is allowed</strong>
@@ -1103,7 +1103,7 @@ function renderFreePlay(): string {
       <div class="train-choice-grid">
         <article class="train-choice-card is-blue">
           <span>${miniIcon("rocket")}</span>
-          <strong>Today's coached route</strong>
+          <strong>Today's coached session</strong>
           <p>This implements the Trident G Far Transfer Protocol for guided progress.</p>
           ${button("Today's Session", "nav-today", "secondary")}
         </article>
@@ -1121,8 +1121,8 @@ function renderFreePlay(): string {
         </article>
       </div>
       <div class="free-play-copy">
-        <strong>Coached route vs practice</strong>
-        <span>Only the Today route advances the programme. Practice games are for familiarisation.</span>
+        <strong>Coached session vs practice</strong>
+        <span>Only the Today session advances the programme. Practice games are for familiarisation.</span>
       </div>
     </section>
   `);
@@ -1529,7 +1529,7 @@ function renderComplete(): string {
     return shell(`
       <section class="panel">
         <p class="ui-eyebrow">${isSetupPractice ? "Practice block complete" : isEasierPractice ? "Easier practice complete" : "Practice complete"}</p>
-        <h1>${isSetupPractice ? `Ready for training block ${returnIndex + 1}` : isEasierPractice ? "Practice kept the route warm" : `${Math.round((correct / total) * 100)}% correct`}</h1>
+        <h1>${isSetupPractice ? `Ready for training block ${returnIndex + 1}` : isEasierPractice ? "Practice kept the session warm" : `${Math.round((correct / total) * 100)}% correct`}</h1>
         <p class="ui-body">${
           isSetupPractice
             ? "Practice helped you learn this block's display. It did not decide your progress score."
@@ -1549,7 +1549,7 @@ function renderComplete(): string {
       <section class="panel result-panel">
         <p class="ui-eyebrow">Session 5 complete</p>
         <h1>Your pattern is becoming clearer.</h1>
-        <p class="ui-body">The app now has enough sessions to start showing how your attention route is developing.</p>
+        <p class="ui-body">The app now has enough sessions to start showing how your attention session is developing.</p>
         <div class="action-row">
           ${button("View progress", "nav-progress")}
           ${button("Back to Today", "finish-complete", "secondary")}
@@ -2554,7 +2554,7 @@ function renderEarlyProgressDashboard(): string {
         <div>
           <span>Guided continuity</span>
           <strong>Session ${state.progress.sessionNumber}</strong>
-          <small>${state.progress.completions.length} route${state.progress.completions.length === 1 ? "" : "s"} completed</small>
+          <small>${state.progress.completions.length} session${state.progress.completions.length === 1 ? "" : "s"} completed</small>
         </div>
         <div class="session-dots">${completionDots()}</div>
         <p>Complete five guided sessions before the app turns score detail into a stable profile. For now, the goal is consistency, fit, and a clear learning curve.</p>
@@ -2566,9 +2566,9 @@ function renderEarlyProgressDashboard(): string {
           <p>The coach is collecting repeated sessions so later changes can be interpreted with more confidence.</p>
         </article>
         <article class="early-progress-card is-green">
-          <span>Today route</span>
+          <span>Today session</span>
           <strong>Guided training</strong>
-          <p>Use the Today screen to start the current guided route, or choose easier practice if today is a poor fit.</p>
+          <p>Use the Today screen to start the current guided session, or choose easier practice if today is a poor fit.</p>
         </article>
         <article class="early-progress-card is-orange">
           <span>Profile reveal</span>
@@ -2577,7 +2577,7 @@ function renderEarlyProgressDashboard(): string {
         </article>
       </section>
       <section class="overview-next-card">
-        <p><strong>Next step:</strong> Continue the guided route from Today, or choose an easier practice option without changing your progress path.</p>
+        <p><strong>Next step:</strong> Continue the guided session from Today, or choose an easier practice option without changing your progress path.</p>
         <div class="dashboard-actions">
           ${button("Guided Session", "start-guided-instructions")}
           ${button("Practice only", "start-easier-instructions", "secondary")}
