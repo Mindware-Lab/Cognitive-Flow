@@ -2896,6 +2896,11 @@ function continueAfterFeedback(): void {
   state.taskStage = "ready";
   state.responseStartedAt = 0;
   if (state.activeTrialIndex >= currentBlockTrialCount()) {
+    if (state.sessionMode === "free") {
+      state.activeTrialIndex = 0;
+      completeSession();
+      return;
+    }
     submitCurrentGuidedBlock([...state.blockResults]);
     state.activeBlockIndex += 1;
     state.activeTrialIndex = 0;
