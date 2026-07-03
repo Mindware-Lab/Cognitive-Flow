@@ -523,10 +523,20 @@ button {
   display: grid;
   gap: 4px;
   padding: 10px;
-  border: 1px solid rgba(34, 170, 255, 0.18);
+  border: 1px solid rgba(72, 125, 255, 0.2);
   border-radius: 16px;
-  background: rgba(255, 255, 255, 0.78);
+  background: linear-gradient(135deg, rgba(229, 238, 255, 0.9), rgba(255, 255, 255, 0.82));
   box-shadow: 0 10px 24px rgba(18, 48, 102, 0.06);
+}
+
+.splash-rationale-grid article:nth-child(2) {
+  border-color: rgba(85, 199, 123, 0.24);
+  background: linear-gradient(135deg, rgba(232, 249, 238, 0.92), rgba(255, 255, 255, 0.84));
+}
+
+.splash-rationale-grid article:nth-child(3) {
+  border-color: rgba(255, 164, 112, 0.26);
+  background: linear-gradient(135deg, rgba(255, 240, 230, 0.92), rgba(255, 255, 255, 0.84));
 }
 
 .splash-rationale-grid strong {
