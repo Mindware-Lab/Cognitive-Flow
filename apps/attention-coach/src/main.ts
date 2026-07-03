@@ -2136,7 +2136,7 @@ function transferDeltaTrend(current: number | null): Array<{ session: string; de
   const baseline = baselineForMetric("transfer", current);
   const historyPoints = (state.progress.scoreHistory || [])
     .filter((entry) => entry.metrics?.transfer !== null && entry.metrics?.transfer !== undefined)
-    .slice(-5)
+    .slice(-20)
     .map((entry) => ({
       session: `S${entry.sessionNumber}`,
       delta: baseline === null ? null : Math.round((entry.metrics.transfer || 0) - baseline),
@@ -2607,7 +2607,7 @@ function renderOverviewDashboard(): string {
         <div class="progress-readiness-mid"></div>
         <div class="progress-readiness-trend">
           ${transferDeltaSparkline(model.transferTrend)}
-          <p>${model.transferDelta === null ? "Calibrating baseline" : "Progress from baseline"}</p>
+          <p>${model.transferDelta === null ? "Calibrating baseline" : "20-session trend from baseline"}</p>
         </div>
         <div class="progress-readiness-icon" aria-hidden="true">${miniIcon("brain")}</div>
       </section>
