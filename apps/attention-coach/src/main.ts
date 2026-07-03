@@ -4,7 +4,7 @@ import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./op
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
-import { DEFAULT_PROGRESS, loadProgress, resetProgress, saveProgress, type CompletionRoute, type LocalProgress, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, loadProgress, resetProgress, saveProgress, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
   deleteProofBenchmark,
@@ -1983,11 +1983,14 @@ const DEMO_PROGRESS_DASHBOARD_MODEL = {
 } as const;
 
 type DashboardSkillModel = {
+  metric: ProgressScoreMetric;
   label: string;
   subtitle: string;
-  score: number | null;
-  change: number | null;
+  rawScore: number | null;
+  scoreDelta: number | null;
+  baseline: number | null;
   status: string;
+  statusNote: string;
   confidence: string;
   tone: string;
   icon: string;
@@ -2003,11 +2006,12 @@ type DashboardTransferModel = {
 };
 
 type ProgressDashboardPresentationModel = {
-  overallScore: number | null;
-  overallChange: number | null;
-  transferReadiness: number | null;
+  transferRawScore: number | null;
+  transferDelta: number | null;
+  transferBaseline: number | null;
   confidence: string;
   trend: Array<{ session: string; score: number | null; transfer: number | null }>;
+  transferTrend: Array<{ session: string; delta: number | null }>;
   skills: DashboardSkillModel[];
   transferDetails: DashboardTransferModel[];
 };
@@ -2037,10 +2041,108 @@ function changeFromStart(score: number | null): number | null {
 
 function statusForScore(score: number | null, focus = false): string {
   if (score === null) return "Calibrating";
-  if (focus) return "Focus here";
+  if (focus) return "Bottleneck";
   if (score >= 110) return "Strong";
-  if (score < 100) return "Watch";
-  return "Building";
+  if (score < 96) return "Bottleneck";
+  if (score < 105) return "Watch";
+  return "Developing";
+}
+
+function statusForDelta(delta: number | null): string {
+  if (delta === null) return "Calibrating";
+  if (delta >= 8) return "Strong";
+  if (delta <= -8) return "Bottleneck";
+  if (delta < 0) return "Watch";
+  return "Developing";
+}
+
+function statusNoteFor(status: string): string {
+  if (status === "Strong") return "Stable enough to build on.";
+  if (status === "Watch") return "Needs more consistency.";
+  if (status === "Bottleneck") return "Likely limiting transfer.";
+  if (status === "Developing") return "Building steadily.";
+  return "More guided data needed.";
+}
+
+function transferStatus(score: number | null): string {
+  if (score === null) return "Calibrating";
+  if (score >= 8) return "Strong";
+  if (score >= 0) return "Developing";
+  if (score >= -7) return "Watch";
+  return "Bottleneck";
+}
+
+function scoreForEvidenceSet(evidence: CellEvidence[], construct: Construct, cellKey: CellKey): number | null {
+  const item = evidence.find((entry) => entry.construct === construct && entry.cellKey === cellKey);
+  return trainingScoreFromBits(item?.currentCapacityBps ?? null);
+}
+
+function averageNullableScores(values: Array<number | null>): number | null {
+  const available = values.filter((value): value is number => value !== null);
+  if (available.length === 0) return null;
+  return Math.round(available.reduce((total, value) => total + value, 0) / available.length);
+}
+
+function scoreHistoryEntryFromState(input: {
+  sessionNumber: number;
+  completedAt: string;
+  phase: PhaseLabel;
+  evidence: CellEvidence[];
+  snapshot: ReturnType<typeof createScoreSnapshot>;
+}): ProgressScoreHistoryEntry {
+  const activeCell = PHASE_CELL[input.snapshot.activePhase];
+  const patternBinding =
+    scoreForEvidenceSet(input.evidence, "BSE", activeCell) ||
+    scoreForEvidenceSet(input.evidence, "BSE", "arrow_abs") ||
+    scoreForEvidenceSet(input.evidence, "BSE", "flow_abs") ||
+    scoreForEvidenceSet(input.evidence, "BSE", "arrow_rel") ||
+    scoreForEvidenceSet(input.evidence, "BSE", "flow_rel");
+  return {
+    sessionNumber: input.sessionNumber,
+    completedAt: input.completedAt,
+    phase: input.phase,
+    metrics: {
+      transfer: input.snapshot.transfer.score,
+      cognitiveBandwidth: scoreForEvidenceSet(input.evidence, "ACC", "arrow_abs"),
+      frameBandwidth: scoreForEvidenceSet(input.evidence, "ACC", "arrow_rel"),
+      patternBinding,
+      wrapperRecovery: averageNullableScores([
+        input.snapshot.transfer.motionRecovery.score,
+        input.snapshot.transfer.relationRecovery.score,
+      ]),
+      delayedRecovery: input.snapshot.transfer.returnStrength.score,
+    },
+  };
+}
+
+function baselineForMetric(metric: ProgressScoreMetric, current: number | null): number | null {
+  const values = (state.progress.scoreHistory || [])
+    .map((entry) => entry.metrics?.[metric] ?? null)
+    .filter((value): value is number => value !== null)
+    .slice(0, 3);
+  if (values.length > 0) return Math.round(values.reduce((total, value) => total + value, 0) / values.length);
+  return current;
+}
+
+function deltaFromBaseline(metric: ProgressScoreMetric, current: number | null): { baseline: number | null; delta: number | null } {
+  const baseline = baselineForMetric(metric, current);
+  return {
+    baseline,
+    delta: current === null || baseline === null ? null : Math.round(current - baseline),
+  };
+}
+
+function transferDeltaTrend(current: number | null): Array<{ session: string; delta: number | null }> {
+  const baseline = baselineForMetric("transfer", current);
+  const historyPoints = (state.progress.scoreHistory || [])
+    .filter((entry) => entry.metrics?.transfer !== null && entry.metrics?.transfer !== undefined)
+    .slice(-5)
+    .map((entry) => ({
+      session: `S${entry.sessionNumber}`,
+      delta: baseline === null ? null : Math.round((entry.metrics.transfer || 0) - baseline),
+    }));
+  if (historyPoints.length > 0) return historyPoints;
+  return [{ session: "Now", delta: current === null || baseline === null ? null : Math.round(current - baseline) }];
 }
 
 function confidenceForEvidence(evidence: CellEvidence | null): string {
@@ -2061,53 +2163,65 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     scoreForEvidence("BSE", "flow_abs") ||
     scoreForEvidence("BSE", "arrow_rel") ||
     scoreForEvidence("BSE", "flow_rel");
-  const transferFlexScore = state.progress.currentPhase === "P5_MIXED" || state.progress.currentPhase === "P6_DELAYED"
-    ? averageScore([
-        scoreForEvidence("ACC", "arrow_abs"),
-        scoreForEvidence("ACC", "flow_abs"),
-        scoreForEvidence("ACC", "arrow_rel"),
-        scoreForEvidence("ACC", "flow_rel"),
-      ])
-    : null;
+  const wrapperRecoveryScore = averageScore([
+    snapshot?.transfer.motionRecovery.score ?? null,
+    snapshot?.transfer.relationRecovery.score ?? null,
+  ]);
   const returnScore = snapshot?.transfer.returnStrength.score ?? null;
   const overallScore = snapshot?.attentionControl.trainingScore ?? null;
   const transferReadiness = snapshot?.transfer.score ?? null;
+  const transferRelative = deltaFromBaseline("transfer", transferReadiness);
+  const cognitiveRelative = deltaFromBaseline("cognitiveBandwidth", signalScore);
+  const frameRelative = deltaFromBaseline("frameBandwidth", relationalScore);
+  const bindingRelative = deltaFromBaseline("patternBinding", bindingScore);
+  const wrapperRelative = deltaFromBaseline("wrapperRecovery", wrapperRecoveryScore);
+  const delayedRelative = deltaFromBaseline("delayedRecovery", returnScore);
   return {
-    overallScore,
-    overallChange: changeFromStart(overallScore),
-    transferReadiness,
+    transferRawScore: transferReadiness,
+    transferDelta: transferRelative.delta,
+    transferBaseline: transferRelative.baseline,
     confidence: confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "ACC") || null),
     trend: [
       { session: "Start", score: overallScore === null ? null : 100, transfer: null },
       { session: `S${Math.max(1, state.progress.sessionNumber - 1)}`, score: overallScore, transfer: transferReadiness },
     ],
+    transferTrend: transferDeltaTrend(transferReadiness),
     skills: [
       {
-        label: "Signal Control",
-        subtitle: "Pick out the important cue under time pressure.",
-        score: signalScore,
-        change: changeFromStart(signalScore),
-        status: statusForScore(signalScore),
+        metric: "cognitiveBandwidth",
+        label: "Cognitive Bandwidth",
+        subtitle: "Pick out the relevant direction signal accurately and quickly.",
+        rawScore: signalScore,
+        scoreDelta: cognitiveRelative.delta,
+        baseline: cognitiveRelative.baseline,
+        status: statusForDelta(cognitiveRelative.delta),
+        statusNote: statusNoteFor(statusForDelta(cognitiveRelative.delta)),
         confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_abs")),
         tone: "blue",
         icon: "signal",
       },
       {
-        label: "Relational Control",
-        subtitle: "Use the pattern's relationship, not just its surface direction.",
-        score: relationalScore,
-        change: changeFromStart(relationalScore),
-        status: statusForScore(relationalScore),
+        metric: "frameBandwidth",
+        label: "Frame Bandwidth",
+        subtitle: "Use the relation in the display, not just the surface feature.",
+        rawScore: relationalScore,
+        scoreDelta: frameRelative.delta,
+        baseline: frameRelative.baseline,
+        status: statusForDelta(frameRelative.delta),
+        statusNote: statusNoteFor(statusForDelta(frameRelative.delta)),
         confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_rel")),
         tone: "purple",
         icon: "relational",
       },
       {
-        label: "Binding Stability",
-        subtitle: "Keep the right relation linked to the right feature as the display changes.",
-        score: bindingScore,
-        change: changeFromStart(bindingScore),
-        status: statusForScore(bindingScore),
+        metric: "patternBinding",
+        label: "Pattern Binding",
+        subtitle: "Keep direction and colour linked while extracting the dominant pattern.",
+        rawScore: bindingScore,
+        scoreDelta: bindingRelative.delta,
+        baseline: bindingRelative.baseline,
+        status: statusForDelta(bindingRelative.delta),
+        statusNote: statusNoteFor(statusForDelta(bindingRelative.delta)),
         confidence:
           confidenceForEvidence(evidenceFor("BSE", activeCell)) ||
           confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "BSE") || null),
@@ -2115,21 +2229,27 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         icon: "binding",
       },
       {
-        label: "Transfer Flexibility",
-        subtitle: "Recover the same skill across changing formats.",
-        score: transferFlexScore,
-        change: changeFromStart(transferFlexScore),
-        status: statusForScore(transferFlexScore, state.progress.currentPhase === "P5_MIXED"),
+        metric: "wrapperRecovery",
+        label: "Wrapper Recovery",
+        subtitle: "Recover the same control skill when the display format changes.",
+        rawScore: wrapperRecoveryScore,
+        scoreDelta: wrapperRelative.delta,
+        baseline: wrapperRelative.baseline,
+        status: statusForDelta(wrapperRelative.delta),
+        statusNote: statusNoteFor(statusForDelta(wrapperRelative.delta)),
         confidence: confidenceForEvidence(evidenceFor("ACC", "mixed")),
         tone: "orange",
         icon: "transfer",
       },
       {
-        label: "Return Strength",
-        subtitle: "Bring the skill back after time away.",
-        score: returnScore,
-        change: changeFromStart(returnScore),
-        status: statusForScore(returnScore),
+        metric: "delayedRecovery",
+        label: "Delayed Recovery",
+        subtitle: "Return to a trained skill after interruption or delay.",
+        rawScore: returnScore,
+        scoreDelta: delayedRelative.delta,
+        baseline: delayedRelative.baseline,
+        status: statusForDelta(delayedRelative.delta),
+        statusNote: statusNoteFor(statusForDelta(delayedRelative.delta)),
         confidence: snapshot?.transfer.returnStrength.score === null ? "" : consumerStatus(snapshot?.transfer.returnStrength.confidence),
         tone: "green",
         icon: "return",
@@ -2137,7 +2257,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     ],
     transferDetails: [
       {
-        label: "Motion Recovery",
+        label: "Wrapper Recovery",
         shortLabel: "Motion",
         score: snapshot?.transfer.motionRecovery.score ?? null,
         change: null,
@@ -2153,7 +2273,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         tone: "purple",
       },
       {
-        label: "Flexible Switching",
+        label: "Wrapper Switching",
         shortLabel: "Switching",
         score: snapshot?.transfer.mixedFlexibility.score ?? null,
         change: null,
@@ -2161,7 +2281,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         tone: "orange",
       },
       {
-        label: "Return Strength",
+        label: "Delayed Recovery",
         shortLabel: "Return",
         score: snapshot?.transfer.returnStrength.score ?? null,
         change: null,
@@ -2197,11 +2317,32 @@ function signedValue(value: number): string {
 }
 
 function dashboardScore(value: number | null): string {
-  return value === null ? "" : `${value}`;
+  return value === null ? "--" : signedValue(value);
 }
 
 function dashboardChange(value: number | null): string {
   return value === null ? "" : signedValue(value);
+}
+
+function dashboardPercent(value: number | null): number {
+  return value === null ? 0 : clampPercent(value);
+}
+
+function dashboardDeltaPercent(value: number | null): number {
+  return value === null ? 0 : clampPercent(50 + value * 2.5);
+}
+
+function transferPillTone(status: string): string {
+  if (status === "Strong") return "green";
+  if (status === "Bottleneck") return "red";
+  return "orange";
+}
+
+function progressStatusTone(status: string): string {
+  if (status === "Strong") return "green";
+  if (status === "Bottleneck") return "red";
+  if (status === "Calibrating") return "blue";
+  return "orange";
 }
 
 function dashboardToneClass(tone: string): string {
@@ -2231,12 +2372,44 @@ function miniIcon(name: string): string {
     transfer: `<svg ${common}><path d="M7 7h10l-3-3"/><path d="M17 7l-3 3"/><path d="M17 17H7l3 3"/><path d="M7 17l3-3"/></svg>`,
     return: `<svg ${common}><path d="M19 12a7 7 0 1 1-2.05-4.95"/><path d="M19 5v6h-6"/></svg>`,
     target: `<svg ${common}><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 2v3"/><path d="M22 12h-3"/><path d="M12 22v-3"/><path d="M2 12h3"/></svg>`,
+    brain: `<svg ${common}><path d="M9 4c-2.3 0-4 1.7-4 3.8 0 .6.1 1.1.4 1.6A3.7 3.7 0 0 0 4 16c0 2 1.6 3.6 3.6 3.6.5 0 1-.1 1.4-.3.7 1 1.7 1.7 3 1.7V5.8C11.4 4.7 10.3 4 9 4Z"/><path d="M15 4c2.3 0 4 1.7 4 3.8 0 .6-.1 1.1-.4 1.6A3.7 3.7 0 0 1 20 16c0 2-1.6 3.6-3.6 3.6-.5 0-1-.1-1.4-.3-.7 1-1.7 1.7-3 1.7V5.8C12.6 4.7 13.7 4 15 4Z"/></svg>`,
+    check: `<svg ${common}><circle cx="12" cy="12" r="9"/><path d="M8 12.5l2.5 2.5L16 9"/></svg>`,
+    watch: `<svg ${common}><circle cx="12" cy="12" r="9"/><path d="M8 12h8"/><path d="M8 16h8"/><path d="M12 7v3"/></svg>`,
+    alert: `<svg ${common}><circle cx="12" cy="12" r="9"/><path d="M12 7v6"/><path d="M12 17h.01"/></svg>`,
+    calibrate: `<svg ${common}><path d="M4 12a8 8 0 0 1 8-8"/><path d="M20 12a8 8 0 0 1-8 8"/><path d="M12 4V2"/><path d="M12 22v-2"/><circle cx="12" cy="12" r="3"/></svg>`,
     shield: `<svg ${common}><path d="M12 3l7 3v5c0 5-3 8-7 10-4-2-7-5-7-10V6l7-3z"/><path d="M9 12l2 2 4-5"/></svg>`,
     pathway: `<svg ${common}><path d="M5 17c2-6 12 0 14-8"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="9" r="2"/></svg>`,
     flag: `<svg ${common}><path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/></svg>`,
     rocket: `<svg ${common}><path d="M5 19c3-1 6-3 8-6s3-6 6-8c-1 4-3 7-6 10s-6 5-10 6c1-1 1-2 2-2z"/><path d="M9 15l-2 2"/><path d="M14 10l2-2"/></svg>`,
   };
   return icons[name] || icons.chart;
+}
+
+function statusIconName(status: string): string {
+  if (status === "Strong") return "check";
+  if (status === "Bottleneck") return "alert";
+  if (status === "Calibrating") return "calibrate";
+  return "watch";
+}
+
+function transferDeltaSparkline(points: Array<{ session: string; delta: number | null }>): string {
+  const width = 170;
+  const height = 60;
+  const available = points.filter((point): point is { session: string; delta: number } => point.delta !== null);
+  const chartPoints = available.length > 0 ? available : [{ session: "Now", delta: 0 }];
+  const yFor = (value: number) => 54 - (clampPercent(50 + value * 2.5) / 100) * 48;
+  const xFor = (index: number) => chartPoints.length === 1 ? 154 : 7 + (index / (chartPoints.length - 1)) * 147;
+  const path = chartPoints.map((point, index) => `${index === 0 ? "M" : "L"} ${xFor(index).toFixed(1)} ${yFor(point.delta).toFixed(1)}`).join(" ");
+  const last = chartPoints[chartPoints.length - 1];
+  const lastX = xFor(chartPoints.length - 1);
+  const lastY = yFor(last.delta);
+  return `
+    <svg viewBox="0 0 ${width} ${height}" fill="none" aria-hidden="true">
+      <line x1="6" x2="164" y1="${yFor(0).toFixed(1)}" y2="${yFor(0).toFixed(1)}" stroke="#dce5f4" stroke-width="2" stroke-dasharray="4 5" />
+      <path d="${path}" stroke="#3b6fe0" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" />
+      <circle cx="${lastX.toFixed(1)}" cy="${lastY.toFixed(1)}" r="5" fill="#3b6fe0" />
+    </svg>
+  `;
 }
 
 function trendChartSvg(points: ProgressDashboardPresentationModel["trend"]): string {
@@ -2336,13 +2509,40 @@ function renderOverviewSkillRows(model: ProgressDashboardPresentationModel): str
           <span class="skill-copy">
             <strong>${escapeHtml(skill.label)}</strong>
           </span>
-          <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.score)}</strong>
-          <strong class="skill-change ${skill.change === null || skill.change >= 0 ? "is-up" : "is-down"}">${dashboardChange(skill.change)}</strong>
+          <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.scoreDelta)}</strong>
+          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">pts</strong>
           ${statusChip(skill.status, skill.tone)}
           <span class="skill-confidence">${confidenceDot(skill.tone, skill.confidence)}</span>
         </div>
       `,
     )
+    .join("");
+}
+
+function renderProgressLevelCards(model: ProgressDashboardPresentationModel): string {
+  return model.skills
+    .filter((skill) => skill.label !== "Wrapper Recovery" && skill.label !== "Delayed Recovery")
+    .map((skill, index) => {
+      const statusTone = progressStatusTone(skill.status);
+      return `
+        <article class="progress-level-card ${dashboardToneClass(skill.tone)} is-status-${statusTone}">
+          <div class="progress-level-badge">${index + 1}</div>
+          <div class="progress-level-icon" aria-hidden="true">${miniIcon(skill.icon)}</div>
+          <div class="progress-level-info">
+            <h3>${escapeHtml(skill.label)}</h3>
+            <p>${escapeHtml(skill.subtitle)}</p>
+          </div>
+          <div class="progress-level-score">
+            <div class="progress-level-num"><span>${dashboardScore(skill.scoreDelta)}</span><small>pts</small></div>
+            <div class="progress-level-bar"><i style="width:${dashboardDeltaPercent(skill.scoreDelta)}%"></i></div>
+          </div>
+          <div class="progress-level-status">
+            <strong>${escapeHtml(skill.status)}<span aria-hidden="true">${miniIcon(statusIconName(skill.status))}</span></strong>
+            <p>${escapeHtml(skill.statusNote)}</p>
+          </div>
+        </article>
+      `;
+    })
     .join("");
 }
 
@@ -2389,54 +2589,29 @@ function renderEarlyProgressDashboard(): string {
 }
 
 function renderOverviewDashboard(): string {
-  if (!canShowScoreDetail()) return renderEarlyProgressDashboard();
   const model = progressDashboardPresentationModel();
+  const transferState = transferStatus(model.transferDelta);
+  const transferTone = transferPillTone(transferState);
   return `
-    <section class="dashboard-screen dashboard-overview">
-      ${renderDashboardHeader("Progress", "overview", "Track what is changing and what to train next.")}
-      <section class="continuity-card">
-        <div>
-          <span>Guided continuity</span>
-          <strong>Session ${state.progress.sessionNumber}</strong>
-          <small>${state.progress.completions.length} route${state.progress.completions.length === 1 ? "" : "s"} completed</small>
-        </div>
-        <div class="session-dots">${completionDots()}</div>
-        <p>${state.progress.sessionNumber > 5 ? "Your pattern is becoming clearer. The app is showing how your attention route is developing." : "Complete a few guided sessions so the app can build a steadier picture."}</p>
-      </section>
-      <section class="overview-summary-card">
-        <div class="overall-score-panel">
-          <span>Overall Attention Score</span>
-          <strong>${dashboardScore(model.overallScore)}</strong>
-          <small class="positive-change">${model.overallChange === null ? "" : `${dashboardChange(model.overallChange)} since your starting point`}</small>
-          <em>Starting point = 100</em>
-        </div>
-        <div class="summary-metrics-panel">
-          <div>${miniIcon("target")}<span><strong>Transfer Readiness</strong><small>${model.transferReadiness === null ? "" : `${model.transferReadiness} / 100`}</small></span></div>
-          <div>${miniIcon("shield")}<span><strong>Confidence</strong><small>${escapeHtml(model.confidence)}</small></span></div>
-        </div>
-        <div class="overview-trend">
-          <div class="chart-heading">
-            <strong>Overall change</strong>
-            <span><i class="legend-line score"></i>Score</span>
-            <span><i class="legend-line transfer"></i>Transfer</span>
+    <section class="dashboard-screen dashboard-overview progress-score-page">
+      ${renderDashboardHeader("Progress", "overview", "Track transfer, bottlenecks and attention-control levels.")}
+      <section class="progress-readiness-card">
+        <div class="progress-readiness-left">
+          <h2>Cognitive Control Capacity</h2>
+          <div class="progress-readiness-score">
+            <span class="num ${model.transferDelta === null ? "is-placeholder" : ""}">${dashboardScore(model.transferDelta)}</span><span class="denom">pts</span>
+            <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
           </div>
-          ${trendChartSvg(model.trend)}
+          ${model.transferDelta === null ? "" : `<p>Change from your early-session baseline.</p>`}
         </div>
-      </section>
-      <section class="skills-overview-card">
-        <div class="skills-table-heading">
-          <span>Skill</span><span>Score</span><span>Change</span><span>Status</span><span>Confidence</span>
+        <div class="progress-readiness-mid"></div>
+        <div class="progress-readiness-trend">
+          ${transferDeltaSparkline(model.transferTrend)}
+          <p>${model.transferDelta === null ? "Calibrating baseline" : "Progress from baseline"}</p>
         </div>
-        ${renderOverviewSkillRows(model)}
+        <div class="progress-readiness-icon" aria-hidden="true">${miniIcon("brain")}</div>
       </section>
-      <section class="overview-next-card">
-        <p><strong>Guided progression:</strong> New challenges appear when your current learning curve is stable. Independent benchmark checks live in Proof and stay separate from training scores.</p>
-        <div class="dashboard-actions">
-          ${button("Guided Session", "start-next-guided-session")}
-          ${button("Free Play", "nav-free-play", "secondary")}
-          ${button("Proof", "nav-proof", "ghost")}
-        </div>
-      </section>
+      <section class="progress-level-list">${renderProgressLevelCards(model)}</section>
     </section>
   `;
 }
@@ -2451,9 +2626,9 @@ function renderDetailSkillRows(model: ProgressDashboardPresentationModel): strin
           <span class="detail-skill-copy">
             <strong>${escapeHtml(skill.label)}</strong>
           </span>
-          <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.score)}</strong>
-          <strong class="skill-change ${skill.change === null || skill.change >= 0 ? "is-up" : "is-down"}">${dashboardChange(skill.change)}</strong>
-          ${skillScale(skill.score, skill.tone)}
+          <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.scoreDelta)}</strong>
+          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">pts</strong>
+          ${skillScale(skill.rawScore, skill.tone)}
           <span class="detail-status">${statusChip(skill.status, skill.tone)}<small>${confidenceDot(skill.tone, skill.confidence)}</small></span>
         </div>
       `,
@@ -2875,6 +3050,13 @@ function completeSession(): void {
     scratchBaselines: state.progress.scratchBaselines,
     protocolGroup: state.progress.protocolGroup,
   });
+  const scoreHistoryEntry = scoreHistoryEntryFromState({
+    sessionNumber: completedSessionNumber,
+    completedAt: guidedCompletion.completedAt,
+    phase: completedPhase,
+    evidence: updatedEvidence,
+    snapshot,
+  });
   state.progress = {
     ...state.progress,
     sessionNumber: state.progress.sessionNumber + 1,
@@ -2885,6 +3067,7 @@ function completeSession(): void {
     farTransferWindows,
     latestSnapshot: snapshot,
     completions: [...state.progress.completions, guidedCompletion].slice(-60),
+    scoreHistory: [...(state.progress.scoreHistory || []), scoreHistoryEntry].slice(-30),
     profileRevealSeen: state.progress.profileRevealSeen || shouldRevealProfile,
   };
   persistProgress();

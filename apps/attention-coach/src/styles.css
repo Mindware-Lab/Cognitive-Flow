@@ -275,6 +275,10 @@ button {
   gap: 8px;
 }
 
+.app-content.view-progress {
+  overflow: hidden;
+}
+
 .beta-status-bar {
   min-height: 34px;
   display: grid;
@@ -3555,6 +3559,10 @@ button.score-card {
   color: var(--dash-green);
 }
 
+.is-red {
+  color: var(--dash-red);
+}
+
 .skill-number.is-blue,
 .score-scale-now.is-blue {
   background: var(--dash-blue);
@@ -3578,6 +3586,539 @@ button.score-card {
 .skill-number.is-green,
 .score-scale-now.is-green {
   background: var(--dash-green);
+}
+
+.progress-score-page {
+  height: 100%;
+  min-height: 0;
+  grid-template-rows: auto minmax(92px, 0.58fr) minmax(0, 1fr);
+  align-content: stretch;
+  gap: 10px;
+}
+
+.progress-readiness-card,
+.progress-level-card,
+.progress-legend-card {
+  min-width: 0;
+  border: 1px solid rgba(207, 218, 235, 0.92);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 10px 28px rgba(16, 35, 78, 0.08);
+}
+
+.progress-readiness-card {
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1.22fr) 1px minmax(150px, 0.7fr) 76px;
+  align-items: center;
+  gap: 18px;
+  padding: 14px 22px;
+}
+
+.progress-readiness-left {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.progress-readiness-left h2 {
+  margin: 0;
+  color: var(--dash-ink);
+  font-size: clamp(1rem, 2.5vmin, 1.28rem);
+  line-height: 1.08;
+}
+
+.progress-readiness-score {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.progress-readiness-score .num {
+  color: var(--dash-green);
+  font-size: clamp(3.2rem, 11vmin, 4.8rem);
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.progress-readiness-score .num.is-placeholder {
+  color: #3f4e77;
+  font-size: clamp(2.25rem, 8vmin, 3rem);
+  letter-spacing: 0;
+}
+
+.progress-readiness-score .denom {
+  color: #445176;
+  font-size: clamp(1.05rem, 3vmin, 1.45rem);
+  font-weight: 760;
+}
+
+.progress-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 18px;
+  border-radius: 999px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.progress-pill.is-green {
+  color: #16823c;
+  background: #e3f6e8;
+}
+
+.progress-pill.is-orange {
+  color: #c76b07;
+  background: #fff1de;
+}
+
+.progress-pill.is-red {
+  color: #d9232e;
+  background: #ffe6e9;
+}
+
+.progress-readiness-left p,
+.progress-readiness-trend p {
+  margin: 0;
+  color: #445176;
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.progress-readiness-mid {
+  width: 1px;
+  height: 100%;
+  background: #e3e7f0;
+}
+
+.progress-readiness-trend {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 4px;
+  text-align: center;
+}
+
+.progress-readiness-trend svg {
+  width: min(100%, 180px);
+  height: 58px;
+}
+
+.progress-readiness-trend p {
+  font-size: 0.78rem;
+}
+
+.progress-readiness-icon {
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: #7fa3ec;
+  background: #eef5ff;
+}
+
+.progress-readiness-icon svg {
+  width: 44px;
+  height: 44px;
+}
+
+.progress-section-title {
+  margin: 2px 0 0;
+  color: var(--dash-ink);
+  font-size: clamp(1rem, 2.5vmin, 1.26rem);
+  line-height: 1.08;
+  text-align: center;
+}
+
+.progress-level-list {
+  min-height: 0;
+  display: grid;
+  grid-template-rows: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.progress-level-card {
+  --level-color: var(--dash-blue);
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 38px 58px minmax(0, 1.45fr) minmax(112px, 0.62fr) minmax(128px, 0.72fr);
+  align-items: center;
+  gap: 14px;
+  padding: 13px 16px;
+  color: var(--level-color);
+}
+
+.progress-level-card.is-blue {
+  --level-color: var(--dash-blue);
+}
+
+.progress-level-card.is-purple {
+  --level-color: var(--dash-purple);
+}
+
+.progress-level-card.is-teal {
+  --level-color: var(--dash-teal);
+}
+
+.progress-level-card.is-orange {
+  --level-color: var(--dash-orange);
+}
+
+.progress-level-card.is-green {
+  --level-color: var(--dash-green);
+}
+
+.progress-level-badge,
+.progress-level-icon {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.progress-level-badge {
+  width: 38px;
+  height: 38px;
+  color: #ffffff;
+  background: var(--level-color);
+  font-size: 1.1rem;
+  font-weight: 950;
+  box-shadow: inset 0 -3px 0 rgba(0, 0, 0, 0.13);
+}
+
+.progress-level-icon {
+  width: 58px;
+  height: 58px;
+  color: var(--level-color);
+  background: color-mix(in srgb, var(--level-color) 10%, white);
+}
+
+.progress-level-icon svg {
+  width: 34px;
+  height: 34px;
+}
+
+.progress-level-info {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.progress-level-info h3 {
+  margin: 0;
+  color: var(--dash-ink);
+  font-size: clamp(1rem, 2.6vmin, 1.22rem);
+  line-height: 1.08;
+}
+
+.progress-level-info p {
+  margin: 0;
+  color: #445176;
+  font-size: 0.88rem;
+  line-height: 1.25;
+}
+
+.progress-level-score {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.progress-level-num {
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.progress-level-num span {
+  color: var(--level-color);
+  font-size: clamp(1.8rem, 5vmin, 2.5rem);
+  font-weight: 950;
+  line-height: 0.9;
+}
+
+.progress-level-num small {
+  color: #445176;
+  font-size: 0.85rem;
+  font-weight: 760;
+}
+
+.progress-level-bar {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e7eaf2;
+}
+
+.progress-level-bar i {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--level-color);
+}
+
+.progress-level-status {
+  min-width: 0;
+  display: grid;
+  justify-items: end;
+  gap: 5px;
+  text-align: right;
+}
+
+.progress-level-status strong {
+  min-height: 40px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-radius: 12px;
+  font-size: 0.92rem;
+  line-height: 1;
+}
+
+.progress-level-status strong span {
+  width: 28px;
+  height: 28px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.progress-level-status strong svg {
+  width: 24px;
+  height: 24px;
+}
+
+.progress-level-status p {
+  max-width: 148px;
+  margin: 0;
+  color: #445176;
+  font-size: 0.72rem;
+  line-height: 1.16;
+}
+
+.progress-level-card.is-status-green .progress-level-status strong {
+  color: #16823c;
+  background: #e3f6e8;
+}
+
+.progress-level-card.is-status-orange .progress-level-status strong {
+  color: #c76b07;
+  background: #fff1de;
+}
+
+.progress-level-card.is-status-red .progress-level-status strong {
+  color: #d9232e;
+  background: #ffe6e9;
+}
+
+.progress-level-card.is-status-blue .progress-level-status strong {
+  color: var(--dash-blue);
+  background: #eef5ff;
+}
+
+.progress-legend-card {
+  min-height: 74px;
+  display: grid;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 16px;
+}
+
+.progress-legend-card h3 {
+  margin: 0;
+  color: var(--dash-ink);
+  font-size: 0.96rem;
+  line-height: 1;
+  text-align: center;
+}
+
+.progress-legend-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.progress-legend-grid div {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.progress-legend-grid svg {
+  width: 30px;
+  height: 30px;
+}
+
+.progress-legend-grid span {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.progress-legend-grid strong {
+  color: currentColor;
+  font-size: 0.86rem;
+}
+
+.progress-legend-grid small {
+  color: #445176;
+  font-size: 0.72rem;
+  line-height: 1.12;
+}
+
+.progress-next-card {
+  border-radius: 20px;
+}
+
+@media (max-width: 620px) {
+  .progress-score-page {
+    gap: 7px;
+  }
+
+  .progress-readiness-card {
+    min-height: 94px;
+    grid-template-columns: minmax(0, 1fr) minmax(100px, 0.72fr);
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+
+  .progress-readiness-mid,
+  .progress-readiness-icon {
+    display: none;
+  }
+
+  .progress-readiness-left h2 {
+    font-size: 0.86rem;
+  }
+
+  .progress-readiness-score {
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .progress-readiness-score .num {
+    font-size: clamp(2.25rem, 15vw, 3rem);
+  }
+
+  .progress-readiness-score .denom {
+    font-size: 0.9rem;
+  }
+
+  .progress-pill {
+    min-height: 26px;
+    padding: 4px 10px;
+    font-size: 0.68rem;
+  }
+
+  .progress-readiness-left p,
+  .progress-readiness-trend p {
+    font-size: 0.66rem;
+    line-height: 1.18;
+  }
+
+  .progress-readiness-trend svg {
+    height: 38px;
+  }
+
+  .progress-section-title {
+    font-size: 0.9rem;
+  }
+
+  .progress-level-list {
+    gap: 7px;
+  }
+
+  .progress-level-card {
+    min-height: 72px;
+    grid-template-columns: 28px 36px minmax(0, 1fr) 74px;
+    gap: 7px;
+    padding: 8px 9px;
+    border-radius: 16px;
+  }
+
+  .progress-level-badge {
+    width: 28px;
+    height: 28px;
+    font-size: 0.8rem;
+  }
+
+  .progress-level-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .progress-level-icon svg {
+    width: 23px;
+    height: 23px;
+  }
+
+  .progress-level-info h3 {
+    font-size: 0.78rem;
+  }
+
+  .progress-level-info p {
+    font-size: 0.64rem;
+    line-height: 1.15;
+  }
+
+  .progress-level-num {
+    gap: 3px;
+  }
+
+  .progress-level-num span {
+    font-size: 1.35rem;
+  }
+
+  .progress-level-num small {
+    font-size: 0.62rem;
+  }
+
+  .progress-level-bar {
+    height: 6px;
+  }
+
+  .progress-level-status {
+    display: none;
+  }
+
+  .progress-legend-card {
+    min-height: 60px;
+    gap: 5px;
+    padding: 9px 10px;
+    border-radius: 16px;
+  }
+
+  .progress-legend-card h3 {
+    font-size: 0.78rem;
+  }
+
+  .progress-legend-grid {
+    gap: 6px;
+  }
+
+  .progress-legend-grid div {
+    grid-template-columns: 24px minmax(0, 1fr);
+    gap: 4px;
+  }
+
+  .progress-legend-grid svg {
+    width: 22px;
+    height: 22px;
+  }
+
+  .progress-legend-grid strong {
+    font-size: 0.64rem;
+  }
+
+  .progress-legend-grid small {
+    font-size: 0.56rem;
+  }
 }
 
 .skill-copy,
@@ -5455,6 +5996,10 @@ button.score-card {
     linear-gradient(180deg, rgba(255, 255, 255, 0.74), rgba(245, 247, 250, 0.82));
   background-size: auto, auto, 14px 14px, auto;
   overflow: auto;
+}
+
+:root[data-style-guide="iq"] .app-content.view-progress {
+  overflow: hidden;
 }
 
 :root[data-style-guide="iq"] .splash-card {

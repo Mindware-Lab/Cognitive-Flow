@@ -15,6 +15,13 @@ const PREFIX = "attention-coach";
 export type ProofBenchmarkDomain = "attention" | "working_memory" | "reasoning";
 export type ProofBenchmarkTimepoint = "baseline" | "midpoint" | "post" | "follow_up" | "ad_hoc";
 export type CompletionRoute = "guided" | "practice" | "free_play" | "easier" | "break";
+export type ProgressScoreMetric =
+  | "transfer"
+  | "cognitiveBandwidth"
+  | "frameBandwidth"
+  | "patternBinding"
+  | "wrapperRecovery"
+  | "delayedRecovery";
 
 export interface ProofBenchmarkEntry {
   id: string;
@@ -37,6 +44,13 @@ export interface DailyCompletionEntry {
   phase: PhaseLabel;
 }
 
+export interface ProgressScoreHistoryEntry {
+  sessionNumber: number;
+  completedAt: string;
+  phase: PhaseLabel;
+  metrics: Partial<Record<ProgressScoreMetric, number | null>>;
+}
+
 export interface LocalProgress {
   sessionNumber: number;
   currentPhase: PhaseLabel;
@@ -50,6 +64,7 @@ export interface LocalProgress {
   scratchBaselines: ScratchBaseline[];
   proofBenchmarks: ProofBenchmarkEntry[];
   completions: DailyCompletionEntry[];
+  scoreHistory: ProgressScoreHistoryEntry[];
   profileRevealSeen: boolean;
 }
 
@@ -66,6 +81,7 @@ export const DEFAULT_PROGRESS: LocalProgress = {
   scratchBaselines: [],
   proofBenchmarks: [],
   completions: [],
+  scoreHistory: [],
   profileRevealSeen: false,
 };
 
