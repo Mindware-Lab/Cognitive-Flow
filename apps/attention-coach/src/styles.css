@@ -3747,7 +3747,7 @@ button.score-card {
   grid-template-columns: 38px 58px minmax(0, 1.45fr) minmax(112px, 0.62fr) minmax(128px, 0.72fr);
   align-items: center;
   gap: 14px;
-  padding: 13px 16px;
+  padding: 10px 16px;
   color: var(--level-color);
 }
 
@@ -3803,27 +3803,33 @@ button.score-card {
 .progress-level-info {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  align-content: center;
+  gap: 3px;
 }
 
 .progress-level-info h3 {
   margin: 0;
   color: var(--dash-ink);
-  font-size: clamp(1rem, 2.6vmin, 1.22rem);
-  line-height: 1.08;
+  font-size: clamp(0.86rem, 2.15vmin, 1.02rem);
+  line-height: 1.05;
 }
 
 .progress-level-info p {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   margin: 0;
   color: #445176;
-  font-size: 0.88rem;
-  line-height: 1.25;
+  font-size: 0.72rem;
+  line-height: 1.15;
 }
 
 .progress-level-score {
   min-width: 0;
   display: grid;
-  gap: 7px;
+  align-content: center;
+  gap: 6px;
 }
 
 .progress-level-num {
@@ -3862,19 +3868,20 @@ button.score-card {
 .progress-level-status {
   min-width: 0;
   display: grid;
+  align-content: center;
   justify-items: end;
-  gap: 5px;
+  gap: 4px;
   text-align: right;
 }
 
 .progress-level-status strong {
-  min-height: 40px;
+  min-height: 36px;
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border-radius: 12px;
-  font-size: 0.92rem;
+  font-size: 0.84rem;
   line-height: 1;
 }
 
@@ -3894,8 +3901,8 @@ button.score-card {
   max-width: 148px;
   margin: 0;
   color: #445176;
-  font-size: 0.72rem;
-  line-height: 1.16;
+  font-size: 0.64rem;
+  line-height: 1.1;
 }
 
 .progress-level-card.is-status-green .progress-level-status strong {
