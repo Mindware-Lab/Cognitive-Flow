@@ -2609,7 +2609,9 @@ function renderOverviewDashboard(): string {
           ${transferDeltaSparkline(model.transferTrend)}
           <p>${model.transferDelta === null ? "Calibrating baseline" : "20-session trend from baseline"}</p>
         </div>
-        <div class="progress-readiness-icon" aria-hidden="true">${miniIcon("brain")}</div>
+        <div class="progress-readiness-icon" aria-hidden="true">
+          <img src="${assetPath("trident-g-fpt-icon.png")}" alt="" />
+        </div>
       </section>
       <section class="progress-level-list">${renderProgressLevelCards(model)}</section>
     </section>

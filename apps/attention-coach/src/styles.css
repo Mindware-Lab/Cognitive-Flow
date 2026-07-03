@@ -3609,9 +3609,9 @@ button.score-card {
 .progress-readiness-card {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1.22fr) 1px minmax(150px, 0.7fr) 76px;
+  grid-template-columns: minmax(0, 0.95fr) 1px minmax(180px, 0.78fr) 92px;
   align-items: center;
-  gap: 18px;
+  gap: 16px;
   padding: 14px 22px;
 }
 
@@ -3711,18 +3711,26 @@ button.score-card {
 }
 
 .progress-readiness-icon {
-  width: 68px;
-  height: 68px;
+  width: 76px;
+  height: 76px;
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: #7fa3ec;
-  background: #eef5ff;
+  background: #ffffff;
+  box-shadow: 0 8px 18px rgba(16, 35, 78, 0.08), inset 0 0 0 1px rgba(138, 214, 42, 0.24);
 }
 
 .progress-readiness-icon svg {
   width: 44px;
   height: 44px;
+}
+
+.progress-readiness-icon img {
+  width: 64px;
+  height: 64px;
+  display: block;
+  border-radius: 50%;
+  object-fit: contain;
 }
 
 .progress-section-title {
