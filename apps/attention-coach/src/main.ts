@@ -2610,7 +2610,7 @@ function renderOverviewDashboard(): string {
           <p>${model.transferDelta === null ? "Calibrating baseline" : "20-session trend from baseline"}</p>
         </div>
         <div class="progress-readiness-icon" aria-hidden="true">
-          <img src="${assetPath("trident-g-fpt-icon.png")}" alt="" />
+          <img src="${assetPath("trident-g-fpt-logo.png")}" alt="" />
         </div>
       </section>
       <section class="progress-level-list">${renderProgressLevelCards(model)}</section>
