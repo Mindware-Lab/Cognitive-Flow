@@ -1083,20 +1083,19 @@ function renderFreePlay(): string {
         <article class="train-choice-card is-blue">
           <span>${miniIcon("rocket")}</span>
           <strong>Today's coached route</strong>
-          <p>The main programme route. This is where guided progress is advanced.</p>
-          ${button("Go to Today", "nav-today", "secondary")}
+          <p>This implements the Trident G Far Transfer Protocol for guided progress.</p>
+          ${button("Today's Session", "nav-today", "secondary")}
         </article>
         <article class="train-choice-card is-orange">
           <span>${miniIcon("target")}</span>
           <strong>Practice games</strong>
-          <p>Try task formats without changing your coached pathway or progress status.</p>
+          <p>Try different games without changing your coached pathway or progress status.</p>
           ${button("Choose a game", "nav-free-play-formats", "secondary")}
-          <em>Practice only</em>
         </article>
         <article class="train-choice-card is-green">
           <span>${miniIcon("chart")}</span>
-          <strong>Training map</strong>
-          <p>See how the phases connect and why the display changes over time.</p>
+          <strong>Training explained</strong>
+          <p>See how the sessions connect and why they target cognitive control capacity.</p>
           ${button("View map", "nav-training-map", "secondary")}
         </article>
       </div>
