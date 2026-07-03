@@ -3619,9 +3619,9 @@ button.score-card {
 .progress-readiness-card {
   min-height: 0;
   display: grid;
-  grid-template-columns: minmax(0, 0.95fr) 1px minmax(150px, 0.62fr) minmax(116px, 142px);
+  grid-template-columns: minmax(0, 0.95fr) 1px minmax(160px, 0.7fr) 112px;
   align-items: center;
-  gap: 14px;
+  gap: 16px;
   padding: 14px 22px;
 }
 
@@ -3721,8 +3721,8 @@ button.score-card {
 }
 
 .progress-readiness-icon {
-  width: min(100%, 142px);
-  height: 104px;
+  width: 112px;
+  height: 84px;
   display: grid;
   place-items: center;
   padding: 4px;
