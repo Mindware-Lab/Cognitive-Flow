@@ -904,7 +904,7 @@ function renderReadiness(): string {
       <p class="ui-body">${
         readiness
           ? "Your display timing and motion preview are ready for practice. If timing changes later, you can run the check again."
-          : "A short check makes sure the arrows, moving dots, tap controls, and keyboard controls are ready for training. If timing is unstable, scores will be shown with lower confidence."
+          : "A short check makes sure the arrows, moving dots, and response controls are ready for training. If timing is unstable, scores will be shown with lower confidence."
       }</p>
       <div class="flow-rationale-card">
         <strong>Why this step?</strong>
@@ -1264,7 +1264,7 @@ function renderTask(): string {
           .map((option, index) => `<button class="response-button" data-response="${escapeHtml(option)}" ${responseEnabled ? "" : "disabled"}>${responseButtonContent(option, index, trial.responseOptions.length)}</button>`)
           .join("")}
       </div>
-      <p class="task-footnote">${trial.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction."} Click, tap, or use the keyboard.</p>
+      <p class="task-footnote">${trial.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction."} Click or tap the matching target.</p>
       <div class="task-controls">
         <button class="task-skip-button" data-action="pause-session"><span>II</span> Pause</button>
         <button class="task-skip-button" data-action="toggle-sound"><span>S</span> Sound ${state.soundOn ? "on" : "off"}</button>
@@ -1413,31 +1413,36 @@ function relationForResponse(option: string): string {
   return option.split("_")[0];
 }
 
-function responseArrowForOption(option: string, index: number, optionCount: number): { symbol: string; key: string; label: string } {
+function colorForResponse(option: string): "blue" | "yellow" {
+  return option.endsWith("_yellow") ? "yellow" : "blue";
+}
+
+function responseTargetIcon(option: string): string {
   const relation = relationForResponse(option);
-  if (optionCount === 2) {
-    if (relation === "left") return { symbol: "&larr;", key: "ArrowLeft", label: "Left arrow key" };
-    if (relation === "right") return { symbol: "&rarr;", key: "ArrowRight", label: "Right arrow key" };
-    if (relation === "up" || relation === "out") return { symbol: "&uarr;", key: "ArrowUp", label: "Up arrow key" };
-    if (relation === "down" || relation === "in") return { symbol: "&darr;", key: "ArrowDown", label: "Down arrow key" };
-    return index === 0
-      ? { symbol: "&larr;", key: "ArrowLeft", label: "Left arrow key" }
-      : { symbol: "&rarr;", key: "ArrowRight", label: "Right arrow key" };
-  }
-  const arrows = [
-    { symbol: "&larr;", key: "ArrowLeft", label: "Left arrow key" },
-    { symbol: "&uarr;", key: "ArrowUp", label: "Up arrow key" },
-    { symbol: "&darr;", key: "ArrowDown", label: "Down arrow key" },
-    { symbol: "&rarr;", key: "ArrowRight", label: "Right arrow key" },
-  ];
-  return arrows[index] || { symbol: `${index + 1}`, key: `${index + 1}`, label: `Number ${index + 1} key` };
+  const color = colorForResponse(option);
+  const common = `viewBox="0 0 32 32" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"`;
+  const arrow = (path: string) => `<svg ${common} aria-hidden="true">${path}</svg>`;
+  const path =
+    relation === "left"
+      ? `<path d="M22 16H9"/><path d="M14 10l-6 6 6 6"/>`
+      : relation === "right"
+        ? `<path d="M10 16h13"/><path d="M18 10l6 6-6 6"/>`
+        : relation === "out"
+          ? `<path d="M16 16 7 7"/><path d="M7 7h7"/><path d="M7 7v7"/><path d="M16 16l9-9"/><path d="M25 7h-7"/><path d="M25 7v7"/>`
+          : relation === "in"
+            ? `<path d="M6 6l9 9"/><path d="M15 15H8"/><path d="M15 15V8"/><path d="M26 6l-9 9"/><path d="M17 15h7"/><path d="M17 15V8"/>`
+            : relation === "cw"
+              ? `<path d="M8 10a9 9 0 0 1 14 2"/><path d="M22 6v6h-6"/>`
+              : relation === "ccw"
+                ? `<path d="M24 10a9 9 0 0 0-14 2"/><path d="M10 6v6h6"/>`
+                : `<path d="M10 16h12"/><path d="M18 10l6 6-6 6"/>`;
+  return `<span class="response-target-icon is-${color} is-${escapeHtml(relation)}">${arrow(path)}</span>`;
 }
 
 function responseButtonContent(option: string, index: number, optionCount: number): string {
   const label = labelForResponse(option);
   if (optionCount === 2 || optionCount === 4) {
-    const key = responseArrowForOption(option, index, optionCount);
-    return `<span>${label}</span><kbd aria-label="${key.label}">${key.symbol}</kbd>`;
+    return `<span class="response-label">${label}</span>${responseTargetIcon(option)}`;
   }
   return `<span>${label}</span><kbd>${index + 1}</kbd>`;
 }
@@ -1530,7 +1535,7 @@ function renderComplete(): string {
             ? "Practice helped you learn this block's display. It did not decide your progress score."
             : isEasierPractice
               ? "This was unscored practice using your current display style. It did not change your session number, phase, WAP readiness, or transfer scores."
-              : "This practice block used the same brief display, mask, response controls, and keyboard options as guided training. It did not change your guided learning path."
+              : "This practice block used the same brief display, mask, and response controls as guided training. It did not change your guided learning path."
         }</p>
         <div class="action-row">
           ${isSetupPractice ? button(`Begin training block ${returnIndex + 1}`, "finish-practice-begin-block") : button("Choose another practice", "nav-free-play")}
@@ -3092,16 +3097,6 @@ window.addEventListener("keydown", (event) => {
   if (state.view !== "task" || state.taskStage !== "response" || event.repeat) return;
   const trial = activeTrial();
   if (!trial) return;
-  if (trial.responseOptions.length === 2 || trial.responseOptions.length === 4) {
-    const responseIndex = trial.responseOptions.findIndex(
-      (option, index) => responseArrowForOption(option, index, trial.responseOptions.length).key === event.key,
-    );
-    if (responseIndex >= 0) {
-      event.preventDefault();
-      answerTrial(trial.responseOptions[responseIndex]);
-    }
-    return;
-  }
   const number = Number(event.key);
   if (Number.isInteger(number) && number >= 1 && number <= trial.responseOptions.length) {
     event.preventDefault();
