@@ -2325,8 +2325,9 @@ button.score-card {
 }
 
 .practice-intro-panel {
-  grid-template-rows: auto minmax(230px, 1fr) auto auto auto;
-  gap: 9px;
+  grid-template-rows: auto minmax(0, 1fr) auto auto auto;
+  gap: 7px;
+  padding: clamp(12px, 2vmin, 18px);
 }
 
 .practice-intro-copy {
@@ -2338,16 +2339,22 @@ button.score-card {
 .practice-intro-copy h1 {
   margin: 0;
   color: #07124a;
-  font-size: clamp(1.5rem, 5vmin, 2.15rem);
+  font-size: clamp(1.45rem, 4.4vmin, 2rem);
   line-height: 1;
+}
+
+.practice-intro-copy .ui-body {
+  justify-self: center;
+  font-size: 0.8rem;
+  line-height: 1.18;
 }
 
 .practice-preview-card {
   min-height: 0;
   display: grid;
-  grid-template-rows: auto minmax(0, 1fr) auto;
-  gap: 8px;
-  padding: 12px;
+  grid-template-rows: auto minmax(96px, 1fr) auto;
+  gap: 5px;
+  padding: 9px 12px;
   border: 1px solid rgba(198, 215, 243, 0.95);
   border-radius: 18px;
   background: linear-gradient(180deg, #f7fbff, #ffffff);
@@ -2363,7 +2370,8 @@ button.score-card {
 }
 
 .practice-preview-card .stimulus-wrap {
-  width: min(250px, 44dvh, 68vw);
+  width: min(150px, 23dvh, 42vw);
+  max-height: 150px;
   align-self: center;
   justify-self: center;
 }
@@ -2412,11 +2420,11 @@ button.score-card {
 }
 
 .practice-mini-steps span {
-  padding: 8px;
+  padding: 7px 8px;
   border-radius: 12px;
   color: #1458ff;
   background: #eef5ff;
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 850;
   text-align: center;
 }
@@ -2425,8 +2433,8 @@ button.score-card {
   display: grid;
   grid-template-columns: 34px minmax(0, 1fr);
   align-items: center;
-  gap: 10px;
-  padding: 10px 12px;
+  gap: 8px;
+  padding: 8px 10px;
   border-radius: 14px;
   color: #334069;
   background: #f3f7ff;
@@ -2434,8 +2442,20 @@ button.score-card {
 
 .practice-tip-card p {
   margin: 0;
-  font-size: 0.76rem;
-  line-height: 1.25;
+  font-size: 0.7rem;
+  line-height: 1.2;
+}
+
+.practice-intro-panel > .action-row {
+  gap: 8px;
+  justify-content: center;
+}
+
+.practice-intro-panel > .action-row .ui-button {
+  min-height: 38px;
+  padding: 0 14px;
+  font-size: 0.78rem;
+  line-height: 1.12;
 }
 
 .tip-symbol {
@@ -4421,8 +4441,9 @@ button.score-card {
   }
 
   .practice-intro-panel {
-    grid-template-rows: auto minmax(190px, 1fr) auto auto auto;
+    grid-template-rows: auto minmax(0, 1fr) auto auto auto;
     gap: 6px;
+    padding: 10px;
   }
 
   .practice-intro-copy h1 {
@@ -4445,7 +4466,8 @@ button.score-card {
   }
 
   .practice-preview-card .stimulus-wrap {
-    width: min(205px, 34dvh, 62vw);
+    width: min(128px, 21dvh, 44vw);
+    max-height: 128px;
   }
 
   .game-preview-card .stimulus-wrap {
@@ -4476,11 +4498,11 @@ button.score-card {
   .practice-tip-card {
     grid-template-columns: 26px minmax(0, 1fr);
     gap: 6px;
-    padding: 7px 8px;
+    padding: 6px 8px;
   }
 
   .practice-tip-card p {
-    font-size: 0.58rem;
+    font-size: 0.56rem;
   }
 
   .tip-symbol {

@@ -1444,10 +1444,8 @@ function renderPracticeIntro(): string {
   return shell(`
     <section class="panel practice-intro-panel">
       <div class="practice-intro-copy">
-        <p class="ui-eyebrow">Practice block ${block.index}</p>
         <h1>${escapeHtml(copy.title)}</h1>
         <p class="ui-body">${escapeHtml(copy.body)}</p>
-        <p class="ui-body">Practice is here to make the display understandable before the scored guided block begins.</p>
       </div>
       <section class="practice-preview-card">
         <p class="task-preview-question">${escapeHtml(questionForTrial(example))}</p>
