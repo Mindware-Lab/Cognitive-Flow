@@ -1075,7 +1075,7 @@ const FREE_PLAY_GROUPS: Record<Construct, { title: string; detail: string; icon:
   },
   BSE: {
     title: "Binding Stability",
-    detail: "Keep the target feature and colour bound together.",
+    detail: "Keep feature and colour bound.",
     icon: "binding",
   },
 };
