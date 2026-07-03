@@ -1067,6 +1067,27 @@ const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string; detail: string }> =
   { cell: "mixed", label: "Mixed Practice", detail: "Formats switch from trial to trial." },
 ];
 
+const FREE_PLAY_GROUPS: Record<Construct, { title: string; detail: string; icon: string }> = {
+  ACC: {
+    title: "Signal Control",
+    detail: "Pick out the main signal in brief displays.",
+    icon: "target",
+  },
+  BSE: {
+    title: "Binding Stability",
+    detail: "Keep the target feature and colour bound together.",
+    icon: "binding",
+  },
+};
+
+function freePlayCellIcon(cell: CellKey): string {
+  if (cell === "arrow_abs") return "target";
+  if (cell === "flow_abs") return "transfer";
+  if (cell === "arrow_rel") return "relational";
+  if (cell === "flow_rel") return "pathway";
+  return "list";
+}
+
 function renderFreePlay(): string {
   return shell(`
     ${appTabs("train")}
@@ -1109,23 +1130,41 @@ function renderFreePlay(): string {
 
 function renderFreePlayFormats(): string {
   const card = (construct: Construct, cell: CellKey, label: string, detail: string) => `
-    <button class="game-card" data-free-construct="${construct}" data-free-cell="${cell}">
-      <span>${construct === "ACC" ? "Signal Control" : "Binding Stability"}</span>
-      <strong>${escapeHtml(label)}</strong>
-      <small>${escapeHtml(detail)}</small>
+    <button class="practice-format-card" data-free-construct="${construct}" data-free-cell="${cell}">
+      <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(cell))}</span>
+      <span class="practice-format-copy">
+        <strong>${escapeHtml(label)}</strong>
+        <small>${escapeHtml(detail)}</small>
+      </span>
     </button>
   `;
+  const group = (construct: Construct) => {
+    const groupMeta = FREE_PLAY_GROUPS[construct];
+    return `
+      <section class="practice-format-group" aria-label="${groupMeta.title}">
+        <div class="practice-format-heading">
+          <span class="section-icon is-purple" aria-hidden="true">${miniIcon(groupMeta.icon)}</span>
+          <span>
+            <strong>${groupMeta.title}</strong>
+            <small>${groupMeta.detail}</small>
+          </span>
+        </div>
+        <div class="practice-format-grid">
+          ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
+        </div>
+      </section>
+    `;
+  };
   return shell(`
     ${appTabs("train")}
     <section class="train-screen free-play-formats-screen">
-      <div class="train-header-card compact-page-header">
-        <p class="ui-eyebrow">Free Play</p>
-        <h1>Choose one format.</h1>
-        <p class="ui-body">Practice only - this does not advance phase, WAP readiness, or transfer scores.</p>
+      <div class="practice-format-note">
+        <strong>Free Play</strong>
+        <span>Practice only - this does not advance phase, WAP readiness, or transfer scores.</span>
       </div>
-      <div class="game-grid compact-game-grid">
-        ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card("ACC", cell, label, detail)).join("")}
-        ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card("BSE", cell, label, detail)).join("")}
+      <div class="practice-format-layout">
+        ${group("ACC")}
+        ${group("BSE")}
       </div>
     </section>
   `);

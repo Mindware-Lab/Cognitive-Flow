@@ -1895,7 +1895,137 @@ button.score-card {
 }
 
 .free-play-formats-screen {
-  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-content: start;
+  overflow: visible;
+}
+
+.practice-format-note {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  border: 1px solid rgba(190, 211, 255, 0.82);
+  border-radius: 18px;
+  color: #334069;
+  background: rgba(255, 255, 255, 0.78);
+  font-size: 0.82rem;
+  line-height: 1.25;
+}
+
+.practice-format-note strong {
+  flex: 0 0 auto;
+  color: #2f5fc7;
+  font-size: 0.82rem;
+  font-weight: 950;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.practice-format-layout {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+}
+
+.practice-format-group {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+}
+
+.practice-format-heading {
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 4px 2px;
+}
+
+.practice-format-heading .section-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 15px;
+}
+
+.practice-format-heading strong,
+.practice-format-heading small {
+  display: block;
+}
+
+.practice-format-heading strong {
+  color: #07124a;
+  font-size: 1rem;
+  line-height: 1.1;
+}
+
+.practice-format-heading small {
+  margin-top: 2px;
+  color: #54617f;
+  font-size: 0.76rem;
+  line-height: 1.2;
+}
+
+.practice-format-grid {
+  display: grid;
+  gap: 7px;
+}
+
+.practice-format-card {
+  width: 100%;
+  min-height: 68px;
+  display: grid;
+  grid-template-columns: 42px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border: 1px solid rgba(207, 218, 235, 0.92);
+  border-radius: 16px;
+  color: inherit;
+  background: rgba(255, 255, 255, 0.92);
+  text-align: left;
+  box-shadow: 0 8px 22px rgba(13, 23, 48, 0.055);
+}
+
+.practice-format-card:hover {
+  border-color: rgba(34, 170, 255, 0.45);
+  box-shadow: 0 10px 26px rgba(13, 23, 48, 0.08);
+}
+
+.practice-format-icon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 14px;
+  color: #2f5fc7;
+  background: #eef7ff;
+}
+
+.practice-format-icon svg {
+  width: 21px;
+  height: 21px;
+}
+
+.practice-format-copy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.practice-format-copy strong {
+  color: #07124a;
+  font-size: 0.94rem;
+  line-height: 1.12;
+  overflow-wrap: anywhere;
+}
+
+.practice-format-copy small {
+  color: #54617f;
+  font-size: 0.74rem;
+  line-height: 1.18;
 }
 
 .train-header-card,
@@ -4331,6 +4461,79 @@ button.score-card {
   .train-choice-grid {
     grid-template-columns: 1fr;
     gap: 6px;
+  }
+
+  .practice-format-note {
+    display: grid;
+    gap: 3px;
+    padding: 8px 10px;
+    font-size: 0.66rem;
+  }
+
+  .practice-format-note strong {
+    font-size: 0.68rem;
+  }
+
+  .practice-format-layout {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+
+  .practice-format-group {
+    gap: 6px;
+  }
+
+  .practice-format-heading {
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 2px;
+  }
+
+  .practice-format-heading .section-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+  }
+
+  .practice-format-heading strong {
+    font-size: 0.82rem;
+  }
+
+  .practice-format-heading small {
+    font-size: 0.64rem;
+    line-height: 1.12;
+  }
+
+  .practice-format-grid {
+    gap: 5px;
+  }
+
+  .practice-format-card {
+    min-height: 58px;
+    grid-template-columns: 34px minmax(0, 1fr);
+    gap: 8px;
+    padding: 7px 8px;
+    border-radius: 13px;
+  }
+
+  .practice-format-icon {
+    width: 32px;
+    height: 32px;
+    border-radius: 12px;
+  }
+
+  .practice-format-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .practice-format-copy strong {
+    font-size: 0.78rem;
+  }
+
+  .practice-format-copy small {
+    font-size: 0.62rem;
+    line-height: 1.12;
   }
 
   .train-choice-card {
