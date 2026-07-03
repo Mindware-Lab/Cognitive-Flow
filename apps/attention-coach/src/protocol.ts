@@ -46,12 +46,12 @@ export const PHASE_CELL: Record<PhaseLabel, CellKey> = {
 };
 
 export const PHASE_NAMES: Record<PhaseLabel, string> = {
-  P1_ARROW_ABS: "Direction Foundation",
+  P1_ARROW_ABS: "Direction foundation",
   P2_FLOW_ABS: "Motion Foundation",
   P3_ARROW_REL: "Relation Foundation",
   P4_FLOW_REL: "Motion Relations",
   P1_FLOW_ABS: "Motion Foundation",
-  P2_ARROW_ABS: "Direction Foundation",
+  P2_ARROW_ABS: "Direction foundation",
   P3_FLOW_REL: "Motion Relations",
   P4_ARROW_REL: "Relation Foundation",
   P5_MIXED: "Mixed Mastery",

@@ -484,7 +484,7 @@ const PHASE_WHY_COPY: Record<PhaseLabel, string> = {
 };
 
 const PHASE_GOAL_COPY: Record<PhaseLabel, string> = {
-  P1_ARROW_ABS: "build a clear attention-control baseline.",
+  P1_ARROW_ABS: "Build a cognitive control baseline.",
   P2_FLOW_ABS: "recover the same signal skill in moving patterns.",
   P3_ARROW_REL: "use the pattern's relationship, not just its surface direction.",
   P4_FLOW_REL: "recover the relational skill in motion patterns.",
@@ -1060,7 +1060,7 @@ function renderBreakPlan(): string {
 }
 
 const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string; detail: string }> = [
-  { cell: "arrow_abs", label: "Direction Foundation", detail: "Static arrows and simple signal control." },
+  { cell: "arrow_abs", label: "Direction foundation", detail: "Static arrows and simple signal control." },
   { cell: "flow_abs", label: "Motion Foundation", detail: "Moving patterns with the same rule." },
   { cell: "arrow_rel", label: "Relation Foundation", detail: "Use relationships around the centre." },
   { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational control in motion." },
