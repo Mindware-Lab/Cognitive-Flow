@@ -216,7 +216,7 @@ let state: RuntimeState = {
   authBusy: false,
   cloudSyncMode: initialCloudSyncMode,
   syncState: initialCloudSyncMode === "cloud" ? "checking" : "local",
-  syncMessage: initialCloudSyncMode === "cloud" ? "Checking beta sign-in." : "Local-only mode. Data stays in this browser unless you enable cloud sync.",
+  syncMessage: initialCloudSyncMode === "cloud" ? "Checking sign-in." : "This browser only. Cloud optional.",
 };
 
 function validScratchBaseline(value: ScratchBaseline): boolean {
@@ -275,6 +275,10 @@ function authLabel(): string {
   if (state.cloudSyncMode === "local") return "Local only";
   if (!state.authReady) return "Checking sign-in";
   return state.authUser?.email || "Sign in required";
+}
+
+function dataStatusLabel(): string {
+  return state.cloudSyncMode === "local" ? "Data ethics" : authLabel();
 }
 
 function syncLabel(): string {
@@ -403,7 +407,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
         <div class="app-header-right">${authControl}${soundControl}</div>
       </header>
       <div class="${contentClasses}">
-        ${cloudSyncAvailable ? `<div class="beta-status-bar"><span>${escapeHtml(authLabel())}</span><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
+        ${cloudSyncAvailable ? `<div class="beta-status-bar"><button class="beta-status-link" data-action="nav-data-rights">${escapeHtml(dataStatusLabel())}</button><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
         ${content}
       </div>
     </main>
@@ -930,10 +934,10 @@ function setCloudSyncMode(mode: CloudSyncMode): void {
   saveCloudSyncMode(state.cloudSyncMode);
   if (state.cloudSyncMode === "local") {
     state.syncState = "local";
-    state.syncMessage = "Local-only mode. Remote uploads are paused.";
+    state.syncMessage = "This browser only. Cloud optional.";
   } else {
     state.syncState = state.authUser ? "checking" : "pending";
-    state.syncMessage = state.authUser ? "Cloud sync enabled." : "Sign in to enable cloud sync.";
+    state.syncMessage = state.authUser ? "Cloud sync enabled." : "Sign in to sync devices.";
   }
 }
 
@@ -3521,7 +3525,7 @@ async function initialiseBetaAuth(): Promise<void> {
     state.authReady = true;
     state.syncState = "local";
     state.syncMessage = cloudSyncAvailable
-      ? "Local-only mode. Data stays in this browser unless you enable cloud sync."
+      ? "This browser only. Cloud optional."
       : "Local demo mode.";
     render();
     void hydrateScratchBaselines();
@@ -3530,7 +3534,7 @@ async function initialiseBetaAuth(): Promise<void> {
 
   state.authReady = false;
   state.syncState = "checking";
-  state.syncMessage = "Checking beta sign-in.";
+  state.syncMessage = "Checking sign-in.";
   render();
 
   try {
@@ -3542,7 +3546,7 @@ async function initialiseBetaAuth(): Promise<void> {
     } else {
       state.view = "auth";
       state.syncState = "pending";
-      state.syncMessage = "Sign in to enable beta data sync.";
+      state.syncMessage = "Sign in to sync devices.";
       render();
     }
   } catch (error) {
@@ -3564,10 +3568,10 @@ async function initialiseBetaAuth(): Promise<void> {
         state.view = "auth";
         state.viewHistory = [];
         state.syncState = "pending";
-        state.syncMessage = "Sign in to enable beta data sync.";
+        state.syncMessage = "Sign in to sync devices.";
       } else {
         state.syncState = "local";
-        state.syncMessage = "Local-only mode. Remote uploads are paused.";
+        state.syncMessage = "This browser only. Cloud optional.";
       }
       render();
     }

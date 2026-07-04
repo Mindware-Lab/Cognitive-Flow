@@ -294,12 +294,29 @@ button {
   font-weight: 760;
 }
 
-.beta-status-bar span,
+.beta-status-link,
 .beta-status-bar em {
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.beta-status-link {
+  border: 0;
+  padding: 0;
+  color: inherit;
+  background: transparent;
+  font: inherit;
+  font-weight: 860;
+  text-align: left;
+  cursor: pointer;
+}
+
+.beta-status-link:focus-visible {
+  outline: 2px solid rgba(39, 100, 183, 0.38);
+  outline-offset: 3px;
+  border-radius: 8px;
 }
 
 .beta-status-bar strong {
@@ -773,6 +790,7 @@ button {
 
 .panel h1,
 .today-hero h1 {
+  min-width: 0;
   max-width: 780px;
   margin: 0;
   color: #07142f;
@@ -783,11 +801,13 @@ button {
 
 .hero-copy,
 .ui-body {
+  min-width: 0;
   max-width: 680px;
   margin: 0;
   color: #52637c;
   font-size: 0.96rem;
   line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
 .ui-eyebrow {
@@ -883,7 +903,10 @@ button {
 
 .today-hero,
 .panel {
+  width: 100%;
+  max-width: 100%;
   min-height: 0;
+  min-width: 0;
   padding: clamp(16px, 3.2vw, 28px);
   display: grid;
   gap: 12px;
@@ -976,6 +999,7 @@ button.score-card {
   background:
     radial-gradient(circle at 50% 42%, rgba(34, 170, 255, 0.12), transparent 36%),
     linear-gradient(180deg, #f7fbff 0%, #eaf6ff 100%);
+  contain: paint;
   overflow: hidden;
 }
 
@@ -996,16 +1020,19 @@ button.score-card {
 
 .screen-test-display {
   position: relative;
-  width: clamp(82px, 18vw, 112px);
+  --screen-test-halo: clamp(7px, 1.8vw, 11px);
+  width: min(clamp(68px, 16vw, 104px), calc(100% - 48px), 22dvh);
+  max-width: 100%;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
   border-radius: 50%;
   border: 2px solid rgba(39, 100, 183, 0.18);
+  transform-origin: center;
   background:
     radial-gradient(circle, rgba(255, 255, 255, 0.98) 0 48%, rgba(231, 238, 253, 0.86) 100%);
   box-shadow:
-    0 0 0 12px rgba(34, 170, 255, 0.08),
+    0 0 0 var(--screen-test-halo) rgba(34, 170, 255, 0.08),
     0 18px 36px rgba(39, 100, 183, 0.14);
 }
 
@@ -1014,7 +1041,7 @@ button.score-card {
   aspect-ratio: 1;
   border-radius: 50%;
   background: var(--blue);
-  box-shadow: 0 0 0 12px rgba(34, 170, 255, 0.12);
+  box-shadow: 0 0 0 calc(var(--screen-test-halo) * 0.9) rgba(34, 170, 255, 0.12);
 }
 
 .screen-test-field.is-running .screen-test-display {
@@ -1023,7 +1050,7 @@ button.score-card {
 
 @keyframes screen-test-pulse {
   to {
-    transform: scale(1.08);
+    transform: scale(1.06);
   }
 }
 
@@ -4892,10 +4919,14 @@ button.score-card {
 
   .beta-status-bar {
     min-height: 30px;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(92px, 1fr) max-content;
     gap: 6px;
     padding: 5px 9px;
     font-size: 0.62rem;
+  }
+
+  .beta-status-bar strong {
+    font-size: 0.6rem;
   }
 
   .beta-status-bar em {
@@ -5005,6 +5036,17 @@ button.score-card {
   .direction-demo-grid span {
     border-radius: 13px;
     font-size: 1.5rem;
+  }
+
+  .screen-test-field {
+    min-height: clamp(164px, 28dvh, 210px);
+    gap: 10px;
+    padding: 16px;
+  }
+
+  .screen-test-display {
+    --screen-test-halo: clamp(6px, 2.3vw, 9px);
+    width: min(clamp(62px, 18vw, 84px), calc(100% - 36px), 18dvh);
   }
 
   .tutorial-cues {
