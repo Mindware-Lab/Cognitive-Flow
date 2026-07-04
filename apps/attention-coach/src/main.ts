@@ -844,7 +844,7 @@ function renderAuth(): string {
       <div class="auth-card">
         <img src="${assetPath("iqmindware-logo.png")}" alt="IQ Mindware" />
         <p class="ui-eyebrow">Cloud sync</p>
-        <h1>Sign in only if you want cloud sync.</h1>
+        <h1>Sign in for cloud sync</h1>
         <p class="ui-body">Local-only training remains available. If you enable cloud sync, guided trial logs, device checks, progress state, score snapshots, and manual benchmark entries are saved to your Supabase account so your programme can continue across devices.</p>
         <section class="ethics-compact-panel">
           <strong>Use boundary</strong>
