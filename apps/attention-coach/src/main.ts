@@ -131,11 +131,7 @@ function applyStyleMode(mode: StyleMode): void {
 
 applyStyleMode(styleMode);
 
-function shouldStartOnToday(progress: LocalProgress): boolean {
-  return progress.sessionNumber > 1 || progress.completions.length > 0;
-}
-
-function resolveInitialView(progress: LocalProgress, cloudSyncMode: CloudSyncMode): View {
+function resolveInitialView(cloudSyncMode: CloudSyncMode): View {
   const queryView = new URLSearchParams(window.location.search).get("view");
   const allowedViews: View[] = [
     "auth",
@@ -158,7 +154,7 @@ function resolveInitialView(progress: LocalProgress, cloudSyncMode: CloudSyncMod
     "profile",
   ];
   if (cloudSyncAvailable && cloudSyncMode === "cloud") return "auth";
-  return allowedViews.includes(queryView as View) ? (queryView as View) : shouldStartOnToday(progress) ? "today" : "welcome";
+  return allowedViews.includes(queryView as View) ? (queryView as View) : "welcome";
 }
 
 function queryProtocolGroup(): ProtocolGroup | null {
@@ -188,7 +184,7 @@ function loadAssignedProgress(): LocalProgress {
 const initialProgress = loadAssignedProgress();
 
 let state: RuntimeState = {
-  view: resolveInitialView(initialProgress, initialCloudSyncMode),
+  view: resolveInitialView(initialCloudSyncMode),
   progress: initialProgress,
   sessionPlan: null,
   activeBlockIndex: 0,
@@ -332,7 +328,7 @@ async function restoreRemoteProgress(): Promise<void> {
       state.progress = progressForBrowserDevice({ ...DEFAULT_PROGRESS, ...remote }, currentBrowserDeviceId);
       saveProgress(state.progress);
       markSync("synced", "Beta progress loaded.");
-      nextView = shouldStartOnToday(state.progress) ? "today" : "welcome";
+      nextView = "welcome";
     } else {
       state.progress = { ...DEFAULT_PROGRESS };
       saveProgress(state.progress);
@@ -1033,21 +1029,17 @@ function renderWelcome(): string {
 function renderReadiness(): string {
   const readiness = state.progress.deviceReadiness;
   const screenTestCopy = state.readinessRunning
-    ? "Screen test running. Keep this tab visible while the app checks frame stability."
-    : "The check samples display frames for a few seconds before training starts.";
+    ? "Keep this tab visible."
+    : "Takes a few seconds.";
   return shell(`
-    <section class="panel">
+    <section class="panel readiness-panel">
       <p class="ui-eyebrow">${readiness ? "Setup check complete" : "Quick setup"}</p>
       <h1>${readiness ? "Device check complete" : "Device check"}</h1>
       <p class="ui-body">${
         readiness
-          ? "Your display timing and motion preview are ready for practice on this browser/device. Run the check again if you switch devices, displays, browsers, or power mode."
-          : "A short check makes sure the arrows, moving dots, and response controls are ready for training. If timing is unstable, scores will be shown with lower confidence."
+          ? "Ready on this browser/device. Recheck after switching device, display, browser, or power mode."
+          : "Checks display timing before training starts."
       }</p>
-      <div class="flow-rationale-card">
-        <strong>Why this step?</strong>
-        <p>The coach uses brief displays and timing changes. Checking the device first keeps training feedback about your attention rather than about screen timing problems.</p>
-      </div>
       ${
         readiness
           ? `<div class="readiness-grid">

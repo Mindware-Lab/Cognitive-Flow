@@ -303,14 +303,22 @@ button {
 }
 
 .beta-status-link {
-  border: 0;
-  padding: 0;
-  color: inherit;
-  background: transparent;
+  width: max-content;
+  max-width: 100%;
+  min-height: 22px;
+  display: inline-grid;
+  align-items: center;
+  justify-self: start;
+  border: 1px solid rgba(39, 100, 183, 0.22);
+  border-radius: 999px;
+  padding: 2px 10px;
+  color: var(--blue);
+  background: #ffffff;
   font: inherit;
-  font-weight: 860;
+  font-weight: 900;
   text-align: left;
   cursor: pointer;
+  box-shadow: 0 4px 10px rgba(39, 100, 183, 0.06);
 }
 
 .beta-status-link:focus-visible {
@@ -913,6 +921,11 @@ button {
   overflow: hidden;
 }
 
+.readiness-panel {
+  align-content: start;
+  overflow: auto;
+}
+
 .today-hero {
   grid-column: 1 / -1;
 }
@@ -992,9 +1005,11 @@ button.score-card {
 }
 
 .screen-test-field {
-  min-height: clamp(190px, 30vh, 260px);
-  gap: 12px;
-  padding: 22px;
+  min-height: clamp(150px, 24vh, 210px);
+  gap: 10px;
+  padding: 18px;
+  align-content: center;
+  justify-items: center;
   text-align: center;
   background:
     radial-gradient(circle at 50% 42%, rgba(34, 170, 255, 0.12), transparent 36%),
@@ -1021,7 +1036,7 @@ button.score-card {
 .screen-test-display {
   position: relative;
   --screen-test-halo: clamp(7px, 1.8vw, 11px);
-  width: min(clamp(68px, 16vw, 104px), calc(100% - 48px), 22dvh);
+  width: min(clamp(62px, 14vw, 92px), calc(100% - 48px), 18dvh);
   max-width: 100%;
   aspect-ratio: 1;
   display: grid;
@@ -5039,14 +5054,14 @@ button.score-card {
   }
 
   .screen-test-field {
-    min-height: clamp(164px, 28dvh, 210px);
-    gap: 10px;
-    padding: 16px;
+    min-height: clamp(136px, 24dvh, 180px);
+    gap: 8px;
+    padding: 14px;
   }
 
   .screen-test-display {
     --screen-test-halo: clamp(6px, 2.3vw, 9px);
-    width: min(clamp(62px, 18vw, 84px), calc(100% - 36px), 18dvh);
+    width: min(clamp(56px, 16vw, 76px), calc(100% - 36px), 15dvh);
   }
 
   .tutorial-cues {
