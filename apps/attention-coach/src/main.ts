@@ -1056,9 +1056,9 @@ function renderReadiness(): string {
             </div>`
       }
       <div class="action-row">
-        ${button(readiness ? "Continue with this device" : state.readinessRunning ? "Checking..." : "Run readiness check", readiness ? "nav-tutorial" : "run-readiness")}
+        ${button(readiness ? "Today's plan" : state.readinessRunning ? "Checking..." : "Run readiness check", readiness ? "nav-today" : "run-readiness")}
         ${readiness ? button("Run check again", "run-readiness", "secondary") : ""}
-        ${button("Today's plan", "nav-today", readiness ? "ghost" : "secondary")}
+        ${!readiness ? button("Today's plan", "nav-today", "secondary") : ""}
       </div>
     </section>
   `);
@@ -3402,7 +3402,6 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "start-readiness") go("readiness");
   else if (action === "run-readiness") {
     if (state.readinessRunning) return;
-    const isRecheck = state.progress.deviceReadiness !== null;
     state.readinessRunning = true;
     state.progress = { ...state.progress, deviceReadiness: null };
     render();
@@ -3420,7 +3419,7 @@ appRoot.addEventListener("click", async (event) => {
     }
     void hydrateScratchBaselines();
     state.readinessRunning = false;
-    go(isRecheck ? "readiness" : "briefing");
+    go("readiness");
   } else if (action === "nav-today") go("today");
   else if (action === "nav-today-rationale") go("today-rationale");
   else if (action === "nav-break-plan") go("break-plan");
