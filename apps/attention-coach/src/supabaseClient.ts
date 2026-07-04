@@ -108,6 +108,23 @@ export async function deleteProofBenchmark(id: string): Promise<void> {
   if (error) throw new Error(await functionErrorMessage(error));
 }
 
+export async function exportAttentionData(): Promise<Record<string, unknown>> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase.functions.invoke("export-attention-data", {
+    method: "GET",
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+}
+
+export async function deleteAttentionData(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.functions.invoke("delete-attention-data", {
+    body: { confirm: "delete-attention-data" },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
 async function functionErrorMessage(error: unknown): Promise<string> {
   const fallback = error instanceof Error ? error.message : "Supabase request failed.";
   const context = error && typeof error === "object" && "context" in error

@@ -4,10 +4,12 @@ import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./op
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
-import { DEFAULT_PROGRESS, loadProgress, resetProgress, saveProgress, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, loadCloudSyncMode, loadProgress, resetProgress, saveCloudSyncMode, saveProgress, type CloudSyncMode, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
+  deleteAttentionData,
   deleteProofBenchmark,
+  exportAttentionData,
   fetchAttentionScratchBaselines,
   finalizeAttentionSession,
   isSupabaseConfigured,
@@ -48,6 +50,7 @@ type View =
   | "transfer-model"
   | "training-map"
   | "evidence"
+  | "data-rights"
   | "profile";
 
 type TaskStage = "ready" | "fixation" | "stimulus" | "mask" | "response" | "feedback";
@@ -91,6 +94,7 @@ interface RuntimeState {
   authReady: boolean;
   authMessage: string;
   authBusy: boolean;
+  cloudSyncMode: CloudSyncMode;
   syncState: SyncState;
   syncMessage: string;
 }
@@ -99,7 +103,8 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing #app root.");
 const appRoot = app;
 const STYLE_MODE_KEY = "attentionCoachStyleModeV2";
-const betaAuthRequired = isSupabaseConfigured;
+const cloudSyncAvailable = isSupabaseConfigured;
+const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? loadCloudSyncMode() : "local";
 const APP_BASE = import.meta.env.BASE_URL || "/";
 
 function resolveStyleMode(): StyleMode {
@@ -129,10 +134,11 @@ function shouldStartOnToday(progress: LocalProgress): boolean {
   return progress.sessionNumber > 1 || progress.completions.length > 0;
 }
 
-function resolveInitialView(progress: LocalProgress): View {
+function resolveInitialView(progress: LocalProgress, cloudSyncMode: CloudSyncMode): View {
   const queryView = new URLSearchParams(window.location.search).get("view");
   const allowedViews: View[] = [
     "auth",
+    "data-rights",
     "welcome",
     "readiness",
     "tutorial",
@@ -150,7 +156,7 @@ function resolveInitialView(progress: LocalProgress): View {
     "evidence",
     "profile",
   ];
-  if (betaAuthRequired) return "auth";
+  if (cloudSyncAvailable && cloudSyncMode === "cloud") return "auth";
   return allowedViews.includes(queryView as View) ? (queryView as View) : shouldStartOnToday(progress) ? "today" : "welcome";
 }
 
@@ -181,7 +187,7 @@ function loadAssignedProgress(): LocalProgress {
 const initialProgress = loadAssignedProgress();
 
 let state: RuntimeState = {
-  view: resolveInitialView(initialProgress),
+  view: resolveInitialView(initialProgress, initialCloudSyncMode),
   progress: initialProgress,
   sessionPlan: null,
   activeBlockIndex: 0,
@@ -204,11 +210,12 @@ let state: RuntimeState = {
   viewHistory: [],
   soundOn: true,
   authUser: null,
-  authReady: !betaAuthRequired,
+  authReady: initialCloudSyncMode !== "cloud",
   authMessage: "",
   authBusy: false,
-  syncState: betaAuthRequired ? "checking" : "local",
-  syncMessage: betaAuthRequired ? "Checking beta sign-in." : "Local demo mode.",
+  cloudSyncMode: initialCloudSyncMode,
+  syncState: initialCloudSyncMode === "cloud" ? "checking" : "local",
+  syncMessage: initialCloudSyncMode === "cloud" ? "Checking beta sign-in." : "Local-only mode. Data stays in this browser unless you enable cloud sync.",
 };
 
 function validScratchBaseline(value: ScratchBaseline): boolean {
@@ -223,6 +230,7 @@ function validScratchBaseline(value: ScratchBaseline): boolean {
 }
 
 async function hydrateScratchBaselines(): Promise<void> {
+  if (!cloudSyncActive()) return;
   try {
     const baselines = await fetchAttentionScratchBaselines({
       protocolGroup: state.progress.protocolGroup,
@@ -262,7 +270,8 @@ function assetPath(path: string): string {
 }
 
 function authLabel(): string {
-  if (!betaAuthRequired) return "Local demo";
+  if (!cloudSyncAvailable) return "Local demo";
+  if (state.cloudSyncMode === "local") return "Local only";
   if (!state.authReady) return "Checking sign-in";
   return state.authUser?.email || "Sign in required";
 }
@@ -283,8 +292,12 @@ function markSync(stateValue: SyncState, message: string): void {
   state.syncMessage = message;
 }
 
+function cloudSyncActive(): boolean {
+  return cloudSyncAvailable && state.cloudSyncMode === "cloud" && Boolean(state.authUser);
+}
+
 function persistProgressRemote(): void {
-  if (!betaAuthRequired || !state.authUser) return;
+  if (!cloudSyncActive()) return;
   markSync("pending", "Saving programme state.");
   void saveRemoteProgress(state.progress)
     .then(() => {
@@ -304,7 +317,7 @@ function persistProgress(): void {
 }
 
 async function restoreRemoteProgress(): Promise<void> {
-  if (!betaAuthRequired || !state.authUser) return;
+  if (!cloudSyncActive()) return;
   markSync("checking", "Loading beta progress.");
   render();
   let nextView: View = "welcome";
@@ -361,21 +374,22 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
     "progress",
     "proof",
     "proof-entry",
+    "data-rights",
   ];
   const contentClasses = [
     "app-content",
     `view-${state.view}`,
     tabbedViews.includes(state.view) ? "has-app-tabs" : "",
-    betaAuthRequired ? "has-beta-status" : "",
+    cloudSyncAvailable ? "has-beta-status" : "",
   ].filter(Boolean).join(" ");
   const backControl = state.viewHistory.length > 0
     ? `<button class="app-nav-button app-back-button" data-action="nav-back" aria-label="Go back">${headerIcon("back")}</button>`
     : "";
   const homeControl = `<button class="app-nav-button app-home-button ${state.view === "today" ? "is-current" : ""}" data-action="nav-today" aria-label="Go to home screen">${headerIcon("home")}</button>`;
-  const authControl = betaAuthRequired && state.authUser
-    ? `<button class="app-auth-button" data-action="sign-out" title="${escapeHtml(authLabel())}">Sign out</button>`
-    : betaAuthRequired
-      ? `<button class="app-auth-button" data-action="nav-auth">Sign in</button>`
+  const authControl = cloudSyncAvailable && state.cloudSyncMode === "cloud" && state.authUser
+    ? `<button class="app-auth-button" data-action="nav-data-rights" title="${escapeHtml(authLabel())}">Data</button>`
+    : cloudSyncAvailable
+      ? `<button class="app-auth-button" data-action="nav-data-rights">${state.cloudSyncMode === "cloud" ? "Sign in" : "Data"}</button>`
       : "";
   const soundControl = `<button class="app-nav-button app-sound-button ${state.soundOn ? "is-on" : "is-off"}" data-action="toggle-sound" aria-label="${state.soundOn ? "Turn sound feedback off" : "Turn sound feedback on"}">${headerIcon(state.soundOn ? "sound-on" : "sound-off")}</button>`;
   return `
@@ -388,7 +402,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
         <div class="app-header-right">${authControl}${soundControl}</div>
       </header>
       <div class="${contentClasses}">
-        ${betaAuthRequired ? `<div class="beta-status-bar"><span>${escapeHtml(authLabel())}</span><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
+        ${cloudSyncAvailable ? `<div class="beta-status-bar"><span>${escapeHtml(authLabel())}</span><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
         ${content}
       </div>
     </main>
@@ -518,7 +532,7 @@ function appTabs(active: "today" | "train" | "progress" | "proof"): string {
       ${navButton("Today", "nav-today", active === "today")}
       ${navButton("Train", "nav-free-play", active === "train")}
       ${navButton("Progress", "nav-progress", active === "progress")}
-      ${navButton("Proof", "nav-proof", active === "proof")}
+      ${navButton("Notes", "nav-proof", active === "proof")}
     </nav>
   `;
 }
@@ -828,9 +842,13 @@ function renderAuth(): string {
     <section class="auth-screen">
       <div class="auth-card">
         <img src="${assetPath("iqmindware-logo.png")}" alt="IQ Mindware" />
-        <p class="ui-eyebrow">Beta access</p>
-        <h1>Sign in to Attention Coach.</h1>
-        <p class="ui-body">Use your email to access the free beta. Guided training data is saved to Supabase so your session and scores can build over time.</p>
+        <p class="ui-eyebrow">Cloud sync</p>
+        <h1>Sign in only if you want cloud sync.</h1>
+        <p class="ui-body">Local-only training remains available. If you enable cloud sync, guided trial logs, device checks, progress state, score snapshots, and manual benchmark entries are saved to your Supabase account so your programme can continue across devices.</p>
+        <section class="ethics-compact-panel">
+          <strong>Use boundary</strong>
+          <span>Your data is for personal training support. It is not a diagnosis, IQ score, certificate, employer report, ranking, or selection record.</span>
+        </section>
         ${
           isSupabaseConfigured
             ? `<label>Email
@@ -838,6 +856,7 @@ function renderAuth(): string {
               </label>
               <div class="action-row">
                 ${button(state.authBusy ? "Sending..." : "Send sign-in link", "send-login-link")}
+                ${button("Use local only", "use-local-only", "secondary")}
               </div>`
             : `<p class="claims-note">Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before inviting beta testers.</p>
               <div class="action-row">${button("Continue local demo", "nav-welcome")}</div>`
@@ -847,6 +866,120 @@ function renderAuth(): string {
       </div>
     </section>
   `);
+}
+
+function renderDataRights(): string {
+  const cloudActive = cloudSyncActive();
+  const modeLabel = state.cloudSyncMode === "cloud" ? "Cloud sync selected" : "Local-only selected";
+  const cloudCopy = cloudSyncAvailable
+    ? state.cloudSyncMode === "cloud"
+      ? "Cloud sync is opt-in. Remote saves happen only while you are signed in."
+      : "Cloud sync is available, but raw trial logs and progress are not uploaded in local-only mode."
+    : "Cloud sync is not configured for this build.";
+  return shell(`
+    <section class="data-rights-screen">
+      <section class="data-rights-hero">
+        <p class="ui-eyebrow">Data rights</p>
+        <h1>Your cognitive data stays under your control.</h1>
+        <p>${escapeHtml(cloudCopy)}</p>
+      </section>
+      <section class="data-rights-grid">
+        <article class="data-rights-card is-blue">
+          <span>Mode</span>
+          <strong>${escapeHtml(modeLabel)}</strong>
+          <p>${state.cloudSyncMode === "cloud" ? "Progress can continue across signed-in devices." : "Data is stored in this browser only. Enable cloud sync to switch devices or recover progress after clearing browser data."}</p>
+          <div class="data-rights-actions">
+            ${cloudSyncAvailable ? state.cloudSyncMode === "cloud" ? button("Use local only", "use-local-only", "secondary") : button("Enable cloud sync", "enable-cloud-sync", "primary") : ""}
+            ${state.cloudSyncMode === "cloud" && state.authUser ? button("Sign out", "sign-out", "ghost") : ""}
+          </div>
+        </article>
+        <article class="data-rights-card is-green">
+          <span>Export</span>
+          <strong>Machine-readable copy</strong>
+          <p>Export local progress, or your full cloud record when cloud sync is active.</p>
+          <div class="data-rights-actions">${button(cloudActive ? "Export cloud data" : "Export local data", "export-attention-data")}</div>
+        </article>
+        <article class="data-rights-card is-red">
+          <span>Delete</span>
+          <strong>Permanent removal</strong>
+          <p>${cloudActive ? "Delete your cloud Attention Coach data and reset this browser." : "Reset this browser's local Attention Coach progress."}</p>
+          <div class="data-rights-actions">${button(cloudActive ? "Delete cloud data" : "Reset local data", "delete-attention-data", "secondary")}</div>
+        </article>
+      </section>
+      <section class="ethics-boundary-card">
+        <strong>Non-selection boundary</strong>
+        <p>Scores and benchmark notes are personal training signals. The app does not generate certificates, share-to-employer links, public rankings, or institutional score APIs.</p>
+      </section>
+    </section>
+  `);
+}
+
+function downloadJson(filename: string, payload: unknown): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function setCloudSyncMode(mode: CloudSyncMode): void {
+  state.cloudSyncMode = cloudSyncAvailable ? mode : "local";
+  saveCloudSyncMode(state.cloudSyncMode);
+  if (state.cloudSyncMode === "local") {
+    state.syncState = "local";
+    state.syncMessage = "Local-only mode. Remote uploads are paused.";
+  } else {
+    state.syncState = state.authUser ? "checking" : "pending";
+    state.syncMessage = state.authUser ? "Cloud sync enabled." : "Sign in to enable cloud sync.";
+  }
+}
+
+async function exportCurrentData(): Promise<void> {
+  try {
+    if (cloudSyncActive()) {
+      const exported = await exportAttentionData();
+      downloadJson(`attention-coach-cloud-export-${todayIso()}.json`, exported);
+      markSync("synced", "Cloud data export created.");
+    } else {
+      downloadJson(`attention-coach-local-export-${todayIso()}.json`, {
+        exportedAt: new Date().toISOString(),
+        mode: "local",
+        progress: state.progress,
+      });
+      markSync("local", "Local data export created.");
+    }
+  } catch (error) {
+    console.warn("Attention data export failed.", error);
+    markSync("error", error instanceof Error ? error.message : "Data export failed.");
+  }
+  render();
+}
+
+async function deleteCurrentData(): Promise<void> {
+  const target = cloudSyncActive() ? "cloud Attention Coach data and local browser progress" : "local Attention Coach progress in this browser";
+  if (!window.confirm(`Permanently delete ${target}? This cannot be undone.`)) return;
+  try {
+    if (cloudSyncActive()) await deleteAttentionData();
+    resetProgress();
+    state.progress = DEFAULT_PROGRESS;
+    state.sessionPlan = null;
+    state.sessionMode = "protocol";
+    state.sessionSource = "guided";
+    state.progressionScored = true;
+    state.guidedReturn = null;
+    state.progressDashboardMode = "overview";
+    state.pendingTaskStart = null;
+    state.editingProofBenchmarkId = null;
+    state.viewHistory = [];
+    markSync(state.cloudSyncMode === "cloud" ? "synced" : "local", "Attention Coach data deleted.");
+    go("welcome", { replace: true });
+  } catch (error) {
+    console.warn("Attention data deletion failed.", error);
+    markSync("error", error instanceof Error ? error.message : "Data deletion failed.");
+    render();
+  }
 }
 
 function renderWelcome(): string {
@@ -1752,8 +1885,8 @@ function renderProofForm(): string {
     <section class="proof-form-card">
       <div>
         <p class="ui-eyebrow">${editing ? "Edit benchmark" : "Manual entry"}</p>
-        <h2>HRP Lab G Tests score</h2>
-        <p>Use this for external benchmark scores when the HRP Lab G Tests app is available. Entries stay separate from Attention Coach training scores.</p>
+        <h2>Private benchmark note</h2>
+        <p>Use this for your own external benchmark records. Entries stay separate from Attention Coach training scores and are not certificates, credentials, or institutional reports.</p>
       </div>
       <label>Domain
         <select id="proof-domain">
@@ -1793,9 +1926,9 @@ function renderProof(): string {
     ${appTabs("proof")}
     <section class="proof-screen proof-overview-screen no-scroll-screen">
       <div class="proof-hero">
-        <p class="ui-eyebrow">Proof</p>
-        <h1>Valid external tests</h1>
-        <p>Prove your gains with G Track's short psychometric tests.</p>
+        <p class="ui-eyebrow">Private benchmarks</p>
+        <h1>Personal comparison notes</h1>
+        <p>Record external test results for your own reflection. These notes are not proof for ranking, selection, employment, admission, or credentialing.</p>
       </div>
       <section class="proof-summary-grid">
         ${proofSummaryCard("attention")}
@@ -1803,7 +1936,7 @@ function renderProof(): string {
         ${proofSummaryCard("reasoning")}
       </section>
       <section class="overview-next-card proof-next-card">
-        <p><strong>Manual records only.</strong> Use this for HRP Lab G Tests or other external benchmark scores.</p>
+        <p><strong>Private records only.</strong> The app does not verify, certify, or transmit these scores to organisations.</p>
         <div class="dashboard-actions proof-actions">
           ${button("Add entry", "nav-proof-entry")}
           ${button("View entries", "nav-proof-entry", "secondary")}
@@ -1818,9 +1951,9 @@ function renderProofEntry(): string {
     ${appTabs("proof")}
     <section class="proof-screen proof-entry-screen">
       <div class="proof-hero compact-page-header">
-        <p class="ui-eyebrow">Proof entry</p>
-        <h1>Manual benchmark records.</h1>
-        <p>Use this page for HRP Lab G Tests scores. Entries stay separate from training scores and are never labelled as IQ improvement.</p>
+        <p class="ui-eyebrow">Private benchmark entry</p>
+        <h1>Manual records.</h1>
+        <p>Entries stay separate from training scores and are never labelled as IQ improvement, credentials, or selection evidence.</p>
       </div>
       ${renderProofForm()}
       <section class="proof-entries-card">
@@ -1861,10 +1994,12 @@ function saveProofBenchmarkEntry(): void {
   };
   state.editingProofBenchmarkId = null;
   persistProgress();
-  void saveProofBenchmark(entry).catch((error) => {
-    console.warn("Proof benchmark was not synced.", error);
-    markSync("error", "Benchmark entry could not be synced.");
-  });
+  if (cloudSyncActive()) {
+    void saveProofBenchmark(entry).catch((error) => {
+      console.warn("Proof benchmark was not synced.", error);
+      markSync("error", "Benchmark entry could not be synced.");
+    });
+  }
   go("proof-entry", { replace: true });
 }
 
@@ -2499,6 +2634,15 @@ function renderDashboardHeader(title: string, mode: ProgressDashboardMode, note:
   `;
 }
 
+function metricBoundaryStrip(): string {
+  return `
+    <section class="metric-boundary-strip">
+      <span>${miniIcon("shield")}Training signal only</span>
+      <small>Scores are context-limited estimates from specific tasks, not fixed traits, IQ scores, credentials, or institutional selection evidence.</small>
+    </section>
+  `;
+}
+
 function renderOverviewSkillRows(model: ProgressDashboardPresentationModel): string {
   return model.skills
     .map(
@@ -2557,7 +2701,7 @@ function renderEarlyProgressDashboard(): string {
           <small>${state.progress.completions.length} session${state.progress.completions.length === 1 ? "" : "s"} completed</small>
         </div>
         <div class="session-dots">${completionDots()}</div>
-        <p>Complete five guided sessions before the app turns score detail into a stable profile. For now, the goal is consistency, fit, and a clear learning curve.</p>
+        <p>Complete five guided sessions before the app shows score detail as a more reliable personal pattern. For now, the goal is consistency, fit, and a clear learning curve.</p>
       </section>
       <section class="early-progress-grid">
         <article class="early-progress-card is-blue">
@@ -2576,6 +2720,7 @@ function renderEarlyProgressDashboard(): string {
           <p>Your pattern becomes clearer after session 5. Score detail stays secondary until then.</p>
         </article>
       </section>
+      ${metricBoundaryStrip()}
       <section class="overview-next-card">
         <p><strong>Next step:</strong> Continue the guided session from Today, or choose an easier practice option without changing your progress path.</p>
         <div class="dashboard-actions">
@@ -2613,6 +2758,7 @@ function renderOverviewDashboard(): string {
           <img src="${assetPath("trident-g-fpt-logo.png")}" alt="" />
         </div>
       </section>
+      ${metricBoundaryStrip()}
       <section class="progress-level-list">${renderProgressLevelCards(model)}</section>
     </section>
   `;
@@ -2673,7 +2819,7 @@ function renderScoreDetailDashboard(): string {
         <div class="transfer-mini-grid">${renderTransferDetailCards(model)}</div>
       </section>
       <section class="score-legend-strip">
-        <em>These scores show change from your own starting point, not an IQ score.</em>
+        <em>These scores show change from your own starting point. They are not IQ scores, certificates, or selection evidence.</em>
         ${button("How scores work", "nav-evidence", "ghost")}
       </section>
     </section>
@@ -2700,7 +2846,7 @@ function renderProfile(): string {
 }
 
 function render(): void {
-  if (betaAuthRequired && state.authReady && !state.authUser && state.view !== "auth") {
+  if (state.cloudSyncMode === "cloud" && state.authReady && !state.authUser && state.view !== "auth" && state.view !== "data-rights") {
     state.view = "auth";
     state.viewHistory = [];
   }
@@ -2727,6 +2873,7 @@ function render(): void {
     "transfer-model": renderTransferModel,
     "training-map": renderTrainingMap,
     evidence: renderEvidence,
+    "data-rights": renderDataRights,
     profile: renderProfile,
   };
   appRoot.innerHTML = views[state.view]();
@@ -2977,6 +3124,7 @@ function submitCurrentGuidedBlock(results: TrialResult[]): void {
   const plan = state.sessionPlan;
   const block = plan?.miniBlocks[state.activeBlockIndex];
   if (!plan || !block || !state.progressionScored || state.sessionMode !== "protocol") return;
+  if (!cloudSyncActive()) return;
   if (results.length !== block.trialCount || block.trialCount !== 20) return;
   const submission = submitAttentionBlock(blockSubmissionPayload(plan, block, results)).catch((error) => {
     console.warn("Attention block was not submitted.", error);
@@ -2998,6 +3146,7 @@ function finalizeGuidedSession(input: {
 }): void {
   const plan = state.sessionPlan;
   if (!plan || !state.progressionScored || state.sessionMode !== "protocol") return;
+  if (!cloudSyncActive()) return;
   const submissions = pendingBlockSubmissions;
   pendingBlockSubmissions = [];
   void Promise.allSettled(submissions).then(() => finalizeAttentionSession({
@@ -3177,10 +3326,12 @@ appRoot.addEventListener("click", async (event) => {
       proofBenchmarks: state.progress.proofBenchmarks.filter((entry) => entry.id !== deleteId),
     };
     persistProgress();
-    void deleteProofBenchmark(deleteId).catch((error) => {
-      console.warn("Proof benchmark was not deleted remotely.", error);
-      markSync("error", "Benchmark delete could not be synced.");
-    });
+    if (cloudSyncActive()) {
+      void deleteProofBenchmark(deleteId).catch((error) => {
+        console.warn("Proof benchmark was not deleted remotely.", error);
+        markSync("error", "Benchmark delete could not be synced.");
+      });
+    }
     go("proof-entry");
     return;
   }
@@ -3192,6 +3343,7 @@ appRoot.addEventListener("click", async (event) => {
   const action = target.closest<HTMLElement>("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "send-login-link") {
+    setCloudSyncMode("cloud");
     const email = inputValue("auth-email");
     if (!email) {
       state.authMessage = "Enter an email address first.";
@@ -3214,9 +3366,31 @@ appRoot.addEventListener("click", async (event) => {
     await signOutUser();
     state.authUser = null;
     state.authReady = true;
+    setCloudSyncMode("local");
     state.viewHistory = [];
-    go("auth", { replace: true });
+    go("data-rights", { replace: true });
+  } else if (action === "enable-cloud-sync") {
+    setCloudSyncMode("cloud");
+    if (state.authUser) {
+      await restoreRemoteProgress();
+    } else {
+      state.authMessage = "Enter your email to enable cloud sync.";
+      go("auth");
+    }
+  } else if (action === "use-local-only") {
+    setCloudSyncMode("local");
+    if (state.authUser) {
+      await signOutUser().catch((error) => console.warn("Sign out after local mode failed.", error));
+      state.authUser = null;
+    }
+    state.authReady = true;
+    go(state.view === "auth" ? "welcome" : "data-rights", { replace: true });
+  } else if (action === "export-attention-data") {
+    await exportCurrentData();
+  } else if (action === "delete-attention-data") {
+    await deleteCurrentData();
   } else if (action === "nav-auth") go("auth");
+  else if (action === "nav-data-rights") go("data-rights");
   else if (action === "nav-welcome") go("welcome");
   else if (action === "nav-back") goBack();
   else if (action === "start-readiness") go("readiness");
@@ -3229,10 +3403,12 @@ appRoot.addEventListener("click", async (event) => {
     const readiness = await runDeviceReadiness();
     state.progress = { ...state.progress, deviceReadiness: readiness };
     persistProgress();
-    void recordDeviceCheck(readiness).catch((error) => {
-      console.warn("Device check was not synced.", error);
-      markSync("error", "Device check could not be synced.");
-    });
+    if (cloudSyncActive()) {
+      void recordDeviceCheck(readiness).catch((error) => {
+        console.warn("Device check was not synced.", error);
+        markSync("error", "Device check could not be synced.");
+      });
+    }
     void hydrateScratchBaselines();
     state.readinessRunning = false;
     go(isRecheck ? "readiness" : "briefing");
@@ -3337,10 +3513,12 @@ window.addEventListener("keydown", (event) => {
 });
 
 async function initialiseBetaAuth(): Promise<void> {
-  if (!betaAuthRequired) {
+  if (!cloudSyncAvailable || state.cloudSyncMode === "local") {
     state.authReady = true;
     state.syncState = "local";
-    state.syncMessage = "Local demo mode.";
+    state.syncMessage = cloudSyncAvailable
+      ? "Local-only mode. Data stays in this browser unless you enable cloud sync."
+      : "Local demo mode.";
     render();
     void hydrateScratchBaselines();
     return;
@@ -3375,13 +3553,18 @@ async function initialiseBetaAuth(): Promise<void> {
   onAuthChange((user) => {
     state.authUser = user;
     state.authReady = true;
-    if (user) {
+    if (user && state.cloudSyncMode === "cloud") {
       void restoreRemoteProgress();
     } else {
-      state.view = "auth";
-      state.viewHistory = [];
-      state.syncState = "pending";
-      state.syncMessage = "Sign in to enable beta data sync.";
+      if (state.cloudSyncMode === "cloud") {
+        state.view = "auth";
+        state.viewHistory = [];
+        state.syncState = "pending";
+        state.syncMessage = "Sign in to enable beta data sync.";
+      } else {
+        state.syncState = "local";
+        state.syncMessage = "Local-only mode. Remote uploads are paused.";
+      }
       render();
     }
   });

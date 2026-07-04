@@ -12,6 +12,7 @@ import type {
 
 const PREFIX = "attention-coach";
 
+export type CloudSyncMode = "local" | "cloud";
 export type ProofBenchmarkDomain = "attention" | "working_memory" | "reasoning";
 export type ProofBenchmarkTimepoint = "baseline" | "midpoint" | "post" | "follow_up" | "ad_hoc";
 export type CompletionRoute = "guided" | "practice" | "free_play" | "easier" | "break";
@@ -101,4 +102,12 @@ export function saveProgress(progress: LocalProgress): void {
 
 export function resetProgress(): void {
   localStorage.removeItem(`${PREFIX}:progress`);
+}
+
+export function loadCloudSyncMode(): CloudSyncMode {
+  return localStorage.getItem(`${PREFIX}:cloudSyncMode`) === "cloud" ? "cloud" : "local";
+}
+
+export function saveCloudSyncMode(mode: CloudSyncMode): void {
+  localStorage.setItem(`${PREFIX}:cloudSyncMode`, mode);
 }
