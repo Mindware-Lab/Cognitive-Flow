@@ -1758,6 +1758,7 @@ function renderTrainingMap(): string {
   return shell(`
     <section class="training-map-screen">
       <figure class="transfer-model-figure training-map-figure">
+        <button class="map-brain-button" data-action="nav-evidence">Brain Basis</button>
         <img
           src="${assetPath("attention-transfer-model-v2.png")}"
           alt="Training map showing static arrows, moving patterns, relational formats, mixed practice, and a delayed return check."
@@ -1770,7 +1771,6 @@ function renderTrainingMap(): string {
         <span>New challenges appear when your current learning curve is stable. This helps with cognitive skill transfer. Practice training can help you understand the training games.</span>
       </div>
       <div class="action-row">
-        ${button("Why this design?", "nav-evidence")}
         ${button("Training hub", "nav-free-play", "secondary")}
       </div>
     </section>
