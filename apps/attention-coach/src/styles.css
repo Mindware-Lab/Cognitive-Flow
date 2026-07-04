@@ -309,16 +309,16 @@ button {
   display: inline-grid;
   align-items: center;
   justify-self: start;
-  border: 1px solid rgba(39, 100, 183, 0.22);
+  border: 1px solid rgba(209, 63, 63, 0.34);
   border-radius: 999px;
   padding: 2px 10px;
-  color: var(--blue);
-  background: #ffffff;
+  color: #9f1f1f;
+  background: #fff2f2;
   font: inherit;
   font-weight: 900;
   text-align: left;
   cursor: pointer;
-  box-shadow: 0 4px 10px rgba(39, 100, 183, 0.06);
+  box-shadow: 0 4px 10px rgba(209, 63, 63, 0.08);
 }
 
 .beta-status-link:focus-visible {

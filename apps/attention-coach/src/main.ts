@@ -212,7 +212,7 @@ let state: RuntimeState = {
   authBusy: false,
   cloudSyncMode: initialCloudSyncMode,
   syncState: initialCloudSyncMode === "cloud" ? "checking" : "local",
-  syncMessage: initialCloudSyncMode === "cloud" ? "Checking sign-in." : "This browser only. Cloud optional.",
+  syncMessage: initialCloudSyncMode === "cloud" ? "Checking sign-in." : "This browser only. Cloud optional via data ethics page.",
 };
 
 function validScratchBaseline(value: ScratchBaseline): boolean {
@@ -930,7 +930,7 @@ function setCloudSyncMode(mode: CloudSyncMode): void {
   saveCloudSyncMode(state.cloudSyncMode);
   if (state.cloudSyncMode === "local") {
     state.syncState = "local";
-    state.syncMessage = "This browser only. Cloud optional.";
+    state.syncMessage = "This browser only. Cloud optional via data ethics page.";
   } else {
     state.syncState = state.authUser ? "checking" : "pending";
     state.syncMessage = state.authUser ? "Cloud sync enabled." : "Sign in to sync devices.";
@@ -3525,7 +3525,7 @@ async function initialiseBetaAuth(): Promise<void> {
     state.authReady = true;
     state.syncState = "local";
     state.syncMessage = cloudSyncAvailable
-      ? "This browser only. Cloud optional."
+      ? "This browser only. Cloud optional via data ethics page."
       : "Local demo mode.";
     render();
     void hydrateScratchBaselines();
@@ -3571,7 +3571,7 @@ async function initialiseBetaAuth(): Promise<void> {
         state.syncMessage = "Sign in to sync devices.";
       } else {
         state.syncState = "local";
-        state.syncMessage = "This browser only. Cloud optional.";
+        state.syncMessage = "This browser only. Cloud optional via data ethics page.";
       }
       render();
     }
