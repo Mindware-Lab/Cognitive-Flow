@@ -2090,7 +2090,7 @@ function scoreHistoryEntryFromState(input: {
   evidence: CellEvidence[];
   snapshot: ReturnType<typeof createScoreSnapshot>;
 }): ProgressScoreHistoryEntry {
-  const activeCell = PHASE_CELL[input.snapshot.activePhase];
+  const activeCell = PHASE_CELL[input.phase];
   const patternBinding =
     scoreForEvidenceSet(input.evidence, "BSE", activeCell) ||
     scoreForEvidenceSet(input.evidence, "BSE", "arrow_abs") ||
@@ -2984,25 +2984,54 @@ function submitCurrentGuidedBlock(results: TrialResult[]): void {
   pendingBlockSubmissions.push(submission);
 }
 
-function finalizeGuidedSession(snapshot: ReturnType<typeof createScoreSnapshot>, decision: ReturnType<typeof chooseNextPhase>, transitionKeys: string[]): void {
+function finalizeGuidedSession(input: {
+  snapshot: ReturnType<typeof createScoreSnapshot>;
+  decision: ReturnType<typeof chooseNextPhase>;
+  transitionKeys: string[];
+  completedSessionNumber: number;
+  completedAt: string;
+  completedPhase: PhaseLabel;
+  completedPhaseStatus: PhaseStatus;
+  nextSessionNumber: number;
+  nextPhase: PhaseLabel;
+  nextPhaseStatus: PhaseStatus;
+}): void {
   const plan = state.sessionPlan;
   if (!plan || !state.progressionScored || state.sessionMode !== "protocol") return;
   const submissions = pendingBlockSubmissions;
   pendingBlockSubmissions = [];
   void Promise.allSettled(submissions).then(() => finalizeAttentionSession({
     clientSessionId: plan.sessionId,
-    snapshot,
+    snapshot: input.snapshot,
     scoringVersion: SCORING_VERSION,
     controllerEvent: {
-      fromPhase: decision.fromPhase,
-      toPhase: decision.toPhase,
-      shouldTransition: decision.shouldTransition,
-      transitionKeys,
-      phaseStatus: decision.phaseStatus,
-      reason: decision.reason,
-      readiness: decision.readiness,
+      fromPhase: input.decision.fromPhase,
+      toPhase: input.decision.toPhase,
+      shouldTransition: input.decision.shouldTransition,
+      transitionKeys: input.transitionKeys,
+      phaseStatus: input.decision.phaseStatus,
+      reason: input.decision.reason,
+      readiness: input.decision.readiness,
       protocolGroup: state.progress.protocolGroup,
-      scratchBaselineSources: snapshot.farTransfer?.boundarySignals.map((signal) => ({
+      completedSession: {
+        sessionNumber: input.completedSessionNumber,
+        completedAt: input.completedAt,
+        phase: input.completedPhase,
+        phaseStatus: input.completedPhaseStatus,
+        protocolGroup: state.progress.protocolGroup,
+      },
+      nextState: {
+        sessionNumber: input.nextSessionNumber,
+        phase: input.nextPhase,
+        phaseStatus: input.nextPhaseStatus,
+        nominalBand: NOMINAL_BANDS[input.nextPhase],
+      },
+      scoreSnapshotState: {
+        sessionNumber: input.snapshot.sessionNumber,
+        activePhase: input.snapshot.activePhase,
+        phaseStatus: input.snapshot.phaseStatus,
+      },
+      scratchBaselineSources: input.snapshot.farTransfer?.boundarySignals.map((signal) => ({
         boundary: signal.boundary,
         source: signal.scratchBaselineSource,
         targetCell: signal.targetCell,
@@ -3025,6 +3054,7 @@ function completeSession(): void {
   }
   const completedSessionNumber = state.progress.sessionNumber;
   const completedPhase = state.progress.currentPhase;
+  const completedPhaseStatus = state.progress.phaseStatus;
   const guidedCompletion = completionEntry("guided", completedSessionNumber, completedPhase);
   const shouldRevealProfile = completedSessionNumber === 5 && !state.progress.profileRevealSeen;
   const updatedEvidence = updateEvidenceFromResults(state.progress.evidence, state.sessionResults);
@@ -3037,6 +3067,7 @@ function completeSession(): void {
     currentPhase: state.progress.currentPhase,
     sessionNumber: state.progress.sessionNumber,
     phaseStatus: state.progress.phaseStatus,
+    protocolGroup: state.progress.protocolGroup,
     completedTransitions: state.progress.completedTransitions,
     evidence: updatedEvidence,
   });
@@ -3078,7 +3109,18 @@ function completeSession(): void {
     profileRevealSeen: state.progress.profileRevealSeen || shouldRevealProfile,
   };
   persistProgress();
-  finalizeGuidedSession(snapshot, decision, transitionKeys);
+  finalizeGuidedSession({
+    snapshot,
+    decision,
+    transitionKeys,
+    completedSessionNumber,
+    completedAt: guidedCompletion.completedAt,
+    completedPhase,
+    completedPhaseStatus,
+    nextSessionNumber: state.progress.sessionNumber,
+    nextPhase,
+    nextPhaseStatus: nextStatus,
+  });
   go("complete");
 }
 

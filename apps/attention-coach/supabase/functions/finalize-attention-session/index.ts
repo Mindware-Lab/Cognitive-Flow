@@ -8,6 +8,10 @@ interface FinalizePayload {
   controllerEvent?: Record<string, unknown>;
 }
 
+function objectPayload(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (request.method !== "POST") return json(405, { error: "Method not allowed." });
@@ -50,6 +54,14 @@ Deno.serve(async (request) => {
   if (snapshotError) return json(500, { error: snapshotError.message });
 
   if (payload.controllerEvent) {
+    const readiness = objectPayload(payload.controllerEvent.readiness);
+    const telemetry = {
+      protocolGroup: payload.controllerEvent.protocolGroup ?? null,
+      completedSession: payload.controllerEvent.completedSession ?? null,
+      nextState: payload.controllerEvent.nextState ?? null,
+      scoreSnapshotState: payload.controllerEvent.scoreSnapshotState ?? null,
+      scratchBaselineSources: payload.controllerEvent.scratchBaselineSources ?? [],
+    };
     await supabase.from("attention_phase_controller_events").insert({
       user_id: user.id,
       session_id: session.id,
@@ -59,7 +71,7 @@ Deno.serve(async (request) => {
       transition_keys: payload.controllerEvent.transitionKeys || [],
       phase_status: String(payload.controllerEvent.phaseStatus || snapshot.phaseStatus || session.phase_status),
       reason: String(payload.controllerEvent.reason || "Session finalized."),
-      readiness: payload.controllerEvent.readiness || {},
+      readiness: { ...readiness, telemetry },
     });
   }
 

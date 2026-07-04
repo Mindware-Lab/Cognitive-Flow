@@ -1,4 +1,4 @@
-import { PHASE_NAMES, TARGET_ENVELOPE_SESSIONS } from "./protocol";
+import { PHASE_CELL, PHASE_NAMES, TARGET_ENVELOPE_SESSIONS } from "./protocol";
 import type {
   AttentionScoreSnapshot,
   CellEvidence,
@@ -369,6 +369,17 @@ function evidenceFor(evidence: CellEvidence[], construct: "ACC" | "BSE", cellKey
   return evidence.find((item) => item.construct === construct && item.cellKey === cellKey && item.currentCapacityBps !== null) || null;
 }
 
+function primaryEvidenceFor(
+  evidence: CellEvidence[],
+  construct: "ACC" | "BSE",
+  activeCell: CellKey,
+): CellEvidence | null {
+  if (activeCell !== "mixed") {
+    return evidenceFor(evidence, construct, activeCell);
+  }
+  return evidence.find((item) => item.construct === construct && item.currentCapacityBps !== null) || null;
+}
+
 function recoveryScore(source: CellEvidence | null, target: CellEvidence | null): number | null {
   if (!source?.currentCapacityBps || !target?.currentCapacityBps) return null;
   if (source.validTrials < 80 || target.validTrials < 40) return null;
@@ -656,10 +667,9 @@ export function createScoreSnapshot(input: {
   scratchBaselines?: ScratchBaseline[];
   protocolGroup?: ProtocolGroup;
 }): AttentionScoreSnapshot {
-  const activeAcc =
-    input.evidence.find((item) => item.construct === "ACC" && item.currentCapacityBps !== null) || null;
-  const activeBse =
-    input.evidence.find((item) => item.construct === "BSE" && item.currentCapacityBps !== null) || null;
+  const activeCell = PHASE_CELL[input.activePhase];
+  const activeAcc = primaryEvidenceFor(input.evidence, "ACC", activeCell);
+  const activeBse = primaryEvidenceFor(input.evidence, "BSE", activeCell);
   const farTransfer = createFarTransferEvidence({
     evidence: input.evidence,
     completedTransitions: input.completedTransitions,

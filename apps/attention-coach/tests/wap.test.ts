@@ -38,6 +38,19 @@ describe("WAP phase controller", () => {
     expect(decision.transitionKey).toBe("T_CM_BASE");
   });
 
+  it("uses the assigned flow-first validation order when choosing the next phase", () => {
+    const decision = chooseNextPhase(
+      state({
+        currentPhase: "P1_FLOW_ABS",
+        protocolGroup: "validation_flow_first",
+        evidence: [evidence({ cellKey: "flow_abs" })],
+      }),
+    );
+    expect(decision.shouldTransition).toBe(true);
+    expect(decision.toPhase).toBe("P2_ARROW_ABS");
+    expect(decision.transitionKey).toBe("T_CM_BASE");
+  });
+
   it("does not advance on nominal session number alone", () => {
     const decision = chooseNextPhase(
       state({

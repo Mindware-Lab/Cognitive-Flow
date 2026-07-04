@@ -29,6 +29,25 @@ const evidence: CellEvidence[] = [
   },
 ];
 
+function cellEvidence(
+  construct: CellEvidence["construct"],
+  cellKey: CellEvidence["cellKey"],
+  currentCapacityBps: number,
+): CellEvidence {
+  return {
+    construct,
+    cellKey,
+    validTrials: 240,
+    rollingWindowCount: 6,
+    recentCapacitySlope: 0.01,
+    balancedAccuracy: 0.75,
+    lapseRate: 0.08,
+    timingQuality: "good",
+    localAsymptoteBps: currentCapacityBps,
+    currentCapacityBps,
+  };
+}
+
 describe("score snapshots", () => {
   it("keeps transfer visible before the first carrier swap", () => {
     const snapshot = createScoreSnapshot({
@@ -55,6 +74,24 @@ describe("score snapshots", () => {
     });
     expect(snapshot.bindingFocus.lagFlag).toBe("insufficient_data");
     expect(snapshot.transfer.motionRecovery.status).toBe("calibrating");
+  });
+
+  it("uses active phase cell evidence for headline ACC and BSE panels", () => {
+    const snapshot = createScoreSnapshot({
+      sessionNumber: 6,
+      activePhase: "P2_FLOW_ABS",
+      phaseStatus: "active",
+      nominalBand: "typical sessions 6-8",
+      evidence: [
+        cellEvidence("ACC", "arrow_abs", 2),
+        cellEvidence("ACC", "flow_abs", 6),
+        cellEvidence("BSE", "arrow_abs", 1),
+        cellEvidence("BSE", "flow_abs", 5),
+      ],
+      completedTransitions: ["T_CM_BASE"],
+    });
+    expect(snapshot.attentionControl.bitsPerSec).toBe(6);
+    expect(snapshot.bindingFocus.bitsPerSec).toBe(5);
   });
 
   it("shows target-envelope completion without forcing missing transfer components", () => {
