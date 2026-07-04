@@ -1106,7 +1106,7 @@ function renderToday(): string {
       <div class="today-action-card">
         <p class="ui-eyebrow">Today - Session ${state.progress.sessionNumber}</p>
         <h1>Today's attention session</h1>
-        <p class="ui-body">Continue your guided programme. The app chooses today's task based on your current learning curve.</p>
+        <p class="ui-body">Continue your session. The app chooses today's task based on your current learning curve. Enable device switching via the Data ethics button.</p>
         ${returnCopy}
         <div class="today-phase-grid">
           <div class="phase-tile is-blue">
