@@ -11,6 +11,7 @@ import type {
 } from "./types";
 
 const PREFIX = "attention-coach";
+const BROWSER_DEVICE_ID_KEY = `${PREFIX}:browserDeviceId`;
 
 export type CloudSyncMode = "local" | "cloud";
 export type ProofBenchmarkDomain = "attention" | "working_memory" | "reasoning";
@@ -110,4 +111,22 @@ export function loadCloudSyncMode(): CloudSyncMode {
 
 export function saveCloudSyncMode(mode: CloudSyncMode): void {
   localStorage.setItem(`${PREFIX}:cloudSyncMode`, mode);
+}
+
+export function browserDeviceId(): string {
+  const existing = localStorage.getItem(BROWSER_DEVICE_ID_KEY);
+  if (existing) return existing;
+  const generated = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `browser-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  localStorage.setItem(BROWSER_DEVICE_ID_KEY, generated);
+  return generated;
+}
+
+export function progressForBrowserDevice(progress: LocalProgress, currentBrowserDeviceId: string): LocalProgress {
+  const readiness = progress.deviceReadiness;
+  if (!readiness) return progress;
+  return readiness.browserDeviceId === currentBrowserDeviceId
+    ? progress
+    : { ...progress, deviceReadiness: null };
 }

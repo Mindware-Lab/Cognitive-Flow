@@ -4,7 +4,7 @@ import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./op
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
-import { DEFAULT_PROGRESS, loadCloudSyncMode, loadProgress, resetProgress, saveCloudSyncMode, saveProgress, type CloudSyncMode, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, browserDeviceId, loadCloudSyncMode, loadProgress, progressForBrowserDevice, resetProgress, saveCloudSyncMode, saveProgress, type CloudSyncMode, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
   deleteAttentionData,
@@ -105,6 +105,7 @@ const appRoot = app;
 const STYLE_MODE_KEY = "attentionCoachStyleModeV2";
 const cloudSyncAvailable = isSupabaseConfigured;
 const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? loadCloudSyncMode() : "local";
+const currentBrowserDeviceId = browserDeviceId();
 const APP_BASE = import.meta.env.BASE_URL || "/";
 
 function resolveStyleMode(): StyleMode {
@@ -168,7 +169,7 @@ function queryProtocolGroup(): ProtocolGroup | null {
 }
 
 function loadAssignedProgress(): LocalProgress {
-  const progress = loadProgress();
+  const progress = progressForBrowserDevice(loadProgress(), currentBrowserDeviceId);
   const assignedGroup = queryProtocolGroup();
   if (!assignedGroup || assignedGroup === progress.protocolGroup) return progress;
   const isFresh = progress.sessionNumber <= 1 && progress.evidence.length === 0 && progress.completedTransitions.length === 0;
@@ -324,7 +325,7 @@ async function restoreRemoteProgress(): Promise<void> {
   try {
     const remote = await loadRemoteProgress();
     if (remote) {
-      state.progress = { ...DEFAULT_PROGRESS, ...remote };
+      state.progress = progressForBrowserDevice({ ...DEFAULT_PROGRESS, ...remote }, currentBrowserDeviceId);
       saveProgress(state.progress);
       markSync("synced", "Beta progress loaded.");
       nextView = shouldStartOnToday(state.progress) ? "today" : "welcome";
@@ -1036,7 +1037,7 @@ function renderReadiness(): string {
       <h1>${readiness ? "Device check complete" : "Device check"}</h1>
       <p class="ui-body">${
         readiness
-          ? "Your display timing and motion preview are ready for practice. If timing changes later, you can run the check again."
+          ? "Your display timing and motion preview are ready for practice on this browser/device. Run the check again if you switch devices, displays, browsers, or power mode."
           : "A short check makes sure the arrows, moving dots, and response controls are ready for training. If timing is unstable, scores will be shown with lower confidence."
       }</p>
       <div class="flow-rationale-card">
@@ -1059,7 +1060,7 @@ function renderReadiness(): string {
             </div>`
       }
       <div class="action-row">
-        ${button(readiness ? "Continue setup" : state.readinessRunning ? "Checking..." : "Run readiness check", readiness ? "nav-tutorial" : "run-readiness")}
+        ${button(readiness ? "Continue with this device" : state.readinessRunning ? "Checking..." : "Run readiness check", readiness ? "nav-tutorial" : "run-readiness")}
         ${readiness ? button("Run check again", "run-readiness", "secondary") : ""}
       </div>
     </section>
@@ -3400,7 +3401,10 @@ appRoot.addEventListener("click", async (event) => {
     state.readinessRunning = true;
     state.progress = { ...state.progress, deviceReadiness: null };
     render();
-    const readiness = await runDeviceReadiness();
+    const readiness = {
+      ...(await runDeviceReadiness()),
+      browserDeviceId: currentBrowserDeviceId,
+    };
     state.progress = { ...state.progress, deviceReadiness: readiness };
     persistProgress();
     if (cloudSyncActive()) {

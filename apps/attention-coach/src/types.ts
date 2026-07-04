@@ -69,6 +69,7 @@ export interface DeviceReadiness {
   flowEligible: boolean;
   sampledFrames: number;
   checkedAt: string;
+  browserDeviceId?: string;
 }
 
 export interface TrialCondition {
