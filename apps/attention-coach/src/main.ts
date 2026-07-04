@@ -1066,6 +1066,7 @@ function renderReadiness(): string {
       <div class="action-row">
         ${button(readiness ? "Continue with this device" : state.readinessRunning ? "Checking..." : "Run readiness check", readiness ? "nav-tutorial" : "run-readiness")}
         ${readiness ? button("Run check again", "run-readiness", "secondary") : ""}
+        ${button("Today's plan", "nav-today", readiness ? "ghost" : "secondary")}
       </div>
     </section>
   `);
@@ -1096,6 +1097,7 @@ function renderTutorial(): string {
       </div>
       <div class="action-row">
         ${button("Start direction foundation", "begin-session")}
+        ${button("Today's plan", "nav-today", "secondary")}
       </div>
     </section>
   `);
@@ -1331,7 +1333,10 @@ function renderBriefing(): string {
         <strong>Why this helps</strong>
         <p>Train the rule, change the display, then check what survives.</p>
       </div>
-      ${button("Preview first game", "begin-session")}
+      <div class="action-row">
+        ${button("Preview first game", "begin-session")}
+        ${button("Today's plan", "nav-today", "secondary")}
+      </div>
     </section>
   `);
 }
@@ -2950,6 +2955,10 @@ function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSo
 
 function startGuidedInstructions(): void {
   state.pendingTaskStart = null;
+  if (!state.progress.deviceReadiness) {
+    go("readiness");
+    return;
+  }
   go("briefing");
 }
 
