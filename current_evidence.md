@@ -42,4 +42,18 @@
 | **G Coach**                                 | Full integrated stack: readiness → attention → relational memory → binding → prediction → reasoning → transfer → applied use |
 
 | **State readiness / cognitive-bioenergetic regulation**                                                | Supports readiness-aware routing: train, reset, activate, widen, reduce load or recover                                                     | General users, students, professionals, older adults, clinical-adjacent groups           | **Product-mechanistic / validation needed**                     | **Zone Coach**                                                                                                    | Not a training game alone, but the routing layer that decides what game the user should do today.                                  |
-| **Transfer testing / delayed re-checks**                                                               | Tests whether trained relations survive wrapper change, lures, mixed presentation, applied use and delay                                    | All populations and market wrappers                                                      | **Core Trident-G proof logic**                                  | **G Track**; **Matrix Benchmark**; **Real-Life Transfer Check**                                                   | Essential proof layer: separates task practice from structured transfer testing.                                                   |
+| **Transfer testing / delayed re-checks**                                                               | Tests whether trained relations survive wrapper change, lures, mixed presentation, applied use and delay                                    | All populations and market wrappers                                                      | **Core Trident-G proof logic**                                  | **G Track**; **Matrix Benchmark**; **Real-Life Transfer Check**                                                   | Essential proof layer: separates task practice from structured transfer testing.     
+
+# Training Duration  
+
+The shortest included protocols were about 6 sessions / 180 minutes
+Across included studies, the number of sessions ranged from 6 to 48, with one exceptional 100-session study. The mean was about 20 sessions, or about 18.6 sessions if the 100-session study is excluded. Table 1 includes examples as low as 6 sessions / 180 minutes, but that should be treated as the lower bound in the literature they reviewed
+
+This protocol fits in the training duration range (for 20 sessions) in the study above:
+
+| Block                                |     Time | Function                                                     |
+| ------------------------------------ | -------: | ------------------------------------------------------------ |
+| Attention Control                    |  3–5 min | signal extraction / readiness / base capacity                |
+| Relational + Binding WM              |  5–7 min | relation maintenance, wrong-lag and conjunction lures        |
+| Graph-based n-back / Path Prediction | 8–10 min | edge memory, successor learning, forward/back reachability   |
+| Reasoning drills                     |  3–5 min | symbolic / nonsense / domain recovery of same graph relation |
