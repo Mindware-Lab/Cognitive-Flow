@@ -1,4 +1,8 @@
-From this study: https://link.springer.com/article/10.3758/s13423-024-02466-8
+From this study: 
+
+Rodas, J. A., Asimakopoulou, A. A., & Greene, C. M. (2024). Can we enhance working memory? Bias and effectiveness in cognitive training studies. Psychonomic Bulletin & Review, 31, 1891–1914. https://doi.org/10.3758/s13423-024-02466-8
+
+https://link.springer.com/article/10.3758/s13423-024-02466-8
 
 
 | Cognitive function / training target                                                                   | Best-supported transfer or applied benefit                                                                                                  | Population where benefit is most supported                                               | Evidence strength                                               | Best-fit Trident-G / IQ Mindware game or module                                                                   | Applied rationale                                                                                                                  |
