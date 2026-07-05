@@ -26,7 +26,7 @@ import type {
 
 const MODEL_VERSION = "wm-nback-v0.1";
 const DISPLAYED_BASE_TRIALS = 20;
-const EXPOSURE_MS = 1200;
+const EXPOSURE_MS = 1950;
 const TOKEN_COLORS: TokenColor[] = ["blue", "yellow", "green", "purple"];
 const ABS_RELATIONS: DirectionRelation[] = ["left", "right", "up", "down"];
 const RADIAL_RELATIONS: DirectionRelation[] = ["out", "in"];

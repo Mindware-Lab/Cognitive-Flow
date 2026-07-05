@@ -20,6 +20,8 @@ describe("WM n-back generator", () => {
     expect(trials.filter((trial) => trial.isWarmup)).toHaveLength(3);
     expect(trials.some((trial) => trial.isMatch && trial.correctResponse === "MATCH")).toBe(true);
     expect(trials.some((trial) => trial.lureType !== null)).toBe(true);
+    expect(trials.every((trial) => trial.responseOptions.length === 1 && trial.responseOptions[0] === "MATCH")).toBe(true);
+    expect(trials.some((trial) => !trial.isMatch && trial.correctResponse === null)).toBe(true);
     expect(trials[0]).toMatchObject({
       appId: "wm-coach",
       layer: "relational_memory",

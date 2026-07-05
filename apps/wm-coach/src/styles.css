@@ -3113,6 +3113,12 @@ button.score-card {
   color: var(--cyan);
 }
 
+.wm-nback-arrow {
+  transform-box: fill-box;
+  transform-origin: center;
+  filter: drop-shadow(0 0 9px rgba(66, 99, 235, 0.18));
+}
+
 .optic-task-svg {
   overflow: visible;
 }

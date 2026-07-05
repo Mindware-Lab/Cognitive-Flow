@@ -620,8 +620,8 @@ function blockTrainingCopy(block: MiniBlockPlan): { title: string; body: string;
   if (block.construct === "BSE") {
     return {
       title: "Binding Stability",
-      body: "This block asks you to keep direction and colour linked, then choose the pair that appears most often.",
-      tip: "Use the response labels. Practice is only to learn the display.",
+      body: "This block asks you to remember the relation-colour pair and press MATCH only when the same pair repeats N back.",
+      tip: "Track the pair as one item. Practice is only to learn the display.",
     };
   }
   if (block.cells.some((cell) => cell.includes("rel"))) {
@@ -640,8 +640,8 @@ function blockTrainingCopy(block: MiniBlockPlan): { title: string; body: string;
   }
   return {
     title: "Signal Control",
-    body: "This block builds the basic rule: pick out the direction most items follow.",
-    tip: "Accuracy before speed. The display will be brief.",
+    body: "This block builds the basic n-back rule: press MATCH when the current item repeats the item N back.",
+    tip: "Respond only for matches. Withhold when the item is new.",
   };
 }
 
@@ -686,7 +686,7 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
     return {
       title: "Practice only",
       what: "You will practise the current display style without changing your progress path.",
-      focus: "Choose the majority direction. Accuracy before speed.",
+      focus: "Press MATCH only for N-back repeats. Withhold for non-matches.",
       why: "Practice keeps the habit moving on lower-energy days, but it does not advance phase or transfer scores.",
       startLabel: "Start practice",
     };
@@ -696,7 +696,7 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
     return {
       title: `${construct} practice`,
       what: "You will practise a selected format outside today's guided session.",
-      focus: pending.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction. Accuracy before speed.",
+      focus: pending.construct === "BSE" ? "Match the same relation-colour pair N back." : "Match the same relation N back.",
       why: "Free practice helps you learn a display, but it does not change your guided progress path.",
       startLabel: "Start practice",
     };
@@ -704,7 +704,7 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
   return {
     title: "Today's Working Memory session",
     what: "You will complete the guided task chosen for your current learning curve.",
-    focus: "Choose the majority direction. Accuracy before speed.",
+    focus: "Press MATCH for N-back repeats; otherwise do nothing.",
     why: phaseRationale(state.progress.currentPhase),
     startLabel: "Start guided session",
   };
@@ -747,11 +747,10 @@ function practiceConditionForIndex(index: number): TrialCondition {
 }
 
 function questionForTrial(trial: TrialDefinition): string {
-  if (trial.construct === "BSE") return "Which direction-colour pair was most common?";
-  if (trial.cellKey === "flow_rel") return "Was most motion expanding out or contracting in?";
-  if (trial.cellKey === "flow_abs") return "Was most motion moving left or right?";
-  if (trial.cellKey.includes("rel")) return "Were most arrows pointing out or in?";
-  return "Were most arrows pointing left or right?";
+  if (trial.isWarmup) return `Remember the sequence. Matches can start after ${trial.nLevel} items.`;
+  if (trial.construct === "BSE") return `Press MATCH if this relation-colour pair is the same as ${trial.nLevel} back.`;
+  if (trial.cellKey.includes("flow")) return `Press MATCH if this motion relation is the same as ${trial.nLevel} back.`;
+  return `Press MATCH if this arrow relation is the same as ${trial.nLevel} back.`;
 }
 
 function exampleTrialForBlock(block: MiniBlockPlan, phase: PhaseLabel): TrialDefinition {
@@ -1074,26 +1073,26 @@ function renderTutorial(): string {
     <section class="panel tutorial-grid direction-tutorial">
       <div class="direction-tutorial-copy">
         <p class="ui-eyebrow">Direction foundation</p>
-        <h1>Pick the majority direction.</h1>
-        <p class="ui-body">A brief display appears. Answer with the direction most items follow.</p>
+        <h1>Match the item N back.</h1>
+        <p class="ui-body">A sequence appears one item at a time. Press MATCH only when the current item repeats the item N back.</p>
       </div>
-      <div class="direction-demo" role="img" aria-label="Example display where most items point right">
+      <div class="direction-demo" role="img" aria-label="Example n-back sequence with a repeated arrow relation">
         <div class="direction-demo-grid" aria-hidden="true">
           <span>&rarr;</span>
-          <span>&rarr;</span>
           <span>&larr;</span>
-          <span>&rarr;</span>
-          <span>&rarr;</span>
+          <span>&uarr;</span>
+          <span>&larr;</span>
+          <span>&darr;</span>
         </div>
-        <strong>Most point right</strong>
+        <strong>2-back match</strong>
       </div>
       <div class="tutorial-cues">
-        <article class="instruction-card"><strong>Look</strong><p>Catch the overall direction.</p></article>
-        <article class="instruction-card"><strong>Ignore</strong><p>Some items may disagree.</p></article>
-        <article class="instruction-card"><strong>Answer</strong><p>Accuracy first, then speed.</p></article>
+        <article class="instruction-card"><strong>Watch</strong><p>Keep the recent items in mind.</p></article>
+        <article class="instruction-card"><strong>Match</strong><p>Press only when the item repeats N back.</p></article>
+        <article class="instruction-card"><strong>Withhold</strong><p>Do nothing when it is not a match.</p></article>
       </div>
       <div class="action-row">
-        ${button("Start direction foundation", "begin-session")}
+        ${button("Start n-back foundation", "begin-session")}
         ${button("Today's plan", "nav-today", "secondary")}
       </div>
     </section>
@@ -1353,7 +1352,7 @@ function renderTask(): string {
   if (!trial || !block) return renderToday();
   const blockProgress = state.activeTrialIndex + 1;
   const blockTotal = currentBlockTrialCount();
-  const responseEnabled = state.taskStage === "response";
+  const responseEnabled = state.taskStage === "stimulus" || state.taskStage === "mask" || state.taskStage === "response";
   const prompt = responseEnabled
     ? trial.isWarmup
       ? `Watch the sequence. Match starts after ${trial.nLevel} items.`
@@ -1395,8 +1394,8 @@ function renderTask(): string {
   `, { task: true });
 }
 
-function arrowPolygonPoints(): string {
-  return "-5,-4 5,0 -5,4 -2,0";
+function arrowPathData(): string {
+  return "M0 -13 15 0 6 0 6 18 -6 18 -6 0 -15 0Z";
 }
 
 function vectorAngleDegrees(vector: { x: number; y: number }): number {
@@ -1509,7 +1508,7 @@ function stimulusSvg(trial: TrialDefinition, stage: TaskStage): string {
       const color = item.color === "yellow" ? "#d9a900" : item.color === "green" ? "#2f9e44" : item.color === "purple" ? "#7c3aed" : item.color === "blue" ? "#1d56d8" : "currentColor";
       return `
         <g transform="translate(${item.position.x} ${item.position.y}) rotate(${angle})">
-          <polygon points="${arrowPolygonPoints()}" fill="${color}" />
+          <path class="wm-nback-arrow" d="${arrowPathData()}" fill="${color}" />
         </g>
       `;
     })
@@ -1621,9 +1620,9 @@ function renderPracticeIntro(): string {
         </div>
       </section>
       <section class="mini-steps practice-mini-steps">
-        <span>${block.construct === "BSE" ? "Keep feature + direction linked" : "Pick out the signal"}</span>
-        <span>Choose the majority</span>
-        <span>Accuracy before speed</span>
+        <span>${block.construct === "BSE" ? "Keep relation + colour linked" : "Track the relation"}</span>
+        <span>Press MATCH for repeats</span>
+        <span>Withhold for non-matches</span>
       </section>
       <div class="ui-tip-card practice-tip-card">
         <span class="tip-symbol">i</span>
@@ -3064,20 +3063,17 @@ function beginRestoredGuidedBlock(): void {
   schedule(350, startTrialPresentation);
 }
 
+const NBACK_SOA_MS = 3000;
+
 function startTrialPresentation(): void {
   const trial = activeTrial();
   if (!trial || state.view !== "task") return;
-  setTaskStage("fixation");
-  schedule(420, () => {
-    setTaskStage("stimulus");
-    schedule(trial.exposureMsRequested, () => {
-      setTaskStage("mask");
-      schedule(380, () => {
-        state.responseStartedAt = performance.now();
-        setTaskStage("response");
-        schedule(2400, () => answerTrial(null));
-      });
-    });
+  state.responseStartedAt = performance.now();
+  setTaskStage("stimulus");
+  schedule(trial.exposureMsRequested, () => {
+    setTaskStage("mask");
+    const remainingWindowMs = Math.max(0, NBACK_SOA_MS - trial.exposureMsRequested);
+    schedule(remainingWindowMs, () => answerTrial(null));
   });
 }
 
@@ -3363,7 +3359,7 @@ function completeSession(): void {
 }
 
 function answerTrial(response: string | null): void {
-  if (state.taskStage !== "response") return;
+  if (state.taskStage !== "stimulus" && state.taskStage !== "mask" && state.taskStage !== "response") return;
   clearStageTimer();
   const trial = activeTrial();
   if (!trial) return;
@@ -3593,9 +3589,15 @@ appRoot.addEventListener("click", async (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
-  if (state.view !== "task" || state.taskStage !== "response" || event.repeat) return;
+  const responseEnabled = state.taskStage === "stimulus" || state.taskStage === "mask" || state.taskStage === "response";
+  if (state.view !== "task" || !responseEnabled || event.repeat) return;
   const trial = activeTrial();
   if (!trial) return;
+  if ((event.code === "Space" || event.code === "Enter") && trial.responseOptions.includes("MATCH")) {
+    event.preventDefault();
+    answerTrial("MATCH");
+    return;
+  }
   const number = Number(event.key);
   if (Number.isInteger(number) && number >= 1 && number <= trial.responseOptions.length) {
     event.preventDefault();
