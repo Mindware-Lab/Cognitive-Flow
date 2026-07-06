@@ -317,6 +317,53 @@ function persistProgress(): void {
   persistProgressRemote();
 }
 
+type AttentionAudioContext = AudioContext & { webkitAudioContext?: never };
+
+let feedbackAudioContext: AudioContext | null = null;
+
+function createFeedbackAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  try {
+    return new AudioContextCtor() as AttentionAudioContext;
+  } catch (error) {
+    console.warn("Sound feedback could not start.", error);
+    return null;
+  }
+}
+
+function feedbackAudio(): AudioContext | null {
+  if (!feedbackAudioContext) feedbackAudioContext = createFeedbackAudioContext();
+  if (feedbackAudioContext?.state === "suspended") {
+    void feedbackAudioContext.resume().catch((error) => console.warn("Sound feedback could not resume.", error));
+  }
+  return feedbackAudioContext;
+}
+
+function playErrorFeedbackSound(): void {
+  if (!state.soundOn) return;
+  const audio = feedbackAudio();
+  if (!audio) return;
+  const now = audio.currentTime + 0.01;
+  const steps: Array<{ frequency: number; start: number; duration: number; type: OscillatorType; gain: number }> = [
+    { frequency: 220, start: 0, duration: 0.13, type: "square", gain: 0.035 },
+    { frequency: 165, start: 0.1, duration: 0.18, type: "triangle", gain: 0.045 },
+  ];
+  for (const step of steps) {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = step.type;
+    oscillator.frequency.setValueAtTime(step.frequency, now + step.start);
+    gain.gain.setValueAtTime(0.0001, now + step.start);
+    gain.gain.exponentialRampToValueAtTime(step.gain, now + step.start + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + step.start + step.duration);
+    oscillator.connect(gain).connect(audio.destination);
+    oscillator.start(now + step.start);
+    oscillator.stop(now + step.start + step.duration + 0.025);
+  }
+}
+
 async function restoreRemoteProgress(): Promise<void> {
   if (!cloudSyncActive()) return;
   markSync("checking", "Loading beta progress.");
@@ -3285,6 +3332,7 @@ function answerTrial(response: string | null): void {
   const trial = activeTrial();
   if (!trial) return;
   const isCorrect = response === trial.correctResponse;
+  if (!isCorrect && response !== null) playErrorFeedbackSound();
   const currentLevel = levelForTrial(trial);
   state.staircaseLevels[staircaseKey(trial)] = nextStaircaseLevel(currentLevel, isCorrect);
   state.feedback = isCorrect ? "correct" : "incorrect";
@@ -3309,6 +3357,7 @@ function answerTrial(response: string | null): void {
 
 appRoot.addEventListener("click", async (event) => {
   const target = event.target as HTMLElement;
+  if (state.soundOn) feedbackAudio();
   const freeCard = target.closest<HTMLElement>("[data-free-construct][data-free-cell]");
   if (freeCard) {
     startFreeInstructions(
@@ -3516,6 +3565,7 @@ window.addEventListener("keydown", (event) => {
   const number = Number(event.key);
   if (Number.isInteger(number) && number >= 1 && number <= trial.responseOptions.length) {
     event.preventDefault();
+    if (state.soundOn) feedbackAudio();
     answerTrial(trial.responseOptions[number - 1]);
   }
 });
