@@ -242,9 +242,9 @@ button {
 }
 
 .app-header-brand img {
-  width: clamp(175px, 30vw, 285px);
+  width: clamp(145px, 24vw, 220px);
   max-width: 100%;
-  max-height: 46px;
+  max-height: 32px;
   height: auto;
   object-fit: contain;
   display: block;
@@ -5338,8 +5338,8 @@ button.score-card {
   }
 
   .app-header-brand img {
-    width: clamp(132px, 35vw, 205px);
-    max-height: 34px;
+    width: clamp(118px, 31vw, 170px);
+    max-height: 26px;
   }
 
   .app-content {

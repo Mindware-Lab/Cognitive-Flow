@@ -472,7 +472,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
       <header class="app-brand-bar">
         <div class="app-header-left">${backControl}${homeControl}</div>
         <div class="app-header-brand">
-          <img src="${assetPath("wm-coach-wordmark-v3.svg")}" alt="Working Memory Coach" />
+          <img src="${assetPath("wm-coach-wordmark.png")}" alt="Working Memory Coach" />
         </div>
         <div class="app-header-right">${authControl}${soundControl}</div>
       </header>
@@ -1106,7 +1106,7 @@ function renderWelcome(): string {
       <div class="splash-network splash-network-side" aria-hidden="true"></div>
       <section class="splash-brand">
         <img src="${assetPath("iqmindware-logo-spec.png")}" alt="IQ Mindware" class="splash-logo" />
-        <img src="${assetPath("wm-coach-wordmark-v3.svg")}" alt="Working Memory Coach" class="splash-wordmark" />
+        <img src="${assetPath("wm-coach-wordmark.png")}" alt="Working Memory Coach" class="splash-wordmark" />
         <div class="splash-title">
           <p>Train Relational Memory and cognitive capacity.</p>
           <small>First step: quick setup, then today's guided Working Memory session.</small>
