@@ -25,7 +25,7 @@ import {
 } from "./supabaseClient";
 import { runDeviceReadiness } from "./timing";
 import { chooseNextPhase } from "./wap";
-import type { CellEvidence, CellKey, Construct, MiniBlockPlan, PhaseLabel, PhaseStatus, ProtocolGroup, ScratchBaseline, SessionPlan, TrialCondition, TrialDefinition, TrialResult } from "./types";
+import type { CapacitySpeed, CellEvidence, CellKey, Construct, MiniBlockPlan, PhaseLabel, PhaseStatus, ProtocolGroup, ScratchBaseline, SessionPlan, TrialCondition, TrialDefinition, TrialResult } from "./types";
 
 type View =
   | "auth"
@@ -54,14 +54,14 @@ type View =
   | "data-rights"
   | "profile";
 
-type TaskStage = "ready" | "fixation" | "stimulus" | "mask" | "response" | "feedback";
+type TaskStage = "ready" | "countdown" | "blank" | "fixation" | "stimulus" | "mask" | "response" | "feedback";
 type StyleMode = "iq" | "legacy";
 type ProgressDashboardMode = "overview" | "detail";
 type SessionSource = "guided" | "guided_practice" | "free_play" | "preview" | "recheck" | "easier";
 type PendingTaskStart =
   | { kind: "guided" }
   | { kind: "easier" }
-  | { kind: "free"; construct: Construct; cellKey: CellKey; source: SessionSource };
+  | { kind: "free"; construct: Construct; cellKey: CellKey; source: SessionSource; speed?: CapacitySpeed; phase?: PhaseLabel };
 type SyncState = "local" | "checking" | "synced" | "pending" | "error";
 
 const GENERATOR_VERSION = "wm-coach-generator-v0.1";
@@ -79,8 +79,12 @@ interface RuntimeState {
   feedback: "correct" | "incorrect" | "";
   readinessRunning: boolean;
   taskStage: TaskStage;
+  countdownStep: number;
   responseStartedAt: number;
   stageTimer: number | null;
+  displayTimer: number | null;
+  pendingTrialResponse: string | null;
+  pendingTrialRtMs: number | null;
   staircaseLevels: Record<string, number>;
   sessionMode: "protocol" | "free";
   sessionSource: SessionSource;
@@ -197,8 +201,12 @@ let state: RuntimeState = {
   feedback: "",
   readinessRunning: false,
   taskStage: "ready",
+  countdownStep: 0,
   responseStartedAt: 0,
   stageTimer: null,
+  displayTimer: null,
+  pendingTrialResponse: null,
+  pendingTrialRtMs: null,
   staircaseLevels: {},
   sessionMode: "protocol",
   sessionSource: "guided",
@@ -320,6 +328,67 @@ function persistProgress(): void {
   persistProgressRemote();
 }
 
+type WmAudioContext = AudioContext & { webkitAudioContext?: never };
+
+let feedbackAudioContext: AudioContext | null = null;
+
+function createFeedbackAudioContext(): AudioContext | null {
+  if (typeof window === "undefined") return null;
+  const AudioContextCtor = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+  if (!AudioContextCtor) return null;
+  try {
+    return new AudioContextCtor() as WmAudioContext;
+  } catch (error) {
+    console.warn("Sound feedback could not start.", error);
+    return null;
+  }
+}
+
+function feedbackAudio(): AudioContext | null {
+  if (!feedbackAudioContext) feedbackAudioContext = createFeedbackAudioContext();
+  if (feedbackAudioContext?.state === "suspended") {
+    void feedbackAudioContext.resume().catch((error) => console.warn("Sound feedback could not resume.", error));
+  }
+  return feedbackAudioContext;
+}
+
+function playToneSequence(steps: Array<{ frequency: number; start: number; duration: number; type?: OscillatorType; gain?: number }>): void {
+  if (!state.soundOn) return;
+  const audio = feedbackAudio();
+  if (!audio) return;
+  const now = audio.currentTime + 0.01;
+  for (const step of steps) {
+    const oscillator = audio.createOscillator();
+    const gain = audio.createGain();
+    oscillator.type = step.type || "sine";
+    oscillator.frequency.setValueAtTime(step.frequency, now + step.start);
+    gain.gain.setValueAtTime(0.0001, now + step.start);
+    gain.gain.exponentialRampToValueAtTime(step.gain || 0.055, now + step.start + 0.018);
+    gain.gain.exponentialRampToValueAtTime(0.0001, now + step.start + step.duration);
+    oscillator.connect(gain).connect(audio.destination);
+    oscillator.start(now + step.start);
+    oscillator.stop(now + step.start + step.duration + 0.025);
+  }
+}
+
+function playFeedbackSound(outcome: "correct" | "incorrect" | "enabled"): void {
+  if (outcome === "correct") {
+    playToneSequence([
+      { frequency: 660, start: 0, duration: 0.11, gain: 0.045 },
+      { frequency: 880, start: 0.095, duration: 0.15, gain: 0.055 },
+    ]);
+    return;
+  }
+  if (outcome === "enabled") {
+    playToneSequence([{ frequency: 740, start: 0, duration: 0.12, gain: 0.04 }]);
+    return;
+  }
+  playToneSequence([
+    { frequency: 220, start: 0, duration: 0.13, type: "square", gain: 0.035 },
+    { frequency: 165, start: 0.1, duration: 0.18, type: "triangle", gain: 0.045 },
+  ]);
+}
+
 async function restoreRemoteProgress(): Promise<void> {
   if (!cloudSyncActive()) return;
   markSync("checking", "Loading beta progress.");
@@ -399,7 +468,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
       : "";
   const soundControl = `<button class="app-nav-button app-sound-button ${state.soundOn ? "is-on" : "is-off"}" data-action="toggle-sound" aria-label="${state.soundOn ? "Turn sound feedback off" : "Turn sound feedback on"}">${headerIcon(state.soundOn ? "sound-on" : "sound-off")}</button>`;
   return `
-    <main class="app-shell">
+    <main class="app-shell app-view-${state.view}">
       <header class="app-brand-bar">
         <div class="app-header-left">${backControl}${homeControl}</div>
         <div class="app-header-brand">
@@ -499,6 +568,17 @@ const PHASE_WHY_COPY: Record<PhaseLabel, string> = {
   P2_ARROW_ABS: "The display changes from moving patterns to static arrows. The skill is the same: pick out the main signal.",
   P3_FLOW_REL: "Now the motion task becomes more relational. You judge how movement relates to the centre.",
   P4_ARROW_REL: "The app checks whether the relational skill carries into static arrow patterns.",
+  P5_ARROW_MIXED: "Static arrows now alternate between absolute and relative frames.",
+  P6_FLOW_MIXED: "Optic-flow patterns now alternate between absolute and relative frames.",
+  P5_FLOW_MIXED: "Optic-flow patterns now alternate between absolute and relative frames.",
+  P6_ARROW_MIXED: "Static arrows now alternate between absolute and relative frames.",
+  P7_FULL_MIXED: "Arrows, optic flow, absolute frames and relative frames now alternate.",
+  P8_BIND_ARROW_REL: "The app now asks you to bind relative arrow relations with colour.",
+  P9_BIND_FLOW_REL: "The app now asks you to bind relative optic-flow relations with colour.",
+  P8_BIND_FLOW_REL: "The app now asks you to bind relative optic-flow relations with colour.",
+  P9_BIND_ARROW_REL: "The app now asks you to bind relative arrow relations with colour.",
+  P10_BIND_MIXED: "Binding demands now continue while carrier and frame demands switch.",
+  P11_DELAYED: "The app re-checks whether the skill comes back after time away.",
   P5_MIXED: "Formats now alternate. The goal is to keep the rule stable when the surface changes unpredictably.",
   P6_DELAYED: "The app re-checks whether the skill comes back after time away.",
 };
@@ -512,6 +592,17 @@ const PHASE_GOAL_COPY: Record<PhaseLabel, string> = {
   P2_ARROW_ABS: "recover the same signal skill in static arrows.",
   P3_FLOW_REL: "use the movement pattern's relationship to the centre.",
   P4_ARROW_REL: "recover the relational skill in static arrows.",
+  P5_ARROW_MIXED: "switch absolute and relative frames within static arrows.",
+  P6_FLOW_MIXED: "switch absolute and relative frames within optic flow.",
+  P5_FLOW_MIXED: "switch absolute and relative frames within optic flow.",
+  P6_ARROW_MIXED: "switch absolute and relative frames within static arrows.",
+  P7_FULL_MIXED: "keep the rule stable while carrier and frame both change.",
+  P8_BIND_ARROW_REL: "bind relative arrow relations with colour.",
+  P9_BIND_FLOW_REL: "bind relative optic-flow relations with colour.",
+  P8_BIND_FLOW_REL: "bind relative optic-flow relations with colour.",
+  P9_BIND_ARROW_REL: "bind relative arrow relations with colour.",
+  P10_BIND_MIXED: "keep relation and colour bound while formats switch.",
+  P11_DELAYED: "re-check whether the skill returns after spacing.",
   P5_MIXED: "keep the rule stable while formats alternate.",
   P6_DELAYED: "re-check whether the skill returns after spacing.",
 };
@@ -592,8 +683,8 @@ function recordCompletion(route: CompletionRoute, sessionNumber = state.progress
 
 function phaseStatusCopy(phase: PhaseLabel, status: PhaseStatus): string {
   if (phase === "P2_FLOW_ABS" || phase === "P4_FLOW_REL" || phase === "P2_ARROW_ABS" || phase === "P4_ARROW_REL") return PHASE_STATUS_COPY.recovering_new_format;
-  if (phase === "P5_MIXED") return PHASE_STATUS_COPY.mixed_stability;
-  if (phase === "P6_DELAYED") return PHASE_STATUS_COPY.return_check;
+  if (phase === "P5_ARROW_MIXED" || phase === "P6_FLOW_MIXED" || phase === "P5_FLOW_MIXED" || phase === "P6_ARROW_MIXED" || phase === "P7_FULL_MIXED" || phase === "P10_BIND_MIXED" || phase === "P5_MIXED") return PHASE_STATUS_COPY.mixed_stability;
+  if (phase === "P11_DELAYED" || phase === "P6_DELAYED") return PHASE_STATUS_COPY.return_check;
   return PHASE_STATUS_COPY[status] || PHASE_STATUS_COPY.calibrating;
 }
 
@@ -664,15 +755,23 @@ function phaseRationale(phase: PhaseLabel): string {
   if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") {
     return "The rule is the same, but the surface is different. This helps test whether you learned the underlying skill rather than memorising one display.";
   }
+  if (phase === "P5_ARROW_MIXED" || phase === "P6_FLOW_MIXED" || phase === "P5_FLOW_MIXED" || phase === "P6_ARROW_MIXED") return "The carrier stays familiar, but the frame changes. This isolates frame flexibility before the display becomes fully mixed.";
+  if (phase === "P7_FULL_MIXED") return "Both carrier and frame now switch. This trains flexible Working Memory: keeping the right goal active under pressure, distraction, or uncertainty.";
+  if (phase === "P8_BIND_ARROW_REL" || phase === "P9_BIND_FLOW_REL" || phase === "P8_BIND_FLOW_REL" || phase === "P9_BIND_ARROW_REL") return "This phase adds conjunction pressure: relation and colour have to be kept together as one memory item.";
+  if (phase === "P10_BIND_MIXED") return "Binding now has to survive format switching, not only a single familiar display.";
+  if (phase === "P11_DELAYED" || phase === "P6_DELAYED") return "This re-check asks whether the trained skill returns after spacing, not only during same-day practice.";
   if (phase === "P5_MIXED") return "Formats now switch. This trains flexible Working Memory: keeping the right goal active under pressure, distraction, or uncertainty.";
-  if (phase === "P6_DELAYED") return "This re-check asks whether the trained skill returns after spacing, not only during same-day practice.";
   if (phase === "P3_ARROW_REL" || phase === "P3_FLOW_REL") return "This phase asks you to use the relationship to the centre, not just the surface direction. That makes the Working Memory rule more flexible.";
   return "This phase builds your starting point for controlled Working Memory: picking out goal-relevant information from brief, noisy displays.";
 }
 
 function sessionGoalCopy(phase: PhaseLabel): string {
+  if (phase === "P5_ARROW_MIXED" || phase === "P6_FLOW_MIXED" || phase === "P5_FLOW_MIXED" || phase === "P6_ARROW_MIXED") return "Switch absolute and relative frames within one carrier.";
+  if (phase === "P7_FULL_MIXED") return "Switch carriers and frames while keeping the same goal active.";
+  if (phase === "P8_BIND_ARROW_REL" || phase === "P9_BIND_FLOW_REL" || phase === "P8_BIND_FLOW_REL" || phase === "P9_BIND_ARROW_REL") return "Keep relation and colour bound together.";
+  if (phase === "P10_BIND_MIXED") return "Keep bindings stable while formats switch.";
+  if (phase === "P11_DELAYED" || phase === "P6_DELAYED") return "Re-check whether the skill returns after time away.";
   if (phase === "P5_MIXED") return "Switch formats while keeping the same goal active.";
-  if (phase === "P6_DELAYED") return "Re-check whether the skill returns after time away.";
   if (phase === "P3_ARROW_REL" || phase === "P3_FLOW_REL") return "Use the relation to the centre, not just the surface direction.";
   if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") {
     return "Keep the same rule when the display changes.";
@@ -827,6 +926,10 @@ function clearStageTimer(): void {
     window.clearTimeout(state.stageTimer);
     state.stageTimer = null;
   }
+  if (state.displayTimer !== null) {
+    window.clearTimeout(state.displayTimer);
+    state.displayTimer = null;
+  }
 }
 
 function schedule(delayMs: number, callback: () => void): void {
@@ -841,6 +944,15 @@ function setTaskStage(stage: TaskStage): void {
   state.taskStage = stage;
   render();
 }
+
+const COUNTDOWN_STEPS = ["3", "2", "1"];
+const COUNTDOWN_STEP_MS = 700;
+const INTER_STIMULUS_BLANK_MS = 83;
+const TASK_SPEED_SOA_MS: Record<CapacitySpeed, number> = {
+  slow: 3000,
+  fast: 1400,
+};
+const TASK_SPEED_DISPLAY_RATIO = 0.65;
 
 function renderAuth(): string {
   return shell(`
@@ -1195,26 +1307,51 @@ function renderBreakPlan(): string {
   `);
 }
 
-const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string; detail: string }> = [
-  { cell: "arrow_abs", label: "Direction foundation", detail: "Static arrows and simple signal control." },
-  { cell: "flow_abs", label: "Motion Foundation", detail: "Moving patterns with the same rule." },
-  { cell: "arrow_rel", label: "Relation Foundation", detail: "Use relationships around the centre." },
-  { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational control in motion." },
-  { cell: "mixed", label: "Mixed Practice", detail: "Formats switch from trial to trial." },
-];
+type FreePlayFormat = { cell: CellKey; label: string; detail: string; phase?: PhaseLabel };
 
-const FREE_PLAY_GROUPS: Record<Construct, { title: string; detail: string; icon: string }> = {
-  ACC: {
-    title: "Signal Control",
-    detail: "Pick out the main signal in brief displays.",
-    icon: "target",
-  },
-  BSE: {
-    title: "Binding Stability",
-    detail: "Keep feature and colour bound.",
-    icon: "binding",
-  },
+const FREE_PLAY_FORMATS: Record<Construct, FreePlayFormat[]> = {
+  ACC: [
+    { cell: "arrow_abs", label: "Direction foundation", detail: "Static arrows and simple signal control." },
+    { cell: "flow_abs", label: "Motion Foundation", detail: "Moving patterns with the same rule." },
+    { cell: "arrow_rel", label: "Relation Foundation", detail: "Use relationships around the centre." },
+    { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational control in motion." },
+    { cell: "mixed", phase: "P5_ARROW_MIXED", label: "Mixed Arrow Frames", detail: "Static arrows switch between absolute and relative frames." },
+    { cell: "mixed", phase: "P6_FLOW_MIXED", label: "Mixed Flow Frames", detail: "Optic flow switches between absolute and relative frames." },
+    { cell: "mixed", phase: "P7_FULL_MIXED", label: "Full Mixed N-back", detail: "Arrows, optic flow, absolute and relative frames all switch." },
+  ],
+  BSE: [
+    { cell: "arrow_rel", phase: "P8_BIND_ARROW_REL", label: "Binding Arrow Relations", detail: "Relative arrows with colour conjunctions." },
+    { cell: "flow_rel", phase: "P9_BIND_FLOW_REL", label: "Binding Flow Relations", detail: "Relative optic flow with colour conjunctions." },
+    { cell: "mixed", phase: "P10_BIND_MIXED", label: "Mixed Binding N-back", detail: "Colour bindings across changing carriers and frames." },
+  ],
 };
+
+const FREE_PLAY_COLUMNS: Array<{ title: string; detail: string; icon: string; items: Array<{ construct: Construct; format: FreePlayFormat }> }> = [
+  {
+    title: "Core + Integration",
+    detail: "Build the four base displays, then combine them.",
+    icon: "target",
+    items: [
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[0] },
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[1] },
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[2] },
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[3] },
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[6] },
+    ],
+  },
+  {
+    title: "Frame + Binding",
+    detail: "Practise frame switching and colour conjunctions.",
+    icon: "binding",
+    items: [
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[4] },
+      { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[5] },
+      { construct: "BSE", format: FREE_PLAY_FORMATS.BSE[0] },
+      { construct: "BSE", format: FREE_PLAY_FORMATS.BSE[1] },
+      { construct: "BSE", format: FREE_PLAY_FORMATS.BSE[2] },
+    ],
+  },
+];
 
 function freePlayCellIcon(cell: CellKey): string {
   if (cell === "arrow_abs") return "target";
@@ -1265,28 +1402,27 @@ function renderFreePlay(): string {
 }
 
 function renderFreePlayFormats(): string {
-  const card = (construct: Construct, cell: CellKey, label: string, detail: string) => `
-    <button class="practice-format-card" data-free-construct="${construct}" data-free-cell="${cell}">
-      <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(cell))}</span>
+  const card = (construct: Construct, format: FreePlayFormat) => `
+    <button type="button" class="practice-format-card" data-free-construct="${construct}" data-free-cell="${format.cell}"${format.phase ? ` data-free-phase="${format.phase}"` : ""}>
+      <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(format.cell))}</span>
       <span class="practice-format-copy">
-        <strong>${escapeHtml(label)}</strong>
-        <small>${escapeHtml(detail)}</small>
+        <strong>${escapeHtml(format.label)}</strong>
+        <small>${escapeHtml(format.detail)}</small>
       </span>
     </button>
   `;
-  const group = (construct: Construct) => {
-    const groupMeta = FREE_PLAY_GROUPS[construct];
+  const group = (column: (typeof FREE_PLAY_COLUMNS)[number]) => {
     return `
-      <section class="practice-format-group" aria-label="${groupMeta.title}">
+      <section class="practice-format-group" aria-label="${column.title}">
         <div class="practice-format-heading">
-          <span class="section-icon is-purple" aria-hidden="true">${miniIcon(groupMeta.icon)}</span>
+          <span class="section-icon is-purple" aria-hidden="true">${miniIcon(column.icon)}</span>
           <span>
-            <strong>${groupMeta.title}</strong>
-            <small>${groupMeta.detail}</small>
+            <strong>${column.title}</strong>
+            <small>${column.detail}</small>
           </span>
         </div>
         <div class="practice-format-grid">
-          ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
+          ${column.items.map((item) => card(item.construct, item.format)).join("")}
         </div>
       </section>
     `;
@@ -1299,8 +1435,7 @@ function renderFreePlayFormats(): string {
         <span>Practice only - this does not advance phase, WAP readiness, or transfer scores.</span>
       </div>
       <div class="practice-format-layout">
-        ${group("ACC")}
-        ${group("BSE")}
+        ${FREE_PLAY_COLUMNS.map((column) => group(column)).join("")}
       </div>
     </section>
   `);
@@ -1346,6 +1481,21 @@ function activeTrial(): TrialDefinition | null {
   ) || null;
 }
 
+function renderTaskCue(trial: TrialDefinition): string {
+  const speedButton = (speed: CapacitySpeed, label: string) => `
+    <button type="button" class="task-speed-button${trial.capacitySpeed === speed ? " is-active" : ""}" data-action="set-task-speed" data-speed="${speed}" aria-pressed="${trial.capacitySpeed === speed ? "true" : "false"}">${label}</button>
+  `;
+  return `
+    <div class="task-stage-copy">
+      <strong class="task-n-level">N=${trial.nLevel}</strong>
+      <span class="task-speed-control" aria-label="Task speed">
+        ${speedButton("slow", "Slow")}
+        ${speedButton("fast", "Fast")}
+      </span>
+    </div>
+  `;
+}
+
 function renderTask(): string {
   const trial = activeTrial();
   const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
@@ -1353,13 +1503,6 @@ function renderTask(): string {
   const blockProgress = state.activeTrialIndex + 1;
   const blockTotal = currentBlockTrialCount();
   const responseEnabled = state.taskStage === "stimulus" || state.taskStage === "mask" || state.taskStage === "response";
-  const prompt = responseEnabled
-    ? trial.isWarmup
-      ? `Watch the sequence. Match starts after ${trial.nLevel} items.`
-      : `Tap MATCH only if this is the same as ${trial.nLevel} back.`
-    : state.taskStage === "ready"
-      ? `N=${trial.nLevel}. Focus on the centre.`
-      : "&nbsp;";
   return shell(`
     <section class="task-main">
       <div class="task-topline">
@@ -1369,33 +1512,223 @@ function renderTask(): string {
       <div class="task-progress"><span style="width:${((blockProgress - 1) / blockTotal) * 100}%"></span></div>
         <p class="ui-eyebrow">Block ${state.activeBlockIndex + 1} of ${state.sessionPlan?.miniBlocks.length || 1} - ${escapeHtml(block.label)}</p>
       <section class="task-stage is-${state.taskStage}">
-        <div class="task-stage-copy"><p>${prompt}</p></div>
+        ${renderTaskCue(trial)}
         ${stimulusSvg(trial, state.taskStage)}
-        <div class="task-feedback" aria-live="polite">
-          ${
-            state.taskStage === "feedback"
-              ? `<strong class="is-${state.feedback}">${state.feedback === "correct" ? "Correct" : "Not this time"}</strong>`
-              : ""
-          }
-        </div>
       </section>
-      <div class="response-grid task-responses">
+      <div class="capacity-response-row task-responses">
+        <button class="response-button is-control" data-action="pause-session">Pause</button>
         ${trial.responseOptions
-          .map((option, index) => `<button class="response-button" data-response="${escapeHtml(option)}" ${responseEnabled ? "" : "disabled"}>${responseButtonContent(option, index, trial.responseOptions.length)}</button>`)
+          .map((option, index) => `<button class="response-button is-match${state.pendingTrialResponse === option ? " is-captured" : ""}" data-response="${escapeHtml(option)}" ${responseEnabled && !state.pendingTrialResponse ? "" : "disabled"}>${responseButtonContent(option, index, trial.responseOptions.length)}</button>`)
           .join("")}
+        <button class="response-button is-stop" data-action="end-block">Stop</button>
       </div>
       <p class="task-footnote">${trial.construct === "BSE" ? "Track relation plus colour." : "Track the relation."} Tap MATCH for n-back repeats; withhold when it is not a match.</p>
-      <div class="task-controls">
-        <button class="task-skip-button" data-action="pause-session"><span>II</span> Pause</button>
-        <button class="task-skip-button" data-action="toggle-sound"><span>S</span> Sound ${state.soundOn ? "on" : "off"}</button>
-        <button class="task-skip-button" data-action="end-block"><span>E</span> End</button>
-      </div>
     </section>
   `, { task: true });
 }
 
 function arrowPathData(): string {
   return "M0 -13 15 0 6 0 6 18 -6 18 -6 0 -15 0Z";
+}
+
+function tokenColorHex(color: string | null | undefined): string {
+  if (color === "yellow") return "#d9a900";
+  if (color === "green") return "#2f9e44";
+  if (color === "purple") return "#7c3aed";
+  if (color === "blue") return "#1d56d8";
+  return "#ffffff";
+}
+
+function capacityCountdownMarkup(): string {
+  if (state.taskStage !== "countdown") return "";
+  return `<div class="capacity-countdown" aria-live="assertive">${escapeHtml(COUNTDOWN_STEPS[state.countdownStep] || COUNTDOWN_STEPS[0])}</div>`;
+}
+
+function renderCapacityMarkers(trial: TrialDefinition): string {
+  return (trial.capacityDisplay.markerPositions || [])
+    .map((point) => `<span class="capacity-hub-marker" style="left:${point.xPct}%;top:${point.yPct}%;"></span>`)
+    .join("");
+}
+
+function resistVectorRotation(label: string | undefined): number {
+  if (label === "Up") return -90;
+  if (label === "Down") return 90;
+  if (label === "Left") return 180;
+  return 0;
+}
+
+function renderCapacityArrowToken(trial: TrialDefinition, visible: boolean): string {
+  const point = trial.capacityDisplay.pointPct || { xPct: 50, yPct: 50 };
+  const color = tokenColorHex(trial.capacityDisplay.colour || trial.colour);
+  const rotation = resistVectorRotation(trial.capacityDisplay.symbolLabel);
+  return `
+    <div class="capacity-hub-token wm-arrow-token${visible ? "" : " is-hidden"}" style="left:${point.xPct}%;top:${point.yPct}%;color:${color};">
+      <svg class="capacity-resist-arrow" viewBox="0 0 100 100" aria-hidden="true" style="transform:rotate(${rotation}deg);">
+        <path d="M90 50 L50 90 L50 70 L10 70 L10 30 L50 30 L50 10 Z"></path>
+      </svg>
+    </div>
+  `;
+}
+
+function renderRelateVectorToken(token: { pointPct: { xPct: number; yPct: number }; angleDeg: number; colour?: string | null }, visible: boolean): string {
+  const rotationDeg = Number(token.angleDeg || 0) + 90;
+  const color = tokenColorHex(token.colour);
+  return `
+    <div class="capacity-hub-token capacity-hub-token--relate${visible ? "" : " is-hidden"}" style="left:${token.pointPct.xPct}%;top:${token.pointPct.yPct}%;color:${color};">
+      <svg class="capacity-relate-arrow" viewBox="0 0 48 48" aria-hidden="true" style="transform:rotate(${rotationDeg}deg);">
+        <path d="M24 6 39 23H30V42H18V23H9L24 6Z"></path>
+      </svg>
+    </div>
+  `;
+}
+
+function flowVectorForTrial(trial: TrialDefinition, x: number, y: number): { x: number; y: number } {
+  const relation = trial.items[0]?.relation || "right";
+  const dx = x - 50;
+  const dy = y - 50;
+  const len = Math.hypot(dx, dy) || 1;
+  const radial = { x: dx / len, y: dy / len };
+  if (relation === "left") return { x: -1, y: 0 };
+  if (relation === "right") return { x: 1, y: 0 };
+  if (relation === "up") return { x: 0, y: -1 };
+  if (relation === "down") return { x: 0, y: 1 };
+  if (relation === "out") return radial;
+  if (relation === "in") return { x: -radial.x, y: -radial.y };
+  if (relation === "cw") return { x: radial.y, y: -radial.x };
+  return { x: -radial.y, y: radial.x };
+}
+
+function flowColorHex(trial: TrialDefinition): string {
+  if (trial.construct === "BSE") return tokenColorHex(trial.capacityDisplay.colour || trial.colour);
+  return "#dce8ff";
+}
+
+function clamp(value: number, min: number, max: number): number {
+  return Math.max(min, Math.min(max, value));
+}
+
+function renderCentralFlowField(trial: TrialDefinition, visible: boolean): string {
+  const color = flowColorHex(trial);
+  const seed = Math.abs(hashString(trial.id));
+  const relation = trial.items[0]?.relation || "right";
+  const isContract = relation === "in";
+  const isRotate = relation === "cw" || relation === "ccw";
+  const isExpandOrContract = relation === "out" || relation === "in";
+  const isTranslate = !isRotate && !isExpandOrContract;
+  const translationVector = flowVectorForTrial(trial, 50, 50);
+  const perpendicular = { x: -translationVector.y, y: translationVector.x };
+  const shapes = Array.from({ length: 68 }, (_, index) => {
+    const angle = ((index * 137.5 + seed) % 360) * Math.PI / 180;
+    const depth = 0.32 + (((index * 53 + seed) % 100) / 99) * 0.68;
+    const opacity = (trial.construct === "BSE" ? 0.58 : 0.66) + depth * 0.2;
+    const duration = Math.round(1320 - depth * 520 + (index % 5) * 34);
+    const delay = -((index * 47 + seed) % duration);
+    const dotRadius = 0.22 + depth * 0.78;
+    const baseRadial = 5 + ((index * 23 + seed) % 31);
+    const baseX = 50 + Math.cos(angle) * baseRadial;
+    const baseY = 50 + Math.sin(angle) * baseRadial;
+    let fromX = baseX;
+    let fromY = baseY;
+    let toX = baseX;
+    let toY = baseY;
+    let orbitRotation = 0;
+    let dotRadiusValues = `${dotRadius.toFixed(2)};${dotRadius.toFixed(2)}`;
+
+    if (isTranslate) {
+      const lateral = -36 + (((index * 29 + seed) % 100) / 99) * 72;
+      const travel = 44;
+      fromX = 50 - translationVector.x * travel + perpendicular.x * lateral;
+      fromY = 50 - translationVector.y * travel + perpendicular.y * lateral;
+      toX = 50 + translationVector.x * travel + perpendicular.x * lateral;
+      toY = 50 + translationVector.y * travel + perpendicular.y * lateral;
+    } else if (isExpandOrContract) {
+      const innerRadius = 1.4 + (index % 4) * 0.7;
+      const outerRadius = 44;
+      const fromRadius = isContract ? outerRadius : innerRadius;
+      const toRadius = isContract ? innerRadius : outerRadius;
+      fromX = 50 + Math.cos(angle) * fromRadius;
+      fromY = 50 + Math.sin(angle) * fromRadius;
+      toX = 50 + Math.cos(angle) * toRadius;
+      toY = 50 + Math.sin(angle) * toRadius;
+      dotRadiusValues = isContract
+        ? `${(dotRadius * 1.18).toFixed(2)};${(dotRadius * 0.42).toFixed(2)}`
+        : `${(dotRadius * 0.42).toFixed(2)};${(dotRadius * 1.18).toFixed(2)}`;
+    } else {
+      const orbitRadius = 7 + ((index * 19 + seed) % 30);
+      fromX = 50 + Math.cos(angle) * orbitRadius;
+      fromY = 50 + Math.sin(angle) * orbitRadius;
+      toX = fromX;
+      toY = fromY;
+      orbitRotation = relation === "cw" ? 360 : -360;
+    }
+
+    if (index % 5 === 0) {
+      const patchWidth = 0.85 + depth * 1.55;
+      const patchHeight = 0.46 + depth * 0.68;
+      const rotation = (angle * 180) / Math.PI + (isRotate ? 84 : 0);
+      if (isRotate) {
+        return `<g class="central-flow-patch-node" transform="rotate(0 50 50)">
+          <animateTransform attributeName="transform" type="rotate" values="0 50 50;${orbitRotation} 50 50" dur="${duration}ms" begin="${delay}ms" repeatCount="indefinite" />
+          <g transform="translate(${fromX.toFixed(2)} ${fromY.toFixed(2)}) rotate(${rotation.toFixed(2)})">
+            <rect class="central-flow-patch" x="${(-patchWidth / 2).toFixed(2)}" y="${(-patchHeight / 2).toFixed(2)}" width="${patchWidth.toFixed(2)}" height="${patchHeight.toFixed(2)}" rx="0.32" fill="${color}" opacity="${visible ? opacity.toFixed(2) : "0"}"></rect>
+          </g>
+        </g>`;
+      }
+      return `<g class="central-flow-patch-node" transform="translate(${fromX.toFixed(2)} ${fromY.toFixed(2)})">
+        <animateTransform attributeName="transform" type="translate" values="${fromX.toFixed(2)} ${fromY.toFixed(2)};${toX.toFixed(2)} ${toY.toFixed(2)}" dur="${duration}ms" begin="${delay}ms" repeatCount="indefinite" />
+        <g transform="rotate(${rotation.toFixed(2)})">
+          <rect class="central-flow-patch" x="${(-patchWidth / 2).toFixed(2)}" y="${(-patchHeight / 2).toFixed(2)}" width="${patchWidth.toFixed(2)}" height="${patchHeight.toFixed(2)}" rx="0.32" fill="${color}" opacity="${visible ? opacity.toFixed(2) : "0"}">
+          </rect>
+        </g>
+      </g>`;
+    }
+    if (isRotate) {
+      return `<g class="central-flow-dot-node" transform="rotate(0 50 50)">
+        <animateTransform attributeName="transform" type="rotate" values="0 50 50;${orbitRotation} 50 50" dur="${duration}ms" begin="${delay}ms" repeatCount="indefinite" />
+        <circle class="central-flow-dot" cx="${fromX.toFixed(2)}" cy="${fromY.toFixed(2)}" r="${dotRadius.toFixed(2)}" fill="${color}" opacity="${visible ? opacity.toFixed(2) : "0"}"></circle>
+      </g>`;
+    }
+    return `<circle class="central-flow-dot" cx="${fromX.toFixed(2)}" cy="${fromY.toFixed(2)}" r="${dotRadius.toFixed(2)}" fill="${color}" opacity="${visible ? opacity.toFixed(2) : "0"}">
+      <animate attributeName="cx" values="${fromX.toFixed(2)};${toX.toFixed(2)}" dur="${duration}ms" begin="${delay}ms" repeatCount="indefinite" />
+      <animate attributeName="cy" values="${fromY.toFixed(2)};${toY.toFixed(2)}" dur="${duration}ms" begin="${delay}ms" repeatCount="indefinite" />
+      ${isExpandOrContract ? `<animate attributeName="r" values="${dotRadiusValues}" dur="${duration}ms" begin="${delay}ms" repeatCount="indefinite" />` : ""}
+    </circle>`;
+  }).join("");
+  return `
+    <svg class="central-flow-svg" viewBox="0 0 100 100" aria-hidden="true">
+      <defs><clipPath id="flow-disk-${safeSvgId(trial.id)}"><circle cx="50" cy="50" r="39" /></clipPath></defs>
+      <circle class="central-flow-disk" cx="50" cy="50" r="39" />
+      <g clip-path="url(#flow-disk-${safeSvgId(trial.id)})">${visible ? shapes : ""}</g>
+      <circle class="central-flow-ring" cx="50" cy="50" r="39" />
+    </svg>
+  `;
+}
+
+function hashString(input: string): number {
+  let hash = 0;
+  for (let index = 0; index < input.length; index += 1) hash = Math.imul(31, hash) + input.charCodeAt(index);
+  return hash >>> 0;
+}
+
+function capacityArenaSvg(trial: TrialDefinition, stage: TaskStage): string {
+  const visible = stage === "stimulus" || stage === "response";
+  const countdown = capacityCountdownMarkup();
+  const wrapperClass = trial.capacityWrapper === "relate_vectors" ? "is-relate" : trial.capacityWrapper === "optic_flow" ? "is-flow" : "is-resist";
+  const content = trial.capacityWrapper === "optic_flow"
+    ? renderCentralFlowField(trial, visible)
+    : trial.capacityWrapper === "relate_vectors"
+      ? (trial.capacityDisplay.pairTokens || []).map((token) => renderRelateVectorToken(token, visible)).join("")
+      : renderCapacityArrowToken(trial, visible);
+  return `
+    <div class="stimulus-wrap capacity-hub-wrap" aria-label="N-back display">
+      <div class="capacity-hub-arena ${wrapperClass}">
+        <div class="capacity-hub-ring"></div>
+        ${trial.capacityWrapper === "optic_flow" ? "" : renderCapacityMarkers(trial)}
+        ${countdown}
+        ${content}
+      </div>
+    </div>
+  `;
 }
 
 function vectorAngleDegrees(vector: { x: number; y: number }): number {
@@ -1483,12 +1816,13 @@ function renderOpticFlowMaskApertures(trial: TrialDefinition, clipRootId: string
 
 function flowStimulusSvg(trial: TrialDefinition, stage: TaskStage): string {
   const showFixation = stage === "ready" || stage === "fixation" || stage === "stimulus";
+  const showFlow = stage === "stimulus" || stage === "response";
   const clipId = `optic-clip-${safeSvgId(trial.id)}`;
   return `
     <div class="stimulus-wrap is-flow" aria-label="Brief optic-flow display">
       <svg class="stimulus-svg optic-task-svg" viewBox="0 0 100 100" role="img" aria-hidden="true">
         <circle cx="50" cy="50" r="34" class="orbit-line" />
-        ${stage === "stimulus" ? `<g class="optic-apertures">${renderOpticFlowApertures(trial, clipId)}</g>` : ""}
+        ${showFlow ? `<g class="optic-apertures">${renderOpticFlowApertures(trial, clipId)}</g>` : ""}
         ${stage === "mask" ? `<g class="optic-apertures is-mask">${renderOpticFlowMaskApertures(trial, clipId)}</g>` : ""}
         ${showFixation ? renderFixation() : ""}
       </svg>
@@ -1497,10 +1831,11 @@ function flowStimulusSvg(trial: TrialDefinition, stage: TaskStage): string {
 }
 
 function stimulusSvg(trial: TrialDefinition, stage: TaskStage): string {
+  if (trial.capacityWrapper) return capacityArenaSvg(trial, stage);
   if (trial.cellKey.includes("flow")) return flowStimulusSvg(trial, stage);
 
   const showFixation = stage === "ready" || stage === "fixation" || stage === "stimulus";
-  const showArrows = stage === "stimulus";
+  const showArrows = stage === "stimulus" || stage === "response";
   const showMasks = stage === "mask";
   const arrows = trial.items
     .map((item) => {
@@ -1561,6 +1896,9 @@ function responseTargetIcon(option: string): string {
 
 function responseButtonContent(option: string, index: number, optionCount: number): string {
   const label = labelForResponse(option);
+  if (optionCount === 1) {
+    return `<span class="response-label">${label}</span>`;
+  }
   if (optionCount === 2 || optionCount === 4) {
     return `<span class="response-label">${label}</span>${responseTargetIcon(option)}`;
   }
@@ -1586,10 +1924,6 @@ function renderBlockBreak(): string {
           ${example.responseOptions.map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
         </div>
       </section>
-      <div class="block-practice-card">
-        <strong>Optional practice</strong>
-        <p>10 quick trials. No progress score.</p>
-      </div>
       <div class="action-row">
         ${button("Practice first", "start-block-practice", "secondary")}
         ${button("Start training", "resume-block")}
@@ -2116,6 +2450,10 @@ type DashboardTransferModel = {
 };
 
 type ProgressDashboardPresentationModel = {
+  capacityNLevel: number | null;
+  capacityStatus: string;
+  capacityNote: string;
+  nextSupportRoute: string;
   transferRawScore: number | null;
   transferDelta: number | null;
   transferBaseline: number | null;
@@ -2131,7 +2469,8 @@ function evidenceFor(construct: Construct, cellKey: CellKey): CellEvidence | nul
 }
 
 function scoreForEvidence(construct: Construct, cellKey: CellKey): number | null {
-  return nLevelScore(evidenceFor(construct, cellKey)?.currentNLevel ?? evidenceFor(construct, cellKey)?.currentCapacityBps ?? null);
+  const evidence = evidenceFor(construct, cellKey);
+  return nLevelScore(evidence?.stableNLevel ?? evidence?.currentNLevel ?? evidence?.currentCapacityBps ?? null);
 }
 
 function averageScore(values: Array<number | null>): number | null {
@@ -2169,9 +2508,9 @@ function statusForDelta(delta: number | null): string {
 function statusNoteFor(status: string): string {
   if (status === "Strong") return "Stable enough to build on.";
   if (status === "Watch") return "Needs more consistency.";
-  if (status === "Bottleneck") return "Likely limiting transfer.";
-  if (status === "Developing") return "Building steadily.";
-  return "More guided data needed.";
+  if (status === "Bottleneck") return "May be limiting far transfer.";
+  if (status === "Developing") return "Evidence is building.";
+  return "More guided transfer data needed.";
 }
 
 function transferStatus(score: number | null): string {
@@ -2262,6 +2601,27 @@ function confidenceForEvidence(evidence: CellEvidence | null): string {
   return evidence.validTrials >= 360 ? "Reliable" : "Becoming reliable";
 }
 
+function capacityStatusForModel(input: { capacityN: number | null; transferScore: number | null; confidence: string }): string {
+  if (input.capacityN === null || !input.confidence) return "Calibrating";
+  if (input.transferScore !== null && input.transferScore >= 80) return "Transfer holding";
+  if (input.transferScore !== null) return "Transfer developing";
+  return "N-level emerging";
+}
+
+function capacityNoteForStatus(status: string): string {
+  if (status === "Transfer holding") return "Stable task structure is surviving format changes.";
+  if (status === "Transfer developing") return "Capacity is present; transfer evidence is still being built.";
+  if (status === "N-level emerging") return "Stable N-level is emerging before full transfer evidence.";
+  return "Guided sessions are still building a baseline.";
+}
+
+function nextSupportRouteForStatus(status: string): string {
+  if (status === "Transfer holding") return "Next: add mixed, delayed, or proof checks.";
+  if (status === "Transfer developing") return "Next: continue the guided transfer route.";
+  if (status === "N-level emerging") return "Next: keep the daily guided route stable.";
+  return "Next: complete more guided sessions.";
+}
+
 function progressDashboardPresentationModel(): ProgressDashboardPresentationModel {
   const snapshot = state.progress.latestSnapshot;
   const signalScore = scoreForEvidence("ACC", "arrow_abs");
@@ -2286,11 +2646,17 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
   const bindingRelative = deltaFromBaseline("patternBinding", bindingScore);
   const wrapperRelative = deltaFromBaseline("wrapperRecovery", wrapperRecoveryScore);
   const delayedRelative = deltaFromBaseline("delayedRecovery", returnScore);
+  const confidence = confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "ACC") || null);
+  const capacityStatus = capacityStatusForModel({ capacityN: signalScore, transferScore: transferReadiness, confidence });
   return {
+    capacityNLevel: signalScore,
+    capacityStatus,
+    capacityNote: capacityNoteForStatus(capacityStatus),
+    nextSupportRoute: nextSupportRouteForStatus(capacityStatus),
     transferRawScore: transferReadiness,
     transferDelta: transferRelative.delta,
     transferBaseline: transferRelative.baseline,
-    confidence: confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "ACC") || null),
+    confidence,
     trend: [
       { session: "Start", score: overallScore === null ? null : 100, transfer: null },
       { session: `S${Math.max(1, state.progress.sessionNumber - 1)}`, score: overallScore, transfer: transferReadiness },
@@ -2299,8 +2665,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     skills: [
       {
         metric: "cognitiveBandwidth",
-        label: "Relational Memory",
-        subtitle: "Track relation-only n-back patterns across arrows and flow.",
+        label: "Relational Control",
+        subtitle: "Keep the n-back relation stable across arrow and optic-flow displays.",
         rawScore: signalScore,
         scoreDelta: cognitiveRelative.delta,
         baseline: cognitiveRelative.baseline,
@@ -2313,7 +2679,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       {
         metric: "frameBandwidth",
         label: "Frame Transfer",
-        subtitle: "Keep n-back level when the rule changes from absolute to relational.",
+        subtitle: "Keep the task rule stable when the frame changes from absolute to relational.",
         rawScore: relationalScore,
         scoreDelta: frameRelative.delta,
         baseline: frameRelative.baseline,
@@ -2325,8 +2691,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "patternBinding",
-        label: "Binding Memory",
-        subtitle: "Track relation and colour together in n-back sequences.",
+        label: "Binding Under Interference",
+        subtitle: "Keep relation and colour bound together while the n-back demand continues.",
         rawScore: bindingScore,
         scoreDelta: bindingRelative.delta,
         baseline: bindingRelative.baseline,
@@ -2429,6 +2795,10 @@ function dashboardScore(value: number | null): string {
   return value === null ? "--" : signedValue(value);
 }
 
+function dashboardNLevel(value: number | null): string {
+  return value === null ? "--" : `${value}`;
+}
+
 function dashboardChange(value: number | null): string {
   return value === null ? "" : signedValue(value);
 }
@@ -2442,8 +2812,9 @@ function dashboardDeltaPercent(value: number | null): number {
 }
 
 function transferPillTone(status: string): string {
-  if (status === "Strong") return "green";
+  if (status === "Strong" || status === "Transfer holding") return "green";
   if (status === "Bottleneck") return "red";
+  if (status === "Calibrating" || status === "N-level emerging") return "blue";
   return "orange";
 }
 
@@ -2658,8 +3029,8 @@ function renderDashboardHeader(title: string, mode: ProgressDashboardMode, note:
 function metricBoundaryStrip(): string {
   return `
     <section class="metric-boundary-strip">
-      <span>${miniIcon("shield")}Training estimate only</span>
-      <small>N-levels and transfer scores are context-limited estimates from specific tasks, not fixed traits, IQ scores, credentials, or institutional selection evidence.</small>
+      <span>${miniIcon("shield")}Capacity evidence only</span>
+      <small>These are context-limited Trident-G training estimates: stable N-level, transfer checks, timing quality and confidence. They are not IQ scores, diagnoses, credentials, or selection evidence.</small>
     </section>
   `;
 }
@@ -2714,7 +3085,7 @@ function renderProgressLevelCards(model: ProgressDashboardPresentationModel): st
             <p>${escapeHtml(skill.subtitle)}</p>
           </div>
           <div class="progress-level-score">
-            <div class="progress-level-num"><span>${dashboardScore(skill.rawScore)}</span><small>N</small></div>
+            <div class="progress-level-num"><span>${dashboardNLevel(skill.rawScore)}</span><small>N</small></div>
             <div class="progress-level-bar"><i style="width:${dashboardDeltaPercent(skill.scoreDelta)}%"></i></div>
           </div>
           <div class="progress-level-status">
@@ -2772,24 +3143,24 @@ function renderEarlyProgressDashboard(): string {
 
 function renderOverviewDashboard(): string {
   const model = progressDashboardPresentationModel();
-  const transferState = transferStatus(model.transferDelta);
+  const transferState = model.capacityStatus;
   const transferTone = transferPillTone(transferState);
   return `
     <section class="dashboard-screen dashboard-overview progress-score-page">
-      ${renderDashboardHeader("Progress", "overview", "Track transfer, bottlenecks and Working Memory-control levels.")}
+      ${renderDashboardHeader("Progress", "overview", "Track capacity under pressure and far-transfer evidence.")}
       <section class="progress-readiness-card">
         <div class="progress-readiness-left">
-          <h2>Working Memory Capacity</h2>
+          <h2>Capacity Under Pressure</h2>
           <div class="progress-readiness-score">
-            <span class="num ${(model.skills[0]?.rawScore ?? null) === null ? "is-placeholder" : ""}">${dashboardScore(model.skills[0]?.rawScore ?? null)}</span><span class="denom">N</span>
+            <span class="num ${model.capacityNLevel === null ? "is-placeholder" : ""}">${dashboardNLevel(model.capacityNLevel)}</span><span class="denom">stable N</span>
             <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
           </div>
-          ${(model.skills[0]?.rawScore ?? null) === null ? "" : `<p>Current stable n-back level.</p>`}
+          <p>${escapeHtml(model.capacityNote)}</p>
         </div>
         <div class="progress-readiness-mid"></div>
         <div class="progress-readiness-trend">
           ${transferDeltaSparkline(model.transferTrend)}
-          <p>${(model.skills[0]?.rawScore ?? null) === null ? "Calibrating baseline" : "Current stable n-level"}</p>
+          <p>${escapeHtml(model.nextSupportRoute)}</p>
         </div>
         <div class="progress-readiness-icon" aria-hidden="true">
           <img src="${assetPath("trident-g-fpt-logo.png")}" alt="" />
@@ -2950,18 +3321,20 @@ function beginSession(): void {
   state.feedback = "";
   state.taskStage = "ready";
   state.responseStartedAt = 0;
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
   state.staircaseLevels = {};
   state.sessionMode = "protocol";
-  state.sessionSource = phase === "P6_DELAYED" ? "recheck" : "guided";
+  state.sessionSource = phase === "P11_DELAYED" || phase === "P6_DELAYED" ? "recheck" : "guided";
   state.progressionScored = true;
   state.guidedReturn = null;
   pendingBlockSubmissions = [];
   go("block-break");
 }
 
-function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
+function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play", speed: CapacitySpeed = "slow", phase?: PhaseLabel): void {
   clearStageTimer();
-  state.sessionPlan = createFreePlaySessionPlan(construct, cellKey);
+  state.sessionPlan = createFreePlaySessionPlan(construct, cellKey, speed, phase);
   state.activeBlockIndex = 0;
   state.activeTrialIndex = 0;
   state.blockResults = [];
@@ -2969,6 +3342,8 @@ function prepareFreePlay(construct: Construct, cellKey: CellKey, source: Session
   state.feedback = "";
   state.taskStage = "ready";
   state.responseStartedAt = 0;
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
   state.staircaseLevels = {};
   state.sessionMode = "free";
   state.sessionSource = source;
@@ -2976,10 +3351,10 @@ function prepareFreePlay(construct: Construct, cellKey: CellKey, source: Session
   state.guidedReturn = null;
 }
 
-function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
-  prepareFreePlay(construct, cellKey, source);
+function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play", speed: CapacitySpeed = "slow", phase?: PhaseLabel): void {
+  prepareFreePlay(construct, cellKey, source, speed, phase);
   go("task");
-  schedule(500, startTrialPresentation);
+  startTaskCountdown();
 }
 
 function startGuidedInstructions(): void {
@@ -2996,8 +3371,8 @@ function startEasierInstructions(): void {
   go("pre-task-instructions");
 }
 
-function startFreeInstructions(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
-  state.pendingTaskStart = { kind: "free", construct, cellKey, source };
+function startFreeInstructions(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play", speed: CapacitySpeed = "slow", phase?: PhaseLabel): void {
+  state.pendingTaskStart = { kind: "free", construct, cellKey, source, speed, phase };
   go("pre-task-instructions");
 }
 
@@ -3009,11 +3384,11 @@ function startPendingTask(): void {
     return;
   }
   if (pending.kind === "easier") {
-    prepareFreePlay("ACC", PHASE_CELL[state.progress.currentPhase], "easier");
+    prepareFreePlay("ACC", PHASE_CELL[state.progress.currentPhase], "easier", "slow");
     go("practice-intro");
     return;
   }
-  prepareFreePlay(pending.construct, pending.cellKey, pending.source);
+  prepareFreePlay(pending.construct, pending.cellKey, pending.source, pending.speed || "slow", pending.phase);
   go("practice-intro");
 }
 
@@ -3032,12 +3407,14 @@ function startCurrentBlockPractice(): void {
   state.feedback = "";
   state.taskStage = "ready";
   state.responseStartedAt = 0;
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
   state.staircaseLevels = {};
   state.sessionMode = "free";
   state.sessionSource = "guided_practice";
   state.progressionScored = false;
   go("task");
-  schedule(500, startTrialPresentation);
+  startTaskCountdown();
 }
 
 function restoreGuidedReturn(): boolean {
@@ -3050,8 +3427,10 @@ function restoreGuidedReturn(): boolean {
   state.feedback = "";
   state.taskStage = "ready";
   state.responseStartedAt = 0;
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
   state.sessionMode = "protocol";
-  state.sessionSource = state.progress.currentPhase === "P6_DELAYED" ? "recheck" : "guided";
+  state.sessionSource = state.progress.currentPhase === "P11_DELAYED" || state.progress.currentPhase === "P6_DELAYED" ? "recheck" : "guided";
   state.progressionScored = true;
   state.guidedReturn = null;
   return true;
@@ -3060,21 +3439,59 @@ function restoreGuidedReturn(): boolean {
 function beginRestoredGuidedBlock(): void {
   if (!restoreGuidedReturn()) return;
   go("task");
-  schedule(350, startTrialPresentation);
+  startTaskCountdown();
 }
 
-const NBACK_SOA_MS = 3000;
+function setActiveTaskSpeed(speed: CapacitySpeed): void {
+  const plan = state.sessionPlan;
+  const block = plan?.miniBlocks[state.activeBlockIndex];
+  if (!plan || !block) return;
+  const soaMs = TASK_SPEED_SOA_MS[speed];
+  const exposureMs = Math.round(soaMs * TASK_SPEED_DISPLAY_RATIO);
+  block.speed = speed;
+  plan.trials
+    .filter((trial) => trial.miniBlockId === block.id && trial.trialIndex >= state.activeTrialIndex)
+    .forEach((trial) => {
+      trial.capacitySpeed = speed;
+      trial.soaMs = soaMs;
+      trial.exposureMsRequested = exposureMs;
+    });
+  render();
+}
+
+function startTaskCountdown(stepIndex = 0): void {
+  if (!activeTrial() || state.view !== "task") return;
+  clearStageTimer();
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
+  state.countdownStep = Math.max(0, Math.min(COUNTDOWN_STEPS.length - 1, stepIndex));
+  setTaskStage("countdown");
+  state.stageTimer = window.setTimeout(() => {
+    state.stageTimer = null;
+    if (state.countdownStep < COUNTDOWN_STEPS.length - 1) {
+      startTaskCountdown(state.countdownStep + 1);
+    } else {
+      startTrialPresentation();
+    }
+  }, COUNTDOWN_STEP_MS);
+}
 
 function startTrialPresentation(): void {
   const trial = activeTrial();
   if (!trial || state.view !== "task") return;
+  clearStageTimer();
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
   state.responseStartedAt = performance.now();
   setTaskStage("stimulus");
-  schedule(trial.exposureMsRequested, () => {
-    setTaskStage("mask");
-    const remainingWindowMs = Math.max(0, NBACK_SOA_MS - trial.exposureMsRequested);
-    schedule(remainingWindowMs, () => answerTrial(null));
-  });
+  state.displayTimer = window.setTimeout(() => {
+    state.displayTimer = null;
+    if (state.taskStage === "stimulus") setTaskStage("response");
+  }, trial.exposureMsRequested);
+  state.stageTimer = window.setTimeout(() => {
+    state.stageTimer = null;
+    finishTrialWindow();
+  }, trial.soaMs);
 }
 
 function continueAfterFeedback(): void {
@@ -3082,8 +3499,17 @@ function continueAfterFeedback(): void {
   state.activeTrialIndex += 1;
   state.taskStage = "ready";
   state.responseStartedAt = 0;
+  state.pendingTrialResponse = null;
+  state.pendingTrialRtMs = null;
   if (state.activeTrialIndex >= currentBlockTrialCount()) {
     if (state.sessionMode === "free") {
+      if (state.activeBlockIndex + 1 < (state.sessionPlan?.miniBlocks.length || 1)) {
+        state.activeBlockIndex += 1;
+        state.activeTrialIndex = 0;
+        state.blockResults = [];
+        go("block-break");
+        return;
+      }
       state.activeTrialIndex = 0;
       completeSession();
       return;
@@ -3102,7 +3528,11 @@ function continueAfterFeedback(): void {
     return;
   }
   go("task");
-  schedule(350, startTrialPresentation);
+  setTaskStage("blank");
+  state.stageTimer = window.setTimeout(() => {
+    state.stageTimer = null;
+    startTrialPresentation();
+  }, INTER_STIMULUS_BLANK_MS);
 }
 
 function endCurrentBlock(): void {
@@ -3184,12 +3614,8 @@ function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results
 }
 
 function balancedAccuracyForBlock(results: TrialResult[]): number {
-  const scored = results.filter((result) => !result.trial.isWarmup);
-  const targets = scored.filter((result) => result.trial.isMatch);
-  const nonTargets = scored.filter((result) => !result.trial.isMatch);
-  const hitRate = targets.length ? targets.filter((result) => result.response === "MATCH").length / targets.length : 0;
-  const correctRejectionRate = nonTargets.length ? nonTargets.filter((result) => result.response !== "MATCH").length / nonTargets.length : 0;
-  return targets.length || nonTargets.length ? (hitRate + correctRejectionRate) / 2 : 0;
+  if (!results.length) return 0;
+  return results.filter((result) => result.isCorrect).length / results.length;
 }
 
 function updateGuidedNLevel(block: MiniBlockPlan, results: TrialResult[]): void {
@@ -3359,19 +3785,41 @@ function completeSession(): void {
 }
 
 function answerTrial(response: string | null): void {
-  if (state.taskStage !== "stimulus" && state.taskStage !== "mask" && state.taskStage !== "response") return;
-  clearStageTimer();
+  if (response === null) return;
+  if (state.taskStage !== "stimulus" && state.taskStage !== "response") return;
+  if (state.pendingTrialResponse) return;
   const trial = activeTrial();
   if (!trial) return;
+  state.pendingTrialResponse = response;
+  state.pendingTrialRtMs = Math.max(0, Math.round(performance.now() - state.responseStartedAt));
+  if (response === trial.correctResponse) {
+    playFeedbackSound("correct");
+  } else {
+    if (state.stageTimer !== null) {
+      window.clearTimeout(state.stageTimer);
+      state.stageTimer = null;
+    }
+    finishTrialWindow();
+    return;
+  }
+  render();
+}
+
+function finishTrialWindow(): void {
+  if (state.displayTimer !== null) {
+    window.clearTimeout(state.displayTimer);
+    state.displayTimer = null;
+  }
+  const trial = activeTrial();
+  if (!trial) return;
+  const response = state.pendingTrialResponse;
   const isCorrect = response === trial.correctResponse;
   state.feedback = isCorrect ? "correct" : "incorrect";
-  state.taskStage = "feedback";
-  const responseAt = performance.now();
   const result: TrialResult = {
     trial,
     response,
     isCorrect,
-    rtMs: response === null ? null : Math.round(responseAt - state.responseStartedAt),
+    rtMs: state.pendingTrialRtMs,
     exposureMsActual: trial.exposureMsRequested,
     actualStimulusFrames: Math.max(1, Math.round(trial.exposureMsRequested / 16.67)),
     deviceRefreshRateEstimate: state.progress.deviceReadiness?.refreshRateHz || 60,
@@ -3380,18 +3828,21 @@ function answerTrial(response: string | null): void {
   };
   state.blockResults.push(result);
   state.sessionResults.push(result);
-  render();
-  schedule(260, continueAfterFeedback);
+  if (!isCorrect) playFeedbackSound("incorrect");
+  continueAfterFeedback();
 }
 
 appRoot.addEventListener("click", async (event) => {
   const target = event.target as HTMLElement;
+  if (state.soundOn) feedbackAudio();
   const freeCard = target.closest<HTMLElement>("[data-free-construct][data-free-cell]");
   if (freeCard) {
     startFreeInstructions(
       freeCard.dataset.freeConstruct as Construct,
       freeCard.dataset.freeCell as CellKey,
       "free_play",
+      freeCard.dataset.freeSpeed === "fast" ? "fast" : "slow",
+      freeCard.dataset.freePhase as PhaseLabel | undefined,
     );
     return;
   }
@@ -3503,6 +3954,10 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "nav-tutorial") go("briefing");
   else if (action === "nav-free-play") go("free-play");
   else if (action === "nav-free-play-formats") go("free-play-formats");
+  else if (action === "set-task-speed") {
+    const speed = target.closest<HTMLElement>("[data-speed]")?.dataset.speed === "fast" ? "fast" : "slow";
+    setActiveTaskSpeed(speed);
+  }
   else if (action === "nav-coaching") go("coaching");
   else if (action === "open-coaching-checkout") window.location.href = COACHING_CHECKOUT_URL;
   else if (action === "nav-proof") go("proof");
@@ -3540,7 +3995,7 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "resume-block") {
     state.taskStage = "ready";
     go("task");
-    schedule(350, startTrialPresentation);
+    startTaskCountdown();
   }
   else if (action === "finish-complete") go("today");
   else if (action === "complete-break") {
@@ -3555,6 +4010,7 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "end-block") endCurrentBlock();
   else if (action === "toggle-sound") {
     state.soundOn = !state.soundOn;
+    if (state.soundOn) playFeedbackSound("enabled");
     render();
   }
   else if (action === "toggle-style") {
@@ -3595,12 +4051,14 @@ window.addEventListener("keydown", (event) => {
   if (!trial) return;
   if ((event.code === "Space" || event.code === "Enter") && trial.responseOptions.includes("MATCH")) {
     event.preventDefault();
+    if (state.soundOn) feedbackAudio();
     answerTrial("MATCH");
     return;
   }
   const number = Number(event.key);
   if (Number.isInteger(number) && number >= 1 && number <= trial.responseOptions.length) {
     event.preventDefault();
+    if (state.soundOn) feedbackAudio();
     answerTrial(trial.responseOptions[number - 1]);
   }
 });

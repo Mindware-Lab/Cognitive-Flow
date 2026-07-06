@@ -4,6 +4,9 @@ import { hashSeed, mulberry32, shuffle } from "./random";
 import { INITIAL_STAIRCASE_LEVEL, clampNLevel } from "./staircase";
 import type {
   BseToken,
+  CapacitySpeed,
+  CapacityTargetModality,
+  CapacityWrapper,
   CanonicalRelation,
   CellKey,
   Construct,
@@ -26,11 +29,33 @@ import type {
 
 const MODEL_VERSION = "wm-nback-v0.1";
 const DISPLAYED_BASE_TRIALS = 20;
-const EXPOSURE_MS = 1950;
+const HUB_DISPLAY_RATIO = 0.65;
+const HUB_SOA_MS: Record<CapacitySpeed, number> = {
+  slow: 3000,
+  fast: 1400,
+};
+const DEFAULT_SPEED: CapacitySpeed = "slow";
+const EXPOSURE_MS = Math.round(HUB_SOA_MS.slow * HUB_DISPLAY_RATIO);
+const HUB_ARENA_RADIUS_PCT = 28;
 const TOKEN_COLORS: TokenColor[] = ["blue", "yellow", "green", "purple"];
 const ABS_RELATIONS: DirectionRelation[] = ["left", "right", "up", "down"];
 const RADIAL_RELATIONS: DirectionRelation[] = ["out", "in"];
 const TANGENTIAL_RELATIONS: DirectionRelation[] = ["cw", "ccw"];
+const RESIST_CARDINAL_ANGLES = [-90, 0, 90, 180];
+const RELATE_VECTOR_MARKER_ANGLES = [-90, -45, 0, 45, 90, 135, 180, 225];
+const RELATE_VECTOR_ALIGNMENTS = [
+  { key: "vertical", label: "Vertical", markerIndices: [0, 4], axisDeg: 90 },
+  { key: "diagonal_left", label: "Diagonal left", markerIndices: [1, 5], axisDeg: 135 },
+  { key: "horizontal", label: "Horizontal", markerIndices: [2, 6], axisDeg: 180 },
+  { key: "diagonal_right", label: "Diagonal right", markerIndices: [3, 7], axisDeg: 225 },
+] as const;
+const RELATE_VECTOR_RELATIONS = [
+  { key: "toward", label: "Toward" },
+  { key: "away", label: "Away" },
+  { key: "same", label: "Same direction" },
+  { key: "diagonal", label: "Diagonal" },
+] as const;
+const RESIST_VECTOR_SYMBOLS = ["Up", "Right", "Down", "Left"] as const;
 
 type Token = {
   relation: CanonicalRelation;
@@ -38,6 +63,176 @@ type Token = {
   colour: TokenColor | null;
   family: RelationFamily;
 };
+
+type CapacityReferenceTrial = {
+  trialIndex: number;
+  isMatch: boolean;
+  isLure: boolean;
+  lureMatchedModality: string | null;
+  canonKey: string;
+  relation: CanonicalRelation;
+  renderRelation: DirectionRelation;
+  relationFamily: RelationFamily;
+  display: TrialDefinition["capacityDisplay"];
+};
+
+function randomInt(random: () => number, min: number, max: number): number {
+  return Math.floor(random() * (max - min + 1)) + min;
+}
+
+function normalizeAngleDeg(value: number): number {
+  const normalized = value % 360;
+  return normalized < 0 ? normalized + 360 : normalized;
+}
+
+function markerPositionForAngle(thetaDeg: number, radiusPct = HUB_ARENA_RADIUS_PCT): { xPct: number; yPct: number } {
+  const theta = (thetaDeg * Math.PI) / 180;
+  return {
+    xPct: 50 + radiusPct * Math.cos(theta),
+    yPct: 50 + radiusPct * Math.sin(theta),
+  };
+}
+
+function selectIndicesPreferNonAdjacent(
+  random: () => number,
+  candidates: number[],
+  targetCount: number,
+  { avoidFinalPair = false, totalTrials = 0, allowFallback = true } = {},
+): number[] {
+  if (!targetCount || !candidates.length) return [];
+  let best: number[] = [];
+  for (let attempt = 0; attempt < 120; attempt += 1) {
+    const selected: number[] = [];
+    const ordered = shuffle(random, candidates);
+    for (const value of ordered) {
+      const leftTaken = selected.includes(value - 1);
+      const rightTaken = selected.includes(value + 1);
+      const finalPairConflict = avoidFinalPair && (
+        (value === totalTrials - 1 && selected.includes(totalTrials - 2)) ||
+        (value === totalTrials - 2 && selected.includes(totalTrials - 1))
+      );
+      if (leftTaken || rightTaken || finalPairConflict) continue;
+      selected.push(value);
+      if (selected.length >= targetCount) break;
+    }
+    if (selected.length > best.length) best = selected.slice();
+    if (best.length >= targetCount) break;
+  }
+  if (best.length >= targetCount) return best.slice(0, targetCount);
+  if (!allowFallback) return best;
+  const remaining = shuffle(random, candidates.filter((value) => !best.includes(value)));
+  while (best.length < targetCount && remaining.length) best.push(remaining.pop() as number);
+  return best;
+}
+
+function scheduleMatchFlags(totalTrials: number, nLevel: number, random: () => number): boolean[] {
+  const flags = Array.from({ length: totalTrials }, () => false);
+  if (totalTrials <= 0 || nLevel < 1 || nLevel >= totalTrials) return flags;
+  const eligible = Array.from({ length: totalTrials - nLevel }, (_, index) => index + nLevel);
+  const requested = Math.round(eligible.length * 0.3);
+  const maxNoAdjacent = Math.ceil(eligible.length / 2);
+  const target = Math.max(0, Math.min(requested, maxNoAdjacent));
+  const selected = selectIndicesPreferNonAdjacent(random, eligible, target, {
+    avoidFinalPair: true,
+    totalTrials,
+    allowFallback: false,
+  });
+  selected.forEach((index) => {
+    flags[index] = true;
+  });
+  return flags;
+}
+
+function scheduleLureFlags(matchFlags: boolean[], nLevel: number, random: () => number): boolean[] {
+  const totalTrials = matchFlags.length;
+  const flags = Array.from({ length: totalTrials }, () => false);
+  if (nLevel < 1) return flags;
+  const candidates = Array.from({ length: totalTrials - nLevel }, (_, index) => index + nLevel).filter((index) => !matchFlags[index]);
+  const targetCount = Math.max(0, Math.min(Math.round(candidates.length * 0.1), candidates.length));
+  const selected = selectIndicesPreferNonAdjacent(random, candidates, targetCount);
+  selected.forEach((index) => {
+    flags[index] = true;
+  });
+  return flags;
+}
+
+function pickDifferent(previous: number, random: () => number, count = 4): number {
+  let next = randomInt(random, 0, count - 1);
+  while (next === previous) next = randomInt(random, 0, count - 1);
+  return next;
+}
+
+function buildTargetStream(totalTrials: number, nLevel: number, matchFlags: boolean[], random: () => number, count = 4): number[] {
+  const values = Array.from({ length: totalTrials }, () => 0);
+  for (let index = 0; index < totalTrials; index += 1) {
+    if (index < nLevel) {
+      values[index] = randomInt(random, 0, count - 1);
+    } else if (matchFlags[index]) {
+      values[index] = values[index - nLevel];
+    } else {
+      values[index] = pickDifferent(values[index - nLevel], random, count);
+    }
+  }
+  return values;
+}
+
+function buildConstrainedStream(totalTrials: number, nLevel: number, constraints: string[], random: () => number, count = 4): number[] {
+  const values = Array.from({ length: totalTrials }, () => 0);
+  for (let index = 0; index < totalTrials; index += 1) {
+    if (index < nLevel) {
+      values[index] = randomInt(random, 0, count - 1);
+    } else if (constraints[index] === "match") {
+      values[index] = values[index - nLevel];
+    } else if (constraints[index] === "nonmatch") {
+      values[index] = pickDifferent(values[index - nLevel], random, count);
+    } else {
+      values[index] = randomInt(random, 0, count - 1);
+    }
+  }
+  return values;
+}
+
+function buildBindStreams(totalTrials: number, nLevel: number, matchFlags: boolean[], lureFlags: boolean[], random: () => number) {
+  const streams = {
+    loc: Array.from({ length: totalTrials }, () => 0),
+    col: Array.from({ length: totalTrials }, () => 0),
+    sym: Array.from({ length: totalTrials }, () => 0),
+    lureMatchedModality: Array.from({ length: totalTrials }, (): string | null => null),
+  };
+  const targetPair = ["sym", "col"] as const;
+  const nonTarget = "loc";
+  for (let index = 0; index < totalTrials; index += 1) {
+    if (index < nLevel) {
+      streams.loc[index] = randomInt(random, 0, 3);
+      streams.col[index] = randomInt(random, 0, 3);
+      streams.sym[index] = randomInt(random, 0, 3);
+      continue;
+    }
+    if (matchFlags[index]) {
+      targetPair.forEach((modality) => {
+        streams[modality][index] = streams[modality][index - nLevel];
+      });
+      streams[nonTarget][index] = randomInt(random, 0, 3);
+      continue;
+    }
+    if (lureFlags[index]) {
+      const matched = targetPair[randomInt(random, 0, targetPair.length - 1)];
+      const nonMatched = targetPair.find((modality) => modality !== matched) as "sym" | "col";
+      streams[matched][index] = streams[matched][index - nLevel];
+      streams[nonMatched][index] = pickDifferent(streams[nonMatched][index - nLevel], random, 4);
+      streams[nonTarget][index] = random() < 0.5
+        ? streams[nonTarget][index - nLevel]
+        : randomInt(random, 0, 3);
+      streams.lureMatchedModality[index] = matched;
+      continue;
+    }
+    targetPair.forEach((modality) => {
+      streams[modality][index] = pickDifferent(streams[modality][index - nLevel], random);
+    });
+    streams[nonTarget][index] = randomInt(random, 0, 3);
+  }
+  return streams;
+}
 
 function layerForConstruct(construct: Construct): { layer: Layer; publicLabel: PublicLabel; technicalLabel: TechnicalLabel } {
   return construct === "BSE"
@@ -94,8 +289,16 @@ function transitionKeyForCell(phase: PhaseLabel, cellKey: CellKey): TransitionKe
   if ((phase === "P3_ARROW_REL" || phase === "P4_ARROW_REL") && cellKey === "arrow_rel") return "T_FRAME_ARROW";
   if ((phase === "P3_FLOW_REL" || phase === "P4_FLOW_REL") && cellKey === "flow_rel") return "T_FRAME_FLOW";
   if (phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") return "T_CM_REL";
-  if (phase === "P5_MIXED") return "T_MIXED";
-  if (phase === "P6_DELAYED") return "T_DELAYED";
+  if (
+    phase === "P5_ARROW_MIXED" ||
+    phase === "P6_FLOW_MIXED" ||
+    phase === "P5_FLOW_MIXED" ||
+    phase === "P6_ARROW_MIXED" ||
+    phase === "P7_FULL_MIXED" ||
+    phase === "P10_BIND_MIXED" ||
+    phase === "P5_MIXED"
+  ) return "T_MIXED";
+  if (phase === "P11_DELAYED" || phase === "P6_DELAYED") return "T_DELAYED";
   return null;
 }
 
@@ -157,6 +360,192 @@ function itemForToken(random: () => number, token: Token, trialIndex: number): S
   };
 }
 
+function speedSoaMs(speed: CapacitySpeed): number {
+  return HUB_SOA_MS[speed] || HUB_SOA_MS.slow;
+}
+
+function speedDisplayMs(speed: CapacitySpeed): number {
+  return Math.round(speedSoaMs(speed) * HUB_DISPLAY_RATIO);
+}
+
+function speedForBlock(index: number, requested?: CapacitySpeed): CapacitySpeed {
+  if (requested) return requested;
+  return index % 2 === 0 ? "fast" : "slow";
+}
+
+function capacityWrapperForCell(cellKey: CellKey): CapacityWrapper {
+  if (cellKey === "arrow_abs") return "resist_vectors";
+  if (cellKey === "arrow_rel") return "relate_vectors";
+  return "optic_flow";
+}
+
+function capacityTargetForCell(cellKey: CellKey): CapacityTargetModality {
+  return cellKey === "arrow_rel" || cellKey === "flow_rel" ? "rel" : "sym";
+}
+
+function canonicalForResistSym(symIdx: number): { relation: CanonicalRelation; renderRelation: DirectionRelation; family: RelationFamily } {
+  if (symIdx === 0) return { relation: "UP", renderRelation: "up", family: "absolute_direction" };
+  if (symIdx === 1) return { relation: "RIGHT", renderRelation: "right", family: "absolute_direction" };
+  if (symIdx === 2) return { relation: "DOWN", renderRelation: "down", family: "absolute_direction" };
+  return { relation: "LEFT", renderRelation: "left", family: "absolute_direction" };
+}
+
+function canonicalForRelateRelation(relationIdx: number): { relation: CanonicalRelation; renderRelation: DirectionRelation; family: RelationFamily } {
+  if (relationIdx === 0) return { relation: "IN", renderRelation: "in", family: "radial" };
+  if (relationIdx === 1) return { relation: "OUT", renderRelation: "out", family: "radial" };
+  if (relationIdx === 2) return { relation: "RIGHT", renderRelation: "right", family: "absolute_direction" };
+  return { relation: "CW", renderRelation: "cw", family: "tangential" };
+}
+
+function buildRelateVectorDisplay(relationIdx: number, alignmentIdx: number, random: () => number): TrialDefinition["capacityDisplay"] {
+  const markerPositions = RELATE_VECTOR_MARKER_ANGLES.map((angleDeg) => markerPositionForAngle(angleDeg));
+  const alignment = RELATE_VECTOR_ALIGNMENTS[alignmentIdx];
+  const relation = RELATE_VECTOR_RELATIONS[relationIdx];
+  let arrowAngles: number[];
+  if (relation.key === "toward") {
+    arrowAngles = [normalizeAngleDeg(alignment.axisDeg), normalizeAngleDeg(alignment.axisDeg + 180)];
+  } else if (relation.key === "away") {
+    arrowAngles = [normalizeAngleDeg(alignment.axisDeg + 180), normalizeAngleDeg(alignment.axisDeg)];
+  } else if (relation.key === "same") {
+    const baseAngle = RELATE_VECTOR_MARKER_ANGLES[randomInt(random, 0, RELATE_VECTOR_MARKER_ANGLES.length - 1)];
+    arrowAngles = [baseAngle, baseAngle];
+  } else {
+    const diagonalOffset = random() < 0.5 ? -45 : 45;
+    arrowAngles = [normalizeAngleDeg(alignment.axisDeg + diagonalOffset), normalizeAngleDeg(alignment.axisDeg - diagonalOffset)];
+  }
+  return {
+    markerPositions,
+    pairTokens: alignment.markerIndices.map((markerIndex, index) => ({
+      pointPct: markerPositions[markerIndex],
+      angleDeg: arrowAngles[index],
+    })),
+    relationLabel: relation.label,
+    alignmentLabel: alignment.label,
+  };
+}
+
+function buildCapacityReferenceTrials(input: {
+  sessionId: string;
+  miniBlockId: string;
+  construct: Construct;
+  cellKey: CellKey;
+  nLevel: number;
+  trialCount: number;
+}): CapacityReferenceTrial[] {
+  const random = mulberry32(hashSeed(`${input.sessionId}:${input.miniBlockId}:capacity-reference`));
+  const matchFlags = scheduleMatchFlags(input.trialCount, input.nLevel, random);
+  const lureFlags = scheduleLureFlags(matchFlags, input.nLevel, random);
+  const wrapper = capacityWrapperForCell(input.cellKey);
+  const targetModality = capacityTargetForCell(input.cellKey);
+
+  if (input.construct === "BSE") {
+    const streams = buildBindStreams(input.trialCount, input.nLevel, matchFlags, lureFlags, random);
+    const markerPositions = input.cellKey === "arrow_rel" || input.cellKey === "flow_rel"
+      ? RELATE_VECTOR_MARKER_ANGLES.map((angleDeg) => markerPositionForAngle(angleDeg))
+      : RESIST_CARDINAL_ANGLES.map((angleDeg) => markerPositionForAngle(angleDeg));
+    return streams.sym.map((symIdx, index) => {
+      const relation = input.cellKey === "arrow_rel" || input.cellKey === "flow_rel"
+        ? canonicalForRelateRelation(symIdx)
+        : canonicalForResistSym(symIdx);
+      const colour = TOKEN_COLORS[streams.col[index]];
+      const baseDisplay = input.cellKey === "arrow_rel"
+        ? buildRelateVectorDisplay(symIdx, streams.loc[index], random)
+        : {
+            markerPositions,
+            pointPct: markerPositions[streams.loc[index] % markerPositions.length],
+            symbolLabel: RESIST_VECTOR_SYMBOLS[symIdx],
+          };
+      return {
+        trialIndex: index,
+        isMatch: index >= input.nLevel && matchFlags[index],
+        isLure: index >= input.nLevel && lureFlags[index],
+        lureMatchedModality: lureFlags[index] ? streams.lureMatchedModality[index] : null,
+        canonKey: `sym-col:${symIdx}-${streams.col[index]}`,
+        relation: relation.relation,
+        renderRelation: relation.renderRelation,
+        relationFamily: relation.family,
+        display: {
+          ...baseDisplay,
+          colour,
+          pairTokens: baseDisplay.pairTokens?.map((token) => ({ ...token, colour })),
+        },
+      };
+    });
+  }
+
+  if (wrapper === "resist_vectors") {
+    const targetStream = buildTargetStream(input.trialCount, input.nLevel, matchFlags, random, 4);
+    const locConstraints = Array.from({ length: input.trialCount }, () => "free");
+    for (let index = input.nLevel; index < input.trialCount; index += 1) {
+      locConstraints[index] = lureFlags[index] ? "match" : matchFlags[index] ? "free" : "nonmatch";
+    }
+    const locStream = buildConstrainedStream(input.trialCount, input.nLevel, locConstraints, random, 4);
+    const markerPositions = RESIST_CARDINAL_ANGLES.map((angleDeg) => markerPositionForAngle(angleDeg));
+    return targetStream.map((symIdx, index) => {
+      const relation = canonicalForResistSym(symIdx);
+      return {
+        trialIndex: index,
+        isMatch: index >= input.nLevel && matchFlags[index],
+        isLure: index >= input.nLevel && lureFlags[index],
+        lureMatchedModality: lureFlags[index] ? "loc" : null,
+        canonKey: `${targetModality}:${symIdx}`,
+        relation: relation.relation,
+        renderRelation: relation.renderRelation,
+        relationFamily: relation.family,
+        display: {
+          markerPositions,
+          pointPct: markerPositions[locStream[index]],
+          symbolLabel: RESIST_VECTOR_SYMBOLS[symIdx],
+        },
+      };
+    });
+  }
+
+  if (wrapper === "relate_vectors") {
+    const relationStream = buildTargetStream(input.trialCount, input.nLevel, matchFlags, random, 4);
+    const alignmentConstraints = Array.from({ length: input.trialCount }, () => "free");
+    for (let index = input.nLevel; index < input.trialCount; index += 1) {
+      alignmentConstraints[index] = lureFlags[index] ? "match" : matchFlags[index] ? "free" : "nonmatch";
+    }
+    const alignmentStream = buildConstrainedStream(input.trialCount, input.nLevel, alignmentConstraints, random, 4);
+    return relationStream.map((relationIdx, index) => {
+      const relation = canonicalForRelateRelation(relationIdx);
+      return {
+        trialIndex: index,
+        isMatch: index >= input.nLevel && matchFlags[index],
+        isLure: index >= input.nLevel && lureFlags[index],
+        lureMatchedModality: lureFlags[index] ? "sym" : null,
+        canonKey: `rel:${relationIdx}`,
+        relation: relation.relation,
+        renderRelation: relation.renderRelation,
+        relationFamily: relation.family,
+        display: buildRelateVectorDisplay(relationIdx, alignmentStream[index], random),
+      };
+    });
+  }
+
+  const targetStream = buildTargetStream(input.trialCount, input.nLevel, matchFlags, random, 4);
+  return targetStream.map((relationIdx, index) => {
+    const relation = input.cellKey === "flow_rel"
+      ? canonicalForRelateRelation(relationIdx)
+      : canonicalForResistSym(relationIdx);
+    return {
+      trialIndex: index,
+      isMatch: index >= input.nLevel && matchFlags[index],
+      isLure: index >= input.nLevel && lureFlags[index],
+      lureMatchedModality: lureFlags[index] ? "carrier" : null,
+      canonKey: `${targetModality}:${relationIdx}`,
+      relation: relation.relation,
+      renderRelation: relation.renderRelation,
+      relationFamily: relation.family,
+      display: {
+        markerPositions: [],
+        relationLabel: relation.renderRelation,
+      },
+    };
+  });
+}
+
 function buildTrial(input: {
   sessionId: string;
   miniBlockId: string;
@@ -173,6 +562,12 @@ function buildTrial(input: {
   lureType: string | null;
   activeRelations: CanonicalRelation[];
   targetTrialId: string | null;
+  speed: CapacitySpeed;
+  capacityWrapper?: CapacityWrapper;
+  capacityTargetModality?: CapacityTargetModality;
+  capacityCanonKey?: string;
+  soaMs?: number;
+  capacityDisplay?: TrialDefinition["capacityDisplay"];
 }): TrialDefinition {
   const seed = `${input.sessionId}:${input.miniBlockId}:${input.trialIndex}:${input.construct}:${input.phase}:${input.cellKey}`;
   const random = mulberry32(hashSeed(seed));
@@ -188,7 +583,7 @@ function buildTrial(input: {
     transitionKey: transitionKeyForCell(input.phase, input.cellKey),
     isReferenceRecheck: input.isReferenceRecheck,
     ratio: "5:0",
-    exposureMsRequested: EXPOSURE_MS,
+    exposureMsRequested: speedDisplayMs(input.speed),
     majorityCount: 5,
     responseOptions: ["MATCH"],
     correctResponse: input.isMatch ? "MATCH" : null,
@@ -213,6 +608,12 @@ function buildTrial(input: {
     isWarmup: input.isWarmup,
     isMatch: input.isMatch,
     targetTrialId: input.targetTrialId,
+    capacityWrapper: input.capacityWrapper || capacityWrapperForCell(input.cellKey),
+    capacityTargetModality: input.capacityTargetModality || capacityTargetForCell(input.cellKey),
+    capacitySpeed: input.speed,
+    capacityCanonKey: input.capacityCanonKey || `${capacityTargetForCell(input.cellKey)}:${input.token.relation}`,
+    soaMs: input.soaMs || speedSoaMs(input.speed),
+    capacityDisplay: input.capacityDisplay || {},
   };
 }
 
@@ -226,8 +627,38 @@ function buildNBackTrials(input: {
   wrapperId: string;
   nLevel: number;
   trialCount: number;
+  speed?: CapacitySpeed;
 }): TrialDefinition[] {
   const random = mulberry32(hashSeed(`${input.sessionId}:${input.miniBlockId}:nback`));
+  const speed = input.speed || DEFAULT_SPEED;
+  if (input.construct === "ACC" || input.construct === "BSE") {
+    const capacityTrials = buildCapacityReferenceTrials(input);
+    const activeRelations = Array.from(new Set(capacityTrials.map((trial) => trial.relation)));
+    return capacityTrials.map((capacityTrial) => {
+      const token: Token = {
+        relation: capacityTrial.relation,
+        renderRelation: capacityTrial.renderRelation,
+        colour: capacityTrial.display.colour || null,
+        family: capacityTrial.relationFamily,
+      };
+      return buildTrial({
+        ...input,
+        speed,
+        trialIndex: capacityTrial.trialIndex,
+        token,
+        isWarmup: capacityTrial.trialIndex < input.nLevel,
+        isMatch: capacityTrial.isMatch,
+        lureType: capacityTrial.isLure ? `${capacityTrial.lureMatchedModality || "distractor"}_lure` : null,
+        activeRelations,
+        targetTrialId: capacityTrial.trialIndex >= input.nLevel ? `${input.miniBlockId}-${capacityTrial.trialIndex - input.nLevel}` : null,
+        capacityWrapper: capacityWrapperForCell(input.cellKey),
+        capacityTargetModality: capacityTargetForCell(input.cellKey),
+        capacityCanonKey: capacityTrial.canonKey,
+        soaMs: speedSoaMs(speed),
+        capacityDisplay: capacityTrial.display,
+      });
+    });
+  }
   const activeRelations = Array.from(
     new Set(
       relationFamiliesForCell(input.cellKey).flatMap((family) =>
@@ -264,6 +695,7 @@ function buildNBackTrials(input: {
       lureType: isLure ? (input.construct === "BSE" ? "colour_lure" : "relation_lure") : null,
       activeRelations,
       targetTrialId: target ? `${input.miniBlockId}-${index - input.nLevel}` : null,
+      speed,
     }));
   }
   return trials;
@@ -278,6 +710,7 @@ function blockPlan(
   cellKey: CellKey,
   phase: PhaseLabel,
   nLevels: Record<string, number>,
+  speed = speedForBlock(index),
 ): MiniBlockPlan {
   const wrapperId = wrapperIdFor(construct, phase, cellKey, index);
   const nLevel = clampNLevel(nLevels[wrapperId] ?? nLevels[`${construct}:${cellKey}`] ?? INITIAL_STAIRCASE_LEVEL);
@@ -295,24 +728,47 @@ function blockPlan(
     wrapperId,
     nLevel,
     layer: construct === "BSE" ? "binding_memory" : "relational_memory",
+    speed,
   };
 }
 
 function cellsForPhase(phase: PhaseLabel): CellKey[] {
-  if (phase === "P5_MIXED" || phase === "P6_DELAYED") return ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"];
+  if (phase === "P5_ARROW_MIXED" || phase === "P6_ARROW_MIXED") return ["arrow_abs", "arrow_rel"];
+  if (phase === "P6_FLOW_MIXED" || phase === "P5_FLOW_MIXED") return ["flow_abs", "flow_rel"];
+  if (phase === "P7_FULL_MIXED" || phase === "P10_BIND_MIXED" || phase === "P11_DELAYED" || phase === "P5_MIXED" || phase === "P6_DELAYED") return ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"];
   return [PHASE_CELL[phase]];
+}
+
+function isBindingPhase(phase: PhaseLabel): boolean {
+  return phase === "P8_BIND_ARROW_REL" || phase === "P9_BIND_FLOW_REL" || phase === "P8_BIND_FLOW_REL" || phase === "P9_BIND_ARROW_REL" || phase === "P10_BIND_MIXED";
 }
 
 export function miniBlockPlansForPhase(phase: PhaseLabel, sessionSeed: string, nLevels: Record<string, number> = {}): MiniBlockPlan[] {
   const random = mulberry32(hashSeed(`${sessionSeed}:${phase}:blocks`));
   const phaseCells = cellsForPhase(phase);
   const nextCell = (offset: number) => phaseCells[offset % phaseCells.length];
-  const relLabel = phase === "P5_MIXED" || phase === "P6_DELAYED" ? "Mixed Relational Memory" : "Relational Memory";
+  const constructForBlock = (index: number): Construct => {
+    if (isBindingPhase(phase)) return "BSE";
+    return index === 4 ? "BSE" : "ACC";
+  };
+  const labelForBlock = (index: number): string => {
+    if (isBindingPhase(phase)) return `Binding Memory ${index}`;
+    if (
+      phase === "P5_ARROW_MIXED" ||
+      phase === "P6_FLOW_MIXED" ||
+      phase === "P5_FLOW_MIXED" ||
+      phase === "P6_ARROW_MIXED" ||
+      phase === "P7_FULL_MIXED" ||
+      phase === "P5_MIXED" ||
+      phase === "P6_DELAYED"
+    ) return `Mixed Relational Memory ${index}`;
+    return `Relational Memory ${index}`;
+  };
   return [
-    blockPlan("rel-1", 1, "ACC", `${relLabel} 1`, PHASE_INSTRUCTIONS[phase], nextCell(Math.floor(random() * phaseCells.length)), phase, nLevels),
-    blockPlan("rel-2", 2, "ACC", `${relLabel} 2`, "Same n-back rule, new sequence.", nextCell(1), phase, nLevels),
-    blockPlan("rel-3", 3, "ACC", `${relLabel} 3`, "One more relation-only n-back block before binding.", nextCell(2), phase, nLevels),
-    blockPlan("bind-1", 4, "BSE", "Binding Memory", "Track the relation and the colour together.", nextCell(3), phase, nLevels),
+    blockPlan("rel-1", 1, constructForBlock(1), labelForBlock(1), PHASE_INSTRUCTIONS[phase], nextCell(Math.floor(random() * phaseCells.length)), phase, nLevels),
+    blockPlan("rel-2", 2, constructForBlock(2), labelForBlock(2), "Same n-back rule, new sequence.", nextCell(1), phase, nLevels),
+    blockPlan("rel-3", 3, constructForBlock(3), labelForBlock(3), isBindingPhase(phase) ? "Keep relation and colour bound together." : "One more relation-only n-back block before binding.", nextCell(2), phase, nLevels),
+    blockPlan("bind-1", 4, constructForBlock(4), labelForBlock(4), isBindingPhase(phase) ? "Track the relation and the colour together." : "Track the relation and the colour together.", nextCell(3), phase, nLevels),
   ];
 }
 
@@ -327,6 +783,7 @@ export function generateTrial(
   conditionOverride?: TrialCondition,
 ): TrialDefinition {
   const nLevel = clampNLevel(conditionOverride?.nLevel ?? INITIAL_STAIRCASE_LEVEL);
+  const speed = conditionOverride?.speed || DEFAULT_SPEED;
   return buildNBackTrials({
     sessionId,
     miniBlockId,
@@ -337,6 +794,7 @@ export function generateTrial(
     wrapperId: wrapperIdFor(construct, phase, cellKey),
     nLevel,
     trialCount: DISPLAYED_BASE_TRIALS + nLevel,
+    speed,
   })[trialIndex];
 }
 
@@ -355,41 +813,57 @@ export function createSessionPlan(
     construct: block.construct,
     phase,
     cellKey: block.cells[0],
-    isReferenceRecheck: phase === "P6_DELAYED",
+    isReferenceRecheck: phase === "P11_DELAYED" || phase === "P6_DELAYED",
     wrapperId: block.wrapperId,
     nLevel: block.nLevel,
     trialCount: block.trialCount,
+    speed: block.speed,
   }));
   return { sessionId, sessionNumber, phase, phaseStatus, nominalBand, miniBlocks, trials };
 }
 
-export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey): SessionPlan {
-  const phase: PhaseLabel = cellKey === "flow_abs" ? "P2_FLOW_ABS" : cellKey === "arrow_rel" ? "P3_ARROW_REL" : cellKey === "flow_rel" ? "P4_FLOW_REL" : "P1_ARROW_ABS";
-  const sessionId = `wm-free-${construct}-${cellKey}-${Date.now()}`;
-  const wrapperId = wrapperIdFor(construct, phase, cellKey, 1);
+export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey, speed: CapacitySpeed = DEFAULT_SPEED, phaseOverride?: PhaseLabel): SessionPlan {
+  const phase: PhaseLabel = phaseOverride || (cellKey === "mixed" ? "P7_FULL_MIXED" : cellKey === "flow_abs" ? "P2_FLOW_ABS" : cellKey === "arrow_rel" ? "P3_ARROW_REL" : cellKey === "flow_rel" ? "P4_FLOW_REL" : "P1_ARROW_ABS");
+  const sessionId = `wm-free-${construct}-${phase}-${cellKey}-${Date.now()}`;
   const nLevel = INITIAL_STAIRCASE_LEVEL;
-  const block: MiniBlockPlan = {
-    id: "free-1",
-    index: 1,
-    construct,
-    label: construct === "BSE" ? "Binding Memory Practice" : "Relational Memory Practice",
-    instruction: "Practice only. This does not change your guided progress.",
-    cells: Array(DISPLAYED_BASE_TRIALS + nLevel).fill(cellKey),
-    trialCount: DISPLAYED_BASE_TRIALS + nLevel,
-    currentTrials: DISPLAYED_BASE_TRIALS + nLevel,
-    referenceTrials: 0,
-    wrapperId,
-    nLevel,
-    layer: construct === "BSE" ? "binding_memory" : "relational_memory",
-  };
+  const phaseCells = cellKey === "mixed" ? cellsForPhase(phase) : [cellKey];
+  const miniBlocks = phaseCells.map((phaseCell, index): MiniBlockPlan => {
+    const wrapperId = wrapperIdFor(construct, phase, phaseCell, index + 1);
+    return {
+      id: `free-${index + 1}`,
+      index: index + 1,
+      construct,
+      label: construct === "BSE" ? `Binding Memory Practice ${index + 1}` : `Relational Memory Practice ${index + 1}`,
+      instruction: "Practice only. This does not change your guided progress.",
+      cells: Array(DISPLAYED_BASE_TRIALS + nLevel).fill(phaseCell),
+      trialCount: DISPLAYED_BASE_TRIALS + nLevel,
+      currentTrials: DISPLAYED_BASE_TRIALS + nLevel,
+      referenceTrials: 0,
+      wrapperId,
+      nLevel,
+      layer: construct === "BSE" ? "binding_memory" : "relational_memory",
+      speed,
+    };
+  });
   return {
     sessionId,
     sessionNumber: 0,
     phase,
     phaseStatus: "active",
     nominalBand: "free practice",
-    miniBlocks: [block],
-    trials: buildNBackTrials({ sessionId, miniBlockId: block.id, construct, phase, cellKey, isReferenceRecheck: false, wrapperId, nLevel, trialCount: block.trialCount }),
+    miniBlocks,
+    trials: miniBlocks.flatMap((block) => buildNBackTrials({
+      sessionId,
+      miniBlockId: block.id,
+      construct,
+      phase,
+      cellKey: block.cells[0],
+      isReferenceRecheck: false,
+      wrapperId: block.wrapperId,
+      nLevel,
+      trialCount: block.trialCount,
+      speed,
+    })),
   };
 }
 

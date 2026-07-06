@@ -7,6 +7,7 @@ import type {
   FarTransferBoundarySignal,
   FarTransferEvidence,
   FarTransferWindow,
+  PhaseLabel,
   ScratchBaseline,
   ScorePanel,
   TimingQuality,
@@ -272,7 +273,7 @@ function createFarTransferEvidence(input: {
 
 export function createScoreSnapshot(input: {
   sessionNumber: number;
-  activePhase: "P1_ARROW_ABS" | "P2_FLOW_ABS" | "P3_ARROW_REL" | "P4_FLOW_REL" | "P1_FLOW_ABS" | "P2_ARROW_ABS" | "P3_FLOW_REL" | "P4_ARROW_REL" | "P5_MIXED" | "P6_DELAYED";
+  activePhase: PhaseLabel;
   phaseStatus: "active" | "flattening" | "ready_to_swap" | "recovering" | "mixed" | "delayed" | "extended_for_learning_curve" | "completed";
   nominalBand: string | null;
   evidence: CellEvidence[];

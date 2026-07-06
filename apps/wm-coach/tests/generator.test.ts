@@ -44,4 +44,34 @@ describe("WM n-back generator", () => {
     expect(plan.trials.every((trial) => trial.layer === "binding_memory")).toBe(true);
     expect(plan.trials.every((trial) => trial.cellKey === "flow_rel")).toBe(true);
   });
+
+  it("isolates mixed arrow frame practice in the guided progression", () => {
+    const plan = createSessionPlan(16, "P5_ARROW_MIXED", "mixed", "sessions 16-17", {});
+    const cells = new Set(plan.miniBlocks.map((block) => block.cells[0]));
+    expect(cells).toEqual(new Set(["arrow_abs", "arrow_rel"]));
+    expect(plan.trials.every((trial) => trial.cellKey === "arrow_abs" || trial.cellKey === "arrow_rel")).toBe(true);
+  });
+
+  it("runs explicit binding phases as binding-memory blocks", () => {
+    const plan = createSessionPlan(22, "P8_BIND_ARROW_REL", "active", "sessions 22-23", {});
+    expect(plan.miniBlocks.every((block) => block.construct === "BSE")).toBe(true);
+    expect(plan.trials.every((trial) => trial.construct === "BSE")).toBe(true);
+    expect(plan.trials.every((trial) => trial.cellKey === "arrow_rel")).toBe(true);
+  });
+
+  it("sets up free-play mixed arrow frames with concrete arrow cells", () => {
+    const plan = createFreePlaySessionPlan("ACC", "mixed", "slow", "P5_ARROW_MIXED");
+    expect(plan.miniBlocks).toHaveLength(2);
+    expect(new Set(plan.miniBlocks.map((block) => block.cells[0]))).toEqual(new Set(["arrow_abs", "arrow_rel"]));
+    expect(plan.trials.every((trial) => trial.construct === "ACC")).toBe(true);
+    expect(plan.trials.every((trial) => trial.cellKey === "arrow_abs" || trial.cellKey === "arrow_rel")).toBe(true);
+  });
+
+  it("sets up free-play binding mixed with colour-conjunction blocks", () => {
+    const plan = createFreePlaySessionPlan("BSE", "mixed", "slow", "P10_BIND_MIXED");
+    expect(plan.miniBlocks).toHaveLength(4);
+    expect(plan.trials.every((trial) => trial.construct === "BSE")).toBe(true);
+    expect(plan.trials.some((trial) => trial.capacityDisplay.colour !== null)).toBe(true);
+    expect(new Set(plan.miniBlocks.map((block) => block.cells[0]))).toEqual(new Set(["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"]));
+  });
 });

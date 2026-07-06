@@ -9,12 +9,33 @@ const MAX_BALANCED_ACCURACY = 0.98;
 const MAX_FALSE_ALARM_RATE = 0.25;
 const MAX_MISS_RATE = 0.3;
 
-function evidenceFor(state: WapUserState, cellKey: string): CellEvidence | null {
+function isBindingPhase(phase: PhaseLabel): boolean {
+  return phase === "P8_BIND_ARROW_REL" || phase === "P9_BIND_FLOW_REL" || phase === "P8_BIND_FLOW_REL" || phase === "P9_BIND_ARROW_REL" || phase === "P10_BIND_MIXED";
+}
+
+function isFinalPhase(phase: PhaseLabel): boolean {
+  return phase === "P11_DELAYED" || phase === "P6_DELAYED";
+}
+
+function isMixedPhase(phase: PhaseLabel): boolean {
+  return (
+    phase === "P5_ARROW_MIXED" ||
+    phase === "P6_FLOW_MIXED" ||
+    phase === "P5_FLOW_MIXED" ||
+    phase === "P6_ARROW_MIXED" ||
+    phase === "P7_FULL_MIXED" ||
+    phase === "P10_BIND_MIXED" ||
+    phase === "P5_MIXED"
+  );
+}
+
+function evidenceFor(state: WapUserState, cellKey: string, phase: PhaseLabel): CellEvidence | null {
+  const construct = isBindingPhase(phase) ? "BSE" : "ACC";
   if (cellKey === "mixed") {
-    const candidates = state.evidence.filter((item) => item.construct === "ACC");
+    const candidates = state.evidence.filter((item) => item.construct === construct);
     return candidates.sort((a, b) => (b.validTrials || 0) - (a.validTrials || 0))[0] || null;
   }
-  return state.evidence.find((item) => item.construct === "ACC" && item.cellKey === cellKey) || null;
+  return state.evidence.find((item) => item.construct === construct && item.cellKey === cellKey) || null;
 }
 
 function readiness(evidence: CellEvidence | null, state: WapUserState) {
@@ -60,12 +81,12 @@ export function chooseNextPhase(state: WapUserState): WapDecision {
   const phase = state.currentPhase;
   const targetPhase = nextPhase(phase, state);
   const cell = PHASE_CELL[phase];
-  const evidence = evidenceFor(state, cell);
+  const evidence = evidenceFor(state, cell, phase);
   const flags = phase === "P2_FLOW_ABS" || phase === "P4_FLOW_REL" || phase === "P2_ARROW_ABS" || phase === "P4_ARROW_REL"
     ? recoveryReady(evidence, state)
     : readiness(evidence, state);
 
-  if (phase === "P6_DELAYED") {
+  if (isFinalPhase(phase)) {
     return {
       fromPhase: phase,
       toPhase: phase,
@@ -77,16 +98,16 @@ export function chooseNextPhase(state: WapUserState): WapDecision {
     };
   }
 
-  if (phase === "P5_MIXED") {
+  if (isMixedPhase(phase)) {
     const mixedStable = flags.minimumTrials && flags.enoughWindows && flags.timingAcceptable && flags.noGlobalBlocker;
     if (mixedStable) {
       return {
         fromPhase: phase,
-        toPhase: "P6_DELAYED",
+        toPhase: targetPhase,
         phaseStatus: "ready_to_swap",
         shouldTransition: true,
-        transitionKey: "T_DELAYED",
-        reason: "Mixed n-back stability is sufficient for delayed re-check.",
+        transitionKey: transitionEventsForPhaseAdvance(phase, targetPhase)[0] || null,
+        reason: "Mixed n-back stability is sufficient for the next guided phase.",
         readiness: flags,
       };
     }

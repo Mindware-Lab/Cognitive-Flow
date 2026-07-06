@@ -16,6 +16,17 @@ export type PhaseLabel =
   | "P2_ARROW_ABS"
   | "P3_FLOW_REL"
   | "P4_ARROW_REL"
+  | "P5_ARROW_MIXED"
+  | "P6_FLOW_MIXED"
+  | "P5_FLOW_MIXED"
+  | "P6_ARROW_MIXED"
+  | "P7_FULL_MIXED"
+  | "P8_BIND_ARROW_REL"
+  | "P9_BIND_FLOW_REL"
+  | "P8_BIND_FLOW_REL"
+  | "P9_BIND_ARROW_REL"
+  | "P10_BIND_MIXED"
+  | "P11_DELAYED"
   | "P5_MIXED"
   | "P6_DELAYED";
 export type PhaseStatus =
@@ -48,6 +59,9 @@ export type TrendLabel = "improving" | "steady" | "developing" | "variable_today
 export type Ratio = "5:0" | "4:1" | "3:2";
 export type TimingQuality = "good" | "acceptable" | "poor";
 export type DirectionRelation = "left" | "right" | "up" | "down" | "out" | "in" | "cw" | "ccw";
+export type CapacitySpeed = "slow" | "fast";
+export type CapacityWrapper = "resist_vectors" | "relate_vectors" | "optic_flow";
+export type CapacityTargetModality = "sym" | "rel";
 export type CanonicalRelation =
   | "LEFT"
   | "RIGHT"
@@ -93,6 +107,7 @@ export interface TrialCondition {
   ratio: Ratio;
   exposureMs: number;
   nLevel?: number;
+  speed?: CapacitySpeed;
 }
 
 export interface StimulusItem {
@@ -139,6 +154,20 @@ export interface TrialDefinition {
   isWarmup: boolean;
   isMatch: boolean;
   targetTrialId: string | null;
+  capacityWrapper: CapacityWrapper;
+  capacityTargetModality: CapacityTargetModality;
+  capacitySpeed: CapacitySpeed;
+  capacityCanonKey: string;
+  soaMs: number;
+  capacityDisplay: {
+    pointPct?: { xPct: number; yPct: number };
+    markerPositions?: Array<{ xPct: number; yPct: number }>;
+    symbolLabel?: string;
+    colour?: TokenColor | null;
+    relationLabel?: string;
+    alignmentLabel?: string;
+    pairTokens?: Array<{ pointPct: { xPct: number; yPct: number }; angleDeg: number; colour?: TokenColor | null }>;
+  };
 }
 
 export interface TrialResult {
@@ -166,6 +195,7 @@ export interface MiniBlockPlan {
   wrapperId: string;
   nLevel: number;
   layer: Layer;
+  speed: CapacitySpeed;
 }
 
 export interface SessionPlan {

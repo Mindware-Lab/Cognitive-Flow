@@ -1,5 +1,5 @@
 ﻿import { describe, expect, it } from "vitest";
-import { transitionEventsForPhaseAdvance } from "../src/protocol";
+import { PHASE_ORDER, transitionEventsForPhaseAdvance } from "../src/protocol";
 import { chooseNextPhase } from "../src/wap";
 import type { CellEvidence, WapUserState } from "../src/types";
 
@@ -53,5 +53,18 @@ describe("WM WAP phase controller", () => {
 
   it("keeps the planned transition sequence", () => {
     expect(transitionEventsForPhaseAdvance("P3_ARROW_REL", "P4_FLOW_REL")).toEqual(["T_CM_REL", "T_FRAME_FLOW"]);
+  });
+
+  it("splits the guided mixed and binding progression into explicit phases", () => {
+    expect(PHASE_ORDER.slice(4)).toEqual([
+      "P5_ARROW_MIXED",
+      "P6_FLOW_MIXED",
+      "P7_FULL_MIXED",
+      "P8_BIND_ARROW_REL",
+      "P9_BIND_FLOW_REL",
+      "P10_BIND_MIXED",
+      "P11_DELAYED",
+    ]);
+    expect(transitionEventsForPhaseAdvance("P10_BIND_MIXED", "P11_DELAYED")).toEqual(["T_DELAYED"]);
   });
 });
