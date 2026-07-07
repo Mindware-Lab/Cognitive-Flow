@@ -18,6 +18,15 @@ export type AuthUser = {
   email?: string;
 };
 
+export type StandardizedScoreRow = {
+  metric_key: string;
+  standard_score: number | null;
+  z_score: number | null;
+  norm_n: number | null;
+  session_number: number | null;
+  recorded_at: string | null;
+};
+
 export async function currentAuthUser(): Promise<AuthUser | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
@@ -123,6 +132,18 @@ export async function deleteAttentionData(): Promise<void> {
     body: { confirm: "delete-attention-data" },
   });
   if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function loadStandardizedScores(appId: "attention_coach" | "wm_coach"): Promise<StandardizedScoreRow[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("coach_metric_standardized_scores")
+    .select("metric_key,standard_score,z_score,norm_n,session_number,recorded_at")
+    .eq("app_id", appId)
+    .order("recorded_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return (data || []) as StandardizedScoreRow[];
 }
 
 async function functionErrorMessage(error: unknown): Promise<string> {

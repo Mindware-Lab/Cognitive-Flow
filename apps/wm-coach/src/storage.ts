@@ -13,6 +13,7 @@
 const PREFIX = "wm-coach";
 const BROWSER_DEVICE_ID_KEY = `${PREFIX}:browserDeviceId`;
 
+export type DataMode = "local" | "cloud_personal" | "cloud_benchmark";
 export type CloudSyncMode = "local" | "cloud";
 export type ProofBenchmarkDomain = "relational_memory" | "binding_memory" | "reasoning";
 export type ProofBenchmarkTimepoint = "baseline" | "midpoint" | "post" | "follow_up" | "ad_hoc";
@@ -116,11 +117,34 @@ export function resetProgress(): void {
 }
 
 export function loadCloudSyncMode(): CloudSyncMode {
-  return localStorage.getItem(`${PREFIX}:cloudSyncMode`) === "cloud" ? "cloud" : "local";
+  return cloudSyncModeForDataMode(loadDataMode());
 }
 
 export function saveCloudSyncMode(mode: CloudSyncMode): void {
-  localStorage.setItem(`${PREFIX}:cloudSyncMode`, mode);
+  saveDataMode(mode === "cloud" ? "cloud_personal" : "local");
+}
+
+export function cloudSyncModeForDataMode(mode: DataMode): CloudSyncMode {
+  return mode === "local" ? "local" : "cloud";
+}
+
+export function loadDataMode(): DataMode {
+  const saved = localStorage.getItem(`${PREFIX}:dataMode`);
+  if (saved === "local" || saved === "cloud_personal" || saved === "cloud_benchmark") return saved;
+  return localStorage.getItem(`${PREFIX}:cloudSyncMode`) === "cloud" ? "cloud_personal" : "local";
+}
+
+export function saveDataMode(mode: DataMode): void {
+  localStorage.setItem(`${PREFIX}:dataMode`, mode);
+  localStorage.setItem(`${PREFIX}:cloudSyncMode`, cloudSyncModeForDataMode(mode));
+}
+
+export function loadDataModeSeen(): boolean {
+  return localStorage.getItem(`${PREFIX}:dataModeSeen`) === "true";
+}
+
+export function saveDataModeSeen(): void {
+  localStorage.setItem(`${PREFIX}:dataModeSeen`, "true");
 }
 
 export function browserDeviceId(): string {

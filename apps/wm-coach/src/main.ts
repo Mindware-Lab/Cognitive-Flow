@@ -4,7 +4,7 @@ import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./op
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { INITIAL_STAIRCASE_LEVEL, nextNLevelFromAccuracy } from "./staircase";
-import { DEFAULT_PROGRESS, browserDeviceId, loadCloudSyncMode, loadProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveCloudSyncMode, saveProgress, type CloudSyncMode, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, loadDataMode, loadDataModeSeen, loadProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
   deleteWorkingMemoryData,
@@ -13,6 +13,7 @@ import {
   fetchWorkingMemoryScratchBaselines,
   finalizeWorkingMemorySession,
   isSupabaseConfigured,
+  loadStandardizedScores,
   loadRemoteProgress,
   onAuthChange,
   recordDeviceCheck,
@@ -22,6 +23,7 @@ import {
   signOutUser,
   submitWorkingMemoryBlock,
   type AuthUser,
+  type StandardizedScoreRow,
 } from "./supabaseClient";
 import { runDeviceReadiness } from "./timing";
 import { chooseNextPhase } from "./wap";
@@ -63,6 +65,12 @@ type PendingTaskStart =
   | { kind: "easier" }
   | { kind: "free"; construct: Construct; cellKey: CellKey; source: SessionSource; speed?: CapacitySpeed; phase?: PhaseLabel };
 type SyncState = "local" | "checking" | "synced" | "pending" | "error";
+type StandardizedScoreSummary = {
+  standardScore: number | null;
+  zScore: number | null;
+  normN: number | null;
+  sessionNumber: number | null;
+};
 
 const GENERATOR_VERSION = "wm-coach-generator-v0.1";
 const ADAPTIVE_VERSION = "wm-coach-staircase-v0.1";
@@ -111,9 +119,12 @@ interface RuntimeState {
   authReady: boolean;
   authMessage: string;
   authBusy: boolean;
+  dataMode: DataMode;
+  dataModeSeen: boolean;
   cloudSyncMode: CloudSyncMode;
   syncState: SyncState;
   syncMessage: string;
+  standardizedScores: Record<string, StandardizedScoreSummary>;
 }
 
 const app = document.querySelector<HTMLDivElement>("#app");
@@ -121,7 +132,9 @@ if (!app) throw new Error("Missing #app root.");
 const appRoot = app;
 const STYLE_MODE_KEY = "wmCoachStyleModeV2";
 const cloudSyncAvailable = isSupabaseConfigured;
-const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? loadCloudSyncMode() : "local";
+const initialDataMode: DataMode = cloudSyncAvailable ? loadDataMode() : "local";
+const initialDataModeSeen = loadDataModeSeen();
+const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? cloudSyncModeForDataMode(initialDataMode) : "local";
 const currentBrowserDeviceId = browserDeviceId();
 const APP_BASE = import.meta.env.BASE_URL || "/";
 const COACHING_CHECKOUT_URL = "https://buy.stripe.com/8x2bJ0bi96s06vLgtQ9ws0t";
@@ -172,6 +185,7 @@ function resolveInitialView(cloudSyncMode: CloudSyncMode): View {
     "evidence",
     "profile",
   ];
+  if (!initialDataModeSeen) return "data-rights";
   if (cloudSyncAvailable && cloudSyncMode === "cloud") return "auth";
   return allowedViews.includes(queryView as View) ? (queryView as View) : "welcome";
 }
@@ -233,9 +247,12 @@ let state: RuntimeState = {
   authReady: initialCloudSyncMode !== "cloud",
   authMessage: "",
   authBusy: false,
+  dataMode: initialDataMode,
+  dataModeSeen: initialDataModeSeen,
   cloudSyncMode: initialCloudSyncMode,
   syncState: initialCloudSyncMode === "cloud" ? "checking" : "local",
   syncMessage: initialCloudSyncMode === "cloud" ? "Checking sign-in." : "Cloud optional via data ethics page.",
+  standardizedScores: {},
 };
 
 function validScratchBaseline(value: ScratchBaseline): boolean {
@@ -318,6 +335,55 @@ function markSync(stateValue: SyncState, message: string): void {
 
 function cloudSyncActive(): boolean {
   return cloudSyncAvailable && state.cloudSyncMode === "cloud" && Boolean(state.authUser);
+}
+
+function benchmarkScoringSelected(): boolean {
+  return state.dataMode === "cloud_benchmark";
+}
+
+function benchmarkContributionActive(): boolean {
+  return cloudSyncActive() && benchmarkScoringSelected();
+}
+
+function markDataModeSeen(): void {
+  state.dataModeSeen = true;
+  saveDataModeSeen();
+}
+
+function dataModeLabel(mode: DataMode = state.dataMode): string {
+  const labels: Record<DataMode, string> = {
+    local: "Local only",
+    cloud_personal: "Cloud sync: personal baseline",
+    cloud_benchmark: "Cloud sync: standardised scores",
+  };
+  return labels[mode];
+}
+
+function standardScoreMap(rows: StandardizedScoreRow[]): Record<string, StandardizedScoreSummary> {
+  const byMetric: Record<string, StandardizedScoreSummary> = {};
+  for (const row of rows) {
+    if (byMetric[row.metric_key]) continue;
+    byMetric[row.metric_key] = {
+      standardScore: row.standard_score,
+      zScore: row.z_score,
+      normN: row.norm_n,
+      sessionNumber: row.session_number,
+    };
+  }
+  return byMetric;
+}
+
+async function hydrateStandardizedScores(): Promise<void> {
+  if (!benchmarkContributionActive()) {
+    state.standardizedScores = {};
+    return;
+  }
+  try {
+    state.standardizedScores = standardScoreMap(await loadStandardizedScores("wm_coach"));
+    render();
+  } catch (error) {
+    console.warn("Standardised scores were not loaded.", error);
+  }
 }
 
 function persistProgressRemote(): void {
@@ -427,6 +493,7 @@ async function restoreRemoteProgress(): Promise<void> {
     nextView = "welcome";
   }
   void hydrateScratchBaselines();
+  void hydrateStandardizedScores();
   state.view = nextView;
   state.viewHistory = [];
   render();
@@ -1005,13 +1072,18 @@ const TASK_SPEED_SOA_MS: Record<CapacitySpeed, number> = {
 const TASK_SPEED_DISPLAY_RATIO = 0.65;
 
 function renderAuth(): string {
+  const benchmark = benchmarkScoringSelected();
+  const headline = benchmark ? "Sign in for standardised scores" : "Sign in for cloud sync";
+  const body = benchmark
+    ? "Cloud sync keeps your programme available across devices. This mode also contributes your guided-session metric observations to aggregate benchmark norms and can show standardised scores when enough comparison data exists."
+    : "Cloud sync keeps your programme available across devices and shows scores relative to your own early-session baseline. It does not contribute your metrics to population benchmark norms.";
   return shell(`
     <section class="auth-screen">
       <div class="auth-card">
         <img src="${assetPath("iqmindware-logo.png")}" alt="IQ Mindware" />
-        <p class="ui-eyebrow">Cloud sync</p>
-        <h1>Sign in for cloud sync</h1>
-        <p class="ui-body">Local-only training remains available. If you enable cloud sync, guided trial logs, device checks, progress state, score snapshots, and manual benchmark entries are saved to your Supabase account so your programme can continue across devices.</p>
+        <p class="ui-eyebrow">${escapeHtml(dataModeLabel())}</p>
+        <h1>${escapeHtml(headline)}</h1>
+        <p class="ui-body">${escapeHtml(body)}</p>
         <section class="ethics-compact-panel">
           <strong>Use boundary</strong>
           <span>Your data is for personal training support. It is not a diagnosis, IQ score, certificate, employer report, ranking, or selection record.</span>
@@ -1035,13 +1107,21 @@ function renderAuth(): string {
   `);
 }
 
+function dataModeCard(mode: DataMode, title: string, copy: string, action: string): string {
+  const selected = state.dataMode === mode;
+  return `<button class="data-mode-card ${selected ? "is-selected" : ""}" data-action="${action}" aria-pressed="${selected ? "true" : "false"}">
+    <span class="data-mode-card-kicker">${mode === "local" ? "Default" : mode === "cloud_personal" ? "Cloud" : "Cloud + benchmark"}</span>
+    <strong>${escapeHtml(title)}</strong>
+    <p>${escapeHtml(copy)}</p>
+    <span class="mode-select-pill">${selected ? "Selected" : "Choose"}</span>
+  </button>`;
+}
+
 function renderDataRights(): string {
   const cloudActive = cloudSyncActive();
-  const modeLabel = state.cloudSyncMode === "cloud" ? "Cloud sync selected" : "Local-only selected";
+  const continueLabel = state.dataMode === "local" || state.authUser ? "Continue to device check" : "Continue to sign in";
   const cloudCopy = cloudSyncAvailable
-    ? state.cloudSyncMode === "cloud"
-      ? "Cloud sync is opt-in. Remote saves happen only while you are signed in."
-      : "Cloud sync is available, but raw trial logs and progress are not uploaded in local-only mode."
+    ? "Choose how this app stores and scores your training data. You can change this later from Data."
     : "Cloud sync is not configured for this build.";
   return shell(`
     <section class="data-rights-screen">
@@ -1050,13 +1130,18 @@ function renderDataRights(): string {
         <h1>Your cognitive data stays under your control.</h1>
         <p>${escapeHtml(cloudCopy)}</p>
       </section>
+      <section class="data-mode-grid">
+        ${dataModeCard("local", "Local storage only", "Data stays in this browser. No cloud sync, no population benchmark contribution.", "select-data-local")}
+        ${dataModeCard("cloud_personal", "Cloud sync with personal baseline", "Sign in to switch devices or recover progress. Scores stay relative to your own baseline.", "select-data-cloud-personal")}
+        ${dataModeCard("cloud_benchmark", "Cloud sync with standardised scores", "Sign in to switch devices and contribute guided-session metrics to aggregate benchmark norms.", "select-data-cloud-benchmark")}
+      </section>
+      ${!state.dataModeSeen ? `<div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>` : ""}
       <section class="data-rights-grid">
         <article class="data-rights-card is-blue">
           <span>Mode</span>
-          <strong>${escapeHtml(modeLabel)}</strong>
-          <p>${state.cloudSyncMode === "cloud" ? "Progress can continue across signed-in devices." : "Data is stored in this browser only. Enable cloud sync to switch devices or recover progress after clearing browser data."}</p>
+          <strong>${escapeHtml(dataModeLabel())}</strong>
+          <p>${state.dataMode === "cloud_benchmark" ? "Standardised scores appear after signed-in sessions and sufficient opted-in comparison data." : state.dataMode === "cloud_personal" ? "Remote saves happen only while you are signed in; benchmark norms are not updated from this mode." : "Data is stored in this browser only."}</p>
           <div class="data-rights-actions">
-            ${cloudSyncAvailable ? state.cloudSyncMode === "cloud" ? button("Use local only", "use-local-only", "secondary") : button("Enable cloud sync", "enable-cloud-sync", "primary") : ""}
             ${state.cloudSyncMode === "cloud" && state.authUser ? button("Sign out", "sign-out", "ghost") : ""}
           </div>
         </article>
@@ -1092,14 +1177,23 @@ function downloadJson(filename: string, payload: unknown): void {
 }
 
 function setCloudSyncMode(mode: CloudSyncMode): void {
-  state.cloudSyncMode = cloudSyncAvailable ? mode : "local";
-  saveCloudSyncMode(state.cloudSyncMode);
+  setDataMode(mode === "cloud" ? "cloud_personal" : "local");
+}
+
+function setDataMode(mode: DataMode): void {
+  state.dataMode = cloudSyncAvailable ? mode : "local";
+  state.cloudSyncMode = cloudSyncModeForDataMode(state.dataMode);
+  saveDataMode(state.dataMode);
   if (state.cloudSyncMode === "local") {
     state.syncState = "local";
     state.syncMessage = "Cloud optional via data ethics page.";
+    state.standardizedScores = {};
   } else {
     state.syncState = state.authUser ? "checking" : "pending";
-    state.syncMessage = state.authUser ? "Cloud sync enabled." : "Sign in to sync devices.";
+    state.syncMessage = state.authUser
+      ? state.dataMode === "cloud_benchmark" ? "Cloud benchmark mode enabled." : "Cloud sync enabled."
+      : "Sign in to sync devices.";
+    void hydrateStandardizedScores();
   }
 }
 
@@ -2591,6 +2685,10 @@ function statusForDelta(delta: number | null): string {
 
 function statusNoteFor(status: string): string {
   if (status === "Strong") return "Stable enough to build on.";
+  if (status === "Above benchmark") return "Above the opted-in benchmark range.";
+  if (status === "Typical range") return "Within the opted-in benchmark range.";
+  if (status === "Below benchmark") return "Below the opted-in benchmark range.";
+  if (status === "Benchmark pending") return "Needs signed-in benchmark data.";
   if (status === "Watch") return "Needs more consistency.";
   if (status === "Bottleneck") return "May be limiting far transfer.";
   if (status === "Developing") return "Evidence is building.";
@@ -2667,6 +2765,39 @@ function deltaFromBaseline(metric: ProgressScoreMetric, current: number | null):
   };
 }
 
+const STANDARD_SCORE_METRIC_KEYS: Record<ProgressScoreMetric, string> = {
+  transfer: "transfer.score",
+  cognitiveBandwidth: "control.stable_n_level",
+  frameBandwidth: "transfer.relation_recovery",
+  patternBinding: "binding.training_score",
+  wrapperRecovery: "transfer.motion_recovery",
+  delayedRecovery: "transfer.return_strength",
+};
+
+function benchmarkScoreForMetric(metric: ProgressScoreMetric): number | null {
+  if (!benchmarkScoringSelected()) return null;
+  const row = state.standardizedScores[STANDARD_SCORE_METRIC_KEYS[metric]];
+  if (!row || row.standardScore === null || (row.normN !== null && row.normN < 2)) return null;
+  return Math.round(row.standardScore);
+}
+
+function scoreDisplayForMetric(metric: ProgressScoreMetric, personalDelta: number | null): number | null {
+  return benchmarkScoringSelected() ? benchmarkScoreForMetric(metric) : personalDelta;
+}
+
+function statusForMetricDisplay(metric: ProgressScoreMetric, personalDelta: number | null): string {
+  if (!benchmarkScoringSelected()) return statusForDelta(personalDelta);
+  const standardScore = benchmarkScoreForMetric(metric);
+  if (standardScore === null) return "Benchmark pending";
+  if (standardScore >= 110) return "Above benchmark";
+  if (standardScore < 90) return "Below benchmark";
+  return "Typical range";
+}
+
+function scoreUnitLabel(): string {
+  return benchmarkScoringSelected() ? "std" : "Δ";
+}
+
 function transferDeltaTrend(current: number | null): Array<{ session: string; delta: number | null }> {
   const baseline = baselineForMetric("transfer", current);
   const historyPoints = (state.progress.scoreHistory || [])
@@ -2740,7 +2871,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     capacityNote: capacityNoteForStatus(capacityStatus),
     nextSupportRoute: nextSupportRouteForStatus(capacityStatus),
     transferRawScore: transferReadiness,
-    transferDelta: transferRelative.delta,
+    transferDelta: scoreDisplayForMetric("transfer", transferRelative.delta),
     transferBaseline: transferRelative.baseline,
     confidence,
     trend: [
@@ -2754,10 +2885,10 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         label: "Relational Control",
         subtitle: "Keep the n-back relation stable across arrow and optic-flow displays.",
         rawScore: signalScore,
-        scoreDelta: cognitiveRelative.delta,
+        scoreDelta: scoreDisplayForMetric("cognitiveBandwidth", cognitiveRelative.delta),
         baseline: cognitiveRelative.baseline,
-        status: statusForDelta(cognitiveRelative.delta),
-        statusNote: statusNoteFor(statusForDelta(cognitiveRelative.delta)),
+        status: statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta),
+        statusNote: statusNoteFor(statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta)),
         confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_abs")),
         tone: "blue",
         icon: "signal",
@@ -2767,10 +2898,10 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         label: "Frame Transfer",
         subtitle: "Keep the task rule stable when the frame changes from absolute to relational.",
         rawScore: relationalScore,
-        scoreDelta: frameRelative.delta,
+        scoreDelta: scoreDisplayForMetric("frameBandwidth", frameRelative.delta),
         baseline: frameRelative.baseline,
-        status: statusForDelta(frameRelative.delta),
-        statusNote: statusNoteFor(statusForDelta(frameRelative.delta)),
+        status: statusForMetricDisplay("frameBandwidth", frameRelative.delta),
+        statusNote: statusNoteFor(statusForMetricDisplay("frameBandwidth", frameRelative.delta)),
         confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_rel")),
         tone: "purple",
         icon: "relational",
@@ -2780,10 +2911,10 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         label: "Binding Under Interference",
         subtitle: "Keep relation and colour bound together while the n-back demand continues.",
         rawScore: bindingScore,
-        scoreDelta: bindingRelative.delta,
+        scoreDelta: scoreDisplayForMetric("patternBinding", bindingRelative.delta),
         baseline: bindingRelative.baseline,
-        status: statusForDelta(bindingRelative.delta),
-        statusNote: statusNoteFor(statusForDelta(bindingRelative.delta)),
+        status: statusForMetricDisplay("patternBinding", bindingRelative.delta),
+        statusNote: statusNoteFor(statusForMetricDisplay("patternBinding", bindingRelative.delta)),
         confidence:
           confidenceForEvidence(evidenceFor("BSE", activeCell)) ||
           confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "BSE") || null),
@@ -2795,10 +2926,10 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         label: "Wrapper Recovery",
         subtitle: "Recover the same control skill when the display format changes.",
         rawScore: wrapperRecoveryScore,
-        scoreDelta: wrapperRelative.delta,
+        scoreDelta: scoreDisplayForMetric("wrapperRecovery", wrapperRelative.delta),
         baseline: wrapperRelative.baseline,
-        status: statusForDelta(wrapperRelative.delta),
-        statusNote: statusNoteFor(statusForDelta(wrapperRelative.delta)),
+        status: statusForMetricDisplay("wrapperRecovery", wrapperRelative.delta),
+        statusNote: statusNoteFor(statusForMetricDisplay("wrapperRecovery", wrapperRelative.delta)),
         confidence: confidenceForEvidence(evidenceFor("ACC", "mixed")),
         tone: "orange",
         icon: "transfer",
@@ -2808,10 +2939,10 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         label: "Delayed Recovery",
         subtitle: "Return to a trained skill after interruption or delay.",
         rawScore: returnScore,
-        scoreDelta: delayedRelative.delta,
+        scoreDelta: scoreDisplayForMetric("delayedRecovery", delayedRelative.delta),
         baseline: delayedRelative.baseline,
-        status: statusForDelta(delayedRelative.delta),
-        statusNote: statusNoteFor(statusForDelta(delayedRelative.delta)),
+        status: statusForMetricDisplay("delayedRecovery", delayedRelative.delta),
+        statusNote: statusNoteFor(statusForMetricDisplay("delayedRecovery", delayedRelative.delta)),
         confidence: snapshot?.transfer.returnStrength.score === null ? "" : consumerStatus(snapshot?.transfer.returnStrength.confidence),
         tone: "green",
         icon: "return",
@@ -2894,20 +3025,21 @@ function dashboardPercent(value: number | null): number {
 }
 
 function dashboardDeltaPercent(value: number | null): number {
+  if (benchmarkScoringSelected()) return value === null ? 0 : clampPercent(((value - 70) / 60) * 100);
   return value === null ? 0 : clampPercent(50 + value * 2.5);
 }
 
 function transferPillTone(status: string): string {
-  if (status === "Strong" || status === "Transfer holding") return "green";
-  if (status === "Bottleneck") return "red";
-  if (status === "Calibrating" || status === "N-level emerging") return "blue";
+  if (status === "Strong" || status === "Transfer holding" || status === "Above benchmark") return "green";
+  if (status === "Bottleneck" || status === "Below benchmark") return "red";
+  if (status === "Calibrating" || status === "N-level emerging" || status === "Benchmark pending") return "blue";
   return "orange";
 }
 
 function progressStatusTone(status: string): string {
-  if (status === "Strong") return "green";
-  if (status === "Bottleneck") return "red";
-  if (status === "Calibrating") return "blue";
+  if (status === "Strong" || status === "Above benchmark") return "green";
+  if (status === "Bottleneck" || status === "Below benchmark") return "red";
+  if (status === "Calibrating" || status === "Benchmark pending") return "blue";
   return "orange";
 }
 
@@ -3148,7 +3280,7 @@ function renderOverviewSkillRows(model: ProgressDashboardPresentationModel): str
             <strong>${escapeHtml(skill.label)}</strong>
           </span>
           <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.scoreDelta)}</strong>
-          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">Δ</strong>
+          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">${scoreUnitLabel()}</strong>
           ${statusChip(skill.status, skill.tone)}
           <span class="skill-confidence">${confidenceDot(skill.tone, skill.confidence)}</span>
         </div>
@@ -3269,7 +3401,7 @@ function renderDetailSkillRows(model: ProgressDashboardPresentationModel): strin
             <strong>${escapeHtml(skill.label)}</strong>
           </span>
           <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.scoreDelta)}</strong>
-          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">Δ</strong>
+          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">${scoreUnitLabel()}</strong>
           ${skillScale(skill.rawScore, skill.tone)}
           <span class="detail-status">${statusChip(skill.status, skill.tone)}<small>${confidenceDot(skill.tone, skill.confidence)}</small></span>
         </div>
@@ -3296,10 +3428,10 @@ function renderScoreDetailDashboard(): string {
   const model = progressDashboardPresentationModel();
   return `
     <section class="dashboard-screen dashboard-detail">
-      ${renderDashboardHeader("Score Detail", "detail", "Scores are relative to your own starting point.")}
+      ${renderDashboardHeader("Score Detail", "detail", benchmarkScoringSelected() ? "Scores are standardised against opted-in benchmark users." : "Scores are relative to your own starting point.")}
       <section class="score-explainer-strip">
-        <span><i class="marker hollow"></i>100 = your starting point</span>
-        <span><i class="marker blue"></i>Above 100 = above your start</span>
+        <span><i class="marker hollow"></i>100 = ${benchmarkScoringSelected() ? "benchmark average" : "your starting point"}</span>
+        <span><i class="marker blue"></i>Above 100 = ${benchmarkScoringSelected() ? "above benchmark average" : "above your start"}</span>
         <span><i class="marker orange"></i>Below 100 = currently below your start</span>
       </section>
       <section class="detail-skills-card">
@@ -3313,7 +3445,7 @@ function renderScoreDetailDashboard(): string {
         <div class="transfer-mini-grid">${renderTransferDetailCards(model)}</div>
       </section>
       <section class="score-legend-strip">
-        <em>These scores show change from your own starting point. They are not IQ scores, certificates, or selection evidence.</em>
+        <em>${benchmarkScoringSelected() ? "These standardised scores use opted-in app data only." : "These scores show change from your own starting point."} They are not IQ scores, certificates, or selection evidence.</em>
         ${button("How scores work", "nav-evidence", "ghost")}
       </section>
     </section>
@@ -3787,6 +3919,8 @@ function finalizeGuidedSession(input: {
     clientSessionId: plan.sessionId,
     programmeRunId: plan.programmeRunId,
     programmeCycle: plan.programmeCycle,
+    dataMode: state.dataMode,
+    benchmarkConsent: benchmarkContributionActive(),
     snapshot: input.snapshot,
     scoringVersion: SCORING_VERSION,
     controllerEvent: {
@@ -3822,6 +3956,8 @@ function finalizeGuidedSession(input: {
         activePhase: input.snapshot.activePhase,
         phaseStatus: input.snapshot.phaseStatus,
       },
+      dataMode: state.dataMode,
+      benchmarkConsent: benchmarkContributionActive(),
       scratchBaselineSources: input.snapshot.farTransfer?.boundarySignals.map((signal) => ({
         boundary: signal.boundary,
         source: signal.scratchBaselineSource,
@@ -3830,7 +3966,9 @@ function finalizeGuidedSession(input: {
         stabilityAdvantage: signal.stabilityAdvantage,
       })),
     },
-  })).catch((error) => {
+  })).then(() => {
+    void hydrateStandardizedScores();
+  }).catch((error) => {
     console.warn("Working Memory session was not finalized.", error);
   });
 }
@@ -4008,7 +4146,7 @@ appRoot.addEventListener("click", async (event) => {
   const action = target.closest<HTMLElement>("[data-action]")?.dataset.action;
   if (!action) return;
   if (action === "send-login-link") {
-    setCloudSyncMode("cloud");
+    if (state.dataMode === "local") setDataMode("cloud_personal");
     const email = inputValue("auth-email");
     if (!email) {
       state.authMessage = "Enter an email address first.";
@@ -4035,7 +4173,7 @@ appRoot.addEventListener("click", async (event) => {
     state.viewHistory = [];
     go("data-rights", { replace: true });
   } else if (action === "enable-cloud-sync") {
-    setCloudSyncMode("cloud");
+    setDataMode("cloud_personal");
     if (state.authUser) {
       await restoreRemoteProgress();
     } else {
@@ -4050,6 +4188,36 @@ appRoot.addEventListener("click", async (event) => {
     }
     state.authReady = true;
     go(state.view === "auth" ? "welcome" : "data-rights", { replace: true });
+  } else if (action === "select-data-local") {
+    setDataMode("local");
+    if (state.authUser) {
+      await signOutUser().catch((error) => console.warn("Sign out after local mode failed.", error));
+      state.authUser = null;
+    }
+    state.authReady = true;
+    render();
+  } else if (action === "select-data-cloud-personal") {
+    setDataMode("cloud_personal");
+    if (state.authUser) {
+      await restoreRemoteProgress();
+    } else {
+      render();
+    }
+  } else if (action === "select-data-cloud-benchmark") {
+    setDataMode("cloud_benchmark");
+    if (state.authUser) {
+      await restoreRemoteProgress();
+    } else {
+      render();
+    }
+  } else if (action === "continue-after-data-rights") {
+    markDataModeSeen();
+    if (state.cloudSyncMode === "cloud" && !state.authUser) {
+      state.authMessage = "Enter your email to continue with this cloud option.";
+      go("auth");
+    } else {
+      go("readiness");
+    }
   } else if (action === "export-wm-data") {
     await exportCurrentData();
   } else if (action === "delete-wm-data") {
@@ -4058,7 +4226,10 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "nav-data-rights") go("data-rights");
   else if (action === "nav-welcome") go("welcome");
   else if (action === "nav-back") goBack();
-  else if (action === "start-readiness") go("readiness");
+  else if (action === "start-readiness") {
+    if (!state.dataModeSeen) go("data-rights");
+    else go("readiness");
+  }
   else if (action === "run-readiness") {
     if (state.readinessRunning) return;
     state.readinessRunning = true;

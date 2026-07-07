@@ -5,6 +5,8 @@ interface FinalizePayload {
   clientSessionId: string;
   programmeRunId?: string;
   programmeCycle?: number;
+  dataMode?: "local" | "cloud_personal" | "cloud_benchmark";
+  benchmarkConsent?: boolean;
   snapshot: Record<string, unknown>;
   scoringVersion: string;
   controllerEvent?: Record<string, unknown>;
@@ -236,17 +238,19 @@ Deno.serve(async (request) => {
   const { error: snapshotError } = snapshotResult;
   if (snapshotError) return json(500, { error: snapshotError.message });
 
-  await recordCoachMetrics({
-    supabase,
-    appId: "wm_coach",
-    userId: user.id,
-    sessionId: session.id,
-    payload,
-    sessionNumber: snapshot.sessionNumber || session.session_number,
-    phaseLabel: snapshot.activePhase || session.phase_label,
-    phaseStatus: snapshot.phaseStatus || session.phase_status,
-    snapshot: payload.snapshot,
-  });
+  if (payload.benchmarkConsent === true) {
+    await recordCoachMetrics({
+      supabase,
+      appId: "wm_coach",
+      userId: user.id,
+      sessionId: session.id,
+      payload,
+      sessionNumber: snapshot.sessionNumber || session.session_number,
+      phaseLabel: snapshot.activePhase || session.phase_label,
+      phaseStatus: snapshot.phaseStatus || session.phase_status,
+      snapshot: payload.snapshot,
+    });
+  }
 
   if (payload.controllerEvent) {
     const readiness = objectPayload(payload.controllerEvent.readiness);
@@ -256,6 +260,8 @@ Deno.serve(async (request) => {
       nextState: payload.controllerEvent.nextState ?? null,
       scoreSnapshotState: payload.controllerEvent.scoreSnapshotState ?? null,
       scratchBaselineSources: payload.controllerEvent.scratchBaselineSources ?? [],
+      dataMode: payload.dataMode ?? payload.controllerEvent.dataMode ?? null,
+      benchmarkConsent: payload.benchmarkConsent === true,
     };
     await supabase.from("wm_phase_controller_events").insert({
       user_id: user.id,
