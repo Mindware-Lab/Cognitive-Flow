@@ -2048,7 +2048,7 @@ function renderComplete(): string {
     const isEasierPractice = state.sessionSource === "easier";
     const returnIndex = state.guidedReturn?.activeBlockIndex ?? 0;
     return shell(`
-      <section class="panel">
+      <section class="panel result-panel">
         <p class="ui-eyebrow">${isSetupPractice ? "Practice block complete" : isEasierPractice ? "Easier practice complete" : "Practice complete"}</p>
         <h1>${isSetupPractice ? `Ready for training block ${returnIndex + 1}` : isEasierPractice ? "Practice kept the session warm" : `${Math.round((correct / total) * 100)}% correct`}</h1>
         <p class="ui-body">${
