@@ -130,6 +130,8 @@ export interface MiniBlockPlan {
 
 export interface SessionPlan {
   sessionId: string;
+  programmeRunId: string;
+  programmeCycle: number;
   sessionNumber: number;
   phase: PhaseLabel;
   phaseStatus: PhaseStatus;

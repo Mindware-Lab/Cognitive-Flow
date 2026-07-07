@@ -3,6 +3,8 @@ import { CORS, json, readPayload } from "../_shared/http.ts";
 
 interface FinalizePayload {
   clientSessionId: string;
+  programmeRunId?: string;
+  programmeCycle?: number;
   snapshot: Record<string, unknown>;
   scoringVersion: string;
   controllerEvent?: Record<string, unknown>;
@@ -10,6 +12,10 @@ interface FinalizePayload {
 
 function objectPayload(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function isMissingProgrammeColumn(error: { message?: string } | null): boolean {
+  return Boolean(error?.message && /programme_(run_id|cycle)|schema cache/i.test(error.message));
 }
 
 Deno.serve(async (request) => {
@@ -41,21 +47,31 @@ Deno.serve(async (request) => {
     nominalBand?: string | null;
   };
 
-  const { error: snapshotError } = await supabase.from("attention_score_snapshots").insert({
+  const snapshotRow = {
     user_id: user.id,
     session_id: session.id,
+    programme_run_id: payload.programmeRunId || null,
+    programme_cycle: payload.programmeCycle || 1,
     session_number: snapshot.sessionNumber || session.session_number,
     active_phase: snapshot.activePhase || session.phase_label,
     phase_status: snapshot.phaseStatus || session.phase_status,
     nominal_band: snapshot.nominalBand || session.nominal_session_band,
     snapshot: payload.snapshot,
     scoring_version: payload.scoringVersion,
-  });
+  };
+  let snapshotResult = await supabase.from("attention_score_snapshots").insert(snapshotRow);
+  if (isMissingProgrammeColumn(snapshotResult.error)) {
+    const { programme_run_id: _runId, programme_cycle: _cycle, ...legacySnapshotRow } = snapshotRow;
+    snapshotResult = await supabase.from("attention_score_snapshots").insert(legacySnapshotRow);
+  }
+  const { error: snapshotError } = snapshotResult;
   if (snapshotError) return json(500, { error: snapshotError.message });
 
   if (payload.controllerEvent) {
     const readiness = objectPayload(payload.controllerEvent.readiness);
     const telemetry = {
+      programmeRunId: payload.programmeRunId || null,
+      programmeCycle: payload.programmeCycle || 1,
       protocolGroup: payload.controllerEvent.protocolGroup ?? null,
       completedSession: payload.controllerEvent.completedSession ?? null,
       nextState: payload.controllerEvent.nextState ?? null,

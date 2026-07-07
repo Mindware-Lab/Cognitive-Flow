@@ -1,10 +1,10 @@
 import "./styles.css";
 import { createFreePlaySessionPlan, createSessionPlan, generateTrial, phaseIntro } from "./generator";
 import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./opticFlow";
-import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
+import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
-import { DEFAULT_PROGRESS, browserDeviceId, loadCloudSyncMode, loadProgress, progressForBrowserDevice, resetProgress, saveCloudSyncMode, saveProgress, type CloudSyncMode, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, browserDeviceId, loadCloudSyncMode, loadProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveCloudSyncMode, saveProgress, type CloudSyncMode, type CompletionRoute, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
   deleteAttentionData,
@@ -107,6 +107,14 @@ const cloudSyncAvailable = isSupabaseConfigured;
 const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? loadCloudSyncMode() : "local";
 const currentBrowserDeviceId = browserDeviceId();
 const APP_BASE = import.meta.env.BASE_URL || "/";
+
+function freshDefaultProgress(programmeCycle = 1): LocalProgress {
+  return {
+    ...DEFAULT_PROGRESS,
+    programmeRunId: newProgrammeRunId(programmeCycle),
+    programmeCycle,
+  };
+}
 
 function resolveStyleMode(): StyleMode {
   const queryStyle = new URLSearchParams(window.location.search).get("style");
@@ -377,7 +385,7 @@ async function restoreRemoteProgress(): Promise<void> {
       markSync("synced", "Beta progress loaded.");
       nextView = "welcome";
     } else {
-      state.progress = { ...DEFAULT_PROGRESS };
+      state.progress = freshDefaultProgress();
       saveProgress(state.progress);
       await saveRemoteProgress(state.progress);
       markSync("synced", "New beta progress record created.");
@@ -599,17 +607,47 @@ function latestCompletion() {
   return [...state.progress.completions].sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0] || null;
 }
 
+function latestGuidedCompletion() {
+  return [...state.progress.completions]
+    .filter((entry) => entry.route === "guided")
+    .sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0] || null;
+}
+
+function guidedCompletedToday(): boolean {
+  return state.progress.completions.some((entry) => entry.route === "guided" && entry.date === todayIso());
+}
+
+function guidedSessionsCompleted(): number {
+  return Math.max(0, Math.min(TARGET_ENVELOPE_SESSIONS, state.progress.sessionNumber - 1));
+}
+
 function hasReturnGap(): boolean {
   const latest = latestCompletion();
   return Boolean(latest && daysBetweenIsoDates(latest.date, todayIso()) >= 2);
 }
 
-function completionDots(): string {
-  const recent = state.progress.completions.slice(-7);
-  return Array.from({ length: 7 }, (_, index) => {
-    const completion = recent[index];
-    return `<span class="${completion ? "is-complete" : ""}" title="${completion ? escapeHtml(completion.route.replaceAll("_", " ")) : "Not yet"}">${completion ? index + 1 : ""}</span>`;
-  }).join("");
+function programmeProgressDots(completed = guidedSessionsCompleted()): string {
+  const dots = Array.from({ length: TARGET_ENVELOPE_SESSIONS }, (_, index) => {
+    const isComplete = index < completed;
+    const label = `Guided session ${index + 1}${isComplete ? " complete" : " not complete"}`;
+    return `<span class="${isComplete ? "is-complete" : ""}" title="${escapeHtml(label)}">${isComplete ? index + 1 : ""}</span>`;
+  });
+  return [dots.slice(0, 10), dots.slice(10, 20)]
+    .map((row) => `<div class="programme-dot-row">${row.join("")}</div>`)
+    .join("");
+}
+
+function programmeProgressCard(completed = guidedSessionsCompleted()): string {
+  return `
+    <section class="programme-progress-card">
+      <div>
+        <span>Programme progress</span>
+        <strong>${completed} of ${TARGET_ENVELOPE_SESSIONS} guided sessions complete</strong>
+        <small>Full programme: ${TARGET_ENVELOPE_SESSIONS} guided sessions. New challenge formats appear when your learning curve is ready.</small>
+      </div>
+      <div class="programme-dots" aria-label="20 guided session programme progress">${programmeProgressDots(completed)}</div>
+    </section>
+  `;
 }
 
 function completionEntry(route: CompletionRoute, sessionNumber = state.progress.sessionNumber, phase = state.progress.currentPhase) {
@@ -618,6 +656,8 @@ function completionEntry(route: CompletionRoute, sessionNumber = state.progress.
     date: todayIso(),
     route,
     completedAt: new Date().toISOString(),
+    programmeRunId: state.progress.programmeRunId,
+    programmeCycle: state.progress.programmeCycle,
     sessionNumber,
     phase,
   };
@@ -637,13 +677,6 @@ function phaseStatusCopy(phase: PhaseLabel, status: PhaseStatus): string {
   if (phase === "P5_MIXED") return PHASE_STATUS_COPY.mixed_stability;
   if (phase === "P6_DELAYED") return PHASE_STATUS_COPY.return_check;
   return PHASE_STATUS_COPY[status] || PHASE_STATUS_COPY.calibrating;
-}
-
-function comingNextPhase(phase: PhaseLabel): string {
-  const order = PHASE_ORDER_BY_GROUP[state.progress.protocolGroup];
-  const index = order.indexOf(phase);
-  const next = order[index + 1];
-  return next ? PHASE_NAMES[next] : "Ongoing return checks";
 }
 
 function brainNetworkDiagram(): string {
@@ -729,7 +762,7 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
       title: "Practice only",
       what: "You will practise the current display style without changing your progress path.",
       focus: "Choose the majority direction. Accuracy before speed.",
-      why: "Practice keeps the habit moving on lower-energy days, but it does not advance phase or transfer scores.",
+      why: "Practice helps you learn the display. It does not change your session number, phase, or transfer score.",
       startLabel: "Start practice",
     };
   }
@@ -739,7 +772,7 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
       title: `${construct} practice`,
       what: "You will practise a selected format outside today's guided session.",
       focus: pending.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction. Accuracy before speed.",
-      why: "Free practice helps you learn a display, but it does not change your guided progress path.",
+      why: "Practice helps you learn the display. It does not change your session number, phase, or transfer score.",
       startLabel: "Start practice",
     };
   }
@@ -754,6 +787,12 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
 
 function renderPreTaskInstructions(): string {
   const copy = pendingTaskCopy();
+  const sameDayGuidedWarning = state.pendingTaskStart?.kind === "guided" && guidedCompletedToday()
+    ? `<div class="same-day-warning-card">
+        <strong>Another guided session today?</strong>
+        <p>You can continue, but the programme is designed around steady daily sessions. Extra sessions may be lower quality if you are tired.</p>
+      </div>`
+    : "";
   return shell(`
     ${appTabs(state.pendingTaskStart?.kind === "free" ? "train" : "today")}
     <section class="pre-task-screen">
@@ -770,6 +809,7 @@ function renderPreTaskInstructions(): string {
         <strong>Why the format changes</strong>
         <p>The rule is the same, but the surface is different. This helps test whether you learned the underlying skill rather than memorising one display.</p>
       </div>
+      ${sameDayGuidedWarning}
       <div class="action-row">
         ${button(copy.startLabel, "start-pending-task")}
         ${button("Skip instructions", "start-pending-task", "secondary")}
@@ -1011,7 +1051,7 @@ async function deleteCurrentData(): Promise<void> {
   try {
     if (cloudSyncActive()) await deleteAttentionData();
     resetProgress();
-    state.progress = DEFAULT_PROGRESS;
+    state.progress = freshDefaultProgress();
     state.sessionPlan = null;
     state.sessionMode = "protocol";
     state.sessionSource = "guided";
@@ -1144,17 +1184,42 @@ function renderTutorial(): string {
 
 function renderToday(): string {
   const phase = state.progress.currentPhase;
+  const completedToday = guidedCompletedToday();
+  if (guidedSessionsCompleted() >= TARGET_ENVELOPE_SESSIONS) {
+    return shell(`
+      ${appTabs("today")}
+      <section class="daily-loop-screen">
+        <div class="today-action-card programme-complete-panel">
+          <p class="ui-eyebrow">20-session programme complete</p>
+          <h1>Congratulations. You finished the guided programme.</h1>
+          <p class="ui-body">You completed ${TARGET_ENVELOPE_SESSIONS} guided Attention Coach sessions. You can review progress, practise freely, or start another 20-session programme from Session 1.</p>
+          <div class="today-primary-actions">
+            ${button("Start another 20 sessions", "restart-guided-programme")}
+            <button class="secondary-link-button" data-action="nav-progress">View progress</button>
+            <button class="secondary-link-button" data-action="nav-free-play">Practice only</button>
+          </div>
+        </div>
+        <div class="today-plan-card">
+          ${programmeProgressCard(TARGET_ENVELOPE_SESSIONS)}
+        </div>
+      </section>
+    `);
+  }
   const returnCopy = hasReturnGap()
     ? `<p class="return-cue">Welcome back. Your guided session is ready; you can also choose an easier practice today.</p>`
+    : "";
+  const completedTodayCopy = completedToday
+    ? `<p class="return-cue is-complete-today">Today's guided session is complete. Come back tomorrow, or choose short Practice only.</p>`
     : "";
   return shell(`
     ${appTabs("today")}
     <section class="daily-loop-screen">
       <div class="today-action-card">
-        <p class="ui-eyebrow">Today - Session ${state.progress.sessionNumber}</p>
+        <p class="ui-eyebrow">Today - Session ${Math.min(state.progress.sessionNumber, TARGET_ENVELOPE_SESSIONS)} of ${TARGET_ENVELOPE_SESSIONS}</p>
         <h1>Today's attention session</h1>
-        <p class="ui-body">Continue your session. The app chooses today's task based on your current learning curve. Enable device switching via the Data ethics button.</p>
+        <p class="ui-body">Recommended: one guided session per day. Practice mode is optional.</p>
         ${returnCopy}
+        ${completedTodayCopy}
         <div class="today-phase-grid">
           <div class="phase-tile is-blue">
             <span>What do I do today?</span>
@@ -1176,15 +1241,7 @@ function renderToday(): string {
         </div>
       </div>
       <div class="today-plan-card">
-        <div class="session-dots" aria-label="Recent completion dots">${completionDots()}</div>
-        <div class="today-time-card">
-          <span>Coming next</span>
-          <strong>${escapeHtml(comingNextPhase(phase))}</strong>
-        </div>
-        <div class="action-row">
-          ${button("Why this session?", "nav-today-rationale", "secondary")}
-          ${button("Training explainer", "nav-training-map", "ghost")}
-        </div>
+        ${programmeProgressCard()}
       </div>
     </section>
   `);
@@ -1714,14 +1771,35 @@ function renderComplete(): string {
         <h1>${isSetupPractice ? `Ready for training block ${returnIndex + 1}` : isEasierPractice ? "Practice kept the session warm" : `${Math.round((correct / total) * 100)}% correct`}</h1>
         <p class="ui-body">${
           isSetupPractice
-            ? "Practice helped you learn this block's display. It did not decide your progress score."
+            ? "Practice helps you learn the display. It does not change your session number, phase, or transfer score."
             : isEasierPractice
-              ? "This was unscored practice using your current display style. It did not change your session number, phase, WAP readiness, or transfer scores."
-              : "This practice block used the same brief display, mask, and response controls as guided training. It did not change your guided learning path."
+              ? "Practice helps you learn the display. It does not change your session number, phase, or transfer score."
+              : "Practice helps you learn the display. It does not change your session number, phase, or transfer score."
         }</p>
         <div class="action-row">
           ${isSetupPractice ? button(`Begin training block ${returnIndex + 1}`, "finish-practice-begin-block") : button("Choose another practice", "nav-free-play")}
           ${button(isSetupPractice ? "Back to block options" : "Return to Today", isSetupPractice ? "finish-practice-back-to-block" : "finish-complete", "secondary")}
+        </div>
+      </section>
+    `);
+  }
+  const lastGuided = latestGuidedCompletion();
+  if ((lastGuided?.sessionNumber || 0) >= TARGET_ENVELOPE_SESSIONS) {
+    return shell(`
+      <section class="panel result-panel programme-complete-panel">
+        <p class="ui-eyebrow">20-session programme complete</p>
+        <h1>Congratulations. You finished the guided programme.</h1>
+        <p class="ui-body">You completed ${TARGET_ENVELOPE_SESSIONS} guided Attention Coach sessions. You can review progress, practise freely, or start another 20-session programme from Session 1.</p>
+        ${programmeProgressCard(TARGET_ENVELOPE_SESSIONS)}
+        <div class="session-read-card is-green">
+          <span>Next option</span>
+          <strong>Start another 20 sessions</strong>
+          <p>This starts the guided pathway again from Session 1 while keeping your app setup.</p>
+        </div>
+        <div class="action-row">
+          ${button("Start another 20 sessions", "restart-guided-programme")}
+          ${button("View progress", "nav-progress", "secondary")}
+          ${button("Practice only", "nav-free-play", "ghost")}
         </div>
       </section>
     `);
@@ -1745,6 +1823,8 @@ function renderComplete(): string {
     <section class="panel result-panel">
       <p class="ui-eyebrow">Session complete</p>
       <h1>Nice work today</h1>
+      ${programmeProgressCard()}
+      <p class="return-cue is-complete-today">Today's guided session is complete. Come back tomorrow, or choose short Practice only.</p>
       <div class="session-read-card is-blue">
         <span>Today's read</span>
         <strong>${escapeHtml(status)}</strong>
@@ -2268,6 +2348,8 @@ function averageNullableScores(values: Array<number | null>): number | null {
 }
 
 function scoreHistoryEntryFromState(input: {
+  programmeRunId: string;
+  programmeCycle: number;
   sessionNumber: number;
   completedAt: string;
   phase: PhaseLabel;
@@ -2282,6 +2364,8 @@ function scoreHistoryEntryFromState(input: {
     scoreForEvidenceSet(input.evidence, "BSE", "arrow_rel") ||
     scoreForEvidenceSet(input.evidence, "BSE", "flow_rel");
   return {
+    programmeRunId: input.programmeRunId,
+    programmeCycle: input.programmeCycle,
     sessionNumber: input.sessionNumber,
     completedAt: input.completedAt,
     phase: input.phase,
@@ -2746,10 +2830,10 @@ function renderEarlyProgressDashboard(): string {
       <section class="continuity-card">
         <div>
           <span>Guided continuity</span>
-          <strong>Session ${state.progress.sessionNumber}</strong>
-          <small>${state.progress.completions.length} session${state.progress.completions.length === 1 ? "" : "s"} completed</small>
+          <strong>${guidedSessionsCompleted()} of ${TARGET_ENVELOPE_SESSIONS} guided sessions</strong>
+          <small>Current guided session: ${Math.min(state.progress.sessionNumber, TARGET_ENVELOPE_SESSIONS)}</small>
         </div>
-        <div class="session-dots">${completionDots()}</div>
+        <div class="programme-dots">${programmeProgressDots()}</div>
         <p>Complete five guided sessions before the app shows score detail as a more reliable personal pattern. For now, the goal is consistency, fit, and a clear learning curve.</p>
       </section>
       <section class="early-progress-grid">
@@ -2952,6 +3036,9 @@ function beginSession(): void {
     phase,
     state.progress.phaseStatus,
     NOMINAL_BANDS[phase],
+    `${state.progress.programmeRunId}:attention-${state.progress.sessionNumber}-${phase}`,
+    state.progress.programmeRunId,
+    state.progress.programmeCycle,
   );
   state.activeBlockIndex = 0;
   state.activeTrialIndex = 0;
@@ -2993,11 +3080,21 @@ function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSo
 }
 
 function startGuidedInstructions(): void {
-  state.pendingTaskStart = null;
+  if (guidedSessionsCompleted() >= TARGET_ENVELOPE_SESSIONS) {
+    go("today");
+    return;
+  }
   if (!state.progress.deviceReadiness) {
+    state.pendingTaskStart = null;
     go("readiness");
     return;
   }
+  if (guidedCompletedToday()) {
+    state.pendingTaskStart = { kind: "guided" };
+    go("pre-task-instructions");
+    return;
+  }
+  state.pendingTaskStart = null;
   go("briefing");
 }
 
@@ -3139,6 +3236,8 @@ function endCurrentBlock(): void {
 function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results: TrialResult[]) {
   return {
     clientSessionId: plan.sessionId,
+    programmeRunId: plan.programmeRunId,
+    programmeCycle: plan.programmeCycle,
     clientBlockId: block.id,
     sessionNumber: plan.sessionNumber,
     phaseLabel: plan.phase,
@@ -3204,6 +3303,8 @@ function finalizeGuidedSession(input: {
   pendingBlockSubmissions = [];
   void Promise.allSettled(submissions).then(() => finalizeAttentionSession({
     clientSessionId: plan.sessionId,
+    programmeRunId: plan.programmeRunId,
+    programmeCycle: plan.programmeCycle,
     snapshot: input.snapshot,
     scoringVersion: SCORING_VERSION,
     controllerEvent: {
@@ -3215,8 +3316,12 @@ function finalizeGuidedSession(input: {
       reason: input.decision.reason,
       readiness: input.decision.readiness,
       protocolGroup: state.progress.protocolGroup,
+      programmeRunId: plan.programmeRunId,
+      programmeCycle: plan.programmeCycle,
       completedSession: {
         sessionNumber: input.completedSessionNumber,
+        programmeRunId: plan.programmeRunId,
+        programmeCycle: plan.programmeCycle,
         completedAt: input.completedAt,
         phase: input.completedPhase,
         phaseStatus: input.completedPhaseStatus,
@@ -3224,6 +3329,8 @@ function finalizeGuidedSession(input: {
       },
       nextState: {
         sessionNumber: input.nextSessionNumber,
+        programmeRunId: plan.programmeRunId,
+        programmeCycle: plan.programmeCycle,
         phase: input.nextPhase,
         phaseStatus: input.nextPhaseStatus,
         nominalBand: NOMINAL_BANDS[input.nextPhase],
@@ -3291,6 +3398,8 @@ function completeSession(): void {
     protocolGroup: state.progress.protocolGroup,
   });
   const scoreHistoryEntry = scoreHistoryEntryFromState({
+    programmeRunId: state.progress.programmeRunId,
+    programmeCycle: state.progress.programmeCycle,
     sessionNumber: completedSessionNumber,
     completedAt: guidedCompletion.completedAt,
     phase: completedPhase,
@@ -3541,7 +3650,7 @@ appRoot.addEventListener("click", async (event) => {
     clearStageTimer();
     state = {
       ...state,
-      progress: DEFAULT_PROGRESS,
+      progress: freshDefaultProgress(),
       sessionPlan: null,
       sessionMode: "protocol",
       sessionSource: "guided",
@@ -3555,6 +3664,35 @@ appRoot.addEventListener("click", async (event) => {
     };
     persistProgress();
     go("welcome", { replace: true });
+  }
+  else if (action === "restart-guided-programme") {
+    const preservedReadiness = state.progress.deviceReadiness;
+    const preservedProtocolGroup = state.progress.protocolGroup;
+    const preservedScratchBaselines = state.progress.scratchBaselines;
+    const nextProgrammeCycle = (state.progress.programmeCycle || 1) + 1;
+    clearStageTimer();
+    state = {
+      ...state,
+      progress: {
+        ...DEFAULT_PROGRESS,
+        programmeRunId: newProgrammeRunId(nextProgrammeCycle),
+        programmeCycle: nextProgrammeCycle,
+        deviceReadiness: preservedReadiness,
+        protocolGroup: preservedProtocolGroup,
+        scratchBaselines: preservedScratchBaselines,
+      },
+      sessionPlan: null,
+      sessionMode: "protocol",
+      sessionSource: "guided",
+      progressionScored: true,
+      guidedReturn: null,
+      progressDashboardMode: "overview",
+      pendingTaskStart: null,
+      editingProofBenchmarkId: null,
+      viewHistory: [],
+    };
+    persistProgress();
+    go("today", { replace: true });
   }
 });
 

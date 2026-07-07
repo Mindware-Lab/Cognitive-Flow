@@ -231,6 +231,8 @@ export function createSessionPlan(
   phaseStatus: PhaseStatus,
   nominalBand: string | null,
   sessionSeed = `attention-${sessionNumber}-${phase}`,
+  programmeRunId = "programme-1-legacy",
+  programmeCycle = 1,
 ): SessionPlan {
   const miniBlocks = miniBlockPlansForPhase(phase, sessionSeed).map((block) => ({
     ...block,
@@ -259,6 +261,8 @@ export function createSessionPlan(
   }
   return {
     sessionId: sessionSeed,
+    programmeRunId,
+    programmeCycle,
     sessionNumber,
     phase,
     phaseStatus,
@@ -288,6 +292,8 @@ export function createFreePlaySessionPlan(
   );
   return {
     sessionId: sessionSeed,
+    programmeRunId: "free-play",
+    programmeCycle: 0,
     sessionNumber: 0,
     phase: cellKey === "flow_rel" ? "P4_FLOW_REL" : cellKey === "arrow_rel" ? "P3_ARROW_REL" : cellKey === "flow_abs" ? "P2_FLOW_ABS" : "P1_ARROW_ABS",
     phaseStatus: "active",

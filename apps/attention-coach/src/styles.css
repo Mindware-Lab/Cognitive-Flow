@@ -271,6 +271,14 @@ button {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
+.app-content.view-today.has-app-tabs.has-beta-status {
+  grid-template-rows: auto auto auto;
+}
+
+.app-content.view-today.has-app-tabs:not(.has-beta-status) {
+  grid-template-rows: auto auto;
+}
+
 .app-content.view-free-play.has-app-tabs {
   gap: 8px;
 }
@@ -1361,6 +1369,8 @@ button.score-card {
 
 .daily-loop-screen {
   grid-template-rows: none;
+  gap: 14px;
+  min-height: 0;
 }
 
 .no-scroll-screen {
@@ -1379,6 +1389,7 @@ button.score-card {
 .today-action-card,
 .why-today-card,
 .today-plan-card,
+.programme-progress-card,
 .early-progress-card,
 .train-header-card,
 .train-choice-card,
@@ -1411,6 +1422,7 @@ button.score-card {
 .today-action-card,
 .why-today-card,
 .today-plan-card,
+.programme-progress-card,
 .early-progress-card,
 .programme-rationale-card,
 .pre-task-hero,
@@ -1430,9 +1442,9 @@ button.score-card {
 
 .today-action-card {
   display: grid;
-  align-content: center;
-  gap: 10px;
-  padding: 18px;
+  align-content: start;
+  gap: 12px;
+  padding: 18px 18px 24px;
   background:
     linear-gradient(135deg, rgba(31, 91, 255, 0.13), rgba(255, 255, 255, 0.92) 48%),
     radial-gradient(circle at 96% 12%, rgba(23, 163, 69, 0.12), transparent 180px);
@@ -1478,8 +1490,7 @@ button.score-card {
 }
 
 .phase-tile span,
-.session-read-card span,
-.today-time-card span {
+.session-read-card span {
   color: #445176;
   font-size: 0.72rem;
   font-weight: 850;
@@ -1487,8 +1498,7 @@ button.score-card {
 }
 
 .phase-tile strong,
-.session-read-card strong,
-.today-time-card strong {
+.session-read-card strong {
   color: #07124a;
   font-size: 1rem;
   line-height: 1.12;
@@ -1584,10 +1594,80 @@ button.score-card {
 
 .today-plan-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 12px;
   padding: 14px 16px;
+}
+
+.programme-progress-card {
+  display: grid;
+  gap: 9px;
+  min-height: 132px;
+  padding: 13px 14px 17px;
+  overflow: hidden;
+  background:
+    linear-gradient(135deg, rgba(20, 88, 255, 0.1), rgba(255, 255, 255, 0.94)),
+    radial-gradient(circle at 100% 0%, rgba(138, 214, 42, 0.14), transparent 170px);
+}
+
+.programme-progress-card > div:first-child {
+  display: grid;
+  gap: 3px;
+}
+
+.programme-progress-card span {
+  color: #445176;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+}
+
+.programme-progress-card strong {
+  color: #07124a;
+  font-size: 1rem;
+  line-height: 1.12;
+}
+
+.programme-progress-card small {
+  margin: 0;
+  color: #4e5a7c;
+  line-height: 1.3;
+  font-size: 0.72rem;
+  font-weight: 720;
+}
+
+.programme-dots {
+  display: grid;
+  gap: 4px;
+  width: max-content;
+  max-width: 100%;
+}
+
+.programme-dot-row {
+  display: grid;
+  grid-template-columns: repeat(10, 20px);
+  gap: 5px;
+}
+
+.programme-dots span {
+  width: 20px;
+  height: 20px;
+  display: inline-grid;
+  place-items: center;
+  border: 1px dashed #9fb3d4;
+  border-radius: 50%;
+  color: #1458ff;
+  background: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 900;
+}
+
+.programme-dots span.is-complete {
+  border-style: solid;
+  border-color: rgba(23, 163, 69, 0.45);
+  color: #0b6f2d;
+  background: rgba(23, 163, 69, 0.1);
 }
 
 .plan-steps {
@@ -1606,12 +1686,6 @@ button.score-card {
   text-align: center;
 }
 
-.today-time-card {
-  display: grid;
-  gap: 4px;
-  min-width: 112px;
-}
-
 .today-plan-card .action-row {
   grid-column: 1 / -1;
   justify-content: center;
@@ -1622,6 +1696,7 @@ button.score-card {
   grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(118px, auto));
   align-items: center;
   gap: 8px;
+  margin-top: 2px;
 }
 
 .today-primary-actions .ui-button {
@@ -1656,31 +1731,32 @@ button.score-card {
   font-weight: 780;
 }
 
-.session-dots {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
+.return-cue.is-complete-today {
+  border-color: rgba(20, 88, 255, 0.24);
+  color: #123f9b;
+  background: rgba(20, 88, 255, 0.08);
 }
 
-.session-dots span {
-  width: 22px;
-  height: 22px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px dashed #9fb3d4;
-  border-radius: 50%;
-  color: #1458ff;
-  background: #fff;
-  font-size: 0.66rem;
-  font-weight: 900;
+.same-day-warning-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid rgba(242, 91, 11, 0.28);
+  border-radius: 16px;
+  color: #7a3106;
+  background: linear-gradient(135deg, rgba(242, 91, 11, 0.12), rgba(255, 255, 255, 0.94));
 }
 
-.session-dots span.is-complete {
-  border-style: solid;
-  border-color: rgba(23, 163, 69, 0.45);
-  color: #0b6f2d;
-  background: rgba(23, 163, 69, 0.1);
+.same-day-warning-card strong {
+  color: #7a3106;
+  font-size: 0.92rem;
+}
+
+.same-day-warning-card p {
+  margin: 0;
+  color: #594163;
+  font-size: 0.82rem;
+  line-height: 1.3;
 }
 
 .programme-rationale-card {
@@ -2507,6 +2583,10 @@ button.score-card {
 
 .result-panel {
   gap: 12px;
+}
+
+.programme-complete-panel {
+  align-content: center;
 }
 
 .session-read-card p {
@@ -5110,7 +5190,7 @@ button.score-card {
     width: 100%;
     max-width: 100%;
     grid-template-rows: none;
-    gap: 8px;
+    gap: 12px;
     overflow-x: hidden;
   }
 
@@ -5298,10 +5378,6 @@ button.score-card {
   .plan-steps span {
     padding: 6px;
     font-size: 0.62rem;
-  }
-
-  .today-time-card {
-    display: none;
   }
 
   .today-plan-card .action-row {
@@ -6655,6 +6731,11 @@ button.score-card {
     gap: 7px;
   }
 
+  .app-content.view-today {
+    padding: 6px;
+    gap: 6px;
+  }
+
   .tabs {
     gap: 2px;
     padding: 3px;
@@ -6685,6 +6766,70 @@ button.score-card {
   .today-action-card h1 {
     font-size: clamp(1.18rem, 6.2vw, 1.45rem);
     line-height: 1.08;
+  }
+
+  .app-content.view-today .today-action-card {
+    gap: 7px;
+    padding: 9px 10px 16px;
+  }
+
+  .app-content.view-today .today-action-card h1 {
+    font-size: clamp(1.1rem, 6vw, 1.35rem);
+  }
+
+  .app-content.view-today .return-cue {
+    padding: 7px 9px;
+    border-radius: 12px;
+    font-size: 0.68rem;
+    line-height: 1.15;
+  }
+
+  .app-content.view-today .today-phase-grid {
+    gap: 5px;
+  }
+
+  .app-content.view-today .phase-tile {
+    gap: 3px;
+    padding: 7px 9px;
+  }
+
+  .app-content.view-today .today-primary-actions {
+    gap: 5px;
+  }
+
+  .app-content.view-today .today-primary-actions .ui-button,
+  .app-content.view-today .secondary-link-button {
+    min-height: 32px;
+    font-size: 0.66rem;
+  }
+
+  .app-content.view-today .today-plan-card {
+    padding: 8px;
+  }
+
+  .app-content.view-today .programme-progress-card {
+    gap: 7px;
+    min-height: 118px;
+    padding: 10px 12px 12px;
+  }
+
+  .app-content.view-today .programme-progress-card small {
+    font-size: 0.68rem;
+    line-height: 1.2;
+  }
+
+  .programme-dots {
+    width: max-content;
+  }
+
+  .app-content.view-today .programme-dot-row {
+    grid-template-columns: repeat(10, 18px);
+    gap: 4px;
+  }
+
+  .app-content.view-today .programme-dots span {
+    width: 18px;
+    height: 18px;
   }
 
   .direction-tutorial {

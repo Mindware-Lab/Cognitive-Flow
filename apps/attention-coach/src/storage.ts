@@ -13,6 +13,13 @@ import type {
 const PREFIX = "attention-coach";
 const BROWSER_DEVICE_ID_KEY = `${PREFIX}:browserDeviceId`;
 
+export function newProgrammeRunId(cycle: number): string {
+  const suffix = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `programme-${cycle}-${suffix}`;
+}
+
 export type CloudSyncMode = "local" | "cloud";
 export type ProofBenchmarkDomain = "attention" | "working_memory" | "reasoning";
 export type ProofBenchmarkTimepoint = "baseline" | "midpoint" | "post" | "follow_up" | "ad_hoc";
@@ -42,11 +49,15 @@ export interface DailyCompletionEntry {
   date: string;
   route: CompletionRoute;
   completedAt: string;
+  programmeRunId?: string;
+  programmeCycle?: number;
   sessionNumber: number;
   phase: PhaseLabel;
 }
 
 export interface ProgressScoreHistoryEntry {
+  programmeRunId?: string;
+  programmeCycle?: number;
   sessionNumber: number;
   completedAt: string;
   phase: PhaseLabel;
@@ -54,6 +65,8 @@ export interface ProgressScoreHistoryEntry {
 }
 
 export interface LocalProgress {
+  programmeRunId: string;
+  programmeCycle: number;
   sessionNumber: number;
   currentPhase: PhaseLabel;
   phaseStatus: PhaseStatus;
@@ -71,6 +84,8 @@ export interface LocalProgress {
 }
 
 export const DEFAULT_PROGRESS: LocalProgress = {
+  programmeRunId: newProgrammeRunId(1),
+  programmeCycle: 1,
   sessionNumber: 1,
   currentPhase: "P1_ARROW_ABS",
   phaseStatus: "active",
@@ -87,11 +102,20 @@ export const DEFAULT_PROGRESS: LocalProgress = {
   profileRevealSeen: false,
 };
 
+export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress {
+  const maybeCycle = Number((progress as Partial<LocalProgress>).programmeCycle);
+  const programmeCycle = Number.isFinite(maybeCycle) && maybeCycle >= 1 ? Math.floor(maybeCycle) : 1;
+  const programmeRunId = typeof (progress as Partial<LocalProgress>).programmeRunId === "string" && progress.programmeRunId.trim()
+    ? progress.programmeRunId
+    : newProgrammeRunId(programmeCycle);
+  return { ...progress, programmeRunId, programmeCycle };
+}
+
 export function loadProgress(): LocalProgress {
   const raw = localStorage.getItem(`${PREFIX}:progress`);
   if (!raw) return DEFAULT_PROGRESS;
   try {
-    return { ...DEFAULT_PROGRESS, ...JSON.parse(raw) } as LocalProgress;
+    return progressWithProgrammeRun({ ...DEFAULT_PROGRESS, ...JSON.parse(raw) } as LocalProgress);
   } catch {
     return DEFAULT_PROGRESS;
   }
@@ -124,9 +148,10 @@ export function browserDeviceId(): string {
 }
 
 export function progressForBrowserDevice(progress: LocalProgress, currentBrowserDeviceId: string): LocalProgress {
-  const readiness = progress.deviceReadiness;
-  if (!readiness) return progress;
+  const normalised = progressWithProgrammeRun(progress);
+  const readiness = normalised.deviceReadiness;
+  if (!readiness) return normalised;
   return readiness.browserDeviceId === currentBrowserDeviceId
-    ? progress
-    : { ...progress, deviceReadiness: null };
+    ? normalised
+    : { ...normalised, deviceReadiness: null };
 }

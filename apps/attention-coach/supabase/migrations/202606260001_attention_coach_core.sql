@@ -34,6 +34,8 @@ create table if not exists public.attention_device_checks (
 create table if not exists public.attention_sessions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
+  programme_run_id text,
+  programme_cycle integer not null default 1,
   session_number integer not null,
   phase_label text not null,
   phase_status text not null,
@@ -182,6 +184,8 @@ create table if not exists public.attention_score_snapshots (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null,
   session_id uuid references public.attention_sessions(id) on delete set null,
+  programme_run_id text,
+  programme_cycle integer not null default 1,
   session_number integer not null,
   active_phase text not null,
   phase_status text not null,
@@ -281,6 +285,7 @@ revoke insert, update, delete on public.attention_capacity_estimates from anon, 
 revoke insert, update, delete on public.attention_score_snapshots from anon, authenticated;
 
 create index if not exists attention_trials_session_idx on public.attention_trials (session_id, construct, cell_key);
+create index if not exists attention_sessions_programme_idx on public.attention_sessions (user_id, programme_cycle, programme_run_id, session_number);
 create index if not exists attention_snapshots_user_created_idx on public.attention_score_snapshots (user_id, created_at desc);
 create index if not exists attention_transitions_user_key_idx on public.attention_transition_events (user_id, transition_key, started_at desc);
 create index if not exists attention_proof_user_domain_idx on public.attention_proof_benchmarks (user_id, domain, completed_at desc);
