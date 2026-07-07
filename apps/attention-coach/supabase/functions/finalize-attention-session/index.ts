@@ -18,6 +18,168 @@ function isMissingProgrammeColumn(error: { message?: string } | null): boolean {
   return Boolean(error?.message && /programme_(run_id|cycle)|schema cache/i.test(error.message));
 }
 
+type MetricRow = {
+  metricKey: string;
+  metricGroup: string;
+  metricUnit: string | null;
+  metricValue: number;
+  metricContext?: Record<string, unknown>;
+};
+
+function finiteNumber(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) ? value : null;
+}
+
+function nestedNumber(source: Record<string, unknown>, path: string[]): number | null {
+  let value: unknown = source;
+  for (const key of path) {
+    if (!value || typeof value !== "object" || Array.isArray(value)) return null;
+    value = (value as Record<string, unknown>)[key];
+  }
+  return finiteNumber(value);
+}
+
+function pushMetric(
+  rows: MetricRow[],
+  metricKey: string,
+  metricGroup: string,
+  metricUnit: string | null,
+  metricValue: unknown,
+  metricContext: Record<string, unknown> = {},
+): void {
+  const value = finiteNumber(metricValue);
+  if (value === null) return;
+  rows.push({ metricKey, metricGroup, metricUnit, metricValue: value, metricContext });
+}
+
+function metricRowsFromSnapshot(snapshot: Record<string, unknown>): MetricRow[] {
+  const rows: MetricRow[] = [];
+  const control = objectPayload(snapshot.attentionControl);
+  const binding = objectPayload(snapshot.bindingFocus);
+  const transfer = objectPayload(snapshot.transfer);
+
+  pushMetric(rows, "control.bits_per_sec", "control", "bps", control.bitsPerSec);
+  pushMetric(rows, "control.training_score", "control", "score", control.trainingScore);
+  pushMetric(rows, "control.n_level", "control", "n_level", control.nLevel);
+  pushMetric(rows, "control.stable_n_level", "control", "n_level", control.stableNLevel);
+  pushMetric(rows, "control.peak_n_level", "control", "n_level", control.peakNLevel);
+  pushMetric(rows, "binding.bits_per_sec", "binding", "bps", binding.bitsPerSec);
+  pushMetric(rows, "binding.training_score", "binding", "score", binding.trainingScore);
+  pushMetric(rows, "binding.n_level", "binding", "n_level", binding.nLevel);
+  pushMetric(rows, "transfer.score", "transfer", "score", transfer.score, { status: transfer.status ?? null });
+  pushMetric(rows, "transfer.motion_recovery", "transfer", "score", nestedNumber(transfer, ["motionRecovery", "score"]));
+  pushMetric(rows, "transfer.relation_recovery", "transfer", "score", nestedNumber(transfer, ["relationRecovery", "score"]));
+  pushMetric(rows, "transfer.mixed_flexibility", "transfer", "score", nestedNumber(transfer, ["mixedFlexibility", "score"]));
+  pushMetric(rows, "transfer.return_strength", "transfer", "score", nestedNumber(transfer, ["returnStrength", "score"]));
+
+  const farTransfer = objectPayload(snapshot.farTransfer);
+  const boundarySignals = Array.isArray(farTransfer.boundarySignals) ? farTransfer.boundarySignals : [];
+  for (const signalValue of boundarySignals) {
+    const signal = objectPayload(signalValue);
+    const boundary = typeof signal.boundary === "string" ? signal.boundary.toLowerCase() : "unknown";
+    const context = {
+      boundary: signal.boundary ?? null,
+      status: signal.status ?? null,
+      sourceCell: signal.sourceCell ?? null,
+      targetCell: signal.targetCell ?? null,
+    };
+    pushMetric(rows, `transfer.boundary.${boundary}.functional_score`, "transfer_boundary", "score", signal.functionalTransferScore, context);
+    pushMetric(rows, `transfer.boundary.${boundary}.efficiency`, "transfer_boundary", "ratio", signal.transferEfficiency, context);
+    pushMetric(rows, `transfer.boundary.${boundary}.stability_advantage`, "transfer_boundary", "ratio", signal.stabilityAdvantage, context);
+    pushMetric(rows, `transfer.boundary.${boundary}.recovery_ratio`, "transfer_boundary", "ratio", signal.recoveryRatio, context);
+  }
+
+  return rows;
+}
+
+async function updateMetricNorms(
+  supabase: ReturnType<typeof serviceClient>,
+  appId: "attention_coach" | "wm_coach",
+  metricKeys: string[],
+): Promise<void> {
+  for (const metricKey of metricKeys) {
+    const { data, error } = await supabase
+      .from("coach_metric_observations")
+      .select("metric_value, recorded_at")
+      .eq("app_id", appId)
+      .eq("metric_key", metricKey);
+    if (error || !data?.length) continue;
+    const values = data
+      .map((row) => Number(row.metric_value))
+      .filter((value) => Number.isFinite(value));
+    if (!values.length) continue;
+    const n = values.length;
+    const mean = values.reduce((total, value) => total + value, 0) / n;
+    const variance = n > 1
+      ? values.reduce((total, value) => total + (value - mean) ** 2, 0) / (n - 1)
+      : 0;
+    const latest = data
+      .map((row) => typeof row.recorded_at === "string" ? row.recorded_at : null)
+      .filter((value): value is string => Boolean(value))
+      .sort()
+      .at(-1) ?? null;
+    await supabase.from("coach_metric_norms").upsert(
+      {
+        app_id: appId,
+        metric_key: metricKey,
+        cohort_key: "global_beta",
+        n,
+        mean_value: mean,
+        stddev_value: n > 1 ? Math.sqrt(variance) : null,
+        min_value: Math.min(...values),
+        max_value: Math.max(...values),
+        last_observation_at: latest,
+        updated_at: new Date().toISOString(),
+      },
+      { onConflict: "app_id,metric_key,cohort_key" },
+    );
+  }
+}
+
+async function recordCoachMetrics(input: {
+  supabase: ReturnType<typeof serviceClient>;
+  appId: "attention_coach" | "wm_coach";
+  userId: string;
+  sessionId: string;
+  payload: FinalizePayload;
+  sessionNumber: number;
+  phaseLabel: string;
+  phaseStatus: string;
+  snapshot: Record<string, unknown>;
+}): Promise<void> {
+  const metrics = metricRowsFromSnapshot(input.snapshot);
+  if (!metrics.length) return;
+  const controllerEvent = objectPayload(input.payload.controllerEvent);
+  const rows = metrics.map((metric) => ({
+    app_id: input.appId,
+    user_id: input.userId,
+    client_session_id: input.payload.clientSessionId,
+    source_session_id: input.sessionId,
+    programme_run_id: input.payload.programmeRunId || null,
+    programme_cycle: input.payload.programmeCycle || 1,
+    session_number: input.sessionNumber,
+    phase_label: input.phaseLabel,
+    phase_status: input.phaseStatus,
+    protocol_group: typeof controllerEvent.protocolGroup === "string" ? controllerEvent.protocolGroup : null,
+    device_quality: typeof controllerEvent.deviceQuality === "string" ? controllerEvent.deviceQuality : null,
+    metric_key: metric.metricKey,
+    metric_group: metric.metricGroup,
+    metric_unit: metric.metricUnit,
+    metric_value: metric.metricValue,
+    metric_context: metric.metricContext || {},
+    scoring_version: input.payload.scoringVersion,
+    recorded_at: new Date().toISOString(),
+  }));
+  const { error } = await input.supabase
+    .from("coach_metric_observations")
+    .upsert(rows, { onConflict: "app_id,user_id,client_session_id,metric_key" });
+  if (error) {
+    console.warn("Coach metric observations were not recorded.", error.message);
+    return;
+  }
+  await updateMetricNorms(input.supabase, input.appId, Array.from(new Set(metrics.map((metric) => metric.metricKey))));
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (request.method !== "POST") return json(405, { error: "Method not allowed." });
@@ -66,6 +228,18 @@ Deno.serve(async (request) => {
   }
   const { error: snapshotError } = snapshotResult;
   if (snapshotError) return json(500, { error: snapshotError.message });
+
+  await recordCoachMetrics({
+    supabase,
+    appId: "attention_coach",
+    userId: user.id,
+    sessionId: session.id,
+    payload,
+    sessionNumber: snapshot.sessionNumber || session.session_number,
+    phaseLabel: snapshot.activePhase || session.phase_label,
+    phaseStatus: snapshot.phaseStatus || session.phase_status,
+    snapshot: payload.snapshot,
+  });
 
   if (payload.controllerEvent) {
     const readiness = objectPayload(payload.controllerEvent.readiness);
