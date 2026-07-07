@@ -804,8 +804,10 @@ export function createSessionPlan(
   phaseStatus: PhaseStatus,
   nominalBand: string | null,
   nLevels: Record<string, number> = {},
+  programmeRunId = "wm-programme-1-legacy",
+  programmeCycle = 1,
 ): SessionPlan {
-  const sessionId = `wm-${sessionNumber}-${phase}-${Date.now()}`;
+  const sessionId = `${programmeRunId}:wm-${sessionNumber}-${phase}-${Date.now()}`;
   const miniBlocks = miniBlockPlansForPhase(phase, sessionId, nLevels);
   const trials = miniBlocks.flatMap((block) => buildNBackTrials({
     sessionId,
@@ -819,7 +821,7 @@ export function createSessionPlan(
     trialCount: block.trialCount,
     speed: block.speed,
   }));
-  return { sessionId, sessionNumber, phase, phaseStatus, nominalBand, miniBlocks, trials };
+  return { sessionId, programmeRunId, programmeCycle, sessionNumber, phase, phaseStatus, nominalBand, miniBlocks, trials };
 }
 
 export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey, speed: CapacitySpeed = DEFAULT_SPEED, phaseOverride?: PhaseLabel): SessionPlan {
@@ -847,6 +849,8 @@ export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey
   });
   return {
     sessionId,
+    programmeRunId: "free-play",
+    programmeCycle: 0,
     sessionNumber: 0,
     phase,
     phaseStatus: "active",

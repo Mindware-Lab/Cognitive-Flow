@@ -44,6 +44,8 @@ export interface DailyCompletionEntry {
   completedAt: string;
   sessionNumber: number;
   phase: PhaseLabel;
+  programmeRunId: string;
+  programmeCycle: number;
 }
 
 export interface ProgressScoreHistoryEntry {
@@ -51,9 +53,13 @@ export interface ProgressScoreHistoryEntry {
   completedAt: string;
   phase: PhaseLabel;
   metrics: Partial<Record<ProgressScoreMetric, number | null>>;
+  programmeRunId: string;
+  programmeCycle: number;
 }
 
 export interface LocalProgress {
+  programmeRunId: string;
+  programmeCycle: number;
   sessionNumber: number;
   currentPhase: PhaseLabel;
   phaseStatus: PhaseStatus;
@@ -72,6 +78,8 @@ export interface LocalProgress {
 }
 
 export const DEFAULT_PROGRESS: LocalProgress = {
+  programmeRunId: newProgrammeRunId(1),
+  programmeCycle: 1,
   sessionNumber: 1,
   currentPhase: "P1_ARROW_ABS",
   phaseStatus: "active",
@@ -93,7 +101,7 @@ export function loadProgress(): LocalProgress {
   const raw = localStorage.getItem(`${PREFIX}:progress`);
   if (!raw) return DEFAULT_PROGRESS;
   try {
-    return { ...DEFAULT_PROGRESS, ...JSON.parse(raw) } as LocalProgress;
+    return progressWithProgrammeRun({ ...DEFAULT_PROGRESS, ...JSON.parse(raw) } as LocalProgress);
   } catch {
     return DEFAULT_PROGRESS;
   }
@@ -126,11 +134,41 @@ export function browserDeviceId(): string {
 }
 
 export function progressForBrowserDevice(progress: LocalProgress, currentBrowserDeviceId: string): LocalProgress {
-  const readiness = progress.deviceReadiness;
-  if (!readiness) return progress;
+  const progressWithRun = progressWithProgrammeRun(progress);
+  const readiness = progressWithRun.deviceReadiness;
+  if (!readiness) return progressWithRun;
   return readiness.browserDeviceId === currentBrowserDeviceId
-    ? progress
-    : { ...progress, deviceReadiness: null };
+    ? progressWithRun
+    : { ...progressWithRun, deviceReadiness: null };
+}
+
+export function newProgrammeRunId(cycle: number): string {
+  const random = typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+    ? crypto.randomUUID()
+    : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+  return `wm-programme-${cycle}-${random}`;
+}
+
+export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress {
+  const programmeCycle = Number.isFinite(progress.programmeCycle) && progress.programmeCycle > 0
+    ? Math.round(progress.programmeCycle)
+    : 1;
+  const programmeRunId = progress.programmeRunId || newProgrammeRunId(programmeCycle);
+  return {
+    ...progress,
+    programmeCycle,
+    programmeRunId,
+    completions: (progress.completions || []).map((entry) => ({
+      ...entry,
+      programmeRunId: entry.programmeRunId || programmeRunId,
+      programmeCycle: entry.programmeCycle || programmeCycle,
+    })),
+    scoreHistory: (progress.scoreHistory || []).map((entry) => ({
+      ...entry,
+      programmeRunId: entry.programmeRunId || programmeRunId,
+      programmeCycle: entry.programmeCycle || programmeCycle,
+    })),
+  };
 }
 
 

@@ -41,6 +41,8 @@ create table if not exists public.wm_sessions (
   started_at timestamptz not null default now(),
   completed_at timestamptz,
   client_session_id text not null,
+  programme_run_id text,
+  programme_cycle integer not null default 1,
   protocol_version text not null,
   generator_version text not null,
   adaptive_version text not null,
@@ -183,6 +185,8 @@ create table if not exists public.wm_score_snapshots (
   user_id uuid not null,
   session_id uuid references public.wm_sessions(id) on delete set null,
   session_number integer not null,
+  programme_run_id text,
+  programme_cycle integer not null default 1,
   active_phase text not null,
   phase_status text not null,
   nominal_band text,
@@ -281,6 +285,7 @@ revoke insert, update, delete on public.wm_capacity_estimates from anon, authent
 revoke insert, update, delete on public.wm_score_snapshots from anon, authenticated;
 
 create index if not exists wm_trials_session_idx on public.wm_trials (session_id, construct, cell_key);
+create index if not exists wm_sessions_programme_idx on public.wm_sessions (user_id, programme_cycle, programme_run_id, session_number);
 create index if not exists wm_snapshots_user_created_idx on public.wm_score_snapshots (user_id, created_at desc);
 create index if not exists wm_transitions_user_key_idx on public.wm_transition_events (user_id, transition_key, started_at desc);
 create index if not exists wm_proof_user_domain_idx on public.wm_proof_benchmarks (user_id, domain, completed_at desc);

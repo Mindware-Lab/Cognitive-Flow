@@ -283,6 +283,10 @@ button {
   gap: 8px;
 }
 
+.app-content.view-today.has-app-tabs {
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
 .app-content.view-progress {
   overflow: auto;
 }
@@ -1410,6 +1414,7 @@ button.score-card {
 .today-action-card,
 .why-today-card,
 .today-plan-card,
+.programme-progress-card,
 .early-progress-card,
 .train-header-card,
 .train-choice-card,
@@ -1448,6 +1453,7 @@ button.score-card {
 .today-action-card,
 .why-today-card,
 .today-plan-card,
+.programme-progress-card,
 .early-progress-card,
 .coaching-hero,
 .coaching-value-grid article,
@@ -1473,9 +1479,9 @@ button.score-card {
 
 .today-action-card {
   display: grid;
-  align-content: center;
-  gap: 10px;
-  padding: 18px;
+  align-content: start;
+  gap: 12px;
+  padding: 18px 18px 24px;
   background:
     linear-gradient(135deg, rgba(31, 91, 255, 0.13), rgba(255, 255, 255, 0.92) 48%),
     radial-gradient(circle at 96% 12%, rgba(23, 163, 69, 0.12), transparent 180px);
@@ -1484,6 +1490,7 @@ button.score-card {
 .today-action-card > *,
 .why-today-card > *,
 .today-plan-card > *,
+.programme-progress-card > *,
 .programme-rationale-card > *,
 .train-header-card > *,
 .coaching-hero > *,
@@ -1798,10 +1805,40 @@ button.score-card {
 
 .today-plan-card {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: stretch;
   gap: 12px;
   padding: 14px 16px;
+}
+
+.programme-progress-card {
+  display: grid;
+  gap: 6px;
+  padding: 14px 16px;
+  background:
+    linear-gradient(135deg, rgba(20, 88, 255, 0.08), rgba(255, 255, 255, 0.95)),
+    radial-gradient(circle at 100% 0%, rgba(138, 214, 42, 0.13), transparent 180px);
+}
+
+.programme-progress-card span {
+  color: #445176;
+  font-size: 0.72rem;
+  font-weight: 880;
+  letter-spacing: 0.04em;
+}
+
+.programme-progress-card strong {
+  color: #07124a;
+  font-size: 1.05rem;
+  line-height: 1.12;
+}
+
+.programme-progress-card p {
+  margin: 0;
+  color: #334069;
+  font-size: 0.78rem;
+  font-weight: 760;
+  line-height: 1.25;
 }
 
 .plan-steps {
@@ -1870,13 +1907,46 @@ button.score-card {
   font-weight: 780;
 }
 
-.session-dots {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-  flex-wrap: wrap;
+.return-cue.is-complete-today {
+  border-color: rgba(20, 88, 255, 0.22);
+  color: #1458ff;
+  background: rgba(20, 88, 255, 0.08);
 }
 
+.same-day-warning-card {
+  display: grid;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid rgba(242, 91, 11, 0.24);
+  border-radius: 14px;
+  color: #7a3000;
+  background: rgba(242, 91, 11, 0.09);
+}
+
+.same-day-warning-card strong,
+.same-day-warning-card p {
+  margin: 0;
+}
+
+.same-day-warning-card p {
+  font-size: 0.82rem;
+  line-height: 1.3;
+}
+
+.programme-dots {
+  display: grid;
+  gap: 6px;
+  align-items: center;
+  justify-content: start;
+}
+
+.programme-dot-row {
+  display: grid;
+  grid-template-columns: repeat(10, 22px);
+  gap: 6px;
+}
+
+.programme-dot-row span,
 .session-dots span {
   width: 22px;
   height: 22px;
@@ -1890,6 +1960,7 @@ button.score-card {
   font-weight: 900;
 }
 
+.programme-dot-row span.is-complete,
 .session-dots span.is-complete {
   border-style: solid;
   border-color: rgba(23, 163, 69, 0.45);
@@ -5610,6 +5681,7 @@ button.score-card {
   .today-action-card,
   .why-today-card,
   .today-plan-card,
+  .programme-progress-card,
   .train-header-card,
   .training-map-hero,
   .evidence-hero {
@@ -5688,6 +5760,30 @@ button.score-card {
     grid-template-columns: 1fr;
     padding: 10px;
     overflow-x: hidden;
+  }
+
+  .programme-progress-card {
+    padding: 10px 12px;
+  }
+
+  .programme-progress-card strong {
+    font-size: 0.92rem;
+  }
+
+  .programme-progress-card p {
+    font-size: 0.68rem;
+    line-height: 1.18;
+  }
+
+  .programme-dot-row {
+    grid-template-columns: repeat(10, 18px);
+    gap: 4px;
+  }
+
+  .programme-dot-row span {
+    width: 18px;
+    height: 18px;
+    font-size: 0.56rem;
   }
 
   .plan-steps {
@@ -7599,6 +7695,7 @@ button.score-card {
   .today-action-card,
   .why-today-card,
   .today-plan-card,
+  .programme-progress-card,
   .programme-rationale-card,
   .pre-task-hero,
   .proof-hero,
@@ -7711,7 +7808,8 @@ button.score-card {
 
   .today-action-card .ui-body,
   .why-today-card p,
-  .learning-curve-note {
+  .learning-curve-note,
+  .programme-progress-card p {
     font-size: 0.64rem;
     line-height: 1.22;
   }
@@ -7725,6 +7823,17 @@ button.score-card {
   .secondary-link-button {
     min-height: 34px;
     font-size: 0.68rem;
+  }
+
+  .programme-dot-row {
+    grid-template-columns: repeat(10, 17px);
+    gap: 3px;
+  }
+
+  .programme-dot-row span {
+    width: 17px;
+    height: 17px;
+    font-size: 0.54rem;
   }
 }
 

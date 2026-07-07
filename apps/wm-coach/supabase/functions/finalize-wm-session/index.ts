@@ -3,6 +3,8 @@ import { CORS, json, readPayload } from "../_shared/http.ts";
 
 interface FinalizePayload {
   clientSessionId: string;
+  programmeRunId?: string;
+  programmeCycle?: number;
   snapshot: Record<string, unknown>;
   scoringVersion: string;
   controllerEvent?: Record<string, unknown>;
@@ -10,6 +12,15 @@ interface FinalizePayload {
 
 function objectPayload(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function isMissingProgrammeColumn(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(
+    error &&
+      (error.code === "42703" ||
+        error.message?.includes("programme_run_id") ||
+        error.message?.includes("programme_cycle")),
+  );
 }
 
 Deno.serve(async (request) => {
@@ -41,16 +52,26 @@ Deno.serve(async (request) => {
     nominalBand?: string | null;
   };
 
-  const { error: snapshotError } = await supabase.from("wm_score_snapshots").insert({
+  const snapshotRow = {
     user_id: user.id,
     session_id: session.id,
+    programme_run_id: payload.programmeRunId || null,
+    programme_cycle: payload.programmeCycle || 1,
     session_number: snapshot.sessionNumber || session.session_number,
     active_phase: snapshot.activePhase || session.phase_label,
     phase_status: snapshot.phaseStatus || session.phase_status,
     nominal_band: snapshot.nominalBand || session.nominal_session_band,
     snapshot: payload.snapshot,
     scoring_version: payload.scoringVersion,
-  });
+  };
+  let snapshotResult = await supabase.from("wm_score_snapshots").insert(snapshotRow);
+  if (isMissingProgrammeColumn(snapshotResult.error)) {
+    const legacySnapshotRow: Record<string, unknown> = { ...snapshotRow };
+    delete legacySnapshotRow.programme_run_id;
+    delete legacySnapshotRow.programme_cycle;
+    snapshotResult = await supabase.from("wm_score_snapshots").insert(legacySnapshotRow);
+  }
+  const { error: snapshotError } = snapshotResult;
   if (snapshotError) return json(500, { error: snapshotError.message });
 
   if (payload.controllerEvent) {

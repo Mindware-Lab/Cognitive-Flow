@@ -4,6 +4,8 @@ import { CORS, json, readPayload } from "../_shared/http.ts";
 interface SubmitBlockPayload {
   clientSessionId: string;
   clientBlockId: string;
+  programmeRunId?: string;
+  programmeCycle?: number;
   sessionNumber: number;
   phaseLabel: string;
   phaseStatus: string;
@@ -36,6 +38,15 @@ interface SubmitBlockPayload {
   }>;
 }
 
+function isMissingProgrammeColumn(error: { code?: string; message?: string } | null): boolean {
+  return Boolean(
+    error &&
+      (error.code === "42703" ||
+        error.message?.includes("programme_run_id") ||
+        error.message?.includes("programme_cycle")),
+  );
+}
+
 Deno.serve(async (request) => {
   if (request.method === "OPTIONS") return new Response("ok", { headers: CORS });
   if (request.method !== "POST") return json(405, { error: "Method not allowed." });
@@ -47,15 +58,14 @@ Deno.serve(async (request) => {
   if (!payload || !payload.clientSessionId || !payload.clientBlockId || !Array.isArray(payload.trials)) {
     return json(400, { error: "Invalid block payload." });
   }
-  if (payload.trials.length !== 20) return json(400, { error: "Blocks must contain exactly 20 trials." });
+  if (payload.trials.length < 20) return json(400, { error: "Blocks must contain at least 20 trials." });
 
   const supabase = serviceClient();
-  const { data: session, error: sessionError } = await supabase
-    .from("wm_sessions")
-    .upsert(
-      {
+  const sessionRow = {
         user_id: user.id,
         client_session_id: payload.clientSessionId,
+        programme_run_id: payload.programmeRunId || null,
+        programme_cycle: payload.programmeCycle || 1,
         session_number: payload.sessionNumber,
         phase_label: payload.phaseLabel,
         phase_status: payload.phaseStatus,
@@ -64,11 +74,23 @@ Deno.serve(async (request) => {
         generator_version: payload.generatorVersion,
         adaptive_version: payload.adaptiveVersion,
         scoring_version: payload.scoringVersion,
-      },
-      { onConflict: "user_id,client_session_id" },
-    )
+  };
+  let sessionResult = await supabase
+    .from("wm_sessions")
+    .upsert(sessionRow, { onConflict: "user_id,client_session_id" })
     .select("id")
     .single();
+  if (isMissingProgrammeColumn(sessionResult.error)) {
+    const legacySessionRow: Record<string, unknown> = { ...sessionRow };
+    delete legacySessionRow.programme_run_id;
+    delete legacySessionRow.programme_cycle;
+    sessionResult = await supabase
+      .from("wm_sessions")
+      .upsert(legacySessionRow, { onConflict: "user_id,client_session_id" })
+      .select("id")
+      .single();
+  }
+  const { data: session, error: sessionError } = sessionResult;
   if (sessionError) return json(500, { error: sessionError.message });
 
   const { data: block, error: blockError } = await supabase
