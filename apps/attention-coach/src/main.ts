@@ -1,5 +1,6 @@
 import "./styles.css";
 import { createFreePlaySessionPlan, createSessionPlan, generateTrial, phaseIntro } from "./generator";
+import { buildInterblockFeedback, createBlockFeedbackPoint, getInvariantPrompt, invariantPromptKey, type InterblockFeedback, type InterblockGraph } from "./interblockFeedback";
 import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./opticFlow";
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
@@ -1826,12 +1827,152 @@ function responseButtonContent(option: string, index: number, optionCount: numbe
   return `<span>${label}</span><kbd>${index + 1}</kbd>`;
 }
 
+function renderSparklineGraph(graph: InterblockGraph): string {
+  const width = 220;
+  const height = 72;
+  const left = 10;
+  const right = 10;
+  const top = 8;
+  const bottom = 14;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const points = graph.points.slice(-8);
+  const valueFor = (raw: number | null, delta: number | null): number | null => {
+    if (graph.mode === "delta") return delta;
+    return raw;
+  };
+  const smoothFor = (raw: number | null, smoothed: number | null): number | null => {
+    if (smoothed === null) return null;
+    if (graph.mode === "delta") return graph.baseline === null ? null : smoothed - graph.baseline;
+    return smoothed;
+  };
+  const yFor = (value: number): number => {
+    const clamped = Math.max(graph.axisMin, Math.min(graph.axisMax, value));
+    return top + (1 - (clamped - graph.axisMin) / Math.max(1, graph.axisMax - graph.axisMin)) * plotHeight;
+  };
+  const xFor = (index: number): number => left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
+  const rawPoints = points
+    .map((point, index) => {
+      const value = valueFor(point.rawValue, point.deltaFromBaseline);
+      return value === null ? null : { x: xFor(index), y: yFor(value), value };
+    })
+    .filter((point): point is { x: number; y: number; value: number } => point !== null);
+  const smoothPoints = points
+    .map((point, index) => {
+      const value = smoothFor(point.rawValue, point.smoothedValue);
+      return value === null ? null : { x: xFor(index), y: yFor(value) };
+    })
+    .filter((point): point is { x: number; y: number } => point !== null);
+  const smoothPath = smoothPoints.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+  const baselineValue = graph.mode === "delta" ? 0 : graph.baseline;
+  const baselineLine = baselineValue === null || baselineValue < graph.axisMin || baselineValue > graph.axisMax
+    ? ""
+    : `<line class="interblock-graph-baseline" x1="${left}" x2="${width - right}" y1="${yFor(baselineValue).toFixed(1)}" y2="${yFor(baselineValue).toFixed(1)}" />`;
+  const latest = points[points.length - 1];
+  const latestValue = graph.mode === "delta" ? latest?.deltaFromBaseline : latest?.rawValue;
+  const latestText = latestValue === null || latestValue === undefined
+    ? "Calibrating"
+    : `${graph.mode === "delta" && latestValue > 0 ? "+" : ""}${graph.unit === "%" ? Math.round(latestValue) : latestValue.toFixed(1)}${graph.unit === "%" ? "%" : ""}`;
+  return `
+    <section class="interblock-graph-card">
+      <div class="interblock-graph-head">
+        <span>${escapeHtml(graph.label)}</span>
+        <strong>${escapeHtml(latestText)}</strong>
+      </div>
+      <svg class="interblock-sparkline" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(graph.label)} trend">
+        <rect class="interblock-graph-bg" x="0" y="0" width="${width}" height="${height}" rx="8"></rect>
+        ${baselineLine}
+        ${smoothPath ? `<path class="interblock-graph-smooth" d="${smoothPath}" />` : ""}
+        ${rawPoints.map((point) => `<circle class="interblock-graph-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3.2" />`).join("")}
+      </svg>
+      <small>${graph.mode === "delta" ? "Change from your baseline" : "Raw blocks + smoothed trend"}</small>
+    </section>
+  `;
+}
+
+function renderInvariantPromptCard(prompt: string | null): string {
+  if (!prompt) return "";
+  return `
+    <section class="invariant-prompt-card">
+      <span>Format cue</span>
+      <strong>${escapeHtml(prompt)}</strong>
+    </section>
+  `;
+}
+
+function renderInterblockProgressCard(feedback: InterblockFeedback | null): string {
+  if (!feedback) return "";
+  return `
+    <section class="interblock-progress-card">
+      <div class="interblock-progress-copy">
+        <span>Block feedback</span>
+        <strong>${escapeHtml(feedback.phaseLabelText)}</strong>
+        <p>${escapeHtml(feedback.interpretationText)}</p>
+      </div>
+      <div class="interblock-graph-grid">
+        ${renderSparklineGraph(feedback.accuracyGraph)}
+        ${renderSparklineGraph(feedback.coreGraph)}
+      </div>
+      <div class="interblock-next-row">
+        <span>${escapeHtml(feedback.confidenceLabel.replaceAll("_", " "))}</span>
+        <p>${escapeHtml(feedback.nextActionText)}</p>
+      </div>
+    </section>
+  `;
+}
+
+function currentInvariantPrompt(): { key: string; prompt: string } | null {
+  if (state.sessionMode !== "protocol" || state.activeBlockIndex !== 0) return null;
+  const key = invariantPromptKey(state.progress.currentPhase, state.progress.protocolGroup, state.progress.programmeRunId);
+  if (!key || state.progress.seenInvariantPromptKeys.includes(key)) return null;
+  const prompt = getInvariantPrompt({ phase: state.progress.currentPhase, protocolGroup: state.progress.protocolGroup });
+  return prompt ? { key, prompt } : null;
+}
+
+function markCurrentInvariantPromptSeen(): void {
+  const current = currentInvariantPrompt();
+  if (!current) return;
+  state.progress = {
+    ...state.progress,
+    seenInvariantPromptKeys: [...state.progress.seenInvariantPromptKeys, current.key].slice(-80),
+  };
+  persistProgress();
+}
+
+function recordGuidedBlockFeedback(block: MiniBlockPlan, results: TrialResult[]): void {
+  if (state.sessionMode !== "protocol" || !state.progressionScored) return;
+  const point = createBlockFeedbackPoint({
+    programmeRunId: state.progress.programmeRunId,
+    programmeCycle: state.progress.programmeCycle,
+    sessionNumber: state.progress.sessionNumber,
+    phase: state.progress.currentPhase,
+    phaseStatus: state.progress.phaseStatus,
+    block,
+    results,
+  });
+  if (!point) return;
+  state.progress = {
+    ...state.progress,
+    blockFeedbackHistory: [...(state.progress.blockFeedbackHistory || []), point].slice(-160),
+  };
+  persistProgress();
+}
+
 function renderBlockBreak(): string {
   const nextBlock = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
   if (!nextBlock) return renderComplete();
   const copy = blockTrainingCopy(nextBlock);
   const example = exampleTrialForBlock(nextBlock, state.sessionPlan?.phase || state.progress.currentPhase);
+  const feedback = buildInterblockFeedback({
+    history: state.progress.blockFeedbackHistory || [],
+    currentProgrammeRunId: state.progress.programmeRunId,
+    wapStatus: state.progress.phaseStatus,
+    phase: state.progress.currentPhase,
+  });
+  const prompt = currentInvariantPrompt();
   return shell(`
+    ${renderInterblockProgressCard(feedback)}
+    ${renderInvariantPromptCard(prompt?.prompt || null)}
     <section class="panel block-briefing-panel game-preview-panel">
       <div class="game-preview-copy">
         <p class="ui-eyebrow">Next game</p>
@@ -3382,6 +3523,8 @@ function continueAfterFeedback(): void {
       completeSession();
       return;
     }
+    const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
+    if (block) recordGuidedBlockFeedback(block, [...state.blockResults]);
     submitCurrentGuidedBlock([...state.blockResults]);
     state.activeBlockIndex += 1;
     state.activeTrialIndex = 0;
@@ -3406,6 +3549,8 @@ function endCurrentBlock(): void {
     completeSession();
     return;
   }
+  const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
+  if (block) recordGuidedBlockFeedback(block, [...state.blockResults]);
   submitCurrentGuidedBlock([...state.blockResults]);
   state.activeBlockIndex += 1;
   state.activeTrialIndex = 0;
@@ -3840,6 +3985,7 @@ appRoot.addEventListener("click", async (event) => {
     if (restoreGuidedReturn()) go("block-break");
   }
   else if (action === "resume-block") {
+    markCurrentInvariantPromptSeen();
     state.taskStage = "ready";
     go("task");
     schedule(350, startTrialPresentation);

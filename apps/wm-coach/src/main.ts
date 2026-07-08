@@ -1,5 +1,6 @@
 ﻿import "./styles.css";
 import { createFreePlaySessionPlan, createSessionPlan, generateTrial, phaseIntro } from "./generator";
+import { buildInterblockFeedback, createBlockFeedbackPoint, getInvariantPrompt, invariantPromptKey, type InterblockFeedback, type InterblockGraph } from "./interblockFeedback";
 import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./opticFlow";
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
@@ -646,7 +647,7 @@ function consumerStatus(value: string | null | undefined): string {
     coming_up: "Coming up",
     available: "Available",
     not_enough_evidence: "Still calibrating",
-    current_phase: "Current focus",
+    current_phase: "Current step",
     ready_next_session: "Ready soon",
     on_track: "On track",
     lagging: "Still calibrating",
@@ -686,11 +687,11 @@ function nextChallengeCopy(stateValue: string): string {
 
 const PHASE_WHY_COPY: Record<PhaseLabel, string> = {
   P1_ARROW_ABS: "We are building your starting point with static arrow displays.",
-  P2_FLOW_ABS: "The display changes from static arrows to moving patterns. The skill is the same: pick out the main signal.",
+  P2_FLOW_ABS: "The display changes from static arrows to moving patterns. The memory task is the same: hold the label and compare it with N back.",
   P3_ARROW_REL: "Now the task becomes more relational. You judge how items relate to the centre, not just which way they point on the screen.",
   P4_FLOW_REL: "The app checks whether the relational skill carries into motion patterns.",
   P1_FLOW_ABS: "We are building your starting point with moving patterns.",
-  P2_ARROW_ABS: "The display changes from moving patterns to static arrows. The skill is the same: pick out the main signal.",
+  P2_ARROW_ABS: "The display changes from moving patterns to static arrows. The memory task is the same: hold the label and compare it with N back.",
   P3_FLOW_REL: "Now the motion task becomes more relational. You judge how movement relates to the centre.",
   P4_ARROW_REL: "The app checks whether the relational skill carries into static arrow patterns.",
   P5_ARROW_MIXED: "Static arrows now alternate between absolute and relative frames.",
@@ -709,12 +710,12 @@ const PHASE_WHY_COPY: Record<PhaseLabel, string> = {
 };
 
 const PHASE_GOAL_COPY: Record<PhaseLabel, string> = {
-  P1_ARROW_ABS: "Build a cognitive control baseline.",
-  P2_FLOW_ABS: "recover the same signal skill in moving patterns.",
+  P1_ARROW_ABS: "build a relational n-back baseline.",
+  P2_FLOW_ABS: "recover the same n-back label in moving patterns.",
   P3_ARROW_REL: "use the pattern's relationship, not just its surface direction.",
   P4_FLOW_REL: "recover the relational skill in motion patterns.",
-  P1_FLOW_ABS: "build a clear Working Memory-control baseline in motion patterns.",
-  P2_ARROW_ABS: "recover the same signal skill in static arrows.",
+  P1_FLOW_ABS: "build a clear relational n-back baseline in motion patterns.",
+  P2_ARROW_ABS: "recover the same n-back label in static arrows.",
   P3_FLOW_REL: "use the movement pattern's relationship to the centre.",
   P4_ARROW_REL: "recover the relational skill in static arrows.",
   P5_ARROW_MIXED: "switch absolute and relative frames within static arrows.",
@@ -876,22 +877,22 @@ function blockTrainingCopy(block: MiniBlockPlan): { title: string; body: string;
   }
   if (block.cells.some((cell) => cell.includes("rel"))) {
     return {
-      title: "Relational Control",
-      body: "This block asks you to judge how items relate to the centre, not just which way they point on the screen.",
-      tip: "Out means away from the centre. In means towards the centre.",
+      title: "Relational Memory",
+      body: "This block asks you to hold the centre-relative label and compare it with the item N back.",
+      tip: "Work out the label first. Out means away from the centre; in means towards the centre.",
     };
   }
   if (block.cells.some((cell) => cell.includes("flow"))) {
     return {
-      title: "Motion Recovery",
-      body: "This block keeps the same signal-control rule, but the display moves.",
-      tip: "Look for the main motion signal, then respond from your clearest impression.",
+      title: "Moving N-back",
+      body: "This block keeps the same n-back memory rule, but the label is shown with moving patterns.",
+      tip: "Name the movement label, hold it in memory, then compare it with N back.",
     };
   }
   return {
-    title: "Signal Control",
+    title: "Relational N-back",
     body: "This block builds the basic n-back rule: press MATCH when the current item repeats the item N back.",
-    tip: "Respond only for matches. Withhold when the item is new.",
+    tip: "Hold the current label in order. Respond only when it matches the item N back.",
   };
 }
 
@@ -901,8 +902,8 @@ function renderProgrammeRationale(): string {
       <p class="ui-eyebrow">Why this programme?</p>
       <h2>Train the skill, then test whether it survives change.</h2>
       <div class="rationale-grid">
-        <span>You are training controlled Working Memory: picking out goal-relevant information from brief, noisy displays.</span>
-        <span>The display changes on purpose. If the same rule survives a new format, that is stronger evidence than getting better at one screen.</span>
+        <span>You are training Working Memory updating: hold the current label, compare it with N back, and resist near-match lures.</span>
+        <span>The display changes on purpose. If the same memory rule survives a new format, that is stronger evidence than getting better at one screen.</span>
         <span>Later sessions mix formats and re-check after spacing because useful learning should return after time away.</span>
       </div>
       <p class="claims-note compact-note">Flexible Working Memory helps you keep the right goal active under pressure, distraction, or uncertainty. This is training support, not a diagnosis or clinical treatment.</p>
@@ -921,7 +922,7 @@ function phaseRationale(phase: PhaseLabel): string {
   if (phase === "P11_DELAYED" || phase === "P6_DELAYED") return "This re-check asks whether the trained skill returns after spacing, not only during same-day practice.";
   if (phase === "P5_MIXED") return "Formats now switch. This trains flexible Working Memory: keeping the right goal active under pressure, distraction, or uncertainty.";
   if (phase === "P3_ARROW_REL" || phase === "P3_FLOW_REL") return "This phase asks you to use the relationship to the centre, not just the surface direction. That makes the Working Memory rule more flexible.";
-  return "This phase builds your starting point for controlled Working Memory: picking out goal-relevant information from brief, noisy displays.";
+  return "This phase builds your starting point for Working Memory updating: hold each label and compare it with the item N back.";
 }
 
 function sessionGoalCopy(phase: PhaseLabel): string {
@@ -935,26 +936,26 @@ function sessionGoalCopy(phase: PhaseLabel): string {
   if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") {
     return "Keep the same rule when the display changes.";
   }
-  return "Pick out goal-relevant information from brief, noisy displays.";
+  return "Hold each label and compare it with the item N back.";
 }
 
-function pendingTaskCopy(): { title: string; what: string; focus: string; why: string; startLabel: string } {
+function pendingTaskCopy(): { title: string; what: string; memoryTarget: string; why: string; startLabel: string } {
   const pending = state.pendingTaskStart;
   if (pending?.kind === "easier") {
     return {
       title: "Practice only",
       what: "You will practise the current display style without changing your progress path.",
-      focus: "Press MATCH only for N-back repeats. Withhold for non-matches.",
+      memoryTarget: "Hold each item in order. Press MATCH only for N-back repeats.",
       why: "Practice helps you learn the display. It does not change your session number, phase, or transfer score.",
       startLabel: "Start practice",
     };
   }
   if (pending?.kind === "free") {
-    const construct = pending.construct === "BSE" ? "Binding Stability" : "Signal Control";
+    const construct = pending.construct === "BSE" ? "Binding Stability" : "Relational N-back";
     return {
       title: `${construct} practice`,
       what: "You will practise a selected format outside today's guided session.",
-      focus: pending.construct === "BSE" ? "Match the same relation-colour pair N back." : "Match the same relation N back.",
+      memoryTarget: pending.construct === "BSE" ? "Match the same relation-colour pair N back." : "Match the same relation N back.",
       why: "Practice helps you learn the display. It does not change your session number, phase, or transfer score.",
       startLabel: "Start practice",
     };
@@ -962,7 +963,7 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
   return {
     title: "Today's Working Memory session",
     what: "You will complete the guided task chosen for your current learning curve.",
-    focus: "Press MATCH for N-back repeats; otherwise do nothing.",
+    memoryTarget: "Hold the current label, compare it with N back, and press MATCH only for repeats.",
     why: phaseRationale(state.progress.currentPhase),
     startLabel: "Start guided session",
   };
@@ -982,7 +983,7 @@ function renderPreTaskInstructions(): string {
       </div>
       <div class="pre-task-grid">
         <article class="instruction-card"><strong>What you'll do</strong><p>${escapeHtml(copy.what)}</p></article>
-        <article class="instruction-card"><strong>What to focus on</strong><p>${escapeHtml(copy.focus)}</p></article>
+        <article class="instruction-card"><strong>What to hold in memory</strong><p>${escapeHtml(copy.memoryTarget)}</p></article>
         <article class="instruction-card"><strong>Why this matters</strong><p>${escapeHtml(copy.why)}</p></article>
       </div>
       <div class="wrapper-swap-card">
@@ -1065,13 +1066,13 @@ function createPracticePlanForBlock(sourcePlan: SessionPlan, block: MiniBlockPla
 
 function transferComponentCopy(label: string, status: string): string {
   if (status !== "available") {
-    if (label === "Motion Recovery") return "After moving-pattern practice.";
-    if (label === "Relation Recovery") return "After relative direction practice.";
+    if (label === "Motion Recovery" || label === "Moving-format Recovery" || label === "Arrow to flow") return "After moving-pattern n-back practice.";
+    if (label === "Relation Recovery" || label === "Frame change") return "After centre-relative n-back practice.";
     if (label === "Mixed Flexibility") return "After mixed-format practice.";
     return "After a later return check.";
   }
-  if (label === "Motion Recovery") return "Static skill carrying into motion.";
-  if (label === "Relation Recovery") return "Relative direction carrying into motion.";
+  if (label === "Motion Recovery" || label === "Moving-format Recovery" || label === "Arrow to flow") return "Static n-back rule carrying into motion.";
+  if (label === "Relation Recovery" || label === "Frame change") return "Centre-relative labels carrying across formats.";
   if (label === "Mixed Flexibility") return "Switching across formats.";
   return "Carry-over after time away.";
 }
@@ -1306,15 +1307,15 @@ function renderWelcome(): string {
         <div class="splash-rationale-grid">
           <article>
             <strong>Why train?</strong>
-            <span>Improves focus, extracting signal from noise and flexible cognitive control.</span>
+            <span>Practise holding and updating task rules under load, interference and format change.</span>
           </article>
           <article>
             <strong>How it trains</strong>
-            <span>By training relational stimuli it targets the brain's executive control networks.</span>
+            <span>Relational n-back asks you to hold the label, compare with N back, and resist lures.</span>
           </article>
           <article>
             <strong>What changes over time</strong>
-            <span>Later sessions check that your training is building real cognitive skills.</span>
+            <span>Later sessions check whether the same memory rule survives new formats and spacing.</span>
           </article>
         </div>
         <p class="splash-claims">Training support only. Not a diagnosis, clinical treatment, brain measurement, or IQ score.</p>
@@ -1518,10 +1519,10 @@ type FreePlayFormat = { cell: CellKey; label: string; detail: string; phase?: Ph
 
 const FREE_PLAY_FORMATS: Record<Construct, FreePlayFormat[]> = {
   ACC: [
-    { cell: "arrow_abs", label: "Direction foundation", detail: "Static arrows and simple signal control." },
-    { cell: "flow_abs", label: "Motion Foundation", detail: "Moving patterns with the same rule." },
-    { cell: "arrow_rel", label: "Relation Foundation", detail: "Use relationships around the centre." },
-    { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational control in motion." },
+    { cell: "arrow_abs", label: "Arrow N-back", detail: "Static labels with the basic N-back memory rule." },
+    { cell: "flow_abs", label: "Flow N-back", detail: "Moving patterns with the same N-back rule." },
+    { cell: "arrow_rel", label: "Centre-relative N-back", detail: "Hold labels based on relationships around the centre." },
+    { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational memory in moving patterns." },
     { cell: "mixed", phase: "P5_ARROW_MIXED", label: "Mixed Arrow Frames", detail: "Static arrows switch between absolute and relative frames." },
     { cell: "mixed", phase: "P6_FLOW_MIXED", label: "Mixed Flow Frames", detail: "Optic flow switches between absolute and relative frames." },
     { cell: "mixed", phase: "P7_FULL_MIXED", label: "Full Mixed N-back", detail: "Arrows, optic flow, absolute and relative frames all switch." },
@@ -1536,7 +1537,7 @@ const FREE_PLAY_FORMATS: Record<Construct, FreePlayFormat[]> = {
 const FREE_PLAY_COLUMNS: Array<{ title: string; detail: string; icon: string; items: Array<{ construct: Construct; format: FreePlayFormat }> }> = [
   {
     title: "Core + Integration",
-    detail: "Build the four base displays, then combine them.",
+    detail: "Practise the core N-back displays, then combine them.",
     icon: "target",
     items: [
       { construct: "ACC", format: FREE_PLAY_FORMATS.ACC[0] },
@@ -1663,7 +1664,7 @@ function renderBriefing(): string {
         <p class="ui-body">${escapeHtml(sessionGoalCopy(phase))}</p>
       </div>
       <div class="session-transfer-strip" aria-label="Training flow">
-        <span>${miniIcon("target")} Signal</span>
+        <span>${miniIcon("target")} Label</span>
         <span>${miniIcon("transfer")} Change</span>
         <span>${miniIcon("chart")} Transfer</span>
       </div>
@@ -2112,12 +2113,149 @@ function responseButtonContent(option: string, index: number, optionCount: numbe
   return `<span>${label}</span><kbd>${index + 1}</kbd>`;
 }
 
+function renderSparklineGraph(graph: InterblockGraph): string {
+  const width = 220;
+  const height = 72;
+  const left = 10;
+  const right = 10;
+  const top = 8;
+  const bottom = 14;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const points = graph.points.slice(-8);
+  const valueFor = (raw: number | null, delta: number | null): number | null => graph.mode === "delta" ? delta : raw;
+  const smoothFor = (smoothed: number | null): number | null => {
+    if (smoothed === null) return null;
+    if (graph.mode === "delta") return graph.baseline === null ? null : smoothed - graph.baseline;
+    return smoothed;
+  };
+  const yFor = (value: number): number => {
+    const clamped = Math.max(graph.axisMin, Math.min(graph.axisMax, value));
+    return top + (1 - (clamped - graph.axisMin) / Math.max(1, graph.axisMax - graph.axisMin)) * plotHeight;
+  };
+  const xFor = (index: number): number => left + (points.length <= 1 ? plotWidth / 2 : (index / (points.length - 1)) * plotWidth);
+  const rawPoints = points
+    .map((point, index) => {
+      const value = valueFor(point.rawValue, point.deltaFromBaseline);
+      return value === null ? null : { x: xFor(index), y: yFor(value), value };
+    })
+    .filter((point): point is { x: number; y: number; value: number } => point !== null);
+  const smoothPoints = points
+    .map((point, index) => {
+      const value = smoothFor(point.smoothedValue);
+      return value === null ? null : { x: xFor(index), y: yFor(value) };
+    })
+    .filter((point): point is { x: number; y: number } => point !== null);
+  const smoothPath = smoothPoints.map((point, index) => `${index === 0 ? "M" : "L"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ");
+  const baselineValue = graph.mode === "delta" ? 0 : graph.baseline;
+  const baselineLine = baselineValue === null || baselineValue < graph.axisMin || baselineValue > graph.axisMax
+    ? ""
+    : `<line class="interblock-graph-baseline" x1="${left}" x2="${width - right}" y1="${yFor(baselineValue).toFixed(1)}" y2="${yFor(baselineValue).toFixed(1)}" />`;
+  const latest = points[points.length - 1];
+  const latestValue = graph.mode === "delta" ? latest?.deltaFromBaseline : latest?.rawValue;
+  const latestText = latestValue === null || latestValue === undefined
+    ? "Calibrating"
+    : `${graph.mode === "delta" && latestValue > 0 ? "+" : ""}${graph.unit === "%" ? Math.round(latestValue) : latestValue.toFixed(1)}${graph.unit === "%" ? "%" : ""}`;
+  return `
+    <section class="interblock-graph-card">
+      <div class="interblock-graph-head">
+        <span>${escapeHtml(graph.label)}</span>
+        <strong>${escapeHtml(latestText)}</strong>
+      </div>
+      <svg class="interblock-sparkline" viewBox="0 0 ${width} ${height}" role="img" aria-label="${escapeHtml(graph.label)} trend">
+        <rect class="interblock-graph-bg" x="0" y="0" width="${width}" height="${height}" rx="8"></rect>
+        ${baselineLine}
+        ${smoothPath ? `<path class="interblock-graph-smooth" d="${smoothPath}" />` : ""}
+        ${rawPoints.map((point) => `<circle class="interblock-graph-point" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="3.2" />`).join("")}
+      </svg>
+      <small>${graph.mode === "delta" ? "Change from your baseline" : "Raw blocks + smoothed trend"}</small>
+    </section>
+  `;
+}
+
+function renderInvariantPromptCard(prompt: string | null): string {
+  if (!prompt) return "";
+  return `
+    <section class="invariant-prompt-card">
+      <span>Format cue</span>
+      <strong>${escapeHtml(prompt)}</strong>
+    </section>
+  `;
+}
+
+function renderInterblockProgressCard(feedback: InterblockFeedback | null): string {
+  if (!feedback) return "";
+  return `
+    <section class="interblock-progress-card">
+      <div class="interblock-progress-copy">
+        <span>Block feedback</span>
+        <strong>${escapeHtml(feedback.phaseLabelText)}</strong>
+        <p>${escapeHtml(feedback.interpretationText)}</p>
+      </div>
+      <div class="interblock-graph-grid">
+        ${renderSparklineGraph(feedback.accuracyGraph)}
+        ${renderSparklineGraph(feedback.coreGraph)}
+      </div>
+      <div class="interblock-next-row">
+        <span>${escapeHtml(feedback.confidenceLabel.replaceAll("_", " "))}</span>
+        <p>${escapeHtml(feedback.nextActionText)}</p>
+      </div>
+    </section>
+  `;
+}
+
+function currentInvariantPrompt(): { key: string; prompt: string } | null {
+  if (state.sessionMode !== "protocol" || state.activeBlockIndex !== 0) return null;
+  const key = invariantPromptKey(state.progress.currentPhase, state.progress.protocolGroup, state.progress.programmeRunId);
+  if (!key || state.progress.seenInvariantPromptKeys.includes(key)) return null;
+  const prompt = getInvariantPrompt({ phase: state.progress.currentPhase, protocolGroup: state.progress.protocolGroup });
+  return prompt ? { key, prompt } : null;
+}
+
+function markCurrentInvariantPromptSeen(): void {
+  const current = currentInvariantPrompt();
+  if (!current) return;
+  state.progress = {
+    ...state.progress,
+    seenInvariantPromptKeys: [...state.progress.seenInvariantPromptKeys, current.key].slice(-80),
+  };
+  persistProgress();
+}
+
+function recordGuidedBlockFeedback(block: MiniBlockPlan, results: TrialResult[]): void {
+  if (state.sessionMode !== "protocol" || !state.progressionScored) return;
+  const point = createBlockFeedbackPoint({
+    programmeRunId: state.progress.programmeRunId,
+    programmeCycle: state.progress.programmeCycle,
+    sessionNumber: state.progress.sessionNumber,
+    phase: state.progress.currentPhase,
+    phaseStatus: state.progress.phaseStatus,
+    block,
+    results,
+  });
+  if (!point) return;
+  state.progress = {
+    ...state.progress,
+    blockFeedbackHistory: [...(state.progress.blockFeedbackHistory || []), point].slice(-160),
+  };
+  persistProgress();
+}
+
 function renderBlockBreak(): string {
   const nextBlock = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
   if (!nextBlock) return renderComplete();
   const copy = blockTrainingCopy(nextBlock);
   const example = exampleTrialForBlock(nextBlock, state.sessionPlan?.phase || state.progress.currentPhase);
+  const feedback = buildInterblockFeedback({
+    history: state.progress.blockFeedbackHistory || [],
+    currentProgrammeRunId: state.progress.programmeRunId,
+    wapStatus: state.progress.phaseStatus,
+    phase: state.progress.currentPhase,
+  });
+  const prompt = currentInvariantPrompt();
   return shell(`
+    ${renderInterblockProgressCard(feedback)}
+    ${renderInvariantPromptCard(prompt?.prompt || null)}
     <section class="panel block-briefing-panel game-preview-panel">
       <div class="game-preview-copy">
         <p class="ui-eyebrow">Next game</p>
@@ -2314,13 +2452,13 @@ function renderBrainBasis(): string {
       </figure>
       <article class="evidence-visual-card evidence-brain-card">
         ${brainNetworkDiagram()}
-        <p>Working Memory Coach is evidence-informed, not a clinical assessment. The design is based on Working Memory-control training, adaptive visual-Working Memory measurement, relational processing, motion-format transfer and delayed re-checks.</p>
+        <p>Working Memory Coach is evidence-informed, not a clinical assessment. The design is based on working-memory updating, relation maintenance, binding memory, motion-format transfer and delayed re-checks.</p>
       </article>
       <div class="evidence-principle-grid">
         <article class="evidence-principle-card is-blue">
           <span>${miniIcon("signal")}</span>
           <strong>Relational Memory</strong>
-          <p>Practise selecting the important signal under time pressure.</p>
+          <p>Hold the current relation label and compare it with the item N back.</p>
         </article>
         <article class="evidence-principle-card is-green">
           <span>${miniIcon("relational")}</span>
@@ -2329,8 +2467,8 @@ function renderBrainBasis(): string {
         </article>
         <article class="evidence-principle-card is-purple">
           <span>${miniIcon("binding")}</span>
-          <strong>Working memory support</strong>
-          <p>Hold the rule active while the display format changes.</p>
+          <strong>Binding Memory</strong>
+          <p>Keep relation and colour together while the N-back demand continues.</p>
         </article>
       </div>
     </section>
@@ -2541,10 +2679,10 @@ const DEMO_PROGRESS_DASHBOARD_MODEL = {
   overallChange: 8,
   transferReadiness: 67,
   confidence: "Becoming reliable",
-  activeGuidedFocus: "Transfer Flexibility",
+  activeGuidedStep: "Transfer Flexibility",
   currentPhase: "Mixed Mastery",
   comingNext: "Return Check",
-  whyFocus: "The app is checking whether your skill stays stable when formats switch.",
+  whyThisStep: "The app is checking whether your memory rule stays stable when formats switch.",
   pathwayNote: "New challenges appear when your current learning curve is stable.",
   lowDataStates: {
     baseline: "Building your starting point",
@@ -2564,8 +2702,8 @@ const DEMO_PROGRESS_DASHBOARD_MODEL = {
   ],
   skills: [
     {
-      label: "Signal Control",
-      subtitle: "Pick out the important cue under time pressure.",
+      label: "Relational N-back",
+      subtitle: "Hold and update the current label under N-back load.",
       score: 112,
       change: 12,
       status: "Strong",
@@ -2574,8 +2712,8 @@ const DEMO_PROGRESS_DASHBOARD_MODEL = {
       icon: "signal",
     },
     {
-      label: "Relational Control",
-      subtitle: "Use the pattern's relationship, not just its surface direction.",
+      label: "Relational Memory",
+      subtitle: "Use the pattern's relationship and keep that label active.",
       score: 106,
       change: 6,
       status: "Building",
@@ -2598,7 +2736,7 @@ const DEMO_PROGRESS_DASHBOARD_MODEL = {
       subtitle: "Recover the same skill across changing formats.",
       score: 94,
       change: -6,
-      status: "Focus here",
+      status: "Work here",
       confidence: "Reliable",
       tone: "orange",
       icon: "transfer",
@@ -2616,11 +2754,11 @@ const DEMO_PROGRESS_DASHBOARD_MODEL = {
   ],
   transferDetails: [
     {
-      label: "Motion Recovery",
+      label: "Moving-format Recovery",
       shortLabel: "Motion",
       score: 64,
       change: 12,
-      helper: "How well the skill carries from static displays into moving patterns.",
+      helper: "How well the n-back memory rule carries from static displays into moving patterns.",
       tone: "teal",
     },
     {
@@ -2887,7 +3025,7 @@ function nextSupportRouteForStatus(status: string): string {
 
 function progressDashboardPresentationModel(): ProgressDashboardPresentationModel {
   const snapshot = state.progress.latestSnapshot;
-  const signalScore = scoreForEvidence("ACC", "arrow_abs");
+  const relationalNBackScore = scoreForEvidence("ACC", "arrow_abs");
   const relationalScore = scoreForEvidence("ACC", "arrow_rel");
   const activeCell = PHASE_CELL[state.progress.currentPhase];
   const bindingScore =
@@ -2904,15 +3042,15 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
   const overallScore = snapshot?.workingMemoryControl.trainingScore ?? null;
   const transferReadiness = snapshot?.transfer.score ?? null;
   const transferRelative = deltaFromBaseline("transfer", transferReadiness);
-  const cognitiveRelative = deltaFromBaseline("cognitiveBandwidth", signalScore);
+  const cognitiveRelative = deltaFromBaseline("cognitiveBandwidth", relationalNBackScore);
   const frameRelative = deltaFromBaseline("frameBandwidth", relationalScore);
   const bindingRelative = deltaFromBaseline("patternBinding", bindingScore);
   const wrapperRelative = deltaFromBaseline("wrapperRecovery", wrapperRecoveryScore);
   const delayedRelative = deltaFromBaseline("delayedRecovery", returnScore);
   const confidence = confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "ACC") || null);
-  const capacityStatus = capacityStatusForModel({ capacityN: signalScore, transferScore: transferReadiness, confidence });
+  const capacityStatus = capacityStatusForModel({ capacityN: relationalNBackScore, transferScore: transferReadiness, confidence });
   return {
-    capacityNLevel: signalScore,
+    capacityNLevel: relationalNBackScore,
     capacityStatus,
     capacityNote: capacityNoteForStatus(capacityStatus),
     nextSupportRoute: nextSupportRouteForStatus(capacityStatus),
@@ -2928,9 +3066,9 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     skills: [
       {
         metric: "cognitiveBandwidth",
-        label: "Relational Control",
-        subtitle: "Keep the n-back relation stable across arrow and optic-flow displays.",
-        rawScore: signalScore,
+        label: "Relational N-back",
+        subtitle: "Keep the current label stable and compare it with N back.",
+        rawScore: relationalNBackScore,
         scoreDelta: scoreDisplayForMetric("cognitiveBandwidth", cognitiveRelative.delta),
         baseline: cognitiveRelative.baseline,
         status: statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta),
@@ -2970,7 +3108,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       {
         metric: "wrapperRecovery",
         label: "Wrapper Recovery",
-        subtitle: "Recover the same control skill when the display format changes.",
+        subtitle: "Recover the same N-back memory rule when the display format changes.",
         rawScore: wrapperRecoveryScore,
         scoreDelta: scoreDisplayForMetric("wrapperRecovery", wrapperRelative.delta),
         baseline: wrapperRelative.baseline,
@@ -3000,7 +3138,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         shortLabel: "Motion",
         score: snapshot?.transfer.motionRecovery.score ?? null,
         change: null,
-        helper: "How well the skill carries from static displays into moving patterns.",
+        helper: "How well the N-back memory rule carries from static displays into moving patterns.",
         tone: "teal",
       },
       {
@@ -3178,7 +3316,7 @@ function renderCoaching(): string {
         <article>
           <span>${miniIcon("pathway")}</span>
           <strong>Plan next steps</strong>
-          <p>Get clear guidance on whether to continue, slow down, repeat a step, change focus, or take a break.</p>
+          <p>Get clear guidance on whether to continue, slow down, repeat a step, change training emphasis, or take a break.</p>
         </article>
         <article>
           <span>${miniIcon("signal")}</span>
@@ -3818,6 +3956,7 @@ function continueAfterFeedback(): void {
     }
     const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
     if (block) updateGuidedNLevel(block, state.blockResults);
+    if (block) recordGuidedBlockFeedback(block, [...state.blockResults]);
     submitCurrentGuidedBlock([...state.blockResults]);
     state.activeBlockIndex += 1;
     state.activeTrialIndex = 0;
@@ -3848,6 +3987,7 @@ function endCurrentBlock(): void {
   }
   const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
   if (block) updateGuidedNLevel(block, state.blockResults);
+  if (block) recordGuidedBlockFeedback(block, [...state.blockResults]);
   submitCurrentGuidedBlock([...state.blockResults]);
   state.activeBlockIndex += 1;
   state.activeTrialIndex = 0;
@@ -4345,6 +4485,7 @@ appRoot.addEventListener("click", async (event) => {
     if (restoreGuidedReturn()) go("block-break");
   }
   else if (action === "resume-block") {
+    markCurrentInvariantPromptSeen();
     state.taskStage = "ready";
     go("task");
     startTaskCountdown();

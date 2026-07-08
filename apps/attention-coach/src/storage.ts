@@ -1,5 +1,6 @@
 import type {
   AttentionScoreSnapshot,
+  BlockFeedbackPoint,
   CellEvidence,
   DeviceReadiness,
   FarTransferWindow,
@@ -84,6 +85,8 @@ export interface LocalProgress {
   proofBenchmarks: ProofBenchmarkEntry[];
   completions: DailyCompletionEntry[];
   scoreHistory: ProgressScoreHistoryEntry[];
+  blockFeedbackHistory: BlockFeedbackPoint[];
+  seenInvariantPromptKeys: string[];
   profileRevealSeen: boolean;
 }
 
@@ -106,6 +109,8 @@ export const DEFAULT_PROGRESS: LocalProgress = {
   proofBenchmarks: [],
   completions: [],
   scoreHistory: [],
+  blockFeedbackHistory: [],
+  seenInvariantPromptKeys: [],
   profileRevealSeen: false,
 };
 

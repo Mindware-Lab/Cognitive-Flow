@@ -295,6 +295,31 @@ export interface FarTransferEvidence {
   boundarySignals: FarTransferBoundarySignal[];
 }
 
+export interface BlockFeedbackPoint {
+  programmeRunId: string;
+  programmeCycle: number;
+  sessionNumber: number;
+  phase: PhaseLabel;
+  phaseStatus: PhaseStatus;
+  blockIndex: number;
+  blockId: string;
+  wrapperId: string;
+  construct: Construct;
+  cellKey: CellKey;
+  accuracy: number;
+  balancedAccuracy: number;
+  coreMetricName: "n_back_level";
+  coreMetricValue: number | null;
+  coreMetricUnit: "level";
+  falseAlarmRate: number | null;
+  missRate: number | null;
+  lapseRate: number | null;
+  timingQuality: TimingQuality;
+  confidenceLabel: ConfidenceLabel;
+  transitionKey: TransitionKey | null;
+  createdAt: string;
+}
+
 export interface WorkingMemoryScoreSnapshot {
   sessionNumber: number;
   activePhase: PhaseLabel;

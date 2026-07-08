@@ -287,6 +287,12 @@ button {
   overflow: hidden;
 }
 
+.app-content.view-block-break {
+  grid-template-rows: auto auto auto;
+  align-content: start;
+  overflow: auto;
+}
+
 .beta-status-bar {
   min-height: 34px;
   display: grid;
@@ -1855,10 +1861,22 @@ button.score-card {
 .data-rights-screen {
   width: 100%;
   min-height: 0;
-  display: grid;
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
   gap: 10px;
   overflow: auto;
+}
+
+.data-rights-screen > * {
+  flex: 0 0 auto;
+}
+
+.data-rights-screen .data-rights-hero,
+.data-rights-screen .data-mode-card,
+.data-rights-screen .data-rights-card,
+.data-rights-screen .ethics-boundary-card {
+  height: auto;
 }
 
 .data-rights-hero {
@@ -1872,7 +1890,7 @@ button.score-card {
   margin: 0;
   color: #07124a;
   font-size: clamp(1.5rem, 4.8vmin, 2.35rem);
-  line-height: 1.04;
+  line-height: 1.12;
   overflow-wrap: anywhere;
 }
 
@@ -2823,6 +2841,185 @@ button.score-card {
 
 .block-practice-card {
   background: linear-gradient(135deg, rgba(23, 163, 69, 0.1), rgba(255, 255, 255, 0.92));
+}
+
+.interblock-progress-card,
+.invariant-prompt-card {
+  width: min(100%, 860px);
+  margin: 0 auto 12px;
+  border: 1px solid rgba(10, 30, 55, 0.1);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 12px 30px rgba(24, 34, 48, 0.08);
+}
+
+.interblock-progress-card {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+}
+
+.interblock-progress-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.interblock-progress-copy span,
+.invariant-prompt-card span,
+.interblock-graph-head span,
+.interblock-next-row span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.interblock-progress-copy strong {
+  color: var(--ink);
+  font-size: clamp(1.1rem, 2vw, 1.45rem);
+  line-height: 1.05;
+}
+
+.interblock-progress-copy p,
+.interblock-next-row p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.35;
+}
+
+.interblock-graph-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  min-width: 0;
+}
+
+.interblock-graph-card {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid rgba(10, 30, 55, 0.08);
+  border-radius: 14px;
+  background: rgba(245, 248, 252, 0.86);
+}
+
+.interblock-graph-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.interblock-graph-head strong {
+  color: var(--ink);
+  font-size: 0.95rem;
+  white-space: nowrap;
+}
+
+.interblock-sparkline {
+  display: block;
+  width: 100%;
+  height: 72px;
+  overflow: visible;
+}
+
+.interblock-graph-bg {
+  fill: #ffffff;
+}
+
+.interblock-graph-baseline {
+  stroke: rgba(24, 34, 48, 0.22);
+  stroke-dasharray: 4 4;
+  stroke-width: 1.4;
+}
+
+.interblock-graph-smooth {
+  fill: none;
+  stroke: var(--cyan);
+  stroke-width: 2.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.72;
+}
+
+.interblock-graph-point {
+  fill: var(--lime);
+  stroke: #ffffff;
+  stroke-width: 1.5;
+}
+
+.interblock-graph-card small {
+  color: var(--muted);
+  font-size: 0.72rem;
+  line-height: 1.2;
+}
+
+.interblock-next-row {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 2px;
+}
+
+.invariant-prompt-card {
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+  border-color: rgba(34, 170, 255, 0.26);
+}
+
+.invariant-prompt-card strong {
+  color: var(--ink);
+  font-size: 1rem;
+  line-height: 1.25;
+}
+
+@media (max-width: 720px) {
+  .interblock-progress-card,
+  .invariant-prompt-card {
+    width: min(100%, calc(100vw - 20px));
+    margin-bottom: 10px;
+    border-radius: 16px;
+  }
+
+  .interblock-progress-card {
+    gap: 9px;
+    padding: 10px;
+  }
+
+  .interblock-graph-grid {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .interblock-graph-card {
+    padding: 8px;
+  }
+
+  .interblock-sparkline {
+    height: 64px;
+  }
+
+  .interblock-next-row {
+    display: grid;
+    gap: 4px;
+  }
+
+  .interblock-progress-copy strong {
+    font-size: 1.05rem;
+  }
+
+  .interblock-progress-copy p,
+  .interblock-next-row p,
+  .invariant-prompt-card strong {
+    font-size: 0.82rem;
+  }
 }
 
 .practice-intro-panel {
@@ -5326,7 +5523,7 @@ button.score-card {
 
   .data-rights-hero h1 {
     font-size: clamp(1.32rem, 7vw, 1.72rem);
-    line-height: 1.06;
+    line-height: 1.12;
   }
 
   .data-rights-grid {

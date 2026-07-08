@@ -218,6 +218,28 @@ export interface FarTransferEvidence {
   boundarySignals: FarTransferBoundarySignal[];
 }
 
+export interface BlockFeedbackPoint {
+  programmeRunId: string;
+  programmeCycle: number;
+  sessionNumber: number;
+  phase: PhaseLabel;
+  phaseStatus: PhaseStatus;
+  blockIndex: number;
+  blockId: string;
+  construct: Construct;
+  cellKey: CellKey;
+  accuracy: number;
+  balancedAccuracy: number;
+  coreMetricName: "bits_per_second";
+  coreMetricValue: number | null;
+  coreMetricUnit: "bits/sec";
+  lapseRate: number | null;
+  timingQuality: TimingQuality;
+  confidenceLabel: ConfidenceLabel;
+  transitionKey: TransitionKey | null;
+  createdAt: string;
+}
+
 export interface AttentionScoreSnapshot {
   sessionNumber: number;
   activePhase: PhaseLabel;
