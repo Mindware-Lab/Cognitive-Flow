@@ -138,6 +138,7 @@ const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? cloudSyncModeFo
 const currentBrowserDeviceId = browserDeviceId();
 const APP_BASE = import.meta.env.BASE_URL || "/";
 const COACHING_CHECKOUT_URL = "https://buy.stripe.com/8x2bJ0bi96s06vLgtQ9ws0t";
+const PROTOCOL_ASSIGNMENT_VERSION = "counterbalance-v20260708";
 
 function resolveStyleMode(): StyleMode {
   const queryStyle = new URLSearchParams(window.location.search).get("style");
@@ -197,19 +198,64 @@ function queryProtocolGroup(): ProtocolGroup | null {
     : null;
 }
 
-function loadAssignedProgress(): LocalProgress {
-  const progress = progressForBrowserDevice(loadProgress(), currentBrowserDeviceId);
-  const assignedGroup = queryProtocolGroup();
-  if (!assignedGroup || assignedGroup === progress.protocolGroup) return progress;
-  const isFresh = progress.sessionNumber <= 1 && progress.evidence.length === 0 && progress.completedTransitions.length === 0;
-  const firstPhase = PHASE_ORDER_BY_GROUP[assignedGroup][0];
-  const assignedProgress = {
+function isFreshProtocolProgress(progress: LocalProgress): boolean {
+  return progress.sessionNumber <= 1 && progress.evidence.length === 0 && progress.completedTransitions.length === 0;
+}
+
+function protocolAssignmentSeed(): string {
+  return `wm-coach:${PROTOCOL_ASSIGNMENT_VERSION}:${currentBrowserDeviceId}`;
+}
+
+function hashToBucket(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100;
+}
+
+function assignedProtocolGroup(seed: string): ProtocolGroup {
+  const bucket = hashToBucket(seed);
+  if (bucket < 70) return "commercial_arrows_first";
+  if (bucket < 90) return "validation_arrows_first";
+  return "validation_flow_first";
+}
+
+function withProtocolAssignment(progress: LocalProgress): LocalProgress {
+  const queryGroup = queryProtocolGroup();
+  const isFresh = isFreshProtocolProgress(progress);
+  if (queryGroup) {
+    return {
+      ...progress,
+      protocolGroup: queryGroup,
+      protocolAssignmentVersion: `${PROTOCOL_ASSIGNMENT_VERSION}:url_override`,
+      protocolAssignmentSeed: "query:protocolGroup",
+      protocolAssignedAt: progress.protocolAssignedAt || new Date().toISOString(),
+      currentPhase: isFresh ? PHASE_ORDER_BY_GROUP[queryGroup][0] : progress.currentPhase,
+      latestSnapshot: isFresh ? null : progress.latestSnapshot,
+      scratchBaselines: [],
+    };
+  }
+  if (progress.protocolAssignmentVersion || !isFresh) return progress;
+  const seed = protocolAssignmentSeed();
+  const protocolGroup = assignedProtocolGroup(seed);
+  return {
     ...progress,
-    protocolGroup: assignedGroup,
-    currentPhase: isFresh ? firstPhase : progress.currentPhase,
-    latestSnapshot: isFresh ? null : progress.latestSnapshot,
+    protocolGroup,
+    protocolAssignmentVersion: PROTOCOL_ASSIGNMENT_VERSION,
+    protocolAssignmentSeed: seed,
+    protocolAssignedAt: new Date().toISOString(),
+    currentPhase: PHASE_ORDER_BY_GROUP[protocolGroup][0],
+    latestSnapshot: null,
     scratchBaselines: [],
   };
+}
+
+function loadAssignedProgress(): LocalProgress {
+  const progress = progressForBrowserDevice(loadProgress(), currentBrowserDeviceId);
+  const assignedProgress = withProtocolAssignment(progress);
+  if (assignedProgress === progress) return progress;
   saveProgress(assignedProgress);
   return assignedProgress;
 }
@@ -480,7 +526,7 @@ async function restoreRemoteProgress(): Promise<void> {
       markSync("synced", "Beta progress loaded.");
       nextView = "welcome";
     } else {
-      state.progress = freshDefaultProgress();
+      state.progress = withProtocolAssignment(freshDefaultProgress());
       saveProgress(state.progress);
       await saveRemoteProgress(state.progress);
       markSync("synced", "New beta progress record created.");
@@ -1224,7 +1270,7 @@ async function deleteCurrentData(): Promise<void> {
   try {
     if (cloudSyncActive()) await deleteWorkingMemoryData();
     resetProgress();
-    state.progress = freshDefaultProgress();
+    state.progress = withProtocolAssignment(freshDefaultProgress());
     state.sessionPlan = null;
     state.sessionMode = "protocol";
     state.sessionSource = "guided";
@@ -3612,6 +3658,9 @@ function restartGuidedProgramme(): void {
   state.progress = {
     ...freshDefaultProgress(programmeCycle),
     protocolGroup: previous.protocolGroup,
+    protocolAssignmentVersion: previous.protocolAssignmentVersion,
+    protocolAssignmentSeed: previous.protocolAssignmentSeed,
+    protocolAssignedAt: previous.protocolAssignedAt,
     deviceReadiness: previous.deviceReadiness,
     scratchBaselines: previous.scratchBaselines,
     proofBenchmarks: previous.proofBenchmarks,
@@ -4330,7 +4379,7 @@ appRoot.addEventListener("click", async (event) => {
     clearStageTimer();
     state = {
       ...state,
-      progress: freshDefaultProgress(),
+      progress: withProtocolAssignment(freshDefaultProgress()),
       sessionPlan: null,
       sessionMode: "protocol",
       sessionSource: "guided",

@@ -120,6 +120,7 @@ const initialDataModeSeen = loadDataModeSeen();
 const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? cloudSyncModeForDataMode(initialDataMode) : "local";
 const currentBrowserDeviceId = browserDeviceId();
 const APP_BASE = import.meta.env.BASE_URL || "/";
+const PROTOCOL_ASSIGNMENT_VERSION = "counterbalance-v20260708";
 
 function freshDefaultProgress(programmeCycle = 1): LocalProgress {
   return {
@@ -186,19 +187,64 @@ function queryProtocolGroup(): ProtocolGroup | null {
     : null;
 }
 
-function loadAssignedProgress(): LocalProgress {
-  const progress = progressForBrowserDevice(loadProgress(), currentBrowserDeviceId);
-  const assignedGroup = queryProtocolGroup();
-  if (!assignedGroup || assignedGroup === progress.protocolGroup) return progress;
-  const isFresh = progress.sessionNumber <= 1 && progress.evidence.length === 0 && progress.completedTransitions.length === 0;
-  const firstPhase = PHASE_ORDER_BY_GROUP[assignedGroup][0];
-  const assignedProgress = {
+function isFreshProtocolProgress(progress: LocalProgress): boolean {
+  return progress.sessionNumber <= 1 && progress.evidence.length === 0 && progress.completedTransitions.length === 0;
+}
+
+function protocolAssignmentSeed(): string {
+  return `attention-coach:${PROTOCOL_ASSIGNMENT_VERSION}:${currentBrowserDeviceId}`;
+}
+
+function hashToBucket(seed: string): number {
+  let hash = 2166136261;
+  for (let index = 0; index < seed.length; index += 1) {
+    hash ^= seed.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0) % 100;
+}
+
+function assignedProtocolGroup(seed: string): ProtocolGroup {
+  const bucket = hashToBucket(seed);
+  if (bucket < 70) return "commercial_arrows_first";
+  if (bucket < 90) return "validation_arrows_first";
+  return "validation_flow_first";
+}
+
+function withProtocolAssignment(progress: LocalProgress): LocalProgress {
+  const queryGroup = queryProtocolGroup();
+  const isFresh = isFreshProtocolProgress(progress);
+  if (queryGroup) {
+    return {
+      ...progress,
+      protocolGroup: queryGroup,
+      protocolAssignmentVersion: `${PROTOCOL_ASSIGNMENT_VERSION}:url_override`,
+      protocolAssignmentSeed: "query:protocolGroup",
+      protocolAssignedAt: progress.protocolAssignedAt || new Date().toISOString(),
+      currentPhase: isFresh ? PHASE_ORDER_BY_GROUP[queryGroup][0] : progress.currentPhase,
+      latestSnapshot: isFresh ? null : progress.latestSnapshot,
+      scratchBaselines: [],
+    };
+  }
+  if (progress.protocolAssignmentVersion || !isFresh) return progress;
+  const seed = protocolAssignmentSeed();
+  const protocolGroup = assignedProtocolGroup(seed);
+  return {
     ...progress,
-    protocolGroup: assignedGroup,
-    currentPhase: isFresh ? firstPhase : progress.currentPhase,
-    latestSnapshot: isFresh ? null : progress.latestSnapshot,
+    protocolGroup,
+    protocolAssignmentVersion: PROTOCOL_ASSIGNMENT_VERSION,
+    protocolAssignmentSeed: seed,
+    protocolAssignedAt: new Date().toISOString(),
+    currentPhase: PHASE_ORDER_BY_GROUP[protocolGroup][0],
+    latestSnapshot: null,
     scratchBaselines: [],
   };
+}
+
+function loadAssignedProgress(): LocalProgress {
+  const progress = progressForBrowserDevice(loadProgress(), currentBrowserDeviceId);
+  const assignedProgress = withProtocolAssignment(progress);
+  if (assignedProgress === progress) return progress;
   saveProgress(assignedProgress);
   return assignedProgress;
 }
@@ -451,7 +497,7 @@ async function restoreRemoteProgress(): Promise<void> {
       markSync("synced", "Beta progress loaded.");
       nextView = "welcome";
     } else {
-      state.progress = freshDefaultProgress();
+      state.progress = withProtocolAssignment(freshDefaultProgress());
       saveProgress(state.progress);
       await saveRemoteProgress(state.progress);
       markSync("synced", "New beta progress record created.");
@@ -1145,7 +1191,7 @@ async function deleteCurrentData(): Promise<void> {
   try {
     if (cloudSyncActive()) await deleteAttentionData();
     resetProgress();
-    state.progress = freshDefaultProgress();
+    state.progress = withProtocolAssignment(freshDefaultProgress());
     state.sessionPlan = null;
     state.sessionMode = "protocol";
     state.sessionSource = "guided";
@@ -3827,7 +3873,7 @@ appRoot.addEventListener("click", async (event) => {
     clearStageTimer();
     state = {
       ...state,
-      progress: freshDefaultProgress(),
+      progress: withProtocolAssignment(freshDefaultProgress()),
       sessionPlan: null,
       sessionMode: "protocol",
       sessionSource: "guided",
@@ -3845,6 +3891,9 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "restart-guided-programme") {
     const preservedReadiness = state.progress.deviceReadiness;
     const preservedProtocolGroup = state.progress.protocolGroup;
+    const preservedProtocolAssignmentVersion = state.progress.protocolAssignmentVersion;
+    const preservedProtocolAssignmentSeed = state.progress.protocolAssignmentSeed;
+    const preservedProtocolAssignedAt = state.progress.protocolAssignedAt;
     const preservedScratchBaselines = state.progress.scratchBaselines;
     const nextProgrammeCycle = (state.progress.programmeCycle || 1) + 1;
     clearStageTimer();
@@ -3856,6 +3905,9 @@ appRoot.addEventListener("click", async (event) => {
         programmeCycle: nextProgrammeCycle,
         deviceReadiness: preservedReadiness,
         protocolGroup: preservedProtocolGroup,
+        protocolAssignmentVersion: preservedProtocolAssignmentVersion,
+        protocolAssignmentSeed: preservedProtocolAssignmentSeed,
+        protocolAssignedAt: preservedProtocolAssignedAt,
         scratchBaselines: preservedScratchBaselines,
       },
       sessionPlan: null,

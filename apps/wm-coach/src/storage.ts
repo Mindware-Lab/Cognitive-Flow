@@ -71,6 +71,9 @@ export interface LocalProgress {
   evidence: CellEvidence[];
   farTransferWindows: FarTransferWindow[];
   protocolGroup: ProtocolGroup;
+  protocolAssignmentVersion: string | null;
+  protocolAssignmentSeed: string | null;
+  protocolAssignedAt: string | null;
   scratchBaselines: ScratchBaseline[];
   proofBenchmarks: ProofBenchmarkEntry[];
   completions: DailyCompletionEntry[];
@@ -91,6 +94,9 @@ export const DEFAULT_PROGRESS: LocalProgress = {
   evidence: [],
   farTransferWindows: [],
   protocolGroup: "commercial_arrows_first",
+  protocolAssignmentVersion: null,
+  protocolAssignmentSeed: null,
+  protocolAssignedAt: null,
   scratchBaselines: [],
   proofBenchmarks: [],
   completions: [],

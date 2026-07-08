@@ -5,51 +5,60 @@ async function refreshMetricNorms(
   supabase: ReturnType<typeof serviceClient>,
   appId: "attention_coach" | "wm_coach",
   metricKeys: string[],
+  protocolGroups: string[],
 ): Promise<void> {
+  const cohorts = [
+    { key: "global_beta", protocolGroup: null as string | null },
+    ...protocolGroups.map((protocolGroup) => ({ key: `protocol:${protocolGroup}`, protocolGroup })),
+  ];
   for (const metricKey of metricKeys) {
-    const { data, error } = await supabase
-      .from("coach_metric_observations")
-      .select("metric_value, recorded_at")
-      .eq("app_id", appId)
-      .eq("metric_key", metricKey);
-    if (error) continue;
-    const values = (data || [])
-      .map((row) => Number(row.metric_value))
-      .filter((value) => Number.isFinite(value));
-    if (!values.length) {
-      await supabase
-        .from("coach_metric_norms")
-        .delete()
+    for (const cohort of cohorts) {
+      let query = supabase
+        .from("coach_metric_observations")
+        .select("metric_value, recorded_at")
         .eq("app_id", appId)
-        .eq("metric_key", metricKey)
-        .eq("cohort_key", "global_beta");
-      continue;
+        .eq("metric_key", metricKey);
+      if (cohort.protocolGroup) query = query.eq("protocol_group", cohort.protocolGroup);
+      const { data, error } = await query;
+      if (error) continue;
+      const values = (data || [])
+        .map((row) => Number(row.metric_value))
+        .filter((value) => Number.isFinite(value));
+      if (!values.length) {
+        await supabase
+          .from("coach_metric_norms")
+          .delete()
+          .eq("app_id", appId)
+          .eq("metric_key", metricKey)
+          .eq("cohort_key", cohort.key);
+        continue;
+      }
+      const n = values.length;
+      const mean = values.reduce((total, value) => total + value, 0) / n;
+      const variance = n > 1
+        ? values.reduce((total, value) => total + (value - mean) ** 2, 0) / (n - 1)
+        : 0;
+      const latest = (data || [])
+        .map((row) => typeof row.recorded_at === "string" ? row.recorded_at : null)
+        .filter((value): value is string => Boolean(value))
+        .sort()
+        .at(-1) ?? null;
+      await supabase.from("coach_metric_norms").upsert(
+        {
+          app_id: appId,
+          metric_key: metricKey,
+          cohort_key: cohort.key,
+          n,
+          mean_value: mean,
+          stddev_value: n > 1 ? Math.sqrt(variance) : null,
+          min_value: Math.min(...values),
+          max_value: Math.max(...values),
+          last_observation_at: latest,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "app_id,metric_key,cohort_key" },
+      );
     }
-    const n = values.length;
-    const mean = values.reduce((total, value) => total + value, 0) / n;
-    const variance = n > 1
-      ? values.reduce((total, value) => total + (value - mean) ** 2, 0) / (n - 1)
-      : 0;
-    const latest = (data || [])
-      .map((row) => typeof row.recorded_at === "string" ? row.recorded_at : null)
-      .filter((value): value is string => Boolean(value))
-      .sort()
-      .at(-1) ?? null;
-    await supabase.from("coach_metric_norms").upsert(
-      {
-        app_id: appId,
-        metric_key: metricKey,
-        cohort_key: "global_beta",
-        n,
-        mean_value: mean,
-        stddev_value: n > 1 ? Math.sqrt(variance) : null,
-        min_value: Math.min(...values),
-        max_value: Math.max(...values),
-        last_observation_at: latest,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "app_id,metric_key,cohort_key" },
-    );
   }
 }
 
@@ -65,10 +74,13 @@ Deno.serve(async (request) => {
   const supabase = serviceClient();
   const { data: metricRows } = await supabase
     .from("coach_metric_observations")
-    .select("metric_key")
+    .select("metric_key, protocol_group")
     .eq("user_id", user.id)
     .eq("app_id", "attention_coach");
   const metricKeys = Array.from(new Set((metricRows || []).map((row) => String(row.metric_key))));
+  const protocolGroups = Array.from(new Set((metricRows || [])
+    .map((row) => typeof row.protocol_group === "string" ? row.protocol_group : "")
+    .filter(Boolean)));
   for (const table of [
     "coach_metric_observations",
     "attention_trials",
@@ -91,6 +103,6 @@ Deno.serve(async (request) => {
     const { error } = await query;
     if (error) return json(500, { error: error.message, table });
   }
-  await refreshMetricNorms(supabase, "attention_coach", metricKeys);
+  await refreshMetricNorms(supabase, "attention_coach", metricKeys, protocolGroups);
   return json(200, { deleted: true });
 });
