@@ -8,6 +8,7 @@ export type Frame = "abs" | "rel";
 export type CanonicalFrame = "absolute" | "relational";
 export type CellKey = "arrow_abs" | "flow_abs" | "arrow_rel" | "flow_rel" | "mixed";
 export type WrapperId = Exclude<CellKey, "mixed">;
+export type StartCarrier = "arrows" | "optic_flow";
 export type WrapperMix = {
   wrapperRatios: Partial<Record<WrapperId, number>>;
   randomised: boolean;
@@ -328,6 +329,12 @@ export interface DelayedRecheck {
 
 export interface TransferControllerState {
   version: "horizontal-transfer-v1.0";
+  startCarrier: StartCarrier;
+  startCohort: "arrows_first" | "optic_flow_first";
+  startWrapper: WrapperId;
+  carrierTargetWrapper: WrapperId;
+  frameTargetWrapper: WrapperId;
+  heldOutWrapper: WrapperId;
   activeBaseWrapper: WrapperId | null;
   activeTargetWrapper: WrapperId | null;
   phase: TransferPhase;
@@ -339,6 +346,7 @@ export interface TransferControllerState {
   heldOutCompositionLogged: boolean;
   heldOutStatus: HeldOutStatus;
   legacyFlowRelExposure: boolean;
+  legacyHeldOutExposure: boolean;
   legacyStatus: LegacyTransferStatus;
   completedAtSession: number | null;
   maintenanceSessionCount: number;

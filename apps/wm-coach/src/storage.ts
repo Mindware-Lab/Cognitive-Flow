@@ -114,6 +114,7 @@ export const DEFAULT_PROGRESS: LocalProgress = {
     currentPhase: "P1_ARROW_ABS",
     sessionNumber: 1,
     evidence: [],
+    protocolGroup: "commercial_arrows_first",
   }),
 };
 
@@ -206,6 +207,7 @@ export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress
       currentPhase: progress.currentPhase,
       sessionNumber: progress.sessionNumber,
       evidence: progress.evidence || [],
+      protocolGroup: progress.protocolGroup,
     }),
     completions: (progress.completions || []).map((entry) => ({
       ...entry,

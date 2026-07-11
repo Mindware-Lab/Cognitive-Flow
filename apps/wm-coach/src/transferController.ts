@@ -6,6 +6,8 @@ import type {
   PhaseLabel,
   PhaseStatus,
   ProbeStatus,
+  ProtocolGroup,
+  StartCarrier,
   TransferControllerState,
   TransferEvent,
   TransferMetricSnapshot,
@@ -58,10 +60,66 @@ const EMPTY_METRICS: TransferMetricSnapshot = {
   earlyCueReinstatement: null,
 };
 
-function wrapperState(wrapperId: WrapperId): WrapperState {
+type TransferPath = {
+  startCarrier: StartCarrier;
+  startCohort: "arrows_first" | "optic_flow_first";
+  startWrapper: WrapperId;
+  carrierTargetWrapper: WrapperId;
+  frameTargetWrapper: WrapperId;
+  heldOutWrapper: WrapperId;
+};
+
+const ARROWS_FIRST_PATH: TransferPath = {
+  startCarrier: "arrows",
+  startCohort: "arrows_first",
+  startWrapper: "arrow_abs",
+  carrierTargetWrapper: "flow_abs",
+  frameTargetWrapper: "arrow_rel",
+  heldOutWrapper: "flow_rel",
+};
+
+const FLOW_FIRST_PATH: TransferPath = {
+  startCarrier: "optic_flow",
+  startCohort: "optic_flow_first",
+  startWrapper: "flow_abs",
+  carrierTargetWrapper: "arrow_abs",
+  frameTargetWrapper: "flow_rel",
+  heldOutWrapper: "arrow_rel",
+};
+
+function pathForStartCarrier(startCarrier: StartCarrier): TransferPath {
+  return startCarrier === "optic_flow" ? FLOW_FIRST_PATH : ARROWS_FIRST_PATH;
+}
+
+function startCarrierForProtocolGroup(protocolGroup?: ProtocolGroup | null): StartCarrier {
+  return protocolGroup === "validation_flow_first" ? "optic_flow" : "arrows";
+}
+
+function startCarrierForPhase(phase: PhaseLabel): StartCarrier {
+  return phase === "P1_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P3_FLOW_REL" || phase === "P4_ARROW_REL"
+    ? "optic_flow"
+    : "arrows";
+}
+
+function inferredPath(input: {
+  existing?: TransferControllerState | null;
+  currentPhase?: PhaseLabel;
+  protocolGroup?: ProtocolGroup | null;
+}): TransferPath {
+  if (input.existing?.startCarrier) return pathForStartCarrier(input.existing.startCarrier);
+  if (input.protocolGroup) return pathForStartCarrier(startCarrierForProtocolGroup(input.protocolGroup));
+  if (input.currentPhase) return pathForStartCarrier(startCarrierForPhase(input.currentPhase));
+  return ARROWS_FIRST_PATH;
+}
+
+export function transferPathForState(state: TransferControllerState | null | undefined): TransferPath {
+  return pathForStartCarrier(state?.startCarrier || "arrows");
+}
+
+function wrapperState(wrapperId: WrapperId, path: TransferPath): WrapperState {
   return {
     wrapperId,
-    status: wrapperId === "arrow_abs" ? "base" : "locked",
+    status: wrapperId === path.startWrapper ? "base" : "locked",
     validTrials: 0,
     rollingWindowCount: 0,
     balancedAccuracy: 0,
@@ -73,36 +131,52 @@ function wrapperState(wrapperId: WrapperId): WrapperState {
   };
 }
 
-function initialWrapperStates(): Record<WrapperId, WrapperState> {
+function initialWrapperStates(path: TransferPath): Record<WrapperId, WrapperState> {
   return {
-    arrow_abs: wrapperState("arrow_abs"),
-    flow_abs: wrapperState("flow_abs"),
-    arrow_rel: wrapperState("arrow_rel"),
-    flow_rel: wrapperState("flow_rel"),
+    arrow_abs: wrapperState("arrow_abs", path),
+    flow_abs: wrapperState("flow_abs", path),
+    arrow_rel: wrapperState("arrow_rel", path),
+    flow_rel: wrapperState("flow_rel", path),
   };
 }
 
-export function createInitialTransferControllerState(): TransferControllerState {
+export function createInitialTransferControllerState(options: { startCarrier?: StartCarrier } = {}): TransferControllerState {
+  const path = pathForStartCarrier(options.startCarrier || "arrows");
   return {
     version: "horizontal-transfer-v1.0",
-    activeBaseWrapper: "arrow_abs",
+    startCarrier: path.startCarrier,
+    startCohort: path.startCohort,
+    startWrapper: path.startWrapper,
+    carrierTargetWrapper: path.carrierTargetWrapper,
+    frameTargetWrapper: path.frameTargetWrapper,
+    heldOutWrapper: path.heldOutWrapper,
+    activeBaseWrapper: path.startWrapper,
     activeTargetWrapper: null,
     phase: "base_fluency",
     mixRatio: null,
     activeMix: null,
-    wrapperStates: initialWrapperStates(),
+    wrapperStates: initialWrapperStates(path),
     transferEvents: [],
     delayedRechecks: [],
     heldOutCompositionLogged: false,
     heldOutStatus: "clean",
     legacyFlowRelExposure: false,
+    legacyHeldOutExposure: false,
     legacyStatus: "none",
     completedAtSession: null,
     maintenanceSessionCount: 0,
   };
 }
 
-function phaseFromLegacy(phase: PhaseLabel): Pick<
+function phaseForWrapper(path: TransferPath, wrapper: WrapperId | null | undefined): PhaseLabel {
+  if (wrapper === path.startWrapper) return path.startCarrier === "optic_flow" ? "P1_FLOW_ABS" : "P1_ARROW_ABS";
+  if (wrapper === path.carrierTargetWrapper) return path.startCarrier === "optic_flow" ? "P2_ARROW_ABS" : "P2_FLOW_ABS";
+  if (wrapper === path.frameTargetWrapper) return path.startCarrier === "optic_flow" ? "P3_FLOW_REL" : "P3_ARROW_REL";
+  if (wrapper === path.heldOutWrapper) return path.startCarrier === "optic_flow" ? "P4_ARROW_REL" : "P4_FLOW_REL";
+  return path.startCarrier === "optic_flow" ? "P1_FLOW_ABS" : "P1_ARROW_ABS";
+}
+
+function phaseFromLegacy(phase: PhaseLabel, path: TransferPath): Pick<
   TransferControllerState,
   | "activeBaseWrapper"
   | "activeTargetWrapper"
@@ -112,11 +186,12 @@ function phaseFromLegacy(phase: PhaseLabel): Pick<
   | "heldOutCompositionLogged"
   | "heldOutStatus"
   | "legacyFlowRelExposure"
+  | "legacyHeldOutExposure"
   | "legacyStatus"
 > {
-  if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS") return legacyPatch("arrow_abs", "flow_abs", "recovering", null, null, "clean", false, "legacy_active");
-  if (phase === "P3_ARROW_REL" || phase === "P3_FLOW_REL") return legacyPatch("arrow_abs", "arrow_rel", "recovering", null, null, "clean", false, "legacy_active");
-  if (phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") return legacyPatch("arrow_rel", "flow_rel", "recovering", null, null, "legacy_exposed", true, "legacy_exposed");
+  if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS") return legacyPatch(path.startWrapper, path.carrierTargetWrapper, "recovering", null, null, "clean", false, false, "legacy_active");
+  if (phase === "P3_ARROW_REL" || phase === "P3_FLOW_REL") return legacyPatch(path.startWrapper, path.frameTargetWrapper, "recovering", null, null, "clean", false, false, "legacy_active");
+  if (phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") return legacyPatch(path.frameTargetWrapper, path.heldOutWrapper, "recovering", null, null, "legacy_exposed", path.heldOutWrapper === "flow_rel", true, "legacy_exposed");
   if (
     phase === "P5_ARROW_MIXED" ||
     phase === "P6_FLOW_MIXED" ||
@@ -126,12 +201,12 @@ function phaseFromLegacy(phase: PhaseLabel): Pick<
     phase === "P10_BIND_MIXED" ||
     phase === "P5_MIXED"
   ) {
-    return legacyPatch(null, null, "full_factorial_mix", null, ALL_WRAPPER_MIX, "legacy_exposed", true, "legacy_mixed_unknown");
+    return legacyPatch(null, null, "full_factorial_mix", null, ALL_WRAPPER_MIX, "legacy_exposed", path.heldOutWrapper === "flow_rel", true, "legacy_mixed_unknown");
   }
   if (phase === "P11_DELAYED" || phase === "P6_DELAYED") {
-    return legacyPatch(null, null, "delayed_recheck", null, ALL_WRAPPER_MIX, "legacy_exposed", true, "legacy_mixed_unknown");
+    return legacyPatch(null, null, "delayed_recheck", null, ALL_WRAPPER_MIX, "legacy_exposed", path.heldOutWrapper === "flow_rel", true, "legacy_mixed_unknown");
   }
-  return legacyPatch("arrow_abs", null, "base_fluency", null, null, "clean", false, "none");
+  return legacyPatch(path.startWrapper, null, "base_fluency", null, null, "clean", false, false, "none");
 }
 
 function legacyPatch(
@@ -142,6 +217,7 @@ function legacyPatch(
   activeMix: WrapperMix | null,
   heldOutStatus: HeldOutStatus,
   legacyFlowRelExposure: boolean,
+  legacyHeldOutExposure: boolean,
   legacyStatus: LegacyTransferStatus,
 ) {
   return {
@@ -153,6 +229,7 @@ function legacyPatch(
     heldOutCompositionLogged: false,
     heldOutStatus,
     legacyFlowRelExposure,
+    legacyHeldOutExposure,
     legacyStatus,
   };
 }
@@ -162,15 +239,23 @@ export function migrateTransferControllerState(input: {
   currentPhase: PhaseLabel;
   sessionNumber: number;
   evidence: CellEvidence[];
+  protocolGroup?: ProtocolGroup | null;
 }): TransferControllerState {
-  const fresh = createInitialTransferControllerState();
+  const path = inferredPath(input);
+  const fresh = createInitialTransferControllerState({ startCarrier: path.startCarrier });
   const base = input.existing?.version === "horizontal-transfer-v1.0"
     ? input.existing
-    : { ...fresh, ...phaseFromLegacy(input.currentPhase) };
+    : { ...fresh, ...phaseFromLegacy(input.currentPhase, path) };
   const normalized: TransferControllerState = {
     ...fresh,
     ...base,
-    activeBaseWrapper: atomicOrNull(base.activeBaseWrapper),
+    startCarrier: path.startCarrier,
+    startCohort: path.startCohort,
+    startWrapper: path.startWrapper,
+    carrierTargetWrapper: path.carrierTargetWrapper,
+    frameTargetWrapper: path.frameTargetWrapper,
+    heldOutWrapper: path.heldOutWrapper,
+    activeBaseWrapper: atomicOrNull(base.activeBaseWrapper) || (base.phase === "base_fluency" ? path.startWrapper : null),
     activeTargetWrapper: atomicOrNull(base.activeTargetWrapper),
     activeMix: base.activeMix || null,
     transferEvents: base.transferEvents || [],
@@ -178,9 +263,11 @@ export function migrateTransferControllerState(input: {
       ...item,
       wrapperIds: item.wrapperIds || [atomicOrNull((item as unknown as { wrapperId?: WrapperId }).wrapperId)].filter(Boolean) as WrapperId[],
     })),
-    heldOutStatus: base.heldOutStatus || (base.legacyFlowRelExposure ? "legacy_exposed" : "clean"),
-    legacyStatus: base.legacyStatus || (base.legacyFlowRelExposure ? "legacy_exposed" : "none"),
-    wrapperStates: normalizeWrapperStates(base.wrapperStates),
+    heldOutStatus: base.heldOutStatus || (base.legacyHeldOutExposure || base.legacyFlowRelExposure ? "legacy_exposed" : "clean"),
+    legacyFlowRelExposure: Boolean(base.legacyFlowRelExposure),
+    legacyHeldOutExposure: Boolean(base.legacyHeldOutExposure || (path.heldOutWrapper === "flow_rel" && base.legacyFlowRelExposure)),
+    legacyStatus: base.legacyStatus || (base.legacyHeldOutExposure || base.legacyFlowRelExposure ? "legacy_exposed" : "none"),
+    wrapperStates: normalizeWrapperStates(base.wrapperStates, path),
   };
   return refreshWrapperStates(normalized, input.evidence, input.sessionNumber);
 }
@@ -189,11 +276,12 @@ function atomicOrNull(wrapper: unknown): WrapperId | null {
   return WRAPPERS.includes(wrapper as WrapperId) ? (wrapper as WrapperId) : null;
 }
 
-function normalizeWrapperStates(input?: Partial<Record<WrapperId, WrapperState>>): Record<WrapperId, WrapperState> {
-  const base = initialWrapperStates();
+function normalizeWrapperStates(input: Partial<Record<WrapperId, WrapperState>> | undefined, path: TransferPath): Record<WrapperId, WrapperState> {
+  const base = initialWrapperStates(path);
   for (const wrapper of WRAPPERS) {
     if (input?.[wrapper]) base[wrapper] = { ...base[wrapper], ...input[wrapper], wrapperId: wrapper };
   }
+  if (base[path.startWrapper].status === "locked") base[path.startWrapper] = { ...base[path.startWrapper], status: "base" };
   return base;
 }
 
@@ -206,7 +294,8 @@ function refreshWrapperStates(
   evidence: CellEvidence[],
   sessionNumber: number,
 ): TransferControllerState {
-  const wrapperStates = normalizeWrapperStates(state.wrapperStates);
+  const path = transferPathForState(state);
+  const wrapperStates = normalizeWrapperStates(state.wrapperStates, path);
   for (const wrapper of WRAPPERS) {
     const current = wrapperStates[wrapper];
     const ev = evidenceFor(evidence, "ACC", wrapper);
@@ -354,24 +443,23 @@ function appendEvent(state: TransferControllerState, nextEvent: TransferEvent): 
 }
 
 function legacyPhaseFor(state: TransferControllerState): PhaseLabel {
+  const path = transferPathForState(state);
   switch (state.phase) {
     case "base_fluency":
     case "diagnostic_probe":
     case "flattening":
     case "return_to_base":
-      return "P1_ARROW_ABS";
+      return phaseForWrapper(path, path.startWrapper);
     case "transition_probe":
     case "expected_dip":
     case "recovering":
-      if (state.activeTargetWrapper === "arrow_rel") return "P3_ARROW_REL";
-      if (state.activeTargetWrapper === "flow_rel") return "P4_FLOW_REL";
-      return "P2_FLOW_ABS";
+      return phaseForWrapper(path, state.activeTargetWrapper || path.carrierTargetWrapper);
     case "held_out_composition":
-      return "P4_FLOW_REL";
+      return phaseForWrapper(path, path.heldOutWrapper);
     case "delayed_recheck":
-      return "P11_DELAYED";
+      return "P6_DELAYED";
     default:
-      return "P7_FULL_MIXED";
+      return "P5_MIXED";
   }
 }
 
@@ -394,9 +482,10 @@ export function probeStatusForTransferPhase(phase: TransferPhase): ProbeStatus {
   return "base";
 }
 
-function sourceForTarget(target: WrapperId, evidence: CellEvidence[]): CellEvidence | null {
-  if (target === "flow_abs" || target === "arrow_rel") return evidenceFor(evidence, "ACC", "arrow_abs");
-  return evidenceFor(evidence, "ACC", "arrow_rel");
+function sourceForTarget(target: WrapperId, path: TransferPath, evidence: CellEvidence[]): CellEvidence | null {
+  if (target === path.carrierTargetWrapper || target === path.frameTargetWrapper) return evidenceFor(evidence, "ACC", path.startWrapper);
+  if (target === path.heldOutWrapper) return evidenceFor(evidence, "ACC", path.frameTargetWrapper);
+  return evidenceFor(evidence, "ACC", path.startWrapper);
 }
 
 function currentPairMix(state: TransferControllerState): WrapperMix {
@@ -420,11 +509,9 @@ function nextMixPhase(state: TransferControllerState, phase: TransferPhase, mixR
 }
 
 function nextTransferState(state: TransferControllerState, input: WapUserState): TransferControllerState {
+  const path = transferPathForState(state);
   const evidence = input.evidence;
-  const arrowAbs = evidenceFor(evidence, "ACC", "arrow_abs");
-  const flowAbs = evidenceFor(evidence, "ACC", "flow_abs");
-  const arrowRel = evidenceFor(evidence, "ACC", "arrow_rel");
-  const flowRel = evidenceFor(evidence, "ACC", "flow_rel");
+  const startEvidence = evidenceFor(evidence, "ACC", path.startWrapper);
 
   if (state.phase === "portable" || state.phase === "maintenance_mix") {
     return {
@@ -439,68 +526,68 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
   }
 
   if (state.phase === "base_fluency") {
-    if (flattened(arrowAbs)) {
+    if (flattened(startEvidence)) {
       const next = {
         ...state,
         phase: "transition_probe" as TransferPhase,
-        activeBaseWrapper: "arrow_abs" as WrapperId,
-        activeTargetWrapper: "flow_abs" as WrapperId,
+        activeBaseWrapper: path.startWrapper,
+        activeTargetWrapper: path.carrierTargetWrapper,
         mixRatio: TRANSFER_DEFAULTS.transitionProbeRatio,
-        activeMix: mixFor("arrow_abs", "flow_abs", TRANSFER_DEFAULTS.transitionProbeRatio),
+        activeMix: mixFor(path.startWrapper, path.carrierTargetWrapper, TRANSFER_DEFAULTS.transitionProbeRatio),
       };
-      return appendEvent(next, event("transition_probe", "arrow_abs", "flow_abs", input.sessionNumber, "transition_probe", TRANSFER_DEFAULTS.transitionProbeRatio));
+      return appendEvent(next, event("transition_probe", path.startWrapper, path.carrierTargetWrapper, input.sessionNumber, "transition_probe", TRANSFER_DEFAULTS.transitionProbeRatio));
     }
-    if ((arrowAbs?.validTrials || 0) >= 88 && !state.transferEvents.some((item) => item.eventType === "diagnostic_probe")) {
+    if ((startEvidence?.validTrials || 0) >= 88 && !state.transferEvents.some((item) => item.eventType === "diagnostic_probe")) {
       const next = {
         ...state,
         phase: "diagnostic_probe" as TransferPhase,
-        activeBaseWrapper: "arrow_abs" as WrapperId,
-        activeTargetWrapper: "flow_abs" as WrapperId,
+        activeBaseWrapper: path.startWrapper,
+        activeTargetWrapper: path.carrierTargetWrapper,
         mixRatio: TRANSFER_DEFAULTS.diagnosticProbeRatio,
-        activeMix: mixFor("arrow_abs", "flow_abs", TRANSFER_DEFAULTS.diagnosticProbeRatio),
+        activeMix: mixFor(path.startWrapper, path.carrierTargetWrapper, TRANSFER_DEFAULTS.diagnosticProbeRatio),
       };
-      return appendEvent(next, event("diagnostic_probe", "arrow_abs", "flow_abs", input.sessionNumber, "diagnostic_probe", TRANSFER_DEFAULTS.diagnosticProbeRatio));
+      return appendEvent(next, event("diagnostic_probe", path.startWrapper, path.carrierTargetWrapper, input.sessionNumber, "diagnostic_probe", TRANSFER_DEFAULTS.diagnosticProbeRatio));
     }
-    if ((arrowAbs?.validTrials || 0) >= TRANSFER_DEFAULTS.baseFlatteningMinValidTrials) {
-      return { ...state, phase: "flattening", activeTargetWrapper: null, mixRatio: null, activeMix: null };
+    if ((startEvidence?.validTrials || 0) >= TRANSFER_DEFAULTS.baseFlatteningMinValidTrials) {
+      return { ...state, phase: "flattening", activeBaseWrapper: path.startWrapper, activeTargetWrapper: null, mixRatio: null, activeMix: null };
     }
     return state;
   }
 
   if (state.phase === "diagnostic_probe" || state.phase === "flattening") {
-    if (flattened(arrowAbs)) {
+    if (flattened(startEvidence)) {
       const next = {
         ...state,
         phase: "transition_probe" as TransferPhase,
-        activeBaseWrapper: "arrow_abs" as WrapperId,
-        activeTargetWrapper: "flow_abs" as WrapperId,
+        activeBaseWrapper: path.startWrapper,
+        activeTargetWrapper: path.carrierTargetWrapper,
         mixRatio: TRANSFER_DEFAULTS.transitionProbeRatio,
-        activeMix: mixFor("arrow_abs", "flow_abs", TRANSFER_DEFAULTS.transitionProbeRatio),
+        activeMix: mixFor(path.startWrapper, path.carrierTargetWrapper, TRANSFER_DEFAULTS.transitionProbeRatio),
       };
-      return appendEvent(next, event("transition_probe", "arrow_abs", "flow_abs", input.sessionNumber, "transition_probe", TRANSFER_DEFAULTS.transitionProbeRatio));
+      return appendEvent(next, event("transition_probe", path.startWrapper, path.carrierTargetWrapper, input.sessionNumber, "transition_probe", TRANSFER_DEFAULTS.transitionProbeRatio));
     }
-    return { ...state, phase: "flattening", activeTargetWrapper: null, mixRatio: null, activeMix: null };
+    return { ...state, phase: "flattening", activeBaseWrapper: path.startWrapper, activeTargetWrapper: null, mixRatio: null, activeMix: null };
   }
 
-  if (state.phase === "transition_probe") return { ...state, phase: "expected_dip", activeTargetWrapper: state.activeTargetWrapper || "flow_abs" };
-  if (state.phase === "expected_dip") return { ...state, phase: "recovering", activeTargetWrapper: state.activeTargetWrapper || "flow_abs", mixRatio: null, activeMix: null };
+  if (state.phase === "transition_probe") return { ...state, phase: "expected_dip", activeTargetWrapper: state.activeTargetWrapper || path.carrierTargetWrapper };
+  if (state.phase === "expected_dip") return { ...state, phase: "recovering", activeTargetWrapper: state.activeTargetWrapper || path.carrierTargetWrapper, mixRatio: null, activeMix: null };
 
   if (state.phase === "recovering") {
-    const target = state.activeTargetWrapper || "flow_abs";
-    const source = sourceForTarget(target, evidence);
+    const target = state.activeTargetWrapper || path.carrierTargetWrapper;
+    const source = sourceForTarget(target, path, evidence);
     const targetEvidence = evidenceFor(evidence, "ACC", target);
     if (!recoveryStarting(source, targetEvidence)) return state;
     if (!readyToMix(source, targetEvidence)) return { ...state, phase: "recovering" };
-    if (target === "flow_abs") {
+    if (target === path.carrierTargetWrapper) {
       return appendEvent(
-        { ...state, phase: "return_to_base", activeBaseWrapper: "arrow_abs", activeTargetWrapper: null, mixRatio: null, activeMix: null },
-        event("recovery", "arrow_abs", "flow_abs", input.sessionNumber, "recovering", null, false, { recoveryRatio: recoveryRatio(source, targetEvidence) }),
+        { ...state, phase: "return_to_base", activeBaseWrapper: path.startWrapper, activeTargetWrapper: null, mixRatio: null, activeMix: null },
+        event("recovery", path.startWrapper, path.carrierTargetWrapper, input.sessionNumber, "recovering", null, false, { recoveryRatio: recoveryRatio(source, targetEvidence) }),
       );
     }
-    if (target === "arrow_rel") {
+    if (target === path.frameTargetWrapper) {
       return appendEvent(
-        { ...state, phase: "mix_80_20", activeBaseWrapper: "arrow_abs", activeTargetWrapper: "arrow_rel", mixRatio: 0.2, activeMix: mixFor("arrow_abs", "arrow_rel", 0.2) },
-        event("recovery", "arrow_abs", "arrow_rel", input.sessionNumber, "recovering", null),
+        { ...state, phase: "mix_80_20", activeBaseWrapper: path.startWrapper, activeTargetWrapper: path.frameTargetWrapper, mixRatio: 0.2, activeMix: mixFor(path.startWrapper, path.frameTargetWrapper, 0.2) },
+        event("recovery", path.startWrapper, path.frameTargetWrapper, input.sessionNumber, "recovering", null),
       );
     }
     return appendEvent(
@@ -514,14 +601,14 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
         heldOutCompositionLogged: true,
         heldOutStatus: state.heldOutStatus === "clean" ? "first_exposure_logged" : state.heldOutStatus,
       },
-      event("recovery", "arrow_rel", "flow_rel", input.sessionNumber, "recovering", null),
+      event("recovery", path.frameTargetWrapper, path.heldOutWrapper, input.sessionNumber, "recovering", null),
     );
   }
 
   if (state.phase === "return_to_base") {
     return appendEvent(
-      { ...state, phase: "mix_80_20", activeBaseWrapper: "arrow_abs", activeTargetWrapper: "flow_abs", mixRatio: 0.2, activeMix: mixFor("arrow_abs", "flow_abs", 0.2) },
-      event("return_to_base", "flow_abs", "arrow_abs", input.sessionNumber, "return_to_base", null),
+      { ...state, phase: "mix_80_20", activeBaseWrapper: path.startWrapper, activeTargetWrapper: path.carrierTargetWrapper, mixRatio: 0.2, activeMix: mixFor(path.startWrapper, path.carrierTargetWrapper, 0.2) },
+      event("return_to_base", path.carrierTargetWrapper, path.startWrapper, input.sessionNumber, "return_to_base", null),
     );
   }
 
@@ -532,27 +619,27 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
   if (state.phase === "random_mix") {
     const mix = currentPairMix({ ...state, activeMix: state.activeMix ? { ...state.activeMix, randomised: true } : state.activeMix });
     if (!mixedStable(evidence, mix)) return { ...state, activeMix: { ...mix, randomised: true } };
-    if (state.activeTargetWrapper === "flow_abs") {
+    if (state.activeTargetWrapper === path.carrierTargetWrapper) {
       return appendEvent(
-        { ...state, phase: "recovering", activeBaseWrapper: "arrow_abs", activeTargetWrapper: "arrow_rel", mixRatio: null, activeMix: null },
-        event("transition_probe", "arrow_abs", "arrow_rel", input.sessionNumber, "transition_probe", TRANSFER_DEFAULTS.transitionProbeRatio),
+        { ...state, phase: "recovering", activeBaseWrapper: path.startWrapper, activeTargetWrapper: path.frameTargetWrapper, mixRatio: null, activeMix: null },
+        event("transition_probe", path.startWrapper, path.frameTargetWrapper, input.sessionNumber, "transition_probe", TRANSFER_DEFAULTS.transitionProbeRatio),
       );
     }
     if (state.heldOutStatus === "clean") {
       return appendEvent(
-        { ...state, phase: "held_out_composition", activeBaseWrapper: "arrow_rel", activeTargetWrapper: "flow_rel", mixRatio: null, activeMix: null },
-        event("held_out_composition", "arrow_rel", "flow_rel", input.sessionNumber, "held_out_composition", null, true),
+        { ...state, phase: "held_out_composition", activeBaseWrapper: path.frameTargetWrapper, activeTargetWrapper: path.heldOutWrapper, mixRatio: null, activeMix: null },
+        event("held_out_composition", path.frameTargetWrapper, path.heldOutWrapper, input.sessionNumber, "held_out_composition", null, true),
       );
     }
-    return { ...state, phase: "recovering", activeBaseWrapper: "arrow_rel", activeTargetWrapper: "flow_rel", mixRatio: null, activeMix: null, legacyStatus: state.legacyStatus === "none" ? "rebaseline_required" : state.legacyStatus };
+    return { ...state, phase: "recovering", activeBaseWrapper: path.frameTargetWrapper, activeTargetWrapper: path.heldOutWrapper, mixRatio: null, activeMix: null, legacyStatus: state.legacyStatus === "none" ? "rebaseline_required" : state.legacyStatus };
   }
 
   if (state.phase === "held_out_composition") {
     return {
       ...state,
       phase: "recovering",
-      activeBaseWrapper: "arrow_rel",
-      activeTargetWrapper: "flow_rel",
+      activeBaseWrapper: path.frameTargetWrapper,
+      activeTargetWrapper: path.heldOutWrapper,
       mixRatio: null,
       activeMix: null,
       heldOutCompositionLogged: true,
@@ -573,7 +660,7 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
           ? state.delayedRechecks
           : [{ id: `delayed-${input.sessionNumber}`, dueAfterSession: input.sessionNumber + TRANSFER_DEFAULTS.delayedRecheckMinSessionsAfterMix, completedSession: null, wrapperIds: [...WRAPPERS], passed: null }],
       },
-      event("mix_step", "arrow_abs", "flow_rel", input.sessionNumber, "full_factorial_mix", null),
+      event("mix_step", path.startWrapper, path.heldOutWrapper, input.sessionNumber, "full_factorial_mix", null),
     );
   }
 
@@ -590,7 +677,7 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
         completedAtSession: input.sessionNumber,
         delayedRechecks: state.delayedRechecks.map((item) => item.completedSession === null ? { ...item, completedSession: input.sessionNumber, passed: true } : item),
       },
-      event("delayed_recheck", "arrow_abs", "flow_rel", input.sessionNumber, "delayed_recheck", null),
+      event("delayed_recheck", path.startWrapper, path.heldOutWrapper, input.sessionNumber, "delayed_recheck", null),
     );
   }
 
@@ -603,12 +690,13 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
     currentPhase: input.currentPhase,
     sessionNumber: input.sessionNumber,
     evidence: input.evidence,
+    protocolGroup: input.protocolGroup,
   });
   const next = nextTransferState(current, input);
   const toPhase = legacyPhaseFor(next);
   const phaseStatus = statusForTransferPhase(next.phase) || phaseStatusForPhase(toPhase);
   const shouldTransition = toPhase !== input.currentPhase || phaseStatus !== input.phaseStatus || next.phase !== current.phase;
-  const activeCell = PHASE_CELL[toPhase] === "mixed" ? "arrow_abs" : PHASE_CELL[toPhase];
+  const activeCell = PHASE_CELL[toPhase] === "mixed" ? transferPathForState(next).startWrapper : PHASE_CELL[toPhase];
   const activeEvidence = evidenceFor(input.evidence, "ACC", activeCell as WrapperId);
   const ready = flattened(activeEvidence);
   return {
@@ -617,7 +705,7 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
     phaseStatus,
     shouldTransition,
     transitionKey: transitionKeyForTransfer(current, next),
-    reason: reasonFor(next.phase),
+    reason: reasonFor(next.phase, next),
     transferControllerState: next,
     readiness: {
       minimumTrials: Boolean(activeEvidence && activeEvidence.validTrials >= TRANSFER_DEFAULTS.baseFlatteningMinValidTrials),
@@ -632,15 +720,18 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
 }
 
 function transitionKeyForTransfer(previous: TransferControllerState, next: TransferControllerState): TransitionKey | null {
+  const path = transferPathForState(next);
   if (next.phase === "delayed_recheck") return "T_DELAYED";
   if (next.phase.includes("mix") || next.phase === "full_factorial_mix" || next.phase === "maintenance_mix") return "T_MIXED";
-  if (previous.activeTargetWrapper === "flow_abs" || next.activeTargetWrapper === "flow_abs") return "T_CM_BASE";
-  if (previous.activeTargetWrapper === "flow_rel" || next.activeTargetWrapper === "flow_rel") return "T_CM_REL";
-  if (previous.activeTargetWrapper === "arrow_rel" || next.activeTargetWrapper === "arrow_rel") return "T_FRAME_ARROW";
+  const target = next.activeTargetWrapper || previous.activeTargetWrapper;
+  if (target === path.carrierTargetWrapper) return "T_CM_BASE";
+  if (target === path.frameTargetWrapper) return target === "flow_rel" ? "T_FRAME_FLOW" : "T_FRAME_ARROW";
+  if (target === path.heldOutWrapper) return "T_CM_REL";
   return null;
 }
 
-function reasonFor(phase: TransferPhase): string {
+function reasonFor(phase: TransferPhase, state: TransferControllerState): string {
+  const path = transferPathForState(state);
   if (phase === "diagnostic_probe") return "Add a small diagnostic wrapper probe without advancing the curriculum.";
   if (phase === "flattening") return "Continue until the base representation is stable enough to challenge.";
   if (phase === "transition_probe") return "Flattening gate passed; start the controlled wrapper probe.";
@@ -648,25 +739,26 @@ function reasonFor(phase: TransferPhase): string {
   if (phase === "recovering") return "Hold demand steady while the same relation recovers in the new wrapper.";
   if (phase === "return_to_base") return "Return to the base wrapper before mixing.";
   if (phase.includes("mix") || phase === "full_factorial_mix") return "Practise the relation under unpredictable wrapper selection.";
-  if (phase === "held_out_composition") return "Log held-out relative optic-flow composition before direct practice.";
+  if (phase === "held_out_composition") return `Log held-out ${path.heldOutWrapper} composition before direct practice.`;
   if (phase === "delayed_recheck") return "Re-check whether mixed-wrapper performance returns after spacing.";
   if (phase === "maintenance_mix") return "Use remaining programme sessions for mixed transfer maintenance.";
   if (phase === "portable") return "The relation has passed mixed and delayed checks.";
   return "Build the base representation.";
 }
 
-export function transferMetricsFromEvidence(evidence: CellEvidence[]): TransferMetricSnapshot {
-  const arrowAbs = evidenceFor(evidence, "ACC", "arrow_abs");
-  const flowAbs = evidenceFor(evidence, "ACC", "flow_abs");
-  const arrowRel = evidenceFor(evidence, "ACC", "arrow_rel");
-  const flowRel = evidenceFor(evidence, "ACC", "flow_rel");
+export function transferMetricsFromEvidence(evidence: CellEvidence[], protocolGroup?: ProtocolGroup | null): TransferMetricSnapshot {
+  const path = pathForStartCarrier(startCarrierForProtocolGroup(protocolGroup));
+  const start = evidenceFor(evidence, "ACC", path.startWrapper);
+  const carrierTarget = evidenceFor(evidence, "ACC", path.carrierTargetWrapper);
+  const frameTarget = evidenceFor(evidence, "ACC", path.frameTargetWrapper);
+  const heldOut = evidenceFor(evidence, "ACC", path.heldOutWrapper);
   return {
     ...EMPTY_METRICS,
-    recoverySlope: flowAbs?.recentCapacitySlope ?? null,
-    recoveryRatio: recoveryRatio(arrowAbs, flowAbs),
-    returnStrength: arrowAbs?.balancedAccuracy ?? null,
+    recoverySlope: carrierTarget?.recentCapacitySlope ?? null,
+    recoveryRatio: recoveryRatio(start, carrierTarget),
+    returnStrength: start?.balancedAccuracy ?? null,
     mixedWrapperStability: mixedStabilityRatio(evidence, ALL_WRAPPER_MIX),
-    compositionalTransfer: recoveryRatio(arrowRel, flowRel),
+    compositionalTransfer: recoveryRatio(frameTarget, heldOut),
     delayedRecovery: mixedStable(evidence, ALL_WRAPPER_MIX) ? 1 : null,
   };
 }

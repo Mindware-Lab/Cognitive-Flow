@@ -326,6 +326,6 @@ export function createScoreSnapshot(input: {
       state: input.phaseStatus === "ready_to_swap" ? "ready_next_session" : input.phaseStatus === "extended_for_learning_curve" ? "not_enough_evidence" : "current_phase",
     },
     farTransfer,
-    transferMetrics: transferMetricsFromEvidence(input.evidence),
+    transferMetrics: transferMetricsFromEvidence(input.evidence, input.protocolGroup),
   };
 }

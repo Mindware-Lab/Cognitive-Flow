@@ -14,6 +14,14 @@ interface SubmitBlockPayload {
   generatorVersion: string;
   adaptiveVersion: string;
   scoringVersion: string;
+  protocolGroup?: string | null;
+  startCarrier?: string | null;
+  startCohort?: string | null;
+  startWrapper?: string | null;
+  carrierTargetWrapper?: string | null;
+  frameTargetWrapper?: string | null;
+  heldOutWrapper?: string | null;
+  heldOutStatus?: string | null;
   blockIndex: number;
   construct: "ACC" | "BSE";
   label: string;
@@ -44,6 +52,13 @@ interface SubmitBlockPayload {
     mappingTiming?: string | null;
     lureType?: string | null;
     transferEventId?: string | null;
+    startCarrier?: string | null;
+    startCohort?: string | null;
+    startWrapper?: string | null;
+    carrierTargetWrapper?: string | null;
+    frameTargetWrapper?: string | null;
+    heldOutWrapper?: string | null;
+    heldOutStatus?: string | null;
   }>;
 }
 
@@ -51,8 +66,7 @@ function isMissingProgrammeColumn(error: { code?: string; message?: string } | n
   return Boolean(
     error &&
       (error.code === "42703" ||
-        error.message?.includes("programme_run_id") ||
-        error.message?.includes("programme_cycle")),
+        /programme_(run_id|cycle)|protocol_group|start_(carrier|cohort|wrapper)|carrier_target_wrapper|frame_target_wrapper|held_out_(wrapper|status)|schema cache/i.test(error.message || "")),
   );
 }
 
@@ -83,6 +97,14 @@ Deno.serve(async (request) => {
         generator_version: payload.generatorVersion,
         adaptive_version: payload.adaptiveVersion,
         scoring_version: payload.scoringVersion,
+        protocol_group: payload.protocolGroup || null,
+        start_carrier: payload.startCarrier || null,
+        start_cohort: payload.startCohort || null,
+        start_wrapper: payload.startWrapper || null,
+        carrier_target_wrapper: payload.carrierTargetWrapper || null,
+        frame_target_wrapper: payload.frameTargetWrapper || null,
+        held_out_wrapper: payload.heldOutWrapper || null,
+        held_out_status: payload.heldOutStatus || null,
   };
   let sessionResult = await supabase
     .from("wm_sessions")
@@ -93,6 +115,14 @@ Deno.serve(async (request) => {
     const legacySessionRow: Record<string, unknown> = { ...sessionRow };
     delete legacySessionRow.programme_run_id;
     delete legacySessionRow.programme_cycle;
+    delete legacySessionRow.protocol_group;
+    delete legacySessionRow.start_carrier;
+    delete legacySessionRow.start_cohort;
+    delete legacySessionRow.start_wrapper;
+    delete legacySessionRow.carrier_target_wrapper;
+    delete legacySessionRow.frame_target_wrapper;
+    delete legacySessionRow.held_out_wrapper;
+    delete legacySessionRow.held_out_status;
     sessionResult = await supabase
       .from("wm_sessions")
       .upsert(legacySessionRow, { onConflict: "user_id,client_session_id" })
@@ -149,10 +179,36 @@ Deno.serve(async (request) => {
     mapping_timing: trial.mappingTiming || null,
     lure_type: trial.lureType || null,
     transfer_event_id: trial.transferEventId || null,
+    start_carrier: trial.startCarrier || payload.startCarrier || null,
+    start_cohort: trial.startCohort || payload.startCohort || null,
+    start_wrapper: trial.startWrapper || payload.startWrapper || null,
+    carrier_target_wrapper: trial.carrierTargetWrapper || payload.carrierTargetWrapper || null,
+    frame_target_wrapper: trial.frameTargetWrapper || payload.frameTargetWrapper || null,
+    held_out_wrapper: trial.heldOutWrapper || payload.heldOutWrapper || null,
+    held_out_status: trial.heldOutStatus || payload.heldOutStatus || null,
   }));
-  const { error: trialError } = await supabase.from("wm_trials").upsert(rows, {
+  let trialResult = await supabase.from("wm_trials").upsert(rows, {
     onConflict: "session_id,client_trial_id",
   });
+  if (isMissingProgrammeColumn(trialResult.error)) {
+    const legacyRows = rows.map((row) => {
+      const {
+        start_carrier: _startCarrier,
+        start_cohort: _startCohort,
+        start_wrapper: _startWrapper,
+        carrier_target_wrapper: _carrierTargetWrapper,
+        frame_target_wrapper: _frameTargetWrapper,
+        held_out_wrapper: _heldOutWrapper,
+        held_out_status: _heldOutStatus,
+        ...legacyRow
+      } = row;
+      return legacyRow;
+    });
+    trialResult = await supabase.from("wm_trials").upsert(legacyRows, {
+      onConflict: "session_id,client_trial_id",
+    });
+  }
+  const { error: trialError } = trialResult;
   if (trialError) return json(500, { error: trialError.message });
   return json(200, { accepted: true, sessionId: session.id, blockId: block.id });
 });

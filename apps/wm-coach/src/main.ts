@@ -28,6 +28,7 @@ import {
   type StandardizedScoreRow,
 } from "./supabaseClient";
 import { runDeviceReadiness } from "./timing";
+import { migrateTransferControllerState, transferPathForState } from "./transferController";
 import { chooseNextPhase } from "./wap";
 import type { CapacitySpeed, CellEvidence, CellKey, Construct, MiniBlockPlan, PhaseLabel, PhaseStatus, ProtocolGroup, ScratchBaseline, SessionPlan, TrialCondition, TrialDefinition, TrialResult } from "./types";
 
@@ -227,29 +228,45 @@ function withProtocolAssignment(progress: LocalProgress): LocalProgress {
   const queryGroup = queryProtocolGroup();
   const isFresh = isFreshProtocolProgress(progress);
   if (queryGroup) {
+    const currentPhase = isFresh ? PHASE_ORDER_BY_GROUP[queryGroup][0] : progress.currentPhase;
     return {
       ...progress,
       protocolGroup: queryGroup,
       protocolAssignmentVersion: `${PROTOCOL_ASSIGNMENT_VERSION}:url_override`,
       protocolAssignmentSeed: "query:protocolGroup",
       protocolAssignedAt: progress.protocolAssignedAt || new Date().toISOString(),
-      currentPhase: isFresh ? PHASE_ORDER_BY_GROUP[queryGroup][0] : progress.currentPhase,
+      currentPhase,
       latestSnapshot: isFresh ? null : progress.latestSnapshot,
       scratchBaselines: [],
+      transferControllerState: migrateTransferControllerState({
+        existing: isFresh ? null : progress.transferControllerState,
+        currentPhase,
+        sessionNumber: isFresh ? 1 : progress.sessionNumber,
+        evidence: isFresh ? [] : progress.evidence,
+        protocolGroup: queryGroup,
+      }),
     };
   }
   if (progress.protocolAssignmentVersion || !isFresh) return progress;
   const seed = protocolAssignmentSeed();
   const protocolGroup = assignedProtocolGroup(seed);
+  const currentPhase = PHASE_ORDER_BY_GROUP[protocolGroup][0];
   return {
     ...progress,
     protocolGroup,
     protocolAssignmentVersion: PROTOCOL_ASSIGNMENT_VERSION,
     protocolAssignmentSeed: seed,
     protocolAssignedAt: new Date().toISOString(),
-    currentPhase: PHASE_ORDER_BY_GROUP[protocolGroup][0],
+    currentPhase,
     latestSnapshot: null,
     scratchBaselines: [],
+    transferControllerState: migrateTransferControllerState({
+      existing: null,
+      currentPhase,
+      sessionNumber: 1,
+      evidence: [],
+      protocolGroup,
+    }),
   };
 }
 
@@ -3856,9 +3873,10 @@ function beginSession(): void {
 
 function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play", speed: CapacitySpeed = "slow", phase?: PhaseLabel): void {
   clearStageTimer();
+  const transferPath = transferPathForState(state.progress.transferControllerState);
   if (
     state.progress.transferControllerState?.heldOutStatus === "clean" &&
-    (cellKey === "flow_rel" || cellKey === "mixed") &&
+    (cellKey === transferPath.heldOutWrapper || cellKey === "mixed") &&
     source !== "guided_practice"
   ) {
     state.progress = {
@@ -3924,15 +3942,25 @@ function startFreeInstructions(construct: Construct, cellKey: CellKey, source: S
 function restartGuidedProgramme(): void {
   const previous = state.progress;
   const programmeCycle = (previous.programmeCycle || 1) + 1;
+  const preservedProtocolGroup = previous.protocolGroup;
+  const currentPhase = PHASE_ORDER_BY_GROUP[preservedProtocolGroup][0];
   state.progress = {
     ...freshDefaultProgress(programmeCycle),
-    protocolGroup: previous.protocolGroup,
+    protocolGroup: preservedProtocolGroup,
     protocolAssignmentVersion: previous.protocolAssignmentVersion,
     protocolAssignmentSeed: previous.protocolAssignmentSeed,
     protocolAssignedAt: previous.protocolAssignedAt,
+    currentPhase,
     deviceReadiness: previous.deviceReadiness,
     scratchBaselines: previous.scratchBaselines,
     proofBenchmarks: previous.proofBenchmarks,
+    transferControllerState: migrateTransferControllerState({
+      existing: null,
+      currentPhase,
+      sessionNumber: 1,
+      evidence: [],
+      protocolGroup: preservedProtocolGroup,
+    }),
   };
   clearStageTimer();
   state.sessionPlan = null;
@@ -4131,6 +4159,7 @@ function endCurrentBlock(): void {
 }
 
 function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results: TrialResult[]) {
+  const transferState = state.progress.transferControllerState;
   return {
     clientSessionId: plan.sessionId,
     clientBlockId: block.id,
@@ -4144,6 +4173,14 @@ function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results
     generatorVersion: GENERATOR_VERSION,
     adaptiveVersion: ADAPTIVE_VERSION,
     scoringVersion: SCORING_VERSION,
+    protocolGroup: state.progress.protocolGroup,
+    startCarrier: transferState.startCarrier,
+    startCohort: transferState.startCohort,
+    startWrapper: transferState.startWrapper,
+    carrierTargetWrapper: transferState.carrierTargetWrapper,
+    frameTargetWrapper: transferState.frameTargetWrapper,
+    heldOutWrapper: transferState.heldOutWrapper,
+    heldOutStatus: transferState.heldOutStatus,
     blockIndex: block.index,
     construct: block.construct,
     label: block.label,
@@ -4182,6 +4219,13 @@ function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results
       mixRatio: result.trial.mixRatio,
       mappingTiming: result.trial.mappingTiming,
       transferEventId: result.trial.transferEventId,
+      startCarrier: transferState.startCarrier,
+      startCohort: transferState.startCohort,
+      startWrapper: transferState.startWrapper,
+      carrierTargetWrapper: transferState.carrierTargetWrapper,
+      frameTargetWrapper: transferState.frameTargetWrapper,
+      heldOutWrapper: transferState.heldOutWrapper,
+      heldOutStatus: transferState.heldOutStatus,
       nLevel: result.trial.nLevel,
       activeRelationSetSize: result.trial.activeRelationSetSize,
       activeRelationsJson: result.trial.activeRelationsJson,
@@ -4240,6 +4284,7 @@ function finalizeGuidedSession(input: {
   const plan = state.sessionPlan;
   if (!plan || !state.progressionScored || state.sessionMode !== "protocol") return;
   if (!cloudSyncActive()) return;
+  const transferState = state.progress.transferControllerState;
   const submissions = pendingBlockSubmissions;
   pendingBlockSubmissions = [];
   void Promise.allSettled(submissions).then(() => finalizeWorkingMemorySession({
@@ -4259,6 +4304,13 @@ function finalizeGuidedSession(input: {
       reason: input.decision.reason,
       readiness: input.decision.readiness,
       protocolGroup: state.progress.protocolGroup,
+      startCarrier: transferState.startCarrier,
+      startCohort: transferState.startCohort,
+      startWrapper: transferState.startWrapper,
+      carrierTargetWrapper: transferState.carrierTargetWrapper,
+      frameTargetWrapper: transferState.frameTargetWrapper,
+      heldOutWrapper: transferState.heldOutWrapper,
+      heldOutStatus: transferState.heldOutStatus,
       programmeRunId: plan.programmeRunId,
       programmeCycle: plan.programmeCycle,
       completedSession: {

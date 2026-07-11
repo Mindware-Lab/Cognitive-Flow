@@ -839,11 +839,13 @@ function transferMiniBlockPlans(
   }
 
   if (state.phase === "held_out_composition") {
+    const heldOut = state.heldOutWrapper || "flow_rel";
+    const nearestLearned = state.frameTargetWrapper || "arrow_rel";
     return [
-      block("rel-1", 1, "ACC", "Held-out Probe", "First exposure to the recombined wrapper.", "flow_rel", "held_out"),
-      block("rel-2", 2, "ACC", "Recovery Start", "Recover the same relation in the held-out wrapper.", "flow_rel", "recovery"),
-      block("rel-3", 3, "ACC", "Base Re-entry", "Return briefly to the nearest learned relation.", "arrow_rel", "return_to_base"),
-      block("bind-1", 4, "BSE", "Binding Memory", "Binding uses the nearest learned relation.", "arrow_rel", "return_to_base"),
+      block("rel-1", 1, "ACC", "Held-out Probe", "First exposure to the recombined wrapper.", heldOut, "held_out"),
+      block("rel-2", 2, "ACC", "Recovery Start", "Recover the same relation in the held-out wrapper.", heldOut, "recovery"),
+      block("rel-3", 3, "ACC", "Base Re-entry", "Return briefly to the nearest learned relation.", nearestLearned, "return_to_base"),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding uses the nearest learned relation.", nearestLearned, "return_to_base"),
     ];
   }
 
