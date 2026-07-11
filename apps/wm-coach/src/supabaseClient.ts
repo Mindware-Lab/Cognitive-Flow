@@ -27,6 +27,19 @@ export type StandardizedScoreRow = {
   recorded_at: string | null;
 };
 
+export type GTrackHistoryResult = {
+  id: string;
+  testId: string;
+  testVersion: string;
+  attemptNumber: number;
+  completedAt: string;
+  summary: Record<string, unknown>;
+  issuedNorm: Record<string, { standardScore?: number | null; normStatus?: { label?: string; confidence?: string } } | undefined> | null;
+  latestNorm: Record<string, { standardScore?: number | null; normStatus?: { label?: string; confidence?: string } } | undefined> | null;
+  normPool: string;
+  completionQuality: string;
+};
+
 export async function currentAuthUser(): Promise<AuthUser | null> {
   if (!supabase) return null;
   const { data, error } = await supabase.auth.getUser();
@@ -144,6 +157,20 @@ export async function loadStandardizedScores(appId: "attention_coach" | "wm_coac
     .limit(200);
   if (error) throw new Error(error.message);
   return (data || []) as StandardizedScoreRow[];
+}
+
+export async function loadGTrackHistory(): Promise<GTrackHistoryResult[]> {
+  if (!supabase) return [];
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return [];
+  const response = await fetch("/api/cpt/history", {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "same-origin",
+  });
+  if (!response.ok) return [];
+  const payload = await response.json() as { results?: GTrackHistoryResult[] };
+  return Array.isArray(payload.results) ? payload.results : [];
 }
 
 async function functionErrorMessage(error: unknown): Promise<string> {

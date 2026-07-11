@@ -8,8 +8,10 @@
   PhaseStatus,
   ProtocolGroup,
   ScratchBaseline,
+  TransferControllerState,
   TransitionKey,
 } from "./types";
+import { migrateTransferControllerState } from "./transferController";
 
 const PREFIX = "wm-coach";
 const BROWSER_DEVICE_ID_KEY = `${PREFIX}:browserDeviceId`;
@@ -82,6 +84,7 @@ export interface LocalProgress {
   blockFeedbackHistory: BlockFeedbackPoint[];
   seenInvariantPromptKeys: string[];
   profileRevealSeen: boolean;
+  transferControllerState: TransferControllerState;
 }
 
 export const DEFAULT_PROGRESS: LocalProgress = {
@@ -107,6 +110,11 @@ export const DEFAULT_PROGRESS: LocalProgress = {
   blockFeedbackHistory: [],
   seenInvariantPromptKeys: [],
   profileRevealSeen: false,
+  transferControllerState: migrateTransferControllerState({
+    currentPhase: "P1_ARROW_ABS",
+    sessionNumber: 1,
+    evidence: [],
+  }),
 };
 
 export function loadProgress(): LocalProgress {
@@ -193,6 +201,12 @@ export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress
     ...progress,
     programmeCycle,
     programmeRunId,
+    transferControllerState: migrateTransferControllerState({
+      existing: progress.transferControllerState,
+      currentPhase: progress.currentPhase,
+      sessionNumber: progress.sessionNumber,
+      evidence: progress.evidence || [],
+    }),
     completions: (progress.completions || []).map((entry) => ({
       ...entry,
       programmeRunId: entry.programmeRunId || programmeRunId,

@@ -77,6 +77,10 @@ body,
   margin: 0;
 }
 
+html {
+  background: #f7fbff;
+}
+
 #app {
   display: grid;
   place-items: center;
@@ -2081,12 +2085,13 @@ button.score-card {
 
 .data-rights-screen {
   width: 100%;
+  height: 100%;
   min-height: 0;
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 10px;
-  overflow: auto;
+  gap: 8px;
+  overflow: hidden;
 }
 
 .data-rights-screen > * {
@@ -2102,16 +2107,16 @@ button.score-card {
 
 .data-rights-hero {
   display: grid;
-  gap: 8px;
-  padding: 18px;
+  gap: 5px;
+  padding: 14px 16px;
   background: linear-gradient(135deg, rgba(20, 88, 255, 0.12), rgba(255, 255, 255, 0.95) 58%);
 }
 
 .data-rights-hero h1 {
   margin: 0;
   color: #07124a;
-  font-size: clamp(1.5rem, 4.8vmin, 2.35rem);
-  line-height: 1.12;
+  font-size: clamp(1.35rem, 4.2vmin, 2rem);
+  line-height: 1.05;
   overflow-wrap: anywhere;
 }
 
@@ -2128,15 +2133,15 @@ button.score-card {
   min-height: 0;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .data-rights-card {
   display: grid;
-  grid-template-rows: auto auto minmax(58px, 1fr) auto;
+  grid-template-rows: auto auto minmax(44px, 1fr) auto;
   align-content: start;
-  gap: 9px;
-  padding: 14px;
+  gap: 6px;
+  padding: 11px 12px;
 }
 
 .data-rights-card span {
@@ -2162,8 +2167,12 @@ button.score-card {
 }
 
 .data-rights-actions .ui-button {
-  min-height: 38px;
-  padding: 7px 12px;
+  min-height: 32px;
+  border: 1px solid rgba(161, 195, 255, 0.9);
+  padding: 5px 10px;
+  color: #1458ff;
+  background: #fff;
+  box-shadow: none;
   white-space: normal;
 }
 
@@ -2180,7 +2189,8 @@ button.score-card {
 }
 
 .proof-entry-screen {
-  grid-template-rows: auto minmax(0, auto) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, auto) auto;
+  gap: 8px;
 }
 
 .proof-next-card {
@@ -2244,10 +2254,88 @@ button.score-card {
 }
 
 .proof-summary-card {
-  align-content: center;
+  align-content: start;
   gap: 7px;
   min-height: 124px;
   overflow: hidden;
+}
+
+.proof-card-top,
+.proof-card-meta,
+.proof-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+}
+
+.proof-card-top span {
+  color: #25315d;
+  font-size: 0.78rem;
+  font-weight: 900;
+  letter-spacing: 0;
+}
+
+.proof-card-top strong {
+  flex: 0 0 auto;
+  font-size: clamp(1.35rem, 4vmin, 1.9rem);
+}
+
+.proof-score-bar {
+  position: relative;
+  height: 13px;
+  overflow: hidden;
+  border: 1px solid rgba(19, 31, 74, 0.12);
+  border-radius: 999px;
+  background: linear-gradient(90deg, #eef3ff, #f7fafc);
+}
+
+.proof-score-bar b {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  top: -3px;
+  width: 2px;
+  height: 19px;
+  border-radius: 999px;
+  background: rgba(7, 18, 74, 0.36);
+}
+
+.proof-score-bar i {
+  display: block;
+  height: 100%;
+  min-width: 0;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #14b8a6, #2563eb);
+}
+
+.proof-card-meta small,
+.proof-card-foot em {
+  font-size: 0.72rem;
+  line-height: 1.15;
+}
+
+.proof-card-meta small:last-child {
+  flex: 0 0 auto;
+  color: #64748b;
+}
+
+.proof-mini-trend {
+  position: relative;
+  flex: 0 0 46px;
+  height: 22px;
+}
+
+.proof-mini-trend i {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border: 2px solid #ffffff;
+  border-radius: 50%;
+  background: #2563eb;
+  box-shadow: 0 2px 7px rgba(37, 99, 235, 0.25);
+  transform: translate(-50%, -50%);
 }
 
 .proof-summary-card span,
@@ -2259,18 +2347,27 @@ button.score-card {
 }
 
 .proof-next-card {
-  grid-template-columns: minmax(0, 1fr) minmax(220px, 0.64fr);
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 0.62fr);
   padding: 10px 14px;
 }
 
 .proof-actions {
+  display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
 }
 
+.dashboard-actions.proof-actions {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .proof-actions .ui-button {
+  width: 100%;
   min-height: 44px;
+  border-radius: 16px;
   padding: 0 14px;
+  align-items: center;
+  justify-content: center;
   line-height: 1.12;
   white-space: normal;
 }
@@ -2307,7 +2404,7 @@ button.score-card {
 }
 
 .proof-form-card textarea {
-  min-height: 70px;
+  min-height: 54px;
   resize: vertical;
 }
 
@@ -2391,7 +2488,7 @@ button.score-card {
 .free-play-formats-screen {
   grid-template-rows: auto auto;
   align-content: start;
-  padding-inline: 30px;
+  padding-inline: 20px;
   overflow: visible;
 }
 
@@ -2473,12 +2570,12 @@ button.score-card {
   cursor: pointer;
   font: inherit;
   width: 100%;
-  min-height: 68px;
+  min-height: 58px;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr);
   align-items: center;
   gap: 10px;
-  padding: 9px 11px;
+  padding: 7px 10px;
   border: 1px solid rgba(207, 218, 235, 0.92);
   border-radius: 16px;
   color: inherit;
@@ -2663,6 +2760,12 @@ button.score-card {
   max-height: 86%;
   object-fit: contain;
   object-position: center;
+}
+
+.training-map-figure.is-brain-diagram .brain-network-image {
+  width: min(100%, 680px);
+  max-width: 100%;
+  max-height: 100%;
 }
 
 .training-map-note {
@@ -2855,7 +2958,7 @@ button.score-card {
 .data-mode-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .data-mode-card {
@@ -2865,9 +2968,9 @@ button.score-card {
   background: rgba(255, 255, 255, 0.88);
   color: inherit;
   display: grid;
-  gap: 8px;
-  min-height: 156px;
-  padding: 14px;
+  gap: 6px;
+  min-height: 128px;
+  padding: 11px 12px;
   text-align: left;
   box-shadow: 0 10px 24px rgba(20, 88, 255, 0.06);
 }
@@ -2889,15 +2992,15 @@ button.score-card {
 
 .data-mode-card strong {
   color: #07124a;
-  font-size: 1rem;
+  font-size: 0.92rem;
   line-height: 1.15;
 }
 
 .data-mode-card p {
   margin: 0;
   color: #334069;
-  font-size: 0.78rem;
-  line-height: 1.3;
+  font-size: 0.72rem;
+  line-height: 1.22;
 }
 
 .mode-select-pill {
@@ -2905,18 +3008,20 @@ button.score-card {
   justify-self: start;
   border: 1px solid rgba(161, 195, 255, 0.9);
   border-radius: 999px;
-  padding: 5px 10px;
+  padding: 4px 9px;
   background: #fff;
 }
 
 .data-rights-primary-action {
   display: flex;
   justify-content: flex-end;
+  margin-top: auto;
+  padding-top: 2px;
 }
 
 .data-rights-primary-action .ui-button {
-  min-height: 40px;
-  padding: 8px 18px;
+  min-height: 34px;
+  padding: 6px 16px;
 }
 
 .result-panel h1 {
@@ -7351,6 +7456,28 @@ button.score-card {
   box-shadow: 0 14px 30px rgba(39, 100, 183, 0.28);
 }
 
+:root[data-style-guide="iq"] .data-rights-actions .ui-button-primary,
+:root[data-style-guide="iq"] .data-rights-actions .ui-button-secondary {
+  min-height: 32px;
+  color: var(--iq-blue-deep);
+  border: 1px solid rgba(161, 195, 255, 0.9);
+  background: #ffffff;
+  box-shadow: none;
+}
+
+:root[data-style-guide="iq"] .data-rights-actions .ui-button-primary:hover,
+:root[data-style-guide="iq"] .data-rights-actions .ui-button-secondary:hover {
+  transform: none;
+  box-shadow: inset 0 0 0 1px rgba(34, 170, 255, 0.16);
+}
+
+:root[data-style-guide="iq"] .proof-actions .ui-button {
+  min-height: 44px;
+  border-radius: 16px;
+  padding-inline: 18px;
+  white-space: normal;
+}
+
 :root[data-style-guide="iq"] .ui-button-secondary {
   color: var(--iq-blue-deep);
   border: 1px solid rgba(39, 100, 183, 0.25);
@@ -8227,6 +8354,196 @@ button.score-card {
   min-height: 0;
   overflow: hidden;
   position: relative;
+}
+
+@media (max-width: 720px) {
+  .app-content.view-data-rights,
+  .app-content.view-free-play-formats,
+  .app-content.view-proof-entry {
+    gap: 6px;
+  }
+
+  .data-rights-screen,
+  .free-play-formats-screen,
+  .proof-entry-screen {
+    gap: 6px;
+    overflow: hidden;
+  }
+
+  .data-mode-grid,
+  .data-rights-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 5px;
+  }
+
+  .data-rights-hero,
+  .ethics-boundary-card {
+    padding: 8px 9px;
+  }
+
+  .data-rights-hero h1 {
+    font-size: clamp(1.08rem, 5.9vw, 1.38rem);
+    line-height: 1.03;
+  }
+
+  .data-rights-hero p,
+  .data-rights-card p,
+  .data-mode-card p,
+  .ethics-boundary-card p {
+    font-size: 0.58rem;
+    line-height: 1.12;
+  }
+
+  .data-mode-card,
+  .data-rights-card {
+    gap: 4px;
+    min-height: 0;
+    padding: 7px 6px;
+    border-radius: 12px;
+  }
+
+  .data-mode-card strong,
+  .data-rights-card strong {
+    font-size: 0.68rem;
+    line-height: 1.06;
+  }
+
+  .data-mode-card-kicker,
+  .mode-select-pill,
+  .data-rights-card span {
+    font-size: 0.52rem;
+    letter-spacing: 0.03em;
+  }
+
+  .mode-select-pill {
+    padding: 3px 6px;
+  }
+
+  .data-rights-primary-action {
+    justify-content: stretch;
+    margin-top: auto;
+  }
+
+  .data-rights-primary-action .ui-button,
+  .data-rights-actions .ui-button {
+    width: 100%;
+    min-height: 28px;
+    padding: 3px 5px;
+    font-size: 0.58rem;
+    line-height: 1.05;
+  }
+
+  .practice-format-note {
+    padding: 7px 9px;
+    font-size: 0.62rem;
+  }
+
+  .practice-format-note strong {
+    font-size: 0.64rem;
+    letter-spacing: 0.07em;
+  }
+
+  .practice-format-layout {
+    gap: 6px;
+  }
+
+  .practice-format-group {
+    gap: 5px;
+  }
+
+  .practice-format-heading {
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 6px;
+    padding: 0;
+  }
+
+  .practice-format-heading .section-icon,
+  .practice-format-icon {
+    width: 28px;
+    height: 28px;
+    border-radius: 10px;
+  }
+
+  .practice-format-heading strong,
+  .practice-format-copy strong {
+    font-size: 0.68rem;
+    line-height: 1.08;
+  }
+
+  .practice-format-heading small,
+  .practice-format-copy small {
+    font-size: 0.56rem;
+    line-height: 1.08;
+  }
+
+  .practice-format-grid {
+    gap: 5px;
+  }
+
+  .practice-format-card {
+    grid-template-columns: 30px minmax(0, 1fr);
+    gap: 6px;
+    min-height: 46px;
+    padding: 5px 6px;
+    border-radius: 12px;
+  }
+
+  .practice-format-icon svg {
+    width: 16px;
+    height: 16px;
+  }
+
+  .proof-entry-screen .proof-hero {
+    gap: 4px;
+    padding: 8px 9px;
+  }
+
+  .proof-entry-screen .proof-hero h1 {
+    font-size: clamp(1.05rem, 5.8vw, 1.34rem);
+  }
+
+  .proof-entry-screen .proof-hero p:not(.ui-eyebrow) {
+    font-size: 0.6rem;
+    line-height: 1.12;
+  }
+
+  .proof-entry-screen .proof-form-card {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .proof-form-card label {
+    gap: 3px;
+    font-size: 0.58rem;
+  }
+
+  .proof-form-card input,
+  .proof-form-card select,
+  .proof-form-card textarea {
+    min-height: 28px;
+    padding: 4px 6px;
+    border-radius: 9px;
+    font-size: 0.64rem;
+  }
+
+  .proof-form-card textarea {
+    min-height: 34px;
+  }
+
+  .proof-form-actions .ui-button {
+    min-height: 30px;
+    font-size: 0.62rem;
+  }
+
+  .proof-entries-card {
+    gap: 5px;
+    padding: 8px;
+  }
+
+  .proof-entries-card strong {
+    font-size: 0.78rem;
+  }
 }
 
 @media (min-width: 721px) {

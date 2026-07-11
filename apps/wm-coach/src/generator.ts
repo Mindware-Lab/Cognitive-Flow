@@ -1,5 +1,6 @@
 ﻿import { OCTAGON_POSITIONS, vectorForRelation } from "./geometry";
 import { PHASE_CELL, PHASE_INSTRUCTIONS, PHASE_NAMES } from "./protocol";
+import { probeStatusForTransferPhase } from "./transferController";
 import { hashSeed, mulberry32, shuffle } from "./random";
 import { INITIAL_STAIRCASE_LEVEL, clampNLevel } from "./staircase";
 import type {
@@ -25,6 +26,11 @@ import type {
   TrialCondition,
   TrialDefinition,
   TransitionKey,
+  TransferControllerState,
+  ProbeStatus,
+  MappingTiming,
+  WrapperId,
+  WrapperMix,
 } from "./types";
 
 const MODEL_VERSION = "wm-nback-v0.1";
@@ -38,6 +44,7 @@ const DEFAULT_SPEED: CapacitySpeed = "slow";
 const EXPOSURE_MS = Math.round(HUB_SOA_MS.slow * HUB_DISPLAY_RATIO);
 const HUB_ARENA_RADIUS_PCT = 28;
 const TOKEN_COLORS: TokenColor[] = ["blue", "yellow", "green", "purple"];
+const ATOMIC_CELLS: WrapperId[] = ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"];
 const ABS_RELATIONS: DirectionRelation[] = ["left", "right", "up", "down"];
 const RADIAL_RELATIONS: DirectionRelation[] = ["out", "in"];
 const TANGENTIAL_RELATIONS: DirectionRelation[] = ["cw", "ccw"];
@@ -308,6 +315,11 @@ function wrapperIdFor(construct: Construct, phase: PhaseLabel, cellKey: CellKey,
   return `${layer}:${phase}:${cell}:b${blockIndex}`;
 }
 
+function latestTransferEventId(state: TransferControllerState | null | undefined): string | null {
+  const latest = state?.transferEvents?.[state.transferEvents.length - 1];
+  return latest?.id || null;
+}
+
 function tokenSignature(token: Token): string {
   return `${token.relation}:${token.colour || "none"}`;
 }
@@ -568,6 +580,10 @@ function buildTrial(input: {
   capacityCanonKey?: string;
   soaMs?: number;
   capacityDisplay?: TrialDefinition["capacityDisplay"];
+  probeStatus?: ProbeStatus;
+  mixRatio?: number | null;
+  mappingTiming?: MappingTiming;
+  transferEventId?: string | null;
 }): TrialDefinition {
   const seed = `${input.sessionId}:${input.miniBlockId}:${input.trialIndex}:${input.construct}:${input.phase}:${input.cellKey}`;
   const random = mulberry32(hashSeed(seed));
@@ -582,6 +598,12 @@ function buildTrial(input: {
     cellKey: input.cellKey,
     transitionKey: transitionKeyForCell(input.phase, input.cellKey),
     isReferenceRecheck: input.isReferenceRecheck,
+    carrier: carrierForCell(input.cellKey),
+    protocolFrame: input.cellKey === "arrow_rel" || input.cellKey === "flow_rel" ? "relative" : "absolute",
+    probeStatus: input.probeStatus || (input.isReferenceRecheck ? "return_to_base" : "base"),
+    mixRatio: input.mixRatio ?? null,
+    mappingTiming: input.mappingTiming ?? null,
+    transferEventId: input.transferEventId ?? null,
     ratio: "5:0",
     exposureMsRequested: speedDisplayMs(input.speed),
     majorityCount: 5,
@@ -628,6 +650,10 @@ function buildNBackTrials(input: {
   nLevel: number;
   trialCount: number;
   speed?: CapacitySpeed;
+  probeStatus?: ProbeStatus;
+  mixRatio?: number | null;
+  mappingTiming?: MappingTiming;
+  transferEventId?: string | null;
 }): TrialDefinition[] {
   const random = mulberry32(hashSeed(`${input.sessionId}:${input.miniBlockId}:nback`));
   const speed = input.speed || DEFAULT_SPEED;
@@ -711,6 +737,9 @@ function blockPlan(
   phase: PhaseLabel,
   nLevels: Record<string, number>,
   speed = speedForBlock(index),
+  probeStatus: ProbeStatus = "base",
+  mixRatio: number | null = null,
+  transferEventId: string | null = null,
 ): MiniBlockPlan {
   const wrapperId = wrapperIdFor(construct, phase, cellKey, index);
   const nLevel = clampNLevel(nLevels[wrapperId] ?? nLevels[`${construct}:${cellKey}`] ?? INITIAL_STAIRCASE_LEVEL);
@@ -726,10 +755,122 @@ function blockPlan(
     currentTrials: trialCount,
     referenceTrials: 0,
     wrapperId,
+    probeStatus,
+    mixRatio,
+    transferEventId,
     nLevel,
     layer: construct === "BSE" ? "binding_memory" : "relational_memory",
     speed,
   };
+}
+
+function cellsFromMix(mix: WrapperMix, count: number): CellKey[] {
+  const entries = ATOMIC_CELLS
+    .map((wrapper) => ({ wrapper, ratio: mix.wrapperRatios[wrapper] || 0 }))
+    .filter((entry) => entry.ratio > 0);
+  if (!entries.length) return Array<CellKey>(count).fill("arrow_abs");
+  const cells: CellKey[] = [];
+  let remaining = count;
+  entries.forEach((entry, index) => {
+    const itemCount = index === entries.length - 1 ? remaining : Math.max(1, Math.round(count * entry.ratio));
+    cells.push(...Array<CellKey>(Math.min(remaining, itemCount)).fill(entry.wrapper));
+    remaining -= itemCount;
+  });
+  while (cells.length < count) cells.push(entries[cells.length % entries.length].wrapper);
+  return cells.slice(0, count);
+}
+
+function transferMiniBlockPlans(
+  phase: PhaseLabel,
+  sessionSeed: string,
+  nLevels: Record<string, number>,
+  state: TransferControllerState,
+): MiniBlockPlan[] {
+  const random = mulberry32(hashSeed(`${sessionSeed}:${state.phase}:transfer-blocks`));
+  const eventId = latestTransferEventId(state);
+  const base = state.activeBaseWrapper || "arrow_abs";
+  const target = state.activeTargetWrapper || base;
+  const ratio = state.mixRatio ?? (state.phase === "transition_probe" || state.phase === "expected_dip" ? 0.2 : null);
+  const block = (
+    id: string,
+    index: number,
+    construct: Construct,
+    label: string,
+    instruction: string,
+    cell: CellKey,
+    probeStatus: ProbeStatus,
+    mixRatio: number | null = null,
+  ) => blockPlan(id, index, construct, label, instruction, cell, phase, nLevels, "slow", probeStatus, mixRatio, eventId);
+
+  if (state.phase === "diagnostic_probe") {
+    return [
+      block("rel-1", 1, "ACC", "Base Relational Memory", "Keep the base n-back rule stable.", base, "base"),
+      block("rel-2", 2, "ACC", "Base Relational Memory", "Same n-back rule, new sequence.", base, "base"),
+      block("rel-3", 3, "ACC", "Diagnostic Probe", "A few new-format trials check transfer readiness.", target, "diagnostic_probe", 0.05),
+      block("bind-1", 4, "BSE", "Binding Memory", "Track the relation and colour together.", base, "base"),
+    ];
+  }
+
+  if (state.phase === "transition_probe" || state.phase === "expected_dip") {
+    return [
+      block("rel-1", 1, "ACC", "Anchor", "Start from the familiar n-back signal.", base, "base"),
+      block("rel-2", 2, "ACC", "Transfer Probe", "The new wrapper appears without raising n-level.", target, "transition_probe", ratio ?? 0.2),
+      block("rel-3", 3, "ACC", "Recovery Check", "Recover the same relation in the new wrapper.", target, "recovery"),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding stays in the familiar wrapper today.", base, "base"),
+    ];
+  }
+
+  if (state.phase === "recovering") {
+    return [
+      block("rel-1", 1, "ACC", "Recovery 1", "Hold n-level steady in the new wrapper.", target, "recovery"),
+      block("rel-2", 2, "ACC", "Recovery 2", "Same relation, new sequence.", target, "recovery"),
+      block("rel-3", 3, "ACC", "Recovery 3", "Keep response timing controlled.", target, "recovery"),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding uses the current wrapper without driving advancement.", target, "recovery"),
+    ];
+  }
+
+  if (state.phase === "return_to_base") {
+    return [
+      block("rel-1", 1, "ACC", "Return Check 1", "Return to the base wrapper.", base, "return_to_base"),
+      block("rel-2", 2, "ACC", "Return Check 2", "Check that the original n-back signal remains available.", base, "return_to_base"),
+      block("rel-3", 3, "ACC", "Return Check 3", "Keep the base wrapper stable.", base, "return_to_base"),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding returns to the base wrapper.", base, "return_to_base"),
+    ];
+  }
+
+  if (state.phase === "held_out_composition") {
+    return [
+      block("rel-1", 1, "ACC", "Held-out Probe", "First exposure to the recombined wrapper.", "flow_rel", "held_out"),
+      block("rel-2", 2, "ACC", "Recovery Start", "Recover the same relation in the held-out wrapper.", "flow_rel", "recovery"),
+      block("rel-3", 3, "ACC", "Base Re-entry", "Return briefly to the nearest learned relation.", "arrow_rel", "return_to_base"),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding uses the nearest learned relation.", "arrow_rel", "return_to_base"),
+    ];
+  }
+
+  if (state.phase.includes("mix") && state.phase !== "maintenance_mix") {
+    const targetRatio = ratio ?? 0.5;
+    const mix = state.activeMix || { wrapperRatios: { [base]: 1 - targetRatio, [target]: targetRatio }, randomised: state.phase === "random_mix" };
+    const cells = shuffle(random, cellsFromMix(mix, 4));
+    return [
+      block("rel-1", 1, "ACC", "Mixed Relational Memory 1", "Wrappers now mix at a controlled ratio.", cells[0], "mix", targetRatio),
+      block("rel-2", 2, "ACC", "Mixed Relational Memory 2", "Keep the n-back relation stable as wrappers change.", cells[1], "mix", targetRatio),
+      block("rel-3", 3, "ACC", "Mixed Relational Memory 3", "Stay flexible through the final relation block.", cells[2], "mix", targetRatio),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding follows the same wrapper mix.", cells[3], "mix", targetRatio),
+    ];
+  }
+
+  if (state.phase === "full_factorial_mix" || state.phase === "maintenance_mix" || state.phase === "portable" || state.phase === "delayed_recheck") {
+    const cells = shuffle(random, [...ATOMIC_CELLS]);
+    const status = state.phase === "delayed_recheck" ? "delayed_recheck" : "mix";
+    return [
+      block("rel-1", 1, "ACC", "Full Mix 1", "All trained wrappers can appear.", cells[0], status),
+      block("rel-2", 2, "ACC", "Full Mix 2", "Use the relation before reacting to the wrapper.", cells[1], status),
+      block("rel-3", 3, "ACC", "Full Mix 3", "Keep the rule stable across switching.", cells[2], status),
+      block("bind-1", 4, "BSE", "Binding Memory", "Binding follows the same wrapper mix.", cells[3], status),
+    ];
+  }
+
+  return [];
 }
 
 function cellsForPhase(phase: PhaseLabel): CellKey[] {
@@ -743,7 +884,16 @@ function isBindingPhase(phase: PhaseLabel): boolean {
   return phase === "P8_BIND_ARROW_REL" || phase === "P9_BIND_FLOW_REL" || phase === "P8_BIND_FLOW_REL" || phase === "P9_BIND_ARROW_REL" || phase === "P10_BIND_MIXED";
 }
 
-export function miniBlockPlansForPhase(phase: PhaseLabel, sessionSeed: string, nLevels: Record<string, number> = {}): MiniBlockPlan[] {
+export function miniBlockPlansForPhase(
+  phase: PhaseLabel,
+  sessionSeed: string,
+  nLevels: Record<string, number> = {},
+  transferState?: TransferControllerState | null,
+): MiniBlockPlan[] {
+  if (transferState?.version === "horizontal-transfer-v1.0") {
+    const transferPlans = transferMiniBlockPlans(phase, sessionSeed, nLevels, transferState);
+    if (transferPlans.length > 0) return transferPlans;
+  }
   const random = mulberry32(hashSeed(`${sessionSeed}:${phase}:blocks`));
   const phaseCells = cellsForPhase(phase);
   const nextCell = (offset: number) => phaseCells[offset % phaseCells.length];
@@ -781,6 +931,12 @@ export function generateTrial(
   cellKey: CellKey,
   isReferenceRecheck: boolean,
   conditionOverride?: TrialCondition,
+  transferMeta?: {
+    probeStatus?: ProbeStatus;
+    mixRatio?: number | null;
+    mappingTiming?: MappingTiming;
+    transferEventId?: string | null;
+  },
 ): TrialDefinition {
   const nLevel = clampNLevel(conditionOverride?.nLevel ?? INITIAL_STAIRCASE_LEVEL);
   const speed = conditionOverride?.speed || DEFAULT_SPEED;
@@ -795,6 +951,10 @@ export function generateTrial(
     nLevel,
     trialCount: DISPLAYED_BASE_TRIALS + nLevel,
     speed,
+    probeStatus: transferMeta?.probeStatus,
+    mixRatio: transferMeta?.mixRatio,
+    mappingTiming: transferMeta?.mappingTiming,
+    transferEventId: transferMeta?.transferEventId,
   })[trialIndex];
 }
 
@@ -806,9 +966,10 @@ export function createSessionPlan(
   nLevels: Record<string, number> = {},
   programmeRunId = "wm-programme-1-legacy",
   programmeCycle = 1,
+  transferState?: TransferControllerState | null,
 ): SessionPlan {
   const sessionId = `${programmeRunId}:wm-${sessionNumber}-${phase}-${Date.now()}`;
-  const miniBlocks = miniBlockPlansForPhase(phase, sessionId, nLevels);
+  const miniBlocks = miniBlockPlansForPhase(phase, sessionId, nLevels, transferState);
   const trials = miniBlocks.flatMap((block) => buildNBackTrials({
     sessionId,
     miniBlockId: block.id,
@@ -820,8 +981,11 @@ export function createSessionPlan(
     nLevel: block.nLevel,
     trialCount: block.trialCount,
     speed: block.speed,
+    probeStatus: block.probeStatus,
+    mixRatio: block.mixRatio,
+    transferEventId: block.transferEventId,
   }));
-  return { sessionId, programmeRunId, programmeCycle, sessionNumber, phase, phaseStatus, nominalBand, miniBlocks, trials };
+  return { sessionId, programmeRunId, programmeCycle, sessionNumber, phase, phaseStatus, nominalBand, transferPhase: transferState?.phase, miniBlocks, trials };
 }
 
 export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey, speed: CapacitySpeed = DEFAULT_SPEED, phaseOverride?: PhaseLabel): SessionPlan {
@@ -842,6 +1006,9 @@ export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey
       currentTrials: DISPLAYED_BASE_TRIALS + nLevel,
       referenceTrials: 0,
       wrapperId,
+      probeStatus: "base",
+      mixRatio: null,
+      transferEventId: null,
       nLevel,
       layer: construct === "BSE" ? "binding_memory" : "relational_memory",
       speed,
@@ -867,6 +1034,9 @@ export function createFreePlaySessionPlan(construct: Construct, cellKey: CellKey
       nLevel,
       trialCount: block.trialCount,
       speed,
+      probeStatus: block.probeStatus,
+      mixRatio: block.mixRatio,
+      transferEventId: block.transferEventId,
     })),
   };
 }

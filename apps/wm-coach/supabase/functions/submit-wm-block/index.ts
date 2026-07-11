@@ -25,7 +25,7 @@ interface SubmitBlockPayload {
     phaseLabel: string;
     isReferenceRecheck: boolean;
     response: string | null;
-    correctResponse: string;
+    correctResponse: string | null;
     isCorrect: boolean;
     rtMs: number | null;
     ratio: string;
@@ -35,6 +35,15 @@ interface SubmitBlockPayload {
     deviceRefreshRateEstimate: number;
     droppedFrameCount: number;
     timingQuality: string;
+    wrapperId?: string | null;
+    wrapperIdProtocol?: string | null;
+    carrier?: string | null;
+    protocolFrame?: string | null;
+    probeStatus?: string | null;
+    mixRatio?: number | null;
+    mappingTiming?: string | null;
+    lureType?: string | null;
+    transferEventId?: string | null;
   }>;
 }
 
@@ -132,6 +141,14 @@ Deno.serve(async (request) => {
     device_refresh_rate_estimate: trial.deviceRefreshRateEstimate,
     dropped_frame_count: trial.droppedFrameCount,
     timing_quality: trial.timingQuality,
+    wrapper_id: trial.wrapperIdProtocol || trial.cellKey || null,
+    carrier: trial.carrier || null,
+    frame: trial.protocolFrame || null,
+    probe_status: trial.probeStatus || null,
+    mix_ratio: trial.mixRatio ?? null,
+    mapping_timing: trial.mappingTiming || null,
+    lure_type: trial.lureType || null,
+    transfer_event_id: trial.transferEventId || null,
   }));
   const { error: trialError } = await supabase.from("wm_trials").upsert(rows, {
     onConflict: "session_id,client_trial_id",

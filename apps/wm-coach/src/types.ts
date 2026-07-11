@@ -7,6 +7,46 @@ export type StimulusCarrier = "arrow" | "optic_flow";
 export type Frame = "abs" | "rel";
 export type CanonicalFrame = "absolute" | "relational";
 export type CellKey = "arrow_abs" | "flow_abs" | "arrow_rel" | "flow_rel" | "mixed";
+export type WrapperId = Exclude<CellKey, "mixed">;
+export type WrapperMix = {
+  wrapperRatios: Partial<Record<WrapperId, number>>;
+  randomised: boolean;
+};
+export type ProtocolFrame = "absolute" | "relative" | "mixed";
+export type HeldOutStatus = "clean" | "first_exposure_logged" | "contaminated" | "legacy_exposed";
+export type LegacyTransferStatus =
+  | "none"
+  | "legacy_active"
+  | "legacy_exposed"
+  | "legacy_mixed_unknown"
+  | "rebaseline_required";
+export type ProbeStatus =
+  | "base"
+  | "diagnostic_probe"
+  | "transition_probe"
+  | "recovery"
+  | "return_to_base"
+  | "mix"
+  | "held_out"
+  | "delayed_recheck";
+export type MappingTiming = "early" | "late" | null;
+export type TransferPhase =
+  | "base_fluency"
+  | "diagnostic_probe"
+  | "flattening"
+  | "transition_probe"
+  | "expected_dip"
+  | "recovering"
+  | "return_to_base"
+  | "mix_80_20"
+  | "mix_60_40"
+  | "mix_50_50"
+  | "random_mix"
+  | "held_out_composition"
+  | "full_factorial_mix"
+  | "delayed_recheck"
+  | "portable"
+  | "maintenance_mix";
 export type PhaseLabel =
   | "P1_ARROW_ABS"
   | "P2_FLOW_ABS"
@@ -128,6 +168,12 @@ export interface TrialDefinition {
   cellKey: CellKey;
   transitionKey: TransitionKey | null;
   isReferenceRecheck: boolean;
+  carrier: StimulusCarrier;
+  protocolFrame: ProtocolFrame;
+  probeStatus: ProbeStatus;
+  mixRatio: number | null;
+  mappingTiming: MappingTiming;
+  transferEventId: string | null;
   ratio: Ratio;
   exposureMsRequested: number;
   majorityCount: 3 | 4 | 5;
@@ -193,6 +239,9 @@ export interface MiniBlockPlan {
   currentTrials: number;
   referenceTrials: number;
   wrapperId: string;
+  probeStatus: ProbeStatus;
+  mixRatio: number | null;
+  transferEventId: string | null;
   nLevel: number;
   layer: Layer;
   speed: CapacitySpeed;
@@ -207,7 +256,92 @@ export interface SessionPlan {
   phaseStatus: PhaseStatus;
   nominalBand: string | null;
   miniBlocks: MiniBlockPlan[];
+  transferPhase?: TransferPhase;
   trials: TrialDefinition[];
+}
+
+export interface TransferMetricSnapshot {
+  initialDip: number | null;
+  recoverySlope: number | null;
+  recoveryRatio: number | null;
+  returnStrength: number | null;
+  mixedWrapperStability: number | null;
+  compositionalTransfer: number | null;
+  delayedRecovery: number | null;
+  lateCueCost: number | null;
+  earlyCueReinstatement: number | null;
+}
+
+export interface WrapperState {
+  wrapperId: WrapperId;
+  status:
+    | "locked"
+    | "base"
+    | "flattening"
+    | "diagnostic_probe"
+    | "transition_probe"
+    | "recovering"
+    | "return_to_base"
+    | "mixed"
+    | "delayed_due"
+    | "portable"
+    | "maintenance";
+  validTrials: number;
+  rollingWindowCount: number;
+  balancedAccuracy: number;
+  recentSlope: number;
+  recoveryRatio: number | null;
+  returnStrength: number | null;
+  lastSeenSession: number | null;
+  dueDelayedRecheck: boolean;
+}
+
+export interface TransferEvent {
+  id: string;
+  eventType:
+    | "diagnostic_probe"
+    | "transition_probe"
+    | "initial_dip"
+    | "recovery"
+    | "return_to_base"
+    | "mix_step"
+    | "held_out_composition"
+    | "delayed_recheck"
+    | "banked";
+  sourceWrapper: WrapperId;
+  targetWrapper: WrapperId;
+  sessionNumber: number;
+  phase: TransferPhase;
+  mixRatio: number | null;
+  heldOut: boolean;
+  metrics: Partial<TransferMetricSnapshot>;
+  createdAt: string;
+}
+
+export interface DelayedRecheck {
+  id: string;
+  dueAfterSession: number;
+  completedSession: number | null;
+  wrapperIds: WrapperId[];
+  passed: boolean | null;
+}
+
+export interface TransferControllerState {
+  version: "horizontal-transfer-v1.0";
+  activeBaseWrapper: WrapperId | null;
+  activeTargetWrapper: WrapperId | null;
+  phase: TransferPhase;
+  mixRatio: number | null;
+  activeMix: WrapperMix | null;
+  wrapperStates: Record<WrapperId, WrapperState>;
+  transferEvents: TransferEvent[];
+  delayedRechecks: DelayedRecheck[];
+  heldOutCompositionLogged: boolean;
+  heldOutStatus: HeldOutStatus;
+  legacyFlowRelExposure: boolean;
+  legacyStatus: LegacyTransferStatus;
+  completedAtSession: number | null;
+  maintenanceSessionCount: number;
 }
 
 export interface ScorePanel {
@@ -342,6 +476,7 @@ export interface WorkingMemoryScoreSnapshot {
     state: "current_phase" | "coming_up" | "ready_next_session" | "not_enough_evidence";
   };
   farTransfer?: FarTransferEvidence;
+  transferMetrics?: TransferMetricSnapshot;
 }
 
 export interface CellEvidence {
@@ -371,6 +506,7 @@ export interface WapUserState {
   protocolGroup?: ProtocolGroup;
   completedTransitions: TransitionKey[];
   evidence: CellEvidence[];
+  transferControllerState?: TransferControllerState | null;
   hasGlobalFatigueFlag?: boolean;
   hasTimingLimitedFlag?: boolean;
 }
@@ -382,6 +518,7 @@ export interface WapDecision {
   shouldTransition: boolean;
   transitionKey: TransitionKey | null;
   reason: string;
+  transferControllerState?: TransferControllerState;
   readiness: {
     minimumTrials: boolean;
     enoughWindows: boolean;

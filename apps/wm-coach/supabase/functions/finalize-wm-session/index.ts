@@ -64,6 +64,7 @@ function metricRowsFromSnapshot(snapshot: Record<string, unknown>): MetricRow[] 
   const control = objectPayload(snapshot.workingMemoryControl);
   const binding = objectPayload(snapshot.bindingFocus);
   const transfer = objectPayload(snapshot.transfer);
+  const transferMetrics = objectPayload(snapshot.transferMetrics);
 
   pushMetric(rows, "control.bits_per_sec", "control", "bps", control.bitsPerSec);
   pushMetric(rows, "control.training_score", "control", "score", control.trainingScore);
@@ -78,6 +79,15 @@ function metricRowsFromSnapshot(snapshot: Record<string, unknown>): MetricRow[] 
   pushMetric(rows, "transfer.relation_recovery", "transfer", "score", nestedNumber(transfer, ["relationRecovery", "score"]));
   pushMetric(rows, "transfer.mixed_flexibility", "transfer", "score", nestedNumber(transfer, ["mixedFlexibility", "score"]));
   pushMetric(rows, "transfer.return_strength", "transfer", "score", nestedNumber(transfer, ["returnStrength", "score"]));
+  pushMetric(rows, "transfer.initial_dip", "transfer_protocol", "ratio", transferMetrics.initialDip);
+  pushMetric(rows, "transfer.recovery_slope", "transfer_protocol", "slope", transferMetrics.recoverySlope);
+  pushMetric(rows, "transfer.recovery_ratio", "transfer_protocol", "ratio", transferMetrics.recoveryRatio);
+  pushMetric(rows, "transfer.return_strength_protocol", "transfer_protocol", "ratio", transferMetrics.returnStrength);
+  pushMetric(rows, "transfer.mixed_wrapper_stability", "transfer_protocol", "ratio", transferMetrics.mixedWrapperStability);
+  pushMetric(rows, "transfer.compositional_transfer", "transfer_protocol", "ratio", transferMetrics.compositionalTransfer);
+  pushMetric(rows, "transfer.delayed_recovery", "transfer_protocol", "ratio", transferMetrics.delayedRecovery);
+  pushMetric(rows, "transfer.late_cue_cost", "transfer_protocol", "ratio", transferMetrics.lateCueCost);
+  pushMetric(rows, "transfer.early_cue_reinstatement", "transfer_protocol", "ratio", transferMetrics.earlyCueReinstatement);
 
   const farTransfer = objectPayload(snapshot.farTransfer);
   const boundarySignals = Array.isArray(farTransfer.boundarySignals) ? farTransfer.boundarySignals : [];
