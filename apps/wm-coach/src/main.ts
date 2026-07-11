@@ -1344,6 +1344,7 @@ function renderWelcome(): string {
         ${button("Start today's session", "start-readiness")}
         ${button("Choose a practice game", "nav-free-play", "secondary")}
         <small class="splash-support-note">Setup first; the guided session takes about 5-10 minutes.</small>
+        <button class="splash-link" data-action="nav-data-rights">Data ethics</button>
         <button class="splash-link" data-action="nav-training-map">Brain basis</button>
         <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer">www.iqmindware.com</a>
       </section>
@@ -3772,7 +3773,7 @@ function renderProfile(): string {
 }
 
 function render(): void {
-  if (state.cloudSyncMode === "cloud" && state.authReady && !state.authUser && state.view !== "auth" && state.view !== "data-rights") {
+  if (state.cloudSyncMode === "cloud" && state.authReady && !state.authUser && state.view !== "auth" && state.view !== "data-rights" && state.view !== "welcome") {
     state.view = "auth";
     state.viewHistory = [];
   }
