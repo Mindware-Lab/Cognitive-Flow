@@ -1,4 +1,5 @@
 import { PHASE_CELL, PHASE_NAMES, TARGET_ENVELOPE_SESSIONS } from "./protocol";
+import { transferMetricsFromEvidence } from "./transferController";
 import type {
   AttentionScoreSnapshot,
   CellEvidence,
@@ -741,5 +742,6 @@ export function createScoreSnapshot(input: {
             : "current_phase",
     },
     farTransfer,
+    transferMetrics: transferMetricsFromEvidence(input.evidence, input.protocolGroup),
   };
 }

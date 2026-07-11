@@ -17,7 +17,7 @@ function objectPayload(value: unknown): Record<string, unknown> {
 }
 
 function isMissingProgrammeColumn(error: { message?: string } | null): boolean {
-  return Boolean(error?.message && /programme_(run_id|cycle)|schema cache/i.test(error.message));
+  return Boolean(error?.message && /programme_(run_id|cycle)|protocol_group|start_(carrier|cohort|wrapper)|carrier_target_wrapper|frame_target_wrapper|held_out_(wrapper|status)|schema cache/i.test(error.message));
 }
 
 type MetricRow = {
@@ -26,6 +26,16 @@ type MetricRow = {
   metricUnit: string | null;
   metricValue: number;
   metricContext?: Record<string, unknown>;
+};
+
+type MetricFilter = {
+  protocolGroup?: string | null;
+  startCarrier?: string | null;
+  startCohort?: string | null;
+  startWrapper?: string | null;
+  carrierTargetWrapper?: string | null;
+  frameTargetWrapper?: string | null;
+  heldOutWrapper?: string | null;
 };
 
 function finiteNumber(value: unknown): number | null {
@@ -74,6 +84,17 @@ function metricRowsFromSnapshot(snapshot: Record<string, unknown>): MetricRow[] 
   pushMetric(rows, "transfer.mixed_flexibility", "transfer", "score", nestedNumber(transfer, ["mixedFlexibility", "score"]));
   pushMetric(rows, "transfer.return_strength", "transfer", "score", nestedNumber(transfer, ["returnStrength", "score"]));
 
+  const transferMetrics = objectPayload(snapshot.transferMetrics);
+  pushMetric(rows, "transfer.initial_dip", "transfer_protocol", "ratio", transferMetrics.initialDip);
+  pushMetric(rows, "transfer.recovery_slope", "transfer_protocol", "ratio", transferMetrics.recoverySlope);
+  pushMetric(rows, "transfer.recovery_ratio", "transfer_protocol", "ratio", transferMetrics.recoveryRatio);
+  pushMetric(rows, "transfer.return_strength_protocol", "transfer_protocol", "ratio", transferMetrics.returnStrength);
+  pushMetric(rows, "transfer.mixed_wrapper_stability", "transfer_protocol", "ratio", transferMetrics.mixedWrapperStability);
+  pushMetric(rows, "transfer.compositional_transfer", "transfer_protocol", "ratio", transferMetrics.compositionalTransfer);
+  pushMetric(rows, "transfer.delayed_recovery", "transfer_protocol", "ratio", transferMetrics.delayedRecovery);
+  pushMetric(rows, "transfer.late_cue_cost", "transfer_protocol", "ratio", transferMetrics.lateCueCost);
+  pushMetric(rows, "transfer.early_cue_reinstatement", "transfer_protocol", "ratio", transferMetrics.earlyCueReinstatement);
+
   const farTransfer = objectPayload(snapshot.farTransfer);
   const boundarySignals = Array.isArray(farTransfer.boundarySignals) ? farTransfer.boundarySignals : [];
   for (const signalValue of boundarySignals) {
@@ -99,14 +120,20 @@ async function upsertMetricNorm(
   appId: "attention_coach" | "wm_coach",
   metricKey: string,
   cohortKey: string,
-  protocolGroup?: string | null,
+  filters: MetricFilter = {},
 ): Promise<void> {
   let query = supabase
     .from("coach_metric_observations")
     .select("metric_value, recorded_at")
     .eq("app_id", appId)
     .eq("metric_key", metricKey);
-  if (protocolGroup) query = query.eq("protocol_group", protocolGroup);
+  if (filters.protocolGroup) query = query.eq("protocol_group", filters.protocolGroup);
+  if (filters.startCarrier) query = query.eq("start_carrier", filters.startCarrier);
+  if (filters.startCohort) query = query.eq("start_cohort", filters.startCohort);
+  if (filters.startWrapper) query = query.eq("start_wrapper", filters.startWrapper);
+  if (filters.carrierTargetWrapper) query = query.eq("carrier_target_wrapper", filters.carrierTargetWrapper);
+  if (filters.frameTargetWrapper) query = query.eq("frame_target_wrapper", filters.frameTargetWrapper);
+  if (filters.heldOutWrapper) query = query.eq("held_out_wrapper", filters.heldOutWrapper);
   const { data, error } = await query;
   if (error || !data?.length) return;
   const values = data
@@ -144,12 +171,24 @@ async function updateMetricNorms(
   supabase: ReturnType<typeof serviceClient>,
   appId: "attention_coach" | "wm_coach",
   metricKeys: string[],
-  protocolGroup: string | null,
+  filters: MetricFilter,
 ): Promise<void> {
   for (const metricKey of metricKeys) {
     await upsertMetricNorm(supabase, appId, metricKey, "global_beta");
-    if (protocolGroup) {
-      await upsertMetricNorm(supabase, appId, metricKey, `protocol:${protocolGroup}`, protocolGroup);
+    if (filters.protocolGroup) {
+      await upsertMetricNorm(supabase, appId, metricKey, `protocol:${filters.protocolGroup}`, { protocolGroup: filters.protocolGroup });
+    }
+    if (filters.startCohort) {
+      await upsertMetricNorm(supabase, appId, metricKey, `start_cohort:${filters.startCohort}`, { startCohort: filters.startCohort });
+    }
+    if (filters.startWrapper && filters.carrierTargetWrapper && filters.frameTargetWrapper && filters.heldOutWrapper) {
+      const pathKey = `path:${filters.startWrapper}>${filters.carrierTargetWrapper}>${filters.frameTargetWrapper}>${filters.heldOutWrapper}`;
+      await upsertMetricNorm(supabase, appId, metricKey, pathKey, {
+        startWrapper: filters.startWrapper,
+        carrierTargetWrapper: filters.carrierTargetWrapper,
+        frameTargetWrapper: filters.frameTargetWrapper,
+        heldOutWrapper: filters.heldOutWrapper,
+      });
     }
   }
 }
@@ -168,6 +207,15 @@ async function recordCoachMetrics(input: {
   const metrics = metricRowsFromSnapshot(input.snapshot);
   if (!metrics.length) return;
   const controllerEvent = objectPayload(input.payload.controllerEvent);
+  const transferFilters: MetricFilter = {
+    protocolGroup: typeof controllerEvent.protocolGroup === "string" ? controllerEvent.protocolGroup : null,
+    startCarrier: typeof controllerEvent.startCarrier === "string" ? controllerEvent.startCarrier : null,
+    startCohort: typeof controllerEvent.startCohort === "string" ? controllerEvent.startCohort : null,
+    startWrapper: typeof controllerEvent.startWrapper === "string" ? controllerEvent.startWrapper : null,
+    carrierTargetWrapper: typeof controllerEvent.carrierTargetWrapper === "string" ? controllerEvent.carrierTargetWrapper : null,
+    frameTargetWrapper: typeof controllerEvent.frameTargetWrapper === "string" ? controllerEvent.frameTargetWrapper : null,
+    heldOutWrapper: typeof controllerEvent.heldOutWrapper === "string" ? controllerEvent.heldOutWrapper : null,
+  };
   const rows = metrics.map((metric) => ({
     app_id: input.appId,
     user_id: input.userId,
@@ -178,7 +226,14 @@ async function recordCoachMetrics(input: {
     session_number: input.sessionNumber,
     phase_label: input.phaseLabel,
     phase_status: input.phaseStatus,
-    protocol_group: typeof controllerEvent.protocolGroup === "string" ? controllerEvent.protocolGroup : null,
+    protocol_group: transferFilters.protocolGroup,
+    start_carrier: transferFilters.startCarrier,
+    start_cohort: transferFilters.startCohort,
+    start_wrapper: transferFilters.startWrapper,
+    carrier_target_wrapper: transferFilters.carrierTargetWrapper,
+    frame_target_wrapper: transferFilters.frameTargetWrapper,
+    held_out_wrapper: transferFilters.heldOutWrapper,
+    held_out_status: typeof controllerEvent.heldOutStatus === "string" ? controllerEvent.heldOutStatus : null,
     device_quality: typeof controllerEvent.deviceQuality === "string" ? controllerEvent.deviceQuality : null,
     metric_key: metric.metricKey,
     metric_group: metric.metricGroup,
@@ -195,8 +250,7 @@ async function recordCoachMetrics(input: {
     console.warn("Coach metric observations were not recorded.", error.message);
     return;
   }
-  const protocolGroup = typeof controllerEvent.protocolGroup === "string" ? controllerEvent.protocolGroup : null;
-  await updateMetricNorms(input.supabase, input.appId, Array.from(new Set(metrics.map((metric) => metric.metricKey))), protocolGroup);
+  await updateMetricNorms(input.supabase, input.appId, Array.from(new Set(metrics.map((metric) => metric.metricKey))), transferFilters);
 }
 
 Deno.serve(async (request) => {
@@ -233,6 +287,14 @@ Deno.serve(async (request) => {
     session_id: session.id,
     programme_run_id: payload.programmeRunId || null,
     programme_cycle: payload.programmeCycle || 1,
+    protocol_group: typeof payload.controllerEvent?.protocolGroup === "string" ? payload.controllerEvent.protocolGroup : null,
+    start_carrier: typeof payload.controllerEvent?.startCarrier === "string" ? payload.controllerEvent.startCarrier : null,
+    start_cohort: typeof payload.controllerEvent?.startCohort === "string" ? payload.controllerEvent.startCohort : null,
+    start_wrapper: typeof payload.controllerEvent?.startWrapper === "string" ? payload.controllerEvent.startWrapper : null,
+    carrier_target_wrapper: typeof payload.controllerEvent?.carrierTargetWrapper === "string" ? payload.controllerEvent.carrierTargetWrapper : null,
+    frame_target_wrapper: typeof payload.controllerEvent?.frameTargetWrapper === "string" ? payload.controllerEvent.frameTargetWrapper : null,
+    held_out_wrapper: typeof payload.controllerEvent?.heldOutWrapper === "string" ? payload.controllerEvent.heldOutWrapper : null,
+    held_out_status: typeof payload.controllerEvent?.heldOutStatus === "string" ? payload.controllerEvent.heldOutStatus : null,
     session_number: snapshot.sessionNumber || session.session_number,
     active_phase: snapshot.activePhase || session.phase_label,
     phase_status: snapshot.phaseStatus || session.phase_status,
@@ -242,7 +304,19 @@ Deno.serve(async (request) => {
   };
   let snapshotResult = await supabase.from("attention_score_snapshots").insert(snapshotRow);
   if (isMissingProgrammeColumn(snapshotResult.error)) {
-    const { programme_run_id: _runId, programme_cycle: _cycle, ...legacySnapshotRow } = snapshotRow;
+    const {
+      programme_run_id: _runId,
+      programme_cycle: _cycle,
+      protocol_group: _protocolGroup,
+      start_carrier: _startCarrier,
+      start_cohort: _startCohort,
+      start_wrapper: _startWrapper,
+      carrier_target_wrapper: _carrierTargetWrapper,
+      frame_target_wrapper: _frameTargetWrapper,
+      held_out_wrapper: _heldOutWrapper,
+      held_out_status: _heldOutStatus,
+      ...legacySnapshotRow
+    } = snapshotRow;
     snapshotResult = await supabase.from("attention_score_snapshots").insert(legacySnapshotRow);
   }
   const { error: snapshotError } = snapshotResult;
@@ -268,6 +342,13 @@ Deno.serve(async (request) => {
       programmeRunId: payload.programmeRunId || null,
       programmeCycle: payload.programmeCycle || 1,
       protocolGroup: payload.controllerEvent.protocolGroup ?? null,
+      startCarrier: payload.controllerEvent.startCarrier ?? null,
+      startCohort: payload.controllerEvent.startCohort ?? null,
+      startWrapper: payload.controllerEvent.startWrapper ?? null,
+      carrierTargetWrapper: payload.controllerEvent.carrierTargetWrapper ?? null,
+      frameTargetWrapper: payload.controllerEvent.frameTargetWrapper ?? null,
+      heldOutWrapper: payload.controllerEvent.heldOutWrapper ?? null,
+      heldOutStatus: payload.controllerEvent.heldOutStatus ?? null,
       completedSession: payload.controllerEvent.completedSession ?? null,
       nextState: payload.controllerEvent.nextState ?? null,
       scoreSnapshotState: payload.controllerEvent.scoreSnapshotState ?? null,

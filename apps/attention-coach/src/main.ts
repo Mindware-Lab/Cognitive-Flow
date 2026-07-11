@@ -5,6 +5,7 @@ import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./op
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
+import { migrateTransferControllerState, transferPathForState } from "./transferController";
 import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, loadDataMode, loadDataModeSeen, loadProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
@@ -14,6 +15,7 @@ import {
   fetchAttentionScratchBaselines,
   finalizeAttentionSession,
   isSupabaseConfigured,
+  loadGTrackHistory,
   loadStandardizedScores,
   loadRemoteProgress,
   onAuthChange,
@@ -47,6 +49,7 @@ type View =
   | "block-break"
   | "complete"
   | "progress"
+  | "coaching"
   | "proof"
   | "proof-entry"
   | "transfer"
@@ -59,6 +62,7 @@ type View =
 type TaskStage = "ready" | "fixation" | "stimulus" | "mask" | "response" | "feedback";
 type StyleMode = "iq" | "legacy";
 type ProgressDashboardMode = "overview" | "detail";
+type ProgressSectionMode = ProgressDashboardMode | "proof";
 type SessionSource = "guided" | "guided_practice" | "free_play" | "preview" | "recheck" | "easier";
 type PendingTaskStart =
   | { kind: "guided" }
@@ -121,6 +125,7 @@ const initialDataModeSeen = loadDataModeSeen();
 const initialCloudSyncMode: CloudSyncMode = cloudSyncAvailable ? cloudSyncModeForDataMode(initialDataMode) : "local";
 const currentBrowserDeviceId = browserDeviceId();
 const APP_BASE = import.meta.env.BASE_URL || "/";
+const COACHING_CHECKOUT_URL = "https://buy.stripe.com/8x2bJ0bi96s06vLgtQ9ws0t";
 const PROTOCOL_ASSIGNMENT_VERSION = "counterbalance-v20260708";
 
 function freshDefaultProgress(programmeCycle = 1): LocalProgress {
@@ -168,6 +173,7 @@ function resolveInitialView(cloudSyncMode: CloudSyncMode): View {
     "free-play",
     "free-play-formats",
     "progress",
+    "coaching",
     "proof",
     "proof-entry",
     "transfer",
@@ -176,9 +182,8 @@ function resolveInitialView(cloudSyncMode: CloudSyncMode): View {
     "evidence",
     "profile",
   ];
-  if (!initialDataModeSeen) return "data-rights";
-  if (cloudSyncAvailable && cloudSyncMode === "cloud") return "auth";
-  return allowedViews.includes(queryView as View) ? (queryView as View) : "welcome";
+  if (allowedViews.includes(queryView as View)) return queryView as View;
+  return "welcome";
 }
 
 function queryProtocolGroup(): ProtocolGroup | null {
@@ -216,29 +221,51 @@ function withProtocolAssignment(progress: LocalProgress): LocalProgress {
   const queryGroup = queryProtocolGroup();
   const isFresh = isFreshProtocolProgress(progress);
   if (queryGroup) {
-    return {
+    const currentPhase = isFresh ? PHASE_ORDER_BY_GROUP[queryGroup][0] : progress.currentPhase;
+    const assigned = {
       ...progress,
       protocolGroup: queryGroup,
       protocolAssignmentVersion: `${PROTOCOL_ASSIGNMENT_VERSION}:url_override`,
       protocolAssignmentSeed: "query:protocolGroup",
       protocolAssignedAt: progress.protocolAssignedAt || new Date().toISOString(),
-      currentPhase: isFresh ? PHASE_ORDER_BY_GROUP[queryGroup][0] : progress.currentPhase,
+      currentPhase,
       latestSnapshot: isFresh ? null : progress.latestSnapshot,
       scratchBaselines: [],
+    };
+    return {
+      ...assigned,
+      transferControllerState: migrateTransferControllerState({
+        existing: isFresh ? null : assigned.transferControllerState,
+        currentPhase,
+        sessionNumber: assigned.sessionNumber,
+        evidence: assigned.evidence,
+        protocolGroup: queryGroup,
+      }),
     };
   }
   if (progress.protocolAssignmentVersion || !isFresh) return progress;
   const seed = protocolAssignmentSeed();
   const protocolGroup = assignedProtocolGroup(seed);
-  return {
+  const currentPhase = PHASE_ORDER_BY_GROUP[protocolGroup][0];
+  const assigned = {
     ...progress,
     protocolGroup,
     protocolAssignmentVersion: PROTOCOL_ASSIGNMENT_VERSION,
     protocolAssignmentSeed: seed,
     protocolAssignedAt: new Date().toISOString(),
-    currentPhase: PHASE_ORDER_BY_GROUP[protocolGroup][0],
+    currentPhase,
     latestSnapshot: null,
     scratchBaselines: [],
+  };
+  return {
+    ...assigned,
+    transferControllerState: migrateTransferControllerState({
+      existing: null,
+      currentPhase,
+      sessionNumber: assigned.sessionNumber,
+      evidence: assigned.evidence,
+      protocolGroup,
+    }),
   };
 }
 
@@ -418,6 +445,22 @@ async function hydrateStandardizedScores(): Promise<void> {
   }
 }
 
+async function hydrateGTrackProofScores(): Promise<void> {
+  if (!cloudSyncActive()) return;
+  try {
+    const entries = gTrackEntriesFromHistory(await loadGTrackHistory());
+    if (!entries.length) return;
+    const manualEntries = state.progress.proofBenchmarks.filter((entry) => !entry.id.startsWith("gtrack-"));
+    const byId = new Map<string, ProofBenchmarkEntry>();
+    [...manualEntries, ...entries].forEach((entry) => byId.set(entry.id, entry));
+    state.progress = { ...state.progress, proofBenchmarks: Array.from(byId.values()) };
+    persistProgress();
+    render();
+  } catch (error) {
+    console.warn("G Track proof scores were not loaded.", error);
+  }
+}
+
 function persistProgressRemote(): void {
   if (!cloudSyncActive()) return;
   markSync("pending", "Saving programme state.");
@@ -512,6 +555,7 @@ async function restoreRemoteProgress(): Promise<void> {
   }
   void hydrateScratchBaselines();
   void hydrateStandardizedScores();
+  void hydrateGTrackProofScores();
   state.view = nextView;
   state.viewHistory = [];
   render();
@@ -542,6 +586,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
     "free-play-formats",
     "pre-task-instructions",
     "progress",
+    "coaching",
     "proof",
     "proof-entry",
     "data-rights",
@@ -681,28 +726,28 @@ const PHASE_GOAL_COPY: Record<PhaseLabel, string> = {
 };
 
 const PHASE_STATUS_COPY: Record<PhaseStatus | "ready_for_next_challenge" | "recovering_new_format" | "mixed_stability" | "return_check" | "calibrating", string> = {
-  active: "Building a clear learning curve.",
-  flattening: "Getting steadier.",
-  ready_to_swap: "Your next challenge is ready.",
-  recovering: "Checking recovery in the new format.",
-  extended_for_learning_curve: "Still building a clear learning curve.",
-  mixed: "Testing flexible switching.",
-  delayed: "Re-checking whether the skill returns.",
-  completed: "Guided pathway complete.",
-  ready_for_next_challenge: "Your next challenge is ready.",
-  recovering_new_format: "Checking recovery in the new format.",
-  mixed_stability: "Testing flexible switching.",
-  return_check: "Re-checking whether the skill returns.",
-  calibrating: "Still collecting enough reliable data.",
+  active: "Building",
+  flattening: "Ready for a change",
+  ready_to_swap: "Ready for a change",
+  recovering: "Recovering",
+  extended_for_learning_curve: "Building",
+  mixed: "Stable across formats",
+  delayed: "Re-check due",
+  completed: "Portable",
+  ready_for_next_challenge: "Ready for a change",
+  recovering_new_format: "New format dip",
+  mixed_stability: "Ready to mix",
+  return_check: "Return check",
+  calibrating: "Building",
 };
 
-function appTabs(active: "today" | "train" | "progress" | "proof"): string {
+function appTabs(active: "today" | "session" | "progress" | "coaching"): string {
   return `
     <nav class="tabs">
       ${navButton("Today", "nav-today", active === "today")}
-      ${navButton("Train", "nav-free-play", active === "train")}
+      ${navButton("Session", "nav-free-play", active === "session")}
       ${navButton("Progress", "nav-progress", active === "progress")}
-      ${navButton("Notes", "nav-proof", active === "proof")}
+      ${navButton("Coaching", "nav-coaching", active === "coaching")}
     </nav>
   `;
 }
@@ -908,7 +953,7 @@ function renderPreTaskInstructions(): string {
       </div>`
     : "";
   return shell(`
-    ${appTabs(state.pendingTaskStart?.kind === "free" ? "train" : "today")}
+    ${appTabs(state.pendingTaskStart?.kind === "free" ? "session" : "today")}
     <section class="pre-task-screen">
       <div class="pre-task-hero">
         <p class="ui-eyebrow">Before you start</p>
@@ -1087,7 +1132,7 @@ function dataModeCard(mode: DataMode, title: string, copy: string, action: strin
 
 function renderDataRights(): string {
   const cloudActive = cloudSyncActive();
-  const continueLabel = state.dataMode === "local" || state.authUser ? "Continue to device check" : "Continue to sign in";
+  const continueLabel = state.dataMode === "local" || state.authUser ? "Device check" : "Sign in";
   const cloudCopy = cloudSyncAvailable
     ? "Choose how this app stores and scores your training data. You can change this later from Data."
     : "Cloud sync is not configured for this build.";
@@ -1095,15 +1140,14 @@ function renderDataRights(): string {
     <section class="data-rights-screen">
       <section class="data-rights-hero">
         <p class="ui-eyebrow">Data rights</p>
-        <h1>Your cognitive data stays under your control.</h1>
+        <h1>Your data stays under your control.</h1>
         <p>${escapeHtml(cloudCopy)}</p>
       </section>
       <section class="data-mode-grid">
-        ${dataModeCard("local", "Local storage only", "Data stays in this browser. No cloud sync, no population benchmark contribution.", "select-data-local")}
-        ${dataModeCard("cloud_personal", "Cloud sync with personal baseline", "Sign in to switch devices or recover progress. Scores stay relative to your own baseline.", "select-data-cloud-personal")}
-        ${dataModeCard("cloud_benchmark", "Cloud sync with standardised scores", "Sign in to switch devices and contribute guided-session metrics to aggregate benchmark norms.", "select-data-cloud-benchmark")}
+        ${dataModeCard("local", "Local only", "Data stays in this browser. No cloud sync or benchmark contribution.", "select-data-local")}
+        ${dataModeCard("cloud_personal", "Cloud personal baseline", "Sign in to switch devices or recover progress. Scores stay relative to you.", "select-data-cloud-personal")}
+        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Sign in to switch devices and contribute guided metrics to aggregate norms.", "select-data-cloud-benchmark")}
       </section>
-      ${!state.dataModeSeen ? `<div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>` : ""}
       <section class="data-rights-grid">
         <article class="data-rights-card is-blue">
           <span>Mode</span>
@@ -1115,21 +1159,22 @@ function renderDataRights(): string {
         </article>
         <article class="data-rights-card is-green">
           <span>Export</span>
-          <strong>Machine-readable copy</strong>
-          <p>Export local progress, or your full cloud record when cloud sync is active.</p>
+          <strong>Data export</strong>
+          <p>Export local progress or your cloud record.</p>
           <div class="data-rights-actions">${button(cloudActive ? "Export cloud data" : "Export local data", "export-attention-data")}</div>
         </article>
         <article class="data-rights-card is-red">
           <span>Delete</span>
-          <strong>Permanent removal</strong>
+          <strong>Remove data</strong>
           <p>${cloudActive ? "Delete your cloud Attention Coach data and reset this browser." : "Reset this browser's local Attention Coach progress."}</p>
           <div class="data-rights-actions">${button(cloudActive ? "Delete cloud data" : "Reset local data", "delete-attention-data", "secondary")}</div>
         </article>
       </section>
       <section class="ethics-boundary-card">
         <strong>Non-selection boundary</strong>
-        <p>Scores and benchmark notes are personal training signals. The app does not generate certificates, share-to-employer links, public rankings, or institutional score APIs.</p>
+        <p>Scores are personal training signals. The app does not create certificates, rankings, employer links, or score APIs.</p>
       </section>
+      ${!state.dataModeSeen ? `<div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>` : ""}
     </section>
   `);
 }
@@ -1162,6 +1207,7 @@ function setDataMode(mode: DataMode): void {
       ? state.dataMode === "cloud_benchmark" ? "Cloud benchmark mode enabled." : "Cloud sync enabled."
       : "Sign in to sync devices.";
     void hydrateStandardizedScores();
+    void hydrateGTrackProofScores();
   }
 }
 
@@ -1331,11 +1377,11 @@ function renderToday(): string {
       ${appTabs("today")}
       <section class="daily-loop-screen">
         <div class="today-action-card programme-complete-panel">
-          <p class="ui-eyebrow">20-session programme complete</p>
-          <h1>Congratulations. You finished the guided programme.</h1>
-          <p class="ui-body">You completed ${TARGET_ENVELOPE_SESSIONS} guided Attention Coach sessions. You can review progress, practise freely, or start another 20-session programme from Session 1.</p>
+          <p class="ui-eyebrow">20-session envelope reached</p>
+          <h1>Mixed transfer practice continues</h1>
+          <p class="ui-body">You have reached the planned ${TARGET_ENVELOPE_SESSIONS}-session envelope. Guided sessions now continue as mixed practice, return checks, and delayed re-checks when needed.</p>
           <div class="today-primary-actions">
-            ${button("Start another 20 sessions", "restart-guided-programme")}
+            ${button("Continue guided practice", "start-guided-instructions")}
             <button class="secondary-link-button" data-action="nav-progress">View progress</button>
             <button class="secondary-link-button" data-action="nav-free-play">Practice only</button>
           </div>
@@ -1467,7 +1513,7 @@ function freePlayCellIcon(cell: CellKey): string {
 
 function renderFreePlay(): string {
   return shell(`
-    ${appTabs("train")}
+    ${appTabs("session")}
     <section class="train-screen no-scroll-screen">
       <figure class="train-protocol-strip">
         <img
@@ -1533,7 +1579,7 @@ function renderFreePlayFormats(): string {
     `;
   };
   return shell(`
-    ${appTabs("train")}
+    ${appTabs("session")}
     <section class="train-screen free-play-formats-screen">
       <div class="practice-format-note">
         <strong>Free Play</strong>
@@ -2068,17 +2114,17 @@ function renderComplete(): string {
   if ((lastGuided?.sessionNumber || 0) >= TARGET_ENVELOPE_SESSIONS) {
     return shell(`
       <section class="panel result-panel programme-complete-panel">
-        <p class="ui-eyebrow">20-session programme complete</p>
-        <h1>Congratulations. You finished the guided programme.</h1>
-        <p class="ui-body">You completed ${TARGET_ENVELOPE_SESSIONS} guided Attention Coach sessions. You can review progress, practise freely, or start another 20-session programme from Session 1.</p>
+        <p class="ui-eyebrow">20-session envelope reached</p>
+        <h1>Mixed transfer practice continues</h1>
+        <p class="ui-body">Guided sessions now continue as mixed transfer practice, return checks, and delayed re-checks when needed.</p>
         ${programmeProgressCard(TARGET_ENVELOPE_SESSIONS)}
         <div class="session-read-card is-green">
           <span>Next option</span>
-          <strong>Start another 20 sessions</strong>
-          <p>This starts the guided pathway again from Session 1 while keeping your app setup.</p>
+          <strong>Continue guided practice</strong>
+          <p>This keeps your current transfer state and adds maintenance or re-check sessions.</p>
         </div>
         <div class="action-row">
-          ${button("Start another 20 sessions", "restart-guided-programme")}
+          ${button("Continue guided practice", "start-guided-instructions")}
           ${button("View progress", "nav-progress", "secondary")}
           ${button("Practice only", "nav-free-play", "ghost")}
         </div>
@@ -2165,21 +2211,15 @@ function renderTransfer(): string {
 function renderTrainingMap(): string {
   return shell(`
     <section class="training-map-screen">
-      <figure class="transfer-model-figure training-map-figure">
-        <button class="map-brain-button" data-action="nav-evidence">Brain Basis</button>
-        <img
-          src="${assetPath("attention-transfer-model-v2.png")}"
-          alt="Training map showing static arrows, moving patterns, relational formats, mixed practice, and a delayed return check."
-          width="1537"
-          height="1023"
-        />
+      <figure class="training-map-figure is-brain-diagram">
+        ${brainNetworkDiagram()}
       </figure>
       <div class="training-map-note">
-        <strong>Coached pathway</strong>
-        <span>New challenges appear when your current learning curve is stable. This helps with cognitive skill transfer. Practice training can help you understand the training games.</span>
+        <strong>Brain-based design</strong>
+        <span>Attention Coach is evidence-informed, not a brain measurement. It targets attention control, flexible updating, relational processing, and working-memory support through adaptive training.</span>
       </div>
       <div class="action-row">
-        ${button("Training hub", "nav-free-play", "secondary")}
+        ${button("Session hub", "nav-free-play", "secondary")}
       </div>
     </section>
   `);
@@ -2238,16 +2278,105 @@ const PROOF_TIMEPOINT_LABELS: Record<ProofBenchmarkTimepoint, string> = {
   ad_hoc: "Ad hoc",
 };
 
+type GTrackHistoryRow = Awaited<ReturnType<typeof loadGTrackHistory>>[number];
+
+function finiteScore(value: unknown): number | null {
+  const numeric = Number(value);
+  return Number.isFinite(numeric) ? numeric : null;
+}
+
+function gTrackStandardScore(row: GTrackHistoryRow, metric: string): number | null {
+  return finiteScore(row.issuedNorm?.[metric]?.standardScore) ?? finiteScore(row.latestNorm?.[metric]?.standardScore);
+}
+
+function gTrackEntriesFromHistory(rows: GTrackHistoryRow[]): ProofBenchmarkEntry[] {
+  return rows.flatMap((row) => {
+    const completedAt = String(row.completedAt || todayIso()).slice(0, 10);
+    if (row.completionQuality && row.completionQuality !== "valid") return [];
+    if (row.testId === "psi-core") {
+      const entries: ProofBenchmarkEntry[] = [];
+      const focusScore = gTrackStandardScore(row, "focus");
+      if (focusScore !== null) {
+        entries.push({
+          id: `gtrack-attention-${row.id}-focus`,
+          domain: "attention",
+          timepoint: "ad_hoc",
+          label: "G Track Focus",
+          score: focusScore,
+          confidence: row.issuedNorm?.focus?.normStatus?.confidence || row.latestNorm?.focus?.normStatus?.confidence || "G Track",
+          source: "G Track",
+          completedAt,
+          notes: "Imported from signed-in G Track history.",
+        });
+      }
+      const processingScore = gTrackStandardScore(row, "processing");
+      if (processingScore !== null) {
+        entries.push({
+          id: `gtrack-working-memory-${row.id}-processing`,
+          domain: "working_memory",
+          timepoint: "ad_hoc",
+          label: "G Track Processing",
+          score: processingScore,
+          confidence: row.issuedNorm?.processing?.normStatus?.confidence || row.latestNorm?.processing?.normStatus?.confidence || "G Track",
+          source: "G Track",
+          completedAt,
+          notes: "Imported from signed-in G Track history.",
+        });
+      }
+      return entries;
+    }
+    const reasoningScore = gTrackStandardScore(row, "theta");
+    return reasoningScore === null
+      ? []
+      : [{
+        id: `gtrack-reasoning-${row.id}-theta`,
+        domain: "reasoning",
+        timepoint: "ad_hoc",
+        label: "G Track Matrix",
+        score: reasoningScore,
+        confidence: row.issuedNorm?.theta?.normStatus?.confidence || row.latestNorm?.theta?.normStatus?.confidence || "G Track",
+        source: "G Track",
+        completedAt,
+        notes: "Imported from signed-in G Track history.",
+      }];
+  });
+}
+
 function proofEntriesFor(domain: ProofBenchmarkDomain): ProofBenchmarkEntry[] {
   return state.progress.proofBenchmarks
     .filter((entry) => entry.domain === domain)
     .sort((a, b) => a.completedAt.localeCompare(b.completedAt));
 }
 
+function proofStatus(score: number | null): string {
+  if (score === null) return "No score yet";
+  if (score >= 115) return "Strong";
+  if (score >= 105) return "Above average";
+  if (score >= 90) return "Typical range";
+  return "Needs re-check";
+}
+
+function proofBarPercent(score: number | null): number {
+  if (score === null) return 0;
+  return Math.max(4, Math.min(100, ((score - 70) / 60) * 100));
+}
+
+function proofSparkline(entries: ProofBenchmarkEntry[]): string {
+  const scored = entries.filter((entry) => entry.score !== null && entry.score !== undefined).slice(-3);
+  if (scored.length < 2) return "";
+  const points = scored.map((entry, index) => {
+    const left = scored.length === 1 ? 50 : (index / (scored.length - 1)) * 100;
+    const top = 100 - proofBarPercent(entry.score);
+    return `<i style="left:${left}%;top:${top}%"></i>`;
+  }).join("");
+  return `<span class="proof-mini-trend" aria-hidden="true">${points}</span>`;
+}
+
 function proofSummaryCard(domain: ProofBenchmarkDomain): string {
   const entries = proofEntriesFor(domain);
   const latest = entries[entries.length - 1] || null;
-  const baseline = entries.find((entry) => entry.timepoint === "baseline" && entry.score !== null) || null;
+  const scoredEntries = entries.filter((entry) => entry.score !== null && entry.score !== undefined);
+  const baseline = entries.find((entry) => entry.timepoint === "baseline" && entry.score !== null) || scoredEntries[0] || null;
   const change = latest?.score !== null && latest?.score !== undefined && baseline?.score !== null && baseline?.score !== undefined
     ? latest.score - baseline.score
     : null;
@@ -2256,12 +2385,28 @@ function proofSummaryCard(domain: ProofBenchmarkDomain): string {
     working_memory: "Working memory",
     reasoning: "Reasoning",
   };
+  const latestScore = latest?.score ?? null;
+  const scoreText = latestScore === null ? "--" : Math.round(latestScore).toString();
+  const status = proofStatus(latestScore);
+  const source = latest?.source || (latest ? "Manual" : "G Track");
   return `
     <article class="proof-summary-card">
-      <span>${shortLabels[domain]}</span>
-      <strong>${latest?.score === null || latest?.score === undefined ? "No entry" : latest.score}</strong>
-      <small>${latest ? `${escapeHtml(PROOF_TIMEPOINT_LABELS[latest.timepoint])} - ${escapeHtml(latest.confidence || "Confidence not set")}` : "Add when available."}</small>
-      ${change === null ? "" : `<em>${change > 0 ? "+" : ""}${change} from baseline</em>`}
+      <div class="proof-card-top">
+        <span>${shortLabels[domain]}</span>
+        <strong>${scoreText}</strong>
+      </div>
+      <div class="proof-score-bar" aria-label="${shortLabels[domain]} score ${scoreText}">
+        <b></b>
+        <i style="width:${proofBarPercent(latestScore)}%"></i>
+      </div>
+      <div class="proof-card-meta">
+        <small>${escapeHtml(status)}${latest ? ` · ${escapeHtml(source)}` : ""}</small>
+        <small>${latest ? escapeHtml(latest.completedAt || "No date") : "Take or add a G Track check."}</small>
+      </div>
+      <div class="proof-card-foot">
+        ${change === null || latest === baseline ? "<em>Baseline pending</em>" : `<em>${change > 0 ? "+" : ""}${Math.round(change)} since first check</em>`}
+        ${proofSparkline(scoredEntries)}
+      </div>
     </article>
   `;
 }
@@ -2272,15 +2417,17 @@ function proofEntryRows(): string {
   }
   return [...state.progress.proofBenchmarks]
     .sort((a, b) => b.completedAt.localeCompare(a.completedAt))
-    .map((entry) => `
-      <div class="proof-entry-row">
-        <span>${escapeHtml(PROOF_DOMAIN_LABELS[entry.domain])}</span>
-        <strong>${escapeHtml(entry.label)} - ${entry.score ?? "No score"}</strong>
-        <small>${escapeHtml(PROOF_TIMEPOINT_LABELS[entry.timepoint])} - ${escapeHtml(entry.completedAt || "No date")} - ${escapeHtml(entry.confidence || "Confidence not set")}</small>
-        <button data-proof-edit="${escapeHtml(entry.id)}">Edit</button>
-        <button data-proof-delete="${escapeHtml(entry.id)}">Delete</button>
-      </div>
-    `).join("");
+    .map((entry) => {
+      const isGTrack = entry.id.startsWith("gtrack-") || entry.source === "G Track";
+      return `
+        <div class="proof-entry-row">
+          <span>${escapeHtml(PROOF_DOMAIN_LABELS[entry.domain])}</span>
+          <strong>${escapeHtml(entry.label)} - ${entry.score ?? "No score"}</strong>
+          <small>${escapeHtml(PROOF_TIMEPOINT_LABELS[entry.timepoint])} - ${escapeHtml(entry.completedAt || "No date")} - ${escapeHtml(entry.confidence || "Confidence not set")}</small>
+          ${isGTrack ? "<em>Synced from G Track</em>" : `<button data-proof-edit="${escapeHtml(entry.id)}">Edit</button><button data-proof-delete="${escapeHtml(entry.id)}">Delete</button>`}
+        </div>
+      `;
+    }).join("");
 }
 
 function optionTags<T extends string>(values: Record<T, string>, selected: T): string {
@@ -2333,12 +2480,13 @@ function renderProofForm(): string {
 
 function renderProof(): string {
   return shell(`
-    ${appTabs("proof")}
+    ${appTabs("progress")}
     <section class="proof-screen proof-overview-screen no-scroll-screen">
+      ${renderDashboardHeader("Progress", "proof", "Private benchmark check-ins stay separate from coach scores.")}
       <div class="proof-hero">
-        <p class="ui-eyebrow">Private benchmarks</p>
-        <h1>Personal comparison notes</h1>
-        <p>Record external test results for your own reflection. These notes are not proof for ranking, selection, employment, admission, or credentialing.</p>
+        <p class="ui-eyebrow">G Track check-in</p>
+        <h1>Three quick proof signals</h1>
+        <p>Signed-in G Track scores and private entries stay separate from coach training scores.</p>
       </div>
       <section class="proof-summary-grid">
         ${proofSummaryCard("attention")}
@@ -2346,10 +2494,10 @@ function renderProof(): string {
         ${proofSummaryCard("reasoning")}
       </section>
       <section class="overview-next-card proof-next-card">
-        <p><strong>Private records only.</strong> The app does not verify, certify, or transmit these scores to organisations.</p>
+        <p><strong>Use as a check-in.</strong> These are not IQ scores, certificates, or selection evidence.</p>
         <div class="dashboard-actions proof-actions">
-          ${button("Add entry", "nav-proof-entry")}
-          ${button("View entries", "nav-proof-entry", "secondary")}
+          ${button("Add manual score", "nav-proof-entry")}
+          ${button("View details", "nav-proof-entry", "secondary")}
         </div>
       </section>
     </section>
@@ -2358,12 +2506,13 @@ function renderProof(): string {
 
 function renderProofEntry(): string {
   return shell(`
-    ${appTabs("proof")}
+    ${appTabs("progress")}
     <section class="proof-screen proof-entry-screen">
+      ${renderDashboardHeader("Progress", "proof", "Private benchmark check-ins stay separate from coach scores.")}
       <div class="proof-hero compact-page-header">
         <p class="ui-eyebrow">Private benchmark entry</p>
         <h1>Manual records.</h1>
-        <p>Entries stay separate from training scores and are never labelled as IQ improvement, credentials, or selection evidence.</p>
+        <p>Entries stay separate from training scores and are never labelled as credentials or selection evidence.</p>
       </div>
       ${renderProofForm()}
       <section class="proof-entries-card">
@@ -2883,7 +3032,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
   };
 }
 
-function progressDashboardSegmentedControl(active: ProgressDashboardMode): string {
+function progressDashboardSegmentedControl(active: ProgressSectionMode): string {
   const scoreDetailReady = canShowScoreDetail();
   return `
     <div class="progress-segmented" aria-label="Progress dashboard view">
@@ -2894,6 +3043,10 @@ function progressDashboardSegmentedControl(active: ProgressDashboardMode): strin
       <button class="${active === "detail" ? "is-active" : ""}" data-action="${scoreDetailReady ? "nav-progress-detail" : "nav-progress-overview"}">
         <span class="segment-icon" aria-hidden="true">${miniIcon("list")}</span>
         ${scoreDetailReady ? "Score Detail" : "Unlocks after S5"}
+      </button>
+      <button class="${active === "proof" ? "is-active" : ""}" data-action="nav-proof">
+        <span class="segment-icon" aria-hidden="true">${miniIcon("shield")}</span>
+        Proof
       </button>
     </div>
   `;
@@ -3084,7 +3237,7 @@ function skillScale(score: number | null, tone: string): string {
   `;
 }
 
-function renderDashboardHeader(title: string, mode: ProgressDashboardMode, note: string): string {
+function renderDashboardHeader(title: string, mode: ProgressSectionMode, note: string): string {
   return `
     <div class="dashboard-header" aria-label="${escapeHtml(title)} - ${escapeHtml(note)}">
       ${progressDashboardSegmentedControl(mode)}
@@ -3292,6 +3445,53 @@ function renderProgress(): string {
   `);
 }
 
+function renderCoaching(): string {
+  return shell(`
+    ${appTabs("coaching")}
+    <section class="coaching-screen">
+      <div class="coaching-hero">
+        <p class="ui-eyebrow">One-to-one coaching</p>
+        <h1>Book a personal Zoom review.</h1>
+        <p>Use a short coaching session to review your Attention Coach pattern, decide the right pace, and choose what to do next.</p>
+        <div class="coaching-actions">
+          ${button("Book Zoom coaching", "open-coaching-checkout")}
+          ${button("What will my coach see?", "nav-data-rights", "secondary")}
+        </div>
+      </div>
+      <section class="coaching-value-grid" aria-label="What one-to-one coaching adds">
+        <article>
+          <span>${miniIcon("chart")}</span>
+          <strong>Review your progress</strong>
+          <p>Your coach reviews your training pattern, possible attention bottlenecks, and what looks reliable so far.</p>
+        </article>
+        <article>
+          <span>${miniIcon("pathway")}</span>
+          <strong>Plan next steps</strong>
+          <p>Get guidance on whether to continue, slow down, repeat a step, change emphasis, or take a break.</p>
+        </article>
+        <article>
+          <span>${miniIcon("signal")}</span>
+          <strong>Understand results</strong>
+          <p>Talk through score patterns, transfer checks, proof signals, and where more sessions are needed.</p>
+        </article>
+        <article>
+          <span>${miniIcon("shield")}</span>
+          <strong>Keep claims careful</strong>
+          <p>Coaching helps interpret training signals for personal use. It is not a certificate, diagnosis, or selection report.</p>
+        </article>
+      </section>
+      <figure class="coaching-protocol-strip">
+        <img
+          src="${assetPath("trident-g-far-transfer-protocol.png")}"
+          alt="Trident G far transfer protocol pathway: start simple, change the display, keep the same rule, mix formats, and use the skill more widely."
+          width="1433"
+          height="213"
+        />
+      </figure>
+    </section>
+  `);
+}
+
 function scoreForCell(cell: CellKey): string {
   const evidence = state.progress.evidence.find((item) => item.construct === "ACC" && item.cellKey === cell);
   if (!evidence || evidence.currentCapacityBps === null) return "Calibrating";
@@ -3304,7 +3504,7 @@ function renderProfile(): string {
 }
 
 function render(): void {
-  if (state.cloudSyncMode === "cloud" && state.authReady && !state.authUser && state.view !== "auth" && state.view !== "data-rights") {
+  if (state.cloudSyncMode === "cloud" && state.authReady && !state.authUser && state.view !== "auth" && state.view !== "data-rights" && state.view !== "welcome") {
     state.view = "auth";
     state.viewHistory = [];
   }
@@ -3325,6 +3525,7 @@ function render(): void {
     "block-break": renderBlockBreak,
     complete: renderComplete,
     progress: renderProgress,
+    coaching: renderCoaching,
     proof: renderProof,
     "proof-entry": renderProofEntry,
     transfer: renderTransfer,
@@ -3364,6 +3565,7 @@ function beginSession(): void {
     `${state.progress.programmeRunId}:attention-${state.progress.sessionNumber}-${phase}`,
     state.progress.programmeRunId,
     state.progress.programmeCycle,
+    state.progress.transferControllerState,
   );
   state.activeBlockIndex = 0;
   state.activeTrialIndex = 0;
@@ -3383,6 +3585,24 @@ function beginSession(): void {
 
 function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
   clearStageTimer();
+  const transferPath = transferPathForState(state.progress.transferControllerState);
+  if (
+    state.progress.transferControllerState?.heldOutStatus === "clean" &&
+    (cellKey === transferPath.heldOutWrapper || cellKey === "mixed") &&
+    source !== "guided_practice"
+  ) {
+    state.progress = {
+      ...state.progress,
+      transferControllerState: {
+        ...state.progress.transferControllerState,
+        heldOutStatus: "contaminated",
+        legacyStatus: state.progress.transferControllerState.legacyStatus === "none"
+          ? "rebaseline_required"
+          : state.progress.transferControllerState.legacyStatus,
+      },
+    };
+    persistProgress();
+  }
   state.sessionPlan = createFreePlaySessionPlan(construct, cellKey);
   state.activeBlockIndex = 0;
   state.activeTrialIndex = 0;
@@ -3405,10 +3625,6 @@ function beginFreePlay(construct: Construct, cellKey: CellKey, source: SessionSo
 }
 
 function startGuidedInstructions(): void {
-  if (guidedSessionsCompleted() >= TARGET_ENVELOPE_SESSIONS) {
-    go("today");
-    return;
-  }
   if (!state.progress.deviceReadiness) {
     state.pendingTaskStart = null;
     go("readiness");
@@ -3563,10 +3779,19 @@ function endCurrentBlock(): void {
 }
 
 function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results: TrialResult[]) {
+  const transferState = state.progress.transferControllerState;
   return {
     clientSessionId: plan.sessionId,
     programmeRunId: plan.programmeRunId,
     programmeCycle: plan.programmeCycle,
+    protocolGroup: state.progress.protocolGroup,
+    startCarrier: transferState.startCarrier,
+    startCohort: transferState.startCohort,
+    startWrapper: transferState.startWrapper,
+    carrierTargetWrapper: transferState.carrierTargetWrapper,
+    frameTargetWrapper: transferState.frameTargetWrapper,
+    heldOutWrapper: transferState.heldOutWrapper,
+    heldOutStatus: transferState.heldOutStatus,
     clientBlockId: block.id,
     sessionNumber: plan.sessionNumber,
     phaseLabel: plan.phase,
@@ -3584,6 +3809,21 @@ function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results
       construct: result.trial.construct,
       cellKey: result.trial.cellKey,
       transitionKey: result.trial.transitionKey,
+      wrapperId: result.trial.wrapperId,
+      carrier: result.trial.carrier,
+      frame: result.trial.frame,
+      probeStatus: result.trial.probeStatus,
+      mixRatio: result.trial.mixRatio,
+      mappingTiming: result.trial.mappingTiming,
+      lureType: result.trial.lureType,
+      transferEventId: result.trial.transferEventId,
+      startCarrier: transferState.startCarrier,
+      startCohort: transferState.startCohort,
+      startWrapper: transferState.startWrapper,
+      carrierTargetWrapper: transferState.carrierTargetWrapper,
+      frameTargetWrapper: transferState.frameTargetWrapper,
+      heldOutWrapper: transferState.heldOutWrapper,
+      heldOutStatus: transferState.heldOutStatus,
       phaseLabel: result.trial.phase,
       isReferenceRecheck: result.trial.isReferenceRecheck,
       response: result.response,
@@ -3647,6 +3887,13 @@ function finalizeGuidedSession(input: {
       reason: input.decision.reason,
       readiness: input.decision.readiness,
       protocolGroup: state.progress.protocolGroup,
+      startCarrier: state.progress.transferControllerState.startCarrier,
+      startCohort: state.progress.transferControllerState.startCohort,
+      startWrapper: state.progress.transferControllerState.startWrapper,
+      carrierTargetWrapper: state.progress.transferControllerState.carrierTargetWrapper,
+      frameTargetWrapper: state.progress.transferControllerState.frameTargetWrapper,
+      heldOutWrapper: state.progress.transferControllerState.heldOutWrapper,
+      heldOutStatus: state.progress.transferControllerState.heldOutStatus,
       programmeRunId: plan.programmeRunId,
       programmeCycle: plan.programmeCycle,
       completedSession: {
@@ -3657,6 +3904,8 @@ function finalizeGuidedSession(input: {
         phase: input.completedPhase,
         phaseStatus: input.completedPhaseStatus,
         protocolGroup: state.progress.protocolGroup,
+        startCarrier: state.progress.transferControllerState.startCarrier,
+        startCohort: state.progress.transferControllerState.startCohort,
       },
       nextState: {
         sessionNumber: input.nextSessionNumber,
@@ -3683,6 +3932,7 @@ function finalizeGuidedSession(input: {
     },
   })).then(() => {
     void hydrateStandardizedScores();
+    void hydrateGTrackProofScores();
   }).catch((error) => {
     console.warn("Attention session was not finalized.", error);
   });
@@ -3714,6 +3964,7 @@ function completeSession(): void {
     protocolGroup: state.progress.protocolGroup,
     completedTransitions: state.progress.completedTransitions,
     evidence: updatedEvidence,
+    transferControllerState: state.progress.transferControllerState,
   });
   const transitionKeys = decision.shouldTransition
     ? transitionEventsForPhaseAdvance(decision.fromPhase, decision.toPhase)
@@ -3750,6 +4001,7 @@ function completeSession(): void {
     evidence: updatedEvidence,
     farTransferWindows,
     latestSnapshot: snapshot,
+    transferControllerState: decision.transferControllerState || state.progress.transferControllerState,
     completions: [...state.progress.completions, guidedCompletion].slice(-60),
     scoreHistory: [...(state.progress.scoreHistory || []), scoreHistoryEntry].slice(-30),
     profileRevealSeen: state.progress.profileRevealSeen || shouldRevealProfile,
@@ -3952,6 +4204,8 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "nav-tutorial") go("briefing");
   else if (action === "nav-free-play") go("free-play");
   else if (action === "nav-free-play-formats") go("free-play-formats");
+  else if (action === "nav-coaching") go("coaching");
+  else if (action === "open-coaching-checkout") window.location.href = COACHING_CHECKOUT_URL;
   else if (action === "nav-proof") go("proof");
   else if (action === "nav-proof-entry") go("proof-entry");
   else if (action === "nav-progress") {
@@ -4042,6 +4296,7 @@ appRoot.addEventListener("click", async (event) => {
     const preservedProtocolAssignedAt = state.progress.protocolAssignedAt;
     const preservedScratchBaselines = state.progress.scratchBaselines;
     const nextProgrammeCycle = (state.progress.programmeCycle || 1) + 1;
+    const restartPhase = PHASE_ORDER_BY_GROUP[preservedProtocolGroup][0];
     clearStageTimer();
     state = {
       ...state,
@@ -4049,12 +4304,20 @@ appRoot.addEventListener("click", async (event) => {
         ...DEFAULT_PROGRESS,
         programmeRunId: newProgrammeRunId(nextProgrammeCycle),
         programmeCycle: nextProgrammeCycle,
+        currentPhase: restartPhase,
         deviceReadiness: preservedReadiness,
         protocolGroup: preservedProtocolGroup,
         protocolAssignmentVersion: preservedProtocolAssignmentVersion,
         protocolAssignmentSeed: preservedProtocolAssignmentSeed,
         protocolAssignedAt: preservedProtocolAssignedAt,
         scratchBaselines: preservedScratchBaselines,
+        transferControllerState: migrateTransferControllerState({
+          existing: null,
+          currentPhase: restartPhase,
+          sessionNumber: 1,
+          evidence: [],
+          protocolGroup: preservedProtocolGroup,
+        }),
       },
       sessionPlan: null,
       sessionMode: "protocol",

@@ -8,8 +8,10 @@ import type {
   PhaseStatus,
   ProtocolGroup,
   ScratchBaseline,
+  TransferControllerState,
   TransitionKey,
 } from "./types";
+import { migrateTransferControllerState } from "./transferController";
 
 const PREFIX = "attention-coach";
 const BROWSER_DEVICE_ID_KEY = `${PREFIX}:browserDeviceId`;
@@ -88,6 +90,7 @@ export interface LocalProgress {
   blockFeedbackHistory: BlockFeedbackPoint[];
   seenInvariantPromptKeys: string[];
   profileRevealSeen: boolean;
+  transferControllerState: TransferControllerState;
 }
 
 export const DEFAULT_PROGRESS: LocalProgress = {
@@ -112,6 +115,11 @@ export const DEFAULT_PROGRESS: LocalProgress = {
   blockFeedbackHistory: [],
   seenInvariantPromptKeys: [],
   profileRevealSeen: false,
+  transferControllerState: migrateTransferControllerState({
+    currentPhase: "P1_ARROW_ABS",
+    sessionNumber: 1,
+    evidence: [],
+  }),
 };
 
 export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress {
@@ -120,7 +128,17 @@ export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress
   const programmeRunId = typeof (progress as Partial<LocalProgress>).programmeRunId === "string" && progress.programmeRunId.trim()
     ? progress.programmeRunId
     : newProgrammeRunId(programmeCycle);
-  return { ...progress, programmeRunId, programmeCycle };
+  const withRun = { ...progress, programmeRunId, programmeCycle };
+  return {
+    ...withRun,
+    transferControllerState: migrateTransferControllerState({
+      existing: withRun.transferControllerState,
+      currentPhase: withRun.currentPhase,
+      sessionNumber: withRun.sessionNumber,
+      evidence: withRun.evidence || [],
+      protocolGroup: withRun.protocolGroup,
+    }),
+  };
 }
 
 export function loadProgress(): LocalProgress {
