@@ -8562,3 +8562,42 @@ button.score-card {
     transition-duration: 0.001ms !important;
   }
 }
+/* Keeps bottom actions clear of the rounded app shell on constrained viewports. */
+.app-content {
+  padding-bottom: calc(28px + env(safe-area-inset-bottom));
+  scroll-padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+.auth-screen,
+.data-rights-screen,
+.proof-screen,
+.proof-overview-screen,
+.proof-entry-screen {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+.app-content.view-data-rights,
+.app-content.view-auth,
+.app-content.view-proof,
+.app-content.view-proof-entry,
+.app-content.view-progress,
+.app-content.view-coaching {
+  overflow: auto;
+}
+
+.app-content.view-coaching .coaching-screen,
+.app-content.view-progress .progress-score-page,
+.app-content.view-progress .dashboard-screen {
+  padding-bottom: calc(24px + env(safe-area-inset-bottom));
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: calc(40px + env(safe-area-inset-bottom));
+}
+
+.auth-card,
+.proof-form-card {
+  max-height: none;
+}
