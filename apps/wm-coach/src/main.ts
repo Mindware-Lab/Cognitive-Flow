@@ -1,4 +1,4 @@
-﻿import "./styles.css";
+import "./styles.css";
 import { createFreePlaySessionPlan, createSessionPlan, generateTrial, phaseIntro } from "./generator";
 import { buildInterblockFeedback, createBlockFeedbackPoint, getInvariantPrompt, invariantPromptKey, type InterblockFeedback, type InterblockGraph } from "./interblockFeedback";
 import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./opticFlow";
@@ -372,7 +372,7 @@ function assetPath(path: string): string {
 
 function authLabel(): string {
   if (!cloudSyncAvailable) return "Local demo";
-  if (state.cloudSyncMode === "local") return "Local only";
+  if (state.cloudSyncMode === "local") return "Local demo";
   if (!state.authReady) return "Checking sign-in";
   return state.authUser?.email || "Sign in required";
 }
@@ -383,7 +383,7 @@ function dataStatusLabel(): string {
 
 function syncLabel(): string {
   const labels: Record<SyncState, string> = {
-    local: "Local only",
+    local: "Local demo",
     checking: "Checking sync",
     synced: "Synced",
     pending: "Sync pending",
@@ -416,7 +416,7 @@ function markDataModeSeen(): void {
 
 function dataModeLabel(mode: DataMode = state.dataMode): string {
   const labels: Record<DataMode, string> = {
-    local: "Local only",
+    local: "Local demo",
     cloud_personal: "Cloud sync: personal baseline",
     cloud_benchmark: "Cloud sync: standardised scores",
   };
@@ -1176,7 +1176,6 @@ function renderAuth(): string {
               </label>
               <div class="action-row">
                 ${button(state.authBusy ? "Sending..." : "Send sign-in link", "send-login-link")}
-                ${button("Use local only", "use-local-only", "secondary")}
               </div>`
             : `<p class="claims-note">Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before inviting beta testers.</p>
               <div class="action-row">${button("Continue local demo", "nav-welcome")}</div>`
@@ -1200,9 +1199,9 @@ function dataModeCard(mode: DataMode, title: string, copy: string, action: strin
 
 function renderDataRights(): string {
   const cloudActive = cloudSyncActive();
-  const continueLabel = state.dataMode === "local" || state.authUser ? "Device check" : "Sign in";
+  const continueLabel = state.authUser ? "Device check" : "Sign in";
   const cloudCopy = cloudSyncAvailable
-    ? "Choose how this app stores and scores your training data. You can change this later from Data."
+    ? "Sign in is required to use WM Coach. Choose one of the data-rights options below, then use the email link to continue into training."
     : "Cloud sync is not configured for this build.";
   return shell(`
     <section class="data-rights-screen">
@@ -1212,7 +1211,6 @@ function renderDataRights(): string {
         <p>${escapeHtml(cloudCopy)}</p>
       </section>
       <section class="data-mode-grid">
-        ${dataModeCard("local", "Local only", "Data stays in this browser. No cloud sync or benchmark contribution.", "select-data-local")}
         ${dataModeCard("cloud_personal", "Cloud personal baseline", "Sign in to switch devices or recover progress. Scores stay relative to you.", "select-data-cloud-personal")}
         ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Sign in to switch devices and contribute guided metrics to aggregate norms.", "select-data-cloud-benchmark")}
       </section>
@@ -1220,7 +1218,7 @@ function renderDataRights(): string {
         <article class="data-rights-card is-blue">
           <span>Mode</span>
           <strong>${escapeHtml(dataModeLabel())}</strong>
-          <p>${state.dataMode === "cloud_benchmark" ? "Standardised scores appear after signed-in sessions and sufficient opted-in comparison data." : state.dataMode === "cloud_personal" ? "Remote saves happen only while you are signed in; benchmark norms are not updated from this mode." : "Data is stored in this browser only."}</p>
+          <p>${state.dataMode === "cloud_benchmark" ? "Standardised scores appear after signed-in sessions and sufficient opted-in comparison data." : "Remote saves happen only while you are signed in; benchmark norms are not updated from this mode."}</p>
           <div class="data-rights-actions">
             ${state.cloudSyncMode === "cloud" && state.authUser ? button("Sign out", "sign-out", "ghost") : ""}
           </div>
@@ -4551,7 +4549,7 @@ appRoot.addEventListener("click", async (event) => {
     await signOutUser();
     state.authUser = null;
     state.authReady = true;
-    setCloudSyncMode("local");
+    setDataMode("cloud_personal");
     state.viewHistory = [];
     go("data-rights", { replace: true });
   } else if (action === "enable-cloud-sync") {
@@ -4562,22 +4560,10 @@ appRoot.addEventListener("click", async (event) => {
       state.authMessage = "Enter your email to enable cloud sync.";
       go("auth");
     }
-  } else if (action === "use-local-only") {
-    setCloudSyncMode("local");
-    if (state.authUser) {
-      await signOutUser().catch((error) => console.warn("Sign out after local mode failed.", error));
-      state.authUser = null;
-    }
-    state.authReady = true;
-    go(state.view === "auth" ? "welcome" : "data-rights", { replace: true });
-  } else if (action === "select-data-local") {
-    setDataMode("local");
-    if (state.authUser) {
-      await signOutUser().catch((error) => console.warn("Sign out after local mode failed.", error));
-      state.authUser = null;
-    }
-    state.authReady = true;
-    render();
+  } else if (action === "use-local-only" || action === "select-data-local") {
+    setDataMode("cloud_personal");
+    state.authMessage = "Sign in is required to use this app.";
+    go("auth");
   } else if (action === "select-data-cloud-personal") {
     setDataMode("cloud_personal");
     if (state.authUser) {
