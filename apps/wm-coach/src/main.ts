@@ -417,8 +417,8 @@ function markDataModeSeen(): void {
 function dataModeLabel(mode: DataMode = state.dataMode): string {
   const labels: Record<DataMode, string> = {
     local: "Local demo",
-    cloud_personal: "Cloud sync: personal baseline",
-    cloud_benchmark: "Cloud sync: standardised scores",
+    cloud_personal: "Cloud personal",
+    cloud_benchmark: "Cloud standard scores",
   };
   return labels[mode];
 }
@@ -1154,10 +1154,10 @@ const TASK_SPEED_DISPLAY_RATIO = 0.65;
 
 function renderAuth(): string {
   const benchmark = benchmarkScoringSelected();
-  const headline = benchmark ? "Sign in for standardised scores" : "Sign in for cloud sync";
+  const headline = "Email sign in";
   const body = benchmark
-    ? "Cloud sync keeps your programme available across devices. This mode also contributes your guided-session metric observations to aggregate benchmark norms and can show standardised scores when enough comparison data exists."
-    : "Cloud sync keeps your programme available across devices and shows scores relative to your own early-session baseline. It does not contribute your metrics to population benchmark norms.";
+    ? "Sign in to sync scores across supported IQ Mindware apps and receive standardised scores."
+    : "Sign in to sync scores across supported IQ Mindware apps. Standardised scores are not shown in this mode.";
   return shell(`
     <section class="auth-screen">
       <div class="auth-card">
@@ -1180,7 +1180,7 @@ function renderAuth(): string {
             : `<p class="claims-note">Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before inviting beta testers.</p>
               <div class="action-row">${button("Continue local demo", "nav-welcome")}</div>`
         }
-        <p class="auth-message">${escapeHtml(state.authMessage || "You will receive a secure magic link. No paid account is required.")}</p>
+        <p class="auth-message">${escapeHtml(state.authMessage || "You will receive a secure sign-in link. Use the email linked to your IQ Mindware access.")}</p>
         <p class="splash-claims">Training support only. Not a diagnosis, clinical treatment, brain measurement, or IQ score.</p>
       </div>
     </section>
@@ -1190,7 +1190,7 @@ function renderAuth(): string {
 function dataModeCard(mode: DataMode, title: string, copy: string, action: string): string {
   const selected = state.dataMode === mode;
   return `<button class="data-mode-card ${selected ? "is-selected" : ""}" data-action="${action}" aria-pressed="${selected ? "true" : "false"}">
-    <span class="data-mode-card-kicker">${mode === "local" ? "Default" : mode === "cloud_personal" ? "Cloud" : "Cloud + benchmark"}</span>
+    <span class="data-mode-card-kicker">${mode === "local" ? "Default" : mode === "cloud_personal" ? "Cloud personal" : "Cloud standard scores"}</span>
     <strong>${escapeHtml(title)}</strong>
     <p>${escapeHtml(copy)}</p>
     <span class="mode-select-pill">${selected ? "Selected" : "Choose"}</span>
@@ -1211,14 +1211,14 @@ function renderDataRights(): string {
         <p>${escapeHtml(cloudCopy)}</p>
       </section>
       <section class="data-mode-grid">
-        ${dataModeCard("cloud_personal", "Cloud personal baseline", "Sign in to switch devices or recover progress. Scores stay relative to you.", "select-data-cloud-personal")}
-        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Sign in to switch devices and contribute guided metrics to aggregate norms.", "select-data-cloud-benchmark")}
+        ${dataModeCard("cloud_personal", "Cloud personal", "Email sign-in syncs scores across G Track and Attention Coach. No standardised scores.", "select-data-cloud-personal")}
+        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Email sign-in syncs scores across apps and gives you standardised scores.", "select-data-cloud-benchmark")}
       </section>
       <section class="data-rights-grid">
         <article class="data-rights-card is-blue">
           <span>Mode</span>
           <strong>${escapeHtml(dataModeLabel())}</strong>
-          <p>${state.dataMode === "cloud_benchmark" ? "Standardised scores appear after signed-in sessions and sufficient opted-in comparison data." : "Remote saves happen only while you are signed in; benchmark norms are not updated from this mode."}</p>
+          <p>${state.dataMode === "cloud_benchmark" ? "Scores sync across supported apps, and standardised scores appear when the comparison sample is sufficient." : "Scores sync across supported apps. No population-standardised scores are shown in this mode."}</p>
           <div class="data-rights-actions">
             ${state.cloudSyncMode === "cloud" && state.authUser ? button("Sign out", "sign-out", "ghost") : ""}
           </div>
@@ -1240,7 +1240,7 @@ function renderDataRights(): string {
         <strong>Non-selection boundary</strong>
         <p>Scores are personal training signals. The app does not create certificates, rankings, employer links, or score APIs.</p>
       </section>
-      ${!state.dataModeSeen ? `<div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>` : ""}
+      ${state.authUser ? `<div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>` : ""}
     </section>
   `);
 }
@@ -1270,7 +1270,7 @@ function setDataMode(mode: DataMode): void {
   } else {
     state.syncState = state.authUser ? "checking" : "pending";
     state.syncMessage = state.authUser
-      ? state.dataMode === "cloud_benchmark" ? "Cloud benchmark mode enabled." : "Cloud sync enabled."
+      ? state.dataMode === "cloud_benchmark" ? "Cloud standard scores selected." : "Cloud personal selected."
       : "Sign in to sync devices.";
     void hydrateStandardizedScores();
     void hydrateGTrackProofScores();
@@ -4557,7 +4557,7 @@ appRoot.addEventListener("click", async (event) => {
     if (state.authUser) {
       await restoreRemoteProgress();
     } else {
-      state.authMessage = "Enter your email to enable cloud sync.";
+      state.authMessage = "Enter your email to continue with this data option.";
       go("auth");
     }
   } else if (action === "use-local-only" || action === "select-data-local") {
@@ -4566,22 +4566,26 @@ appRoot.addEventListener("click", async (event) => {
     go("auth");
   } else if (action === "select-data-cloud-personal") {
     setDataMode("cloud_personal");
+    markDataModeSeen();
     if (state.authUser) {
       await restoreRemoteProgress();
     } else {
-      render();
+      state.authMessage = "Enter your email to continue with Cloud personal.";
+      go("auth");
     }
   } else if (action === "select-data-cloud-benchmark") {
     setDataMode("cloud_benchmark");
+    markDataModeSeen();
     if (state.authUser) {
       await restoreRemoteProgress();
     } else {
-      render();
+      state.authMessage = "Enter your email to continue with Cloud standard scores.";
+      go("auth");
     }
   } else if (action === "continue-after-data-rights") {
     markDataModeSeen();
     if (state.cloudSyncMode === "cloud" && !state.authUser) {
-      state.authMessage = "Enter your email to continue with this cloud option.";
+      state.authMessage = "Enter your email to continue with this data option.";
       go("auth");
     } else {
       go("readiness");

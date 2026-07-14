@@ -5471,6 +5471,27 @@ button.score-card {
     overflow-x: hidden;
   }
 
+  .splash-wave {
+    width: 100%;
+    left: 0;
+  }
+
+  .splash-wave-one,
+  .splash-wave-two {
+    transform: none;
+  }
+
+  .splash-network-top {
+    right: 12px;
+    width: 150px;
+    height: 150px;
+  }
+
+  .splash-network-side {
+    left: 8px;
+    width: 128px;
+    height: 164px;
+  }
   .app-shell,
   .task-shell {
     width: 100vw;

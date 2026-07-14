@@ -1,4 +1,4 @@
-import { PHASE_CELL, phaseStatusForPhase } from "./protocol";
+import { PHASE_CELL, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase } from "./protocol";
 import type {
   CellEvidence,
   CellKey,
@@ -713,6 +713,15 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
   return state;
 }
 
+function allReady(flags: WapDecision["readiness"]): boolean {
+  return Object.values(flags).every(Boolean);
+}
+
+function statusForStay(input: WapUserState, flags: WapDecision["readiness"]): PhaseStatus {
+  if (input.sessionNumber > TARGET_ENVELOPE_SESSIONS && !allReady(flags)) return "extended_for_learning_curve";
+  if (flags.minimumTrials && flags.enoughWindows && !allReady(flags)) return "flattening";
+  return input.phaseStatus;
+}
 export function chooseNextTransferState(input: WapUserState): WapDecision {
   const current = migrateTransferControllerState({
     existing: input.transferControllerState,
@@ -723,32 +732,33 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
   });
   const next = nextTransferState(current, input);
   const toPhase = legacyPhaseFor(next);
-  const phaseStatus = statusForTransferPhase(next.phase) || phaseStatusForPhase(toPhase);
-  const shouldTransition = toPhase !== input.currentPhase || phaseStatus !== input.phaseStatus || next.phase !== current.phase;
-  const activeCell = PHASE_CELL[toPhase] === "mixed" ? transferPathForState(next).startWrapper : PHASE_CELL[toPhase];
+  const phaseAdvanced = toPhase !== input.currentPhase;
+  const activeCell = PHASE_CELL[input.currentPhase] === "mixed" ? transferPathForState(current).startWrapper : PHASE_CELL[input.currentPhase];
   const activeEvidence = evidenceFor(input.evidence, "ACC", activeCell as WrapperId);
   const ready = flattened(activeEvidence);
+  const readiness = {
+    minimumTrials: Boolean(activeEvidence && activeEvidence.validTrials >= TRANSFER_DEFAULTS.baseFlatteningMinValidTrials),
+    enoughWindows: Boolean(activeEvidence && activeEvidence.rollingWindowCount >= TRANSFER_DEFAULTS.baseFlatteningMinWindows),
+    slopeStable: Boolean(activeEvidence && Math.abs(activeEvidence.recentCapacitySlope) < TRANSFER_DEFAULTS.baseFlatteningMaxAbsSlope),
+    accuracyInBand: Boolean(
+      activeEvidence &&
+        activeEvidence.balancedAccuracy >= TRANSFER_DEFAULTS.accuracyBandMin &&
+        activeEvidence.balancedAccuracy <= TRANSFER_DEFAULTS.accuracyBandMax,
+    ),
+    lapseStable: Boolean(activeEvidence && activeEvidence.lapseRate <= 0.18),
+    timingAcceptable: Boolean(activeEvidence && activeEvidence.timingQuality !== "poor"),
+    noGlobalBlocker: !input.hasGlobalFatigueFlag && !input.hasTimingLimitedFlag && ready,
+  };
+  const phaseStatus = phaseAdvanced ? statusForTransferPhase(next.phase) || phaseStatusForPhase(toPhase) : statusForStay(input, readiness);
   return {
     fromPhase: input.currentPhase,
     toPhase,
     phaseStatus,
-    shouldTransition,
-    transitionKey: transitionKeyForTransfer(current, next),
-    reason: reasonFor(next.phase, next),
+    shouldTransition: phaseAdvanced,
+    transitionKey: phaseAdvanced ? transitionKeyForTransfer(current, next) : null,
+    reason: phaseAdvanced ? reasonFor(next.phase, next) : "Continue current phase until the learning curve is stable enough.",
     transferControllerState: next,
-    readiness: {
-      minimumTrials: Boolean(activeEvidence && activeEvidence.validTrials >= TRANSFER_DEFAULTS.baseFlatteningMinValidTrials),
-      enoughWindows: Boolean(activeEvidence && activeEvidence.rollingWindowCount >= TRANSFER_DEFAULTS.baseFlatteningMinWindows),
-      slopeStable: Boolean(activeEvidence && Math.abs(activeEvidence.recentCapacitySlope) < TRANSFER_DEFAULTS.baseFlatteningMaxAbsSlope),
-      accuracyInBand: Boolean(
-        activeEvidence &&
-          activeEvidence.balancedAccuracy >= TRANSFER_DEFAULTS.accuracyBandMin &&
-          activeEvidence.balancedAccuracy <= TRANSFER_DEFAULTS.accuracyBandMax,
-      ),
-      lapseStable: Boolean(activeEvidence && activeEvidence.lapseRate <= 0.18),
-      timingAcceptable: Boolean(activeEvidence && activeEvidence.timingQuality !== "poor"),
-      noGlobalBlocker: !input.hasGlobalFatigueFlag && !input.hasTimingLimitedFlag && ready,
-    },
+    readiness,
   };
 }
 
