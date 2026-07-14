@@ -413,10 +413,10 @@ button {
 
 .auth-card {
   width: min(100%, 520px);
-  max-height: 100%;
+  max-height: none;
   min-height: 0;
   display: grid;
-  align-content: center;
+  align-content: start;
   gap: clamp(7px, 1.35vmin, 12px);
   padding: clamp(12px, 2.7vmin, 24px);
   overflow: visible;
@@ -2091,7 +2091,9 @@ button.score-card {
   flex-direction: column;
   align-items: stretch;
   gap: 8px;
-  overflow: hidden;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scroll-padding-bottom: calc(18px + env(safe-area-inset-bottom));
 }
 
 .data-rights-screen > * {
@@ -4455,6 +4457,9 @@ button.score-card {
   color: #26335f;
   font-size: 0.68rem;
   font-weight: 820;
+line-height: 1.05;
+  text-align: center;
+  white-space: normal;
 }
 
 .skills-table-heading span:first-child {
@@ -6040,6 +6045,7 @@ button.score-card {
 
   .data-rights-screen {
     gap: 8px;
+    overflow: visible;
   }
 
   .data-rights-hero,
@@ -7376,6 +7382,9 @@ button.score-card {
 :root[data-style-guide="iq"] .iq-highlight {
   color: var(--iq-lime-readable);
   font-weight: 820;
+line-height: 1.05;
+  text-align: center;
+  white-space: normal;
 }
 
 :root[data-style-guide="iq"] .splash-title .iq-highlight,
