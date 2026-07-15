@@ -730,11 +730,21 @@ button {
 }
 
 .splash-site-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   color: #52637c;
   font-size: 0.78rem;
   font-weight: 760;
   letter-spacing: 0.08em;
   text-decoration: none;
+}
+
+.splash-site-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 3px;
+  object-fit: contain;
 }
 
 .splash-site-link:hover {

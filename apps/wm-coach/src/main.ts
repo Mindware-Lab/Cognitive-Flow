@@ -1362,7 +1362,7 @@ function renderWelcome(): string {
         <small class="splash-support-note">Setup first; the guided session takes about 5-10 minutes.</small>
         <button class="splash-link" data-action="nav-data-rights">Data ethics</button>
         <button class="splash-link" data-action="nav-training-map">Brain basis</button>
-        <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer">www.iqmindware.com</a>
+        <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer"><img class="splash-site-icon" src="${assetPath("trident-splash-icon.png")}" alt="" aria-hidden="true" />www.iqmindware.com</a>
       </section>
     </section>
   `, { splash: true });
@@ -4799,7 +4799,6 @@ async function initialiseBetaAuth(): Promise<void> {
 }
 
 void initialiseBetaAuth();
-
 
 
 
