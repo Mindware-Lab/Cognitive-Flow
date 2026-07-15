@@ -591,17 +591,21 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
     "proof-entry",
     "data-rights",
   ];
+  const preAuthGate = state.cloudSyncMode === "cloud" && !state.authUser;
+  const showBetaStatus = cloudSyncAvailable && !preAuthGate;
   const contentClasses = [
     "app-content",
     `view-${state.view}`,
     tabbedViews.includes(state.view) ? "has-app-tabs" : "",
-    cloudSyncAvailable ? "has-beta-status" : "",
+    showBetaStatus ? "has-beta-status" : "",
   ].filter(Boolean).join(" ");
-  const backControl = state.viewHistory.length > 0
+  const backControl = !preAuthGate && state.viewHistory.length > 0
     ? `<button class="app-nav-button app-back-button" data-action="nav-back" aria-label="Go back">${headerIcon("back")}</button>`
     : "";
-  const homeControl = `<button class="app-nav-button app-home-button ${state.view === "today" ? "is-current" : ""}" data-action="nav-today" aria-label="Go to home screen">${headerIcon("home")}</button>`;
-  const authControl = cloudSyncAvailable && state.cloudSyncMode === "cloud" && state.authUser
+  const homeControl = preAuthGate ? "" : `<button class="app-nav-button app-home-button ${state.view === "today" ? "is-current" : ""}" data-action="nav-today" aria-label="Go to home screen">${headerIcon("home")}</button>`;
+  const authControl = preAuthGate
+    ? ""
+    : cloudSyncAvailable && state.cloudSyncMode === "cloud" && state.authUser
     ? `<button class="app-auth-button" data-action="nav-data-rights" title="${escapeHtml(authLabel())}">Data</button>`
     : cloudSyncAvailable
       ? `<button class="app-auth-button" data-action="${state.cloudSyncMode === "cloud" ? "nav-auth" : "nav-data-rights"}">${state.cloudSyncMode === "cloud" ? "Sign in" : "Data"}</button>`
@@ -613,12 +617,12 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
       <header class="app-brand-bar">
         <div class="app-header-left">${backControl}${homeControl}</div>
         <div class="app-header-brand">
-          <img src="${assetPath("attention-coach-wordmark-v3.svg")}" alt="Attention Coach" />
+          ${preAuthGate ? "" : `<img src="${assetPath("attention-coach-wordmark-v3.svg")}" alt="Attention Coach" />`}
         </div>
         <div class="app-header-right">${authControl}${soundControl}</div>
       </header>
       <div class="${contentClasses}">
-        ${cloudSyncAvailable ? `<div class="beta-status-bar"><button class="beta-status-link" data-action="${statusAction}">${escapeHtml(dataStatusLabel())}</button><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
+        ${showBetaStatus ? `<div class="beta-status-bar"><button class="beta-status-link" data-action="${statusAction}">${escapeHtml(dataStatusLabel())}</button><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
         ${content}
       </div>
     </main>
@@ -1100,7 +1104,6 @@ function renderAuth(): string {
   return shell(`
     <section class="auth-screen">
       <div class="auth-card">
-        <img src="${assetPath("iqmindware-logo.png")}" alt="IQ Mindware" />
         <p class="ui-eyebrow">${escapeHtml(dataModeLabel())}</p>
         <h1>${escapeHtml(headline)}</h1>
         <p class="ui-body">Enter your email to receive a secure sign-in link.</p>
@@ -4093,6 +4096,22 @@ appRoot.addEventListener("click", async (event) => {
   }
   const action = target.closest<HTMLElement>("[data-action]")?.dataset.action;
   if (!action) return;
+  const preAuthGate = state.cloudSyncMode === "cloud" && !state.authUser;
+  const preAuthAllowedActions = new Set([
+    "send-login-link",
+    "nav-auth",
+    "nav-data-rights",
+    "select-data-cloud-personal",
+    "select-data-cloud-benchmark",
+    "enable-cloud-sync",
+    "use-local-only",
+    "select-data-local",
+  ]);
+  if (preAuthGate && !preAuthAllowedActions.has(action)) {
+    state.authMessage = state.authMessage || "Sign in is required to use this app.";
+    go("auth");
+    return;
+  }
   if (action === "send-login-link") {
     if (state.dataMode === "local") setDataMode("cloud_personal");
     const email = inputValue("auth-email");
