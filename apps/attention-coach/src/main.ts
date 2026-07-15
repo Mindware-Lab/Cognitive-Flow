@@ -604,9 +604,10 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
   const authControl = cloudSyncAvailable && state.cloudSyncMode === "cloud" && state.authUser
     ? `<button class="app-auth-button" data-action="nav-data-rights" title="${escapeHtml(authLabel())}">Data</button>`
     : cloudSyncAvailable
-      ? `<button class="app-auth-button" data-action="nav-data-rights">${state.cloudSyncMode === "cloud" ? "Sign in" : "Data"}</button>`
+      ? `<button class="app-auth-button" data-action="${state.cloudSyncMode === "cloud" ? "nav-auth" : "nav-data-rights"}">${state.cloudSyncMode === "cloud" ? "Sign in" : "Data"}</button>`
       : "";
   const soundControl = `<button class="app-nav-button app-sound-button ${state.soundOn ? "is-on" : "is-off"}" data-action="toggle-sound" aria-label="${state.soundOn ? "Turn sound feedback off" : "Turn sound feedback on"}">${headerIcon(state.soundOn ? "sound-on" : "sound-off")}</button>`;
+  const statusAction = state.cloudSyncMode === "cloud" && !state.authUser && state.view === "auth" ? "nav-auth" : "nav-data-rights";
   return `
     <main class="app-shell">
       <header class="app-brand-bar">
@@ -617,7 +618,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
         <div class="app-header-right">${authControl}${soundControl}</div>
       </header>
       <div class="${contentClasses}">
-        ${cloudSyncAvailable ? `<div class="beta-status-bar"><button class="beta-status-link" data-action="nav-data-rights">${escapeHtml(dataStatusLabel())}</button><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
+        ${cloudSyncAvailable ? `<div class="beta-status-bar"><button class="beta-status-link" data-action="${statusAction}">${escapeHtml(dataStatusLabel())}</button><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
         ${content}
       </div>
     </main>
