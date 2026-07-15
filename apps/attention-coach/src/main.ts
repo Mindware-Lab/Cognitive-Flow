@@ -532,26 +532,26 @@ async function restoreRemoteProgress(): Promise<void> {
   if (!cloudSyncActive()) return;
   markSync("checking", "Loading beta progress.");
   render();
-  let nextView: View = "welcome";
+  let nextView: View = state.dataModeSeen ? "welcome" : "data-rights";
   try {
     const remote = await loadRemoteProgress();
     if (remote) {
       state.progress = progressForBrowserDevice({ ...DEFAULT_PROGRESS, ...remote }, currentBrowserDeviceId);
       saveProgress(state.progress);
       markSync("synced", "Beta progress loaded.");
-      nextView = "welcome";
+      nextView = state.dataModeSeen ? "welcome" : "data-rights";
     } else {
       state.progress = withProtocolAssignment(freshDefaultProgress());
       saveProgress(state.progress);
       await saveRemoteProgress(state.progress);
       markSync("synced", "New beta progress record created.");
-      nextView = "welcome";
+      nextView = state.dataModeSeen ? "welcome" : "data-rights";
     }
   } catch (error) {
     console.warn("Remote progress was not loaded.", error);
     const detail = error instanceof Error ? error.message : "Unknown sync error.";
     markSync("error", `Could not load beta progress: ${detail}`);
-    nextView = "welcome";
+    nextView = state.dataModeSeen ? "welcome" : "data-rights";
   }
   void hydrateScratchBaselines();
   void hydrateStandardizedScores();
@@ -1085,22 +1085,24 @@ function setTaskStage(stage: TaskStage): void {
 }
 
 function renderAuth(): string {
-  const benchmark = benchmarkScoringSelected();
   const headline = "Email sign in";
-  const body = benchmark
-    ? "Sign in to sync scores across supported IQ Mindware apps and receive standardised scores."
-    : "Sign in to sync scores across supported IQ Mindware apps. Standardised scores are not shown in this mode.";
+  const linkSent = state.authMessage.startsWith("Check your email");
+  if (linkSent) {
+    return shell(`
+      <section class="auth-screen">
+        <div class="auth-card">
+          <p class="auth-message">${escapeHtml(state.authMessage)}</p>
+        </div>
+      </section>
+    `);
+  }
   return shell(`
     <section class="auth-screen">
       <div class="auth-card">
         <img src="${assetPath("iqmindware-logo.png")}" alt="IQ Mindware" />
         <p class="ui-eyebrow">${escapeHtml(dataModeLabel())}</p>
         <h1>${escapeHtml(headline)}</h1>
-        <p class="ui-body">${escapeHtml(body)}</p>
-        <section class="ethics-compact-panel">
-          <strong>Use boundary</strong>
-          <span>Your data is for personal training support. It is not a diagnosis, IQ score, certificate, employer report, ranking, or selection record.</span>
-        </section>
+        <p class="ui-body">Enter your email to receive a secure sign-in link.</p>
         ${
           isSupabaseConfigured
             ? `<label>Email
@@ -1113,7 +1115,6 @@ function renderAuth(): string {
               <div class="action-row">${button("Continue local demo", "nav-welcome")}</div>`
         }
         <p class="auth-message">${escapeHtml(state.authMessage || "You will receive a secure sign-in link. Use the email linked to your IQ Mindware access.")}</p>
-        <p class="splash-claims">Training support only. Not a diagnosis, clinical treatment, brain measurement, or IQ score.</p>
       </div>
     </section>
   `);
@@ -1131,9 +1132,9 @@ function dataModeCard(mode: DataMode, title: string, copy: string, action: strin
 
 function renderDataRights(): string {
   const cloudActive = cloudSyncActive();
-  const continueLabel = state.authUser ? "Device check" : "Sign in";
+  const continueLabel = state.authUser ? "Continue testing" : "Sign in";
   const cloudCopy = cloudSyncAvailable
-    ? "Sign in is required to use Attention Coach. Choose one of the data-rights options below, then use the email link to continue into training."
+    ? "Choose a data option before training."
     : "Cloud sync is not configured for this build.";
   return shell(`
     <section class="data-rights-screen">
@@ -4132,18 +4133,18 @@ appRoot.addEventListener("click", async (event) => {
     go("auth");
   } else if (action === "select-data-cloud-personal") {
     setDataMode("cloud_personal");
-    markDataModeSeen();
     if (state.authUser) {
-      await restoreRemoteProgress();
+      markDataModeSeen();
+      go("data-rights", { replace: true });
     } else {
       state.authMessage = "Enter your email to continue with Cloud personal.";
       go("auth");
     }
   } else if (action === "select-data-cloud-benchmark") {
     setDataMode("cloud_benchmark");
-    markDataModeSeen();
     if (state.authUser) {
-      await restoreRemoteProgress();
+      markDataModeSeen();
+      go("data-rights", { replace: true });
     } else {
       state.authMessage = "Enter your email to continue with Cloud standard scores.";
       go("auth");
