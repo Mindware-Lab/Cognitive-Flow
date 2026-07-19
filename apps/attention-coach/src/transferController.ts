@@ -26,7 +26,6 @@ export const attentionTransferDefaults = {
   baseFlatteningMinWindows: 4,
   baseFlatteningMaxAbsSlope: 0.02,
   accuracyBandMin: 0.7,
-  accuracyBandMax: 0.82,
   diagnosticProbeRatio: 0.05,
   transitionProbeRatio: 0.2,
   firstContactTrials: 5,
@@ -317,7 +316,6 @@ function flattened(evidence: CellEvidence | null): boolean {
       evidence.rollingWindowCount >= TRANSFER_DEFAULTS.baseFlatteningMinWindows &&
       Math.abs(evidence.recentCapacitySlope) < TRANSFER_DEFAULTS.baseFlatteningMaxAbsSlope &&
       evidence.balancedAccuracy >= TRANSFER_DEFAULTS.accuracyBandMin &&
-      evidence.balancedAccuracy <= TRANSFER_DEFAULTS.accuracyBandMax &&
       evidence.lapseRate <= 0.18 &&
       evidence.timingQuality !== "poor",
   );
@@ -742,8 +740,7 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
     slopeStable: Boolean(activeEvidence && Math.abs(activeEvidence.recentCapacitySlope) < TRANSFER_DEFAULTS.baseFlatteningMaxAbsSlope),
     accuracyInBand: Boolean(
       activeEvidence &&
-        activeEvidence.balancedAccuracy >= TRANSFER_DEFAULTS.accuracyBandMin &&
-        activeEvidence.balancedAccuracy <= TRANSFER_DEFAULTS.accuracyBandMax,
+        activeEvidence.balancedAccuracy >= TRANSFER_DEFAULTS.accuracyBandMin,
     ),
     lapseStable: Boolean(activeEvidence && activeEvidence.lapseRate <= 0.18),
     timingAcceptable: Boolean(activeEvidence && activeEvidence.timingQuality !== "poor"),

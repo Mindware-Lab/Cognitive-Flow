@@ -6,7 +6,7 @@ import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
 import { migrateTransferControllerState, transferPathForState } from "./transferController";
-import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, loadDataMode, loadDataModeSeen, loadProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, compareProgressFreshness, loadDataMode, loadDataModeSeen, loadProgress, newerProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
   deleteAttentionData,
@@ -536,9 +536,18 @@ async function restoreRemoteProgress(): Promise<void> {
   try {
     const remote = await loadRemoteProgress();
     if (remote) {
-      state.progress = progressForBrowserDevice({ ...DEFAULT_PROGRESS, ...remote }, currentBrowserDeviceId);
+      const localProgress = progressForBrowserDevice(state.progress, currentBrowserDeviceId);
+      const remoteProgress = progressForBrowserDevice({ ...DEFAULT_PROGRESS, ...remote }, currentBrowserDeviceId);
+      const localIsNewer = compareProgressFreshness(localProgress, remoteProgress) > 0;
+      const selectedProgress = newerProgress(localProgress, remoteProgress);
+      state.progress = withProtocolAssignment(selectedProgress);
       saveProgress(state.progress);
-      markSync("synced", "Beta progress loaded.");
+      if (localIsNewer) {
+        await saveRemoteProgress(state.progress);
+        markSync("synced", "Newer browser progress restored to cloud.");
+      } else {
+        markSync("synced", "Beta progress loaded.");
+      }
       nextView = state.dataModeSeen ? "welcome" : "data-rights";
     } else {
       state.progress = withProtocolAssignment(freshDefaultProgress());

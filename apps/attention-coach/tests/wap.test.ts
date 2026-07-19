@@ -62,6 +62,17 @@ describe("WAP phase controller", () => {
     expect(decision.toPhase).toBe("P1_ARROW_ABS");
   });
 
+  it("does not block phase progression when stable accuracy is above the old target band", () => {
+    const decision = chooseNextPhase(
+      state({
+        sessionNumber: 13,
+        evidence: [evidence({ balancedAccuracy: 0.92 })],
+      }),
+    );
+    expect(decision.shouldTransition).toBe(true);
+    expect(decision.readiness.accuracyInBand).toBe(true);
+  });
+
   it("extends for learning curve after the target envelope when readiness is still incomplete", () => {
     const decision = chooseNextPhase(
       state({

@@ -141,6 +141,52 @@ export function progressWithProgrammeRun(progress: LocalProgress): LocalProgress
   };
 }
 
+function latestProgressTimestamp(progress: LocalProgress): number {
+  const timestamps = [
+    ...((progress.completions || []).map((entry) => entry.completedAt)),
+    ...((progress.scoreHistory || []).map((entry) => entry.completedAt)),
+    ...((progress.proofBenchmarks || []).map((entry) => entry.completedAt)),
+  ];
+  return timestamps.reduce((latest, value) => {
+    const time = Date.parse(value || "");
+    return Number.isFinite(time) ? Math.max(latest, time) : latest;
+  }, 0);
+}
+
+function totalEvidenceTrials(progress: LocalProgress): number {
+  return (progress.evidence || []).reduce((total, item) => total + (Number(item.validTrials) || 0), 0);
+}
+
+function completedGuidedSessionCount(progress: LocalProgress): number {
+  const sessionFromProgress = Math.max(0, Math.floor(Number(progress.sessionNumber) || 1) - 1);
+  const latestGuidedCompletion = (progress.completions || [])
+    .filter((entry) => entry.route === "guided")
+    .reduce((max, entry) => Math.max(max, Number(entry.sessionNumber) || 0), 0);
+  const latestScoreSession = (progress.scoreHistory || [])
+    .reduce((max, entry) => Math.max(max, Number(entry.sessionNumber) || 0), 0);
+  return Math.max(sessionFromProgress, latestGuidedCompletion, latestScoreSession);
+}
+
+export function compareProgressFreshness(left: LocalProgress, right: LocalProgress): number {
+  const leftCycle = Math.max(1, Math.floor(Number(left.programmeCycle) || 1));
+  const rightCycle = Math.max(1, Math.floor(Number(right.programmeCycle) || 1));
+  if (leftCycle !== rightCycle) return leftCycle - rightCycle;
+
+  const leftCompleted = completedGuidedSessionCount(left);
+  const rightCompleted = completedGuidedSessionCount(right);
+  if (leftCompleted !== rightCompleted) return leftCompleted - rightCompleted;
+
+  const leftTimestamp = latestProgressTimestamp(left);
+  const rightTimestamp = latestProgressTimestamp(right);
+  if (leftTimestamp !== rightTimestamp) return leftTimestamp - rightTimestamp;
+
+  return totalEvidenceTrials(left) - totalEvidenceTrials(right);
+}
+
+export function newerProgress(left: LocalProgress, right: LocalProgress): LocalProgress {
+  return compareProgressFreshness(left, right) >= 0 ? left : right;
+}
+
 export function loadProgress(): LocalProgress {
   const raw = localStorage.getItem(`${PREFIX}:progress`);
   if (!raw) return DEFAULT_PROGRESS;
