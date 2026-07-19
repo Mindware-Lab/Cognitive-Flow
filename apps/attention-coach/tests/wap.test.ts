@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { transitionEventsForPhaseAdvance } from "../src/protocol";
+import { createInitialTransferControllerState } from "../src/transferController";
 import { chooseNextPhase } from "../src/wap";
 import type { CellEvidence, WapUserState } from "../src/types";
 
@@ -97,5 +98,48 @@ describe("WAP phase controller", () => {
       "T_CM_REL",
       "T_FRAME_FLOW",
     ]);
+  });
+
+  it("does not expose carrier return-to-base as a backwards jump to P1", () => {
+    const transferControllerState = {
+      ...createInitialTransferControllerState(),
+      phase: "return_to_base" as const,
+      activeBaseWrapper: "arrow_abs" as const,
+      activeTargetWrapper: null,
+    };
+    const decision = chooseNextPhase(
+      state({
+        currentPhase: "P2_FLOW_ABS",
+        sessionNumber: 8,
+        transferControllerState,
+      }),
+    );
+
+    expect(decision.toPhase).toBe("P2_FLOW_ABS");
+    expect(decision.shouldTransition).toBe(false);
+  });
+
+  it("does not expose pair-mix transfer probes as full mixed mastery", () => {
+    const transferControllerState = {
+      ...createInitialTransferControllerState(),
+      phase: "mix_80_20" as const,
+      activeBaseWrapper: "arrow_abs" as const,
+      activeTargetWrapper: "flow_abs" as const,
+      mixRatio: 0.2,
+      activeMix: {
+        wrapperRatios: { arrow_abs: 0.8, flow_abs: 0.2, arrow_rel: 0, flow_rel: 0 },
+        randomised: false,
+      },
+    };
+    const decision = chooseNextPhase(
+      state({
+        currentPhase: "P2_FLOW_ABS",
+        sessionNumber: 9,
+        transferControllerState,
+      }),
+    );
+
+    expect(decision.toPhase).toBe("P2_FLOW_ABS");
+    expect(decision.shouldTransition).toBe(false);
   });
 });

@@ -436,8 +436,9 @@ function legacyPhaseFor(state: TransferControllerState): PhaseLabel {
     case "base_fluency":
     case "diagnostic_probe":
     case "flattening":
-    case "return_to_base":
       return phaseForWrapper(path, path.startWrapper);
+    case "return_to_base":
+      return phaseForWrapper(path, path.carrierTargetWrapper);
     case "transition_probe":
     case "expected_dip":
     case "recovering":
@@ -446,6 +447,11 @@ function legacyPhaseFor(state: TransferControllerState): PhaseLabel {
       return phaseForWrapper(path, path.heldOutWrapper);
     case "delayed_recheck":
       return "P6_DELAYED";
+    case "mix_80_20":
+    case "mix_60_40":
+    case "mix_50_50":
+    case "random_mix":
+      return phaseForWrapper(path, state.activeTargetWrapper || path.carrierTargetWrapper);
     default:
       return "P5_MIXED";
   }
