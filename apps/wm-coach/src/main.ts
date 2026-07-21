@@ -3,6 +3,7 @@ import { createFreePlaySessionPlan, createSessionPlan, generateTrial, phaseIntro
 import { buildInterblockFeedback, createBlockFeedbackPoint, getInvariantPrompt, invariantPromptKey, type InterblockFeedback, type InterblockGraph } from "./interblockFeedback";
 import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./opticFlow";
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
+import { ABSOLUTE_PROGRESS_CELLS, RELATIONAL_PROGRESS_CELLS, evidenceForCells, progressMetricScores } from "./progressMetrics";
 import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
 import { INITIAL_STAIRCASE_LEVEL, nextNLevelFromAccuracy } from "./staircase";
 import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, loadDataMode, loadDataModeSeen, loadProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
@@ -2966,20 +2967,10 @@ function evidenceFor(construct: Construct, cellKey: CellKey): CellEvidence | nul
   return state.progress.evidence.find((item) => item.construct === construct && item.cellKey === cellKey) || null;
 }
 
-function scoreForEvidence(construct: Construct, cellKey: CellKey): number | null {
-  const evidence = evidenceFor(construct, cellKey);
-  return nLevelScore(evidence?.stableNLevel ?? evidence?.currentNLevel ?? evidence?.currentCapacityBps ?? null);
-}
-
 function averageScore(values: Array<number | null>): number | null {
   const available = values.filter((value): value is number => value !== null);
   if (available.length === 0) return null;
   return Math.round(available.reduce((total, value) => total + value, 0) / available.length);
-}
-
-function nLevelScore(nLevel: number | null): number | null {
-  if (nLevel === null) return null;
-  return Math.round(nLevel);
 }
 
 function changeFromStart(score: number | null): number | null {
@@ -3023,11 +3014,6 @@ function transferStatus(score: number | null): string {
   return "Bottleneck";
 }
 
-function scoreForEvidenceSet(evidence: CellEvidence[], construct: Construct, cellKey: CellKey): number | null {
-  const item = evidence.find((entry) => entry.construct === construct && entry.cellKey === cellKey);
-  return nLevelScore(item?.currentNLevel ?? item?.currentCapacityBps ?? null);
-}
-
 function averageNullableScores(values: Array<number | null>): number | null {
   const available = values.filter((value): value is number => value !== null);
   if (available.length === 0) return null;
@@ -3038,16 +3024,15 @@ function scoreHistoryEntryFromState(input: {
   sessionNumber: number;
   completedAt: string;
   phase: PhaseLabel;
+  protocolGroup: ProtocolGroup;
   evidence: CellEvidence[];
   snapshot: ReturnType<typeof createScoreSnapshot>;
 }): ProgressScoreHistoryEntry {
-  const activeCell = PHASE_CELL[input.phase];
-  const patternBinding =
-    scoreForEvidenceSet(input.evidence, "BSE", activeCell) ||
-    scoreForEvidenceSet(input.evidence, "BSE", "arrow_abs") ||
-    scoreForEvidenceSet(input.evidence, "BSE", "flow_abs") ||
-    scoreForEvidenceSet(input.evidence, "BSE", "arrow_rel") ||
-    scoreForEvidenceSet(input.evidence, "BSE", "flow_rel");
+  const metricScores = progressMetricScores({
+    evidence: input.evidence,
+    protocolGroup: input.protocolGroup,
+    activePhase: input.phase,
+  });
   return {
     sessionNumber: input.sessionNumber,
     completedAt: input.completedAt,
@@ -3056,9 +3041,9 @@ function scoreHistoryEntryFromState(input: {
     programmeCycle: state.progress.programmeCycle,
     metrics: {
       transfer: input.snapshot.transfer.score,
-      cognitiveBandwidth: scoreForEvidenceSet(input.evidence, "ACC", "arrow_abs"),
-      frameBandwidth: scoreForEvidenceSet(input.evidence, "ACC", "arrow_rel"),
-      patternBinding,
+      cognitiveBandwidth: metricScores.cognitiveBandwidth,
+      frameBandwidth: metricScores.frameBandwidth,
+      patternBinding: metricScores.patternBinding,
       wrapperRecovery: averageNullableScores([
         input.snapshot.transfer.motionRecovery.score,
         input.snapshot.transfer.relationRecovery.score,
@@ -3161,15 +3146,21 @@ function nextSupportRouteForStatus(status: string): string {
 
 function progressDashboardPresentationModel(): ProgressDashboardPresentationModel {
   const snapshot = state.progress.latestSnapshot;
-  const relationalNBackScore = scoreForEvidence("ACC", "arrow_abs");
-  const relationalScore = scoreForEvidence("ACC", "arrow_rel");
+  const metricScores = progressMetricScores({
+    evidence: state.progress.evidence,
+    protocolGroup: state.progress.protocolGroup,
+    activePhase: state.progress.currentPhase,
+  });
+  const absoluteEvidence = evidenceForCells(state.progress.evidence, "ACC", ABSOLUTE_PROGRESS_CELLS[state.progress.protocolGroup]);
+  const relationalEvidence = evidenceForCells(state.progress.evidence, "ACC", RELATIONAL_PROGRESS_CELLS[state.progress.protocolGroup]);
   const activeCell = PHASE_CELL[state.progress.currentPhase];
-  const bindingScore =
-    scoreForEvidence("BSE", activeCell) ||
-    scoreForEvidence("BSE", "arrow_abs") ||
-    scoreForEvidence("BSE", "flow_abs") ||
-    scoreForEvidence("BSE", "arrow_rel") ||
-    scoreForEvidence("BSE", "flow_rel");
+  const bindingEvidence =
+    evidenceFor("BSE", activeCell) ||
+    evidenceForCells(state.progress.evidence, "BSE", ABSOLUTE_PROGRESS_CELLS[state.progress.protocolGroup]) ||
+    evidenceForCells(state.progress.evidence, "BSE", RELATIONAL_PROGRESS_CELLS[state.progress.protocolGroup]);
+  const relationalNBackScore = metricScores.cognitiveBandwidth;
+  const relationalScore = metricScores.frameBandwidth;
+  const bindingScore = metricScores.patternBinding;
   const wrapperRecoveryScore = averageScore([
     snapshot?.transfer.motionRecovery.score ?? null,
     snapshot?.transfer.relationRecovery.score ?? null,
@@ -3183,7 +3174,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
   const bindingRelative = deltaFromBaseline("patternBinding", bindingScore);
   const wrapperRelative = deltaFromBaseline("wrapperRecovery", wrapperRecoveryScore);
   const delayedRelative = deltaFromBaseline("delayedRecovery", returnScore);
-  const confidence = confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "ACC") || null);
+  const confidence = confidenceForEvidence(absoluteEvidence);
   const capacityStatus = capacityStatusForModel({ capacityN: relationalNBackScore, transferScore: transferReadiness, confidence });
   return {
     capacityNLevel: relationalNBackScore,
@@ -3209,7 +3200,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         baseline: cognitiveRelative.baseline,
         status: statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta),
         statusNote: statusNoteFor(statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta)),
-        confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_abs")),
+        confidence: confidenceForEvidence(absoluteEvidence),
         tone: "blue",
         icon: "signal",
       },
@@ -3222,7 +3213,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         baseline: frameRelative.baseline,
         status: statusForMetricDisplay("frameBandwidth", frameRelative.delta),
         statusNote: statusNoteFor(statusForMetricDisplay("frameBandwidth", frameRelative.delta)),
-        confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_rel")),
+        confidence: confidenceForEvidence(relationalEvidence),
         tone: "purple",
         icon: "relational",
       },
@@ -3235,9 +3226,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         baseline: bindingRelative.baseline,
         status: statusForMetricDisplay("patternBinding", bindingRelative.delta),
         statusNote: statusNoteFor(statusForMetricDisplay("patternBinding", bindingRelative.delta)),
-        confidence:
-          confidenceForEvidence(evidenceFor("BSE", activeCell)) ||
-          confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "BSE") || null),
+        confidence: confidenceForEvidence(bindingEvidence),
         tone: "teal",
         icon: "binding",
       },
@@ -4404,6 +4393,7 @@ function completeSession(): void {
     sessionNumber: completedSessionNumber,
     completedAt: guidedCompletion.completedAt,
     phase: completedPhase,
+    protocolGroup: state.progress.protocolGroup,
     evidence: updatedEvidence,
     snapshot,
   });
@@ -4818,8 +4808,5 @@ async function initialiseBetaAuth(): Promise<void> {
 }
 
 void initialiseBetaAuth();
-
-
-
 
 
