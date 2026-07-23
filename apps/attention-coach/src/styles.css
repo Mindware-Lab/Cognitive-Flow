@@ -2866,6 +2866,20 @@ button.score-card {
   box-shadow: inset 0 0 0 2px rgba(47, 116, 219, 0.12);
 }
 
+.data-removal-card {
+  border-color: rgba(255, 168, 168, 0.9);
+  background: rgba(255, 247, 247, 0.9);
+}
+
+.data-removal-card .data-mode-card-kicker,
+.data-removal-card .mode-select-pill {
+  color: #c4243b;
+}
+
+.data-removal-card .mode-select-pill {
+  border-color: rgba(255, 168, 168, 0.9);
+}
+
 .data-mode-card-kicker,
 .mode-select-pill {
   color: #1458ff;
@@ -3470,6 +3484,50 @@ button.score-card {
 
 .task-stage-copy p {
   margin: 0;
+}
+
+.task-paused-note {
+  display: grid;
+  place-items: center;
+  gap: 8px;
+  min-height: 160px;
+  color: var(--ink);
+  text-align: center;
+}
+
+.task-paused-note strong {
+  font-family: "Orbitron", monospace;
+  font-size: clamp(1.35rem, 2.4vw, 2rem);
+  font-weight: 900;
+}
+
+.task-paused-note span {
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.trial-rule-cue {
+  display: grid;
+  place-items: center;
+  gap: 10px;
+  min-height: 160px;
+  text-align: center;
+  color: var(--ink);
+}
+
+.trial-rule-cue span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.trial-rule-cue strong {
+  font-family: "Orbitron", monospace;
+  font-size: clamp(1.45rem, 3vw, 2.25rem);
+  font-weight: 900;
+  letter-spacing: 0;
 }
 
 .stimulus-wrap {

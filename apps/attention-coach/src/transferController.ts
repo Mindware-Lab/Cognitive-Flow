@@ -347,6 +347,16 @@ function readyToMix(source: CellEvidence | null, target: CellEvidence | null): b
   );
 }
 
+function returnStrengthReady(evidence: CellEvidence | null): boolean {
+  return Boolean(
+    evidence &&
+      evidence.validTrials >= TRANSFER_DEFAULTS.earlyTransitionMinTrials &&
+      evidence.balancedAccuracy >= TRANSFER_DEFAULTS.mixedStabilityMinAccuracy &&
+      evidence.lapseRate <= 0.2 &&
+      evidence.timingQuality !== "poor",
+  );
+}
+
 function mixFor(base: WrapperId, target: WrapperId, targetRatio: number, randomised = false): WrapperMix {
   return {
     wrapperRatios: { [base]: 1 - targetRatio, [target]: targetRatio },
@@ -393,6 +403,14 @@ function mixedStable(evidence: CellEvidence[], mix: WrapperMix): boolean {
         item.lapseRate <= 0.2
       ),
   );
+}
+
+function delayedEvidenceAdequate(evidence: CellEvidence[] | undefined): boolean {
+  if (!evidence) return false;
+  return WRAPPERS.every((wrapper) => {
+    const item = evidenceFor(evidence, "ACC", wrapper);
+    return Boolean(item && item.validTrials >= TRANSFER_DEFAULTS.earlyTransitionMinTrials);
+  });
 }
 
 function event(
@@ -446,6 +464,9 @@ function legacyPhaseFor(state: TransferControllerState): PhaseLabel {
     case "held_out_composition":
       return phaseForWrapper(path, path.heldOutWrapper);
     case "delayed_recheck":
+    case "maintenance_pending":
+    case "maintenance_mix":
+    case "portable":
       return "P6_DELAYED";
     case "mix_80_20":
     case "mix_60_40":
@@ -461,7 +482,7 @@ function statusForTransferPhase(phase: TransferPhase): PhaseStatus {
   if (phase === "flattening") return "flattening";
   if (phase === "recovering" || phase === "expected_dip" || phase === "transition_probe") return "recovering";
   if (phase.includes("mix") || phase === "full_factorial_mix" || phase === "portable" || phase === "maintenance_mix") return "mixed";
-  if (phase === "delayed_recheck") return "delayed";
+  if (phase === "delayed_recheck" || phase === "maintenance_pending") return "delayed";
   return "active";
 }
 
@@ -472,6 +493,7 @@ export function probeStatusForTransferPhase(phase: TransferPhase): ProbeStatus {
   if (phase === "return_to_base") return "return_to_base";
   if (phase === "held_out_composition") return "held_out";
   if (phase === "delayed_recheck") return "delayed_recheck";
+  if (phase === "maintenance_pending") return "delayed_recheck";
   if (phase.includes("mix") || phase === "full_factorial_mix" || phase === "portable" || phase === "maintenance_mix") return "mix";
   return "base";
 }
@@ -616,6 +638,8 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
   }
 
   if (state.phase === "return_to_base") {
+    const returnEvidence = state.activeBaseWrapper ? evidenceFor(evidence, "ACC", state.activeBaseWrapper) : null;
+    if (!returnStrengthReady(returnEvidence)) return state;
     return appendEvent(
       {
         ...state,
@@ -698,16 +722,47 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
   if (state.phase === "delayed_recheck") {
     const due = state.delayedRechecks.every((item) => item.completedSession !== null || input.sessionNumber >= item.dueAfterSession);
     if (!due) return state;
+    const freshDelayedEvidence = input.freshDelayedEvidence;
+    if (!delayedEvidenceAdequate(freshDelayedEvidence)) {
+      return {
+        ...state,
+        phase: "maintenance_pending",
+        activeBaseWrapper: null,
+        activeTargetWrapper: null,
+        activeMix: ALL_WRAPPER_MIX,
+      };
+    }
+    const delayedPassed = mixedStable(freshDelayedEvidence || [], ALL_WRAPPER_MIX);
     return appendEvent(
       {
         ...state,
-        phase: input.sessionNumber < 20 ? "maintenance_mix" : "portable",
+        phase: delayedPassed ? "portable" : "maintenance_mix",
         activeBaseWrapper: null,
         activeTargetWrapper: null,
         activeMix: ALL_WRAPPER_MIX,
         completedAtSession: input.sessionNumber,
         delayedRechecks: state.delayedRechecks.map((item) =>
-          item.completedSession === null ? { ...item, completedSession: input.sessionNumber, passed: true } : item,
+          item.completedSession === null ? { ...item, completedSession: input.sessionNumber, passed: delayedPassed } : item,
+        ),
+      },
+      event("delayed_recheck", path.startWrapper, path.heldOutWrapper, input.sessionNumber, "delayed_recheck", null),
+    );
+  }
+
+  if (state.phase === "maintenance_pending") {
+    const freshDelayedEvidence = input.freshDelayedEvidence;
+    if (!delayedEvidenceAdequate(freshDelayedEvidence)) return state;
+    const delayedPassed = mixedStable(freshDelayedEvidence || [], ALL_WRAPPER_MIX);
+    return appendEvent(
+      {
+        ...state,
+        phase: delayedPassed ? "portable" : "maintenance_mix",
+        activeBaseWrapper: null,
+        activeTargetWrapper: null,
+        activeMix: ALL_WRAPPER_MIX,
+        completedAtSession: input.sessionNumber,
+        delayedRechecks: state.delayedRechecks.map((item) =>
+          item.completedSession === null ? { ...item, completedSession: input.sessionNumber, passed: delayedPassed } : item,
         ),
       },
       event("delayed_recheck", path.startWrapper, path.heldOutWrapper, input.sessionNumber, "delayed_recheck", null),
@@ -787,6 +842,7 @@ function reasonFor(phase: TransferPhase, state: TransferControllerState): string
   if (phase.includes("mix") || phase === "full_factorial_mix") return "Practise the relation under unpredictable wrapper selection.";
   if (phase === "held_out_composition") return `Log held-out ${path.heldOutWrapper} composition before direct practice.`;
   if (phase === "delayed_recheck") return "Re-check whether mixed-wrapper performance returns after spacing.";
+  if (phase === "maintenance_pending") return "Collect enough delayed mixed-wrapper evidence before assigning portable status.";
   if (phase === "maintenance_mix") return "Use remaining programme sessions for mixed transfer maintenance.";
   if (phase === "portable") return "The relation has passed mixed and delayed checks.";
   return "Build the base representation.";

@@ -1,8 +1,9 @@
 import { describe, expect, it } from "vitest";
+import { createSessionPlan } from "../src/generator";
 import { transitionEventsForPhaseAdvance } from "../src/protocol";
-import { createInitialTransferControllerState } from "../src/transferController";
+import { createInitialTransferControllerState, migrateTransferControllerState } from "../src/transferController";
 import { chooseNextPhase } from "../src/wap";
-import type { CellEvidence, WapUserState } from "../src/types";
+import type { CellEvidence, WapUserState, WrapperId } from "../src/types";
 
 function evidence(overrides: Partial<CellEvidence> = {}): CellEvidence {
   return {
@@ -29,6 +30,44 @@ function state(overrides: Partial<WapUserState> = {}): WapUserState {
     evidence: [evidence()],
     ...overrides,
   };
+}
+
+function delayedEvidence(overrides: Partial<CellEvidence> = {}): CellEvidence[] {
+  return (["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"] as const).map((cellKey) =>
+    evidence({
+      cellKey,
+      validTrials: 15,
+      rollingWindowCount: 0,
+      balancedAccuracy: 0.8,
+      currentCapacityBps: 4,
+      ...overrides,
+    }),
+  );
+}
+
+function delayedState(overrides: Partial<WapUserState> = {}): WapUserState {
+  return state({
+    currentPhase: "P6_DELAYED",
+    sessionNumber: 20,
+    transferControllerState: {
+      ...createInitialTransferControllerState(),
+      phase: "delayed_recheck" as const,
+      activeBaseWrapper: null,
+      activeTargetWrapper: null,
+      activeMix: {
+        wrapperRatios: { arrow_abs: 0.25, flow_abs: 0.25, arrow_rel: 0.25, flow_rel: 0.25 },
+        randomised: true,
+      },
+      delayedRechecks: [{
+        id: "delayed-19",
+        dueAfterSession: 20,
+        completedSession: null,
+        wrapperIds: ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"] as WrapperId[],
+        passed: null,
+      }],
+    },
+    ...overrides,
+  });
 }
 
 describe("WAP phase controller", () => {
@@ -141,5 +180,87 @@ describe("WAP phase controller", () => {
 
     expect(decision.toPhase).toBe("P2_FLOW_ABS");
     expect(decision.shouldTransition).toBe(false);
+  });
+
+  it("does not assign portable from delayed completion without fresh delayed evidence", () => {
+    const decision = chooseNextPhase(delayedState({ evidence: delayedEvidence() }));
+
+    expect(decision.transferControllerState?.phase).toBe("maintenance_pending");
+    expect(decision.transferControllerState?.completedAtSession).toBeNull();
+  });
+
+  it("keeps delayed collection pending when a required wrapper is missing fresh evidence", () => {
+    const decision = chooseNextPhase(delayedState({
+      freshDelayedEvidence: delayedEvidence().filter((item) => item.cellKey !== "flow_rel"),
+    }));
+
+    expect(decision.transferControllerState?.phase).toBe("maintenance_pending");
+    expect(decision.transferControllerState?.completedAtSession).toBeNull();
+  });
+
+  it("does not assign portable when one required delayed wrapper has poor timing", () => {
+    const freshDelayedEvidence = delayedEvidence().map((item) =>
+      item.cellKey === "flow_rel" ? { ...item, timingQuality: "poor" as const } : item,
+    );
+    const decision = chooseNextPhase(delayedState({ freshDelayedEvidence }));
+
+    expect(decision.transferControllerState?.phase).toBe("maintenance_mix");
+    expect(decision.transferControllerState?.delayedRechecks[0].passed).toBe(false);
+  });
+
+  it("routes adequate but failed fresh delayed evidence to maintenance", () => {
+    const decision = chooseNextPhase(delayedState({
+      freshDelayedEvidence: delayedEvidence({ balancedAccuracy: 0.5 }),
+    }));
+
+    expect(decision.transferControllerState?.phase).toBe("maintenance_mix");
+    expect(decision.transferControllerState?.delayedRechecks[0].passed).toBe(false);
+  });
+
+  it("assigns portable only when fresh delayed all-four evidence passes", () => {
+    const decision = chooseNextPhase(delayedState({
+      freshDelayedEvidence: delayedEvidence(),
+    }));
+
+    expect(decision.transferControllerState?.phase).toBe("portable");
+    expect(decision.transferControllerState?.delayedRechecks[0].passed).toBe(true);
+  });
+
+  it("resumes maintenance pending as delayed evidence collection", () => {
+    const saved = {
+      ...createInitialTransferControllerState(),
+      phase: "maintenance_pending" as const,
+      activeBaseWrapper: null,
+      activeTargetWrapper: null,
+      activeMix: {
+        wrapperRatios: { arrow_abs: 0.25, flow_abs: 0.25, arrow_rel: 0.25, flow_rel: 0.25 },
+        randomised: true,
+      },
+      delayedRechecks: [{
+        id: "delayed-19",
+        dueAfterSession: 20,
+        completedSession: null,
+        wrapperIds: ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"] as WrapperId[],
+        passed: null,
+      }],
+    };
+    const resumed = migrateTransferControllerState({
+      existing: saved,
+      currentPhase: "P6_DELAYED",
+      sessionNumber: 21,
+      evidence: delayedEvidence(),
+    });
+    const decision = chooseNextPhase(delayedState({
+      sessionNumber: 21,
+      transferControllerState: resumed,
+      freshDelayedEvidence: undefined,
+    }));
+    const plan = createSessionPlan(21, "P6_DELAYED", "delayed", "return check", "resume-delayed", "run", 1, decision.transferControllerState);
+
+    expect(resumed.phase).toBe("maintenance_pending");
+    expect(decision.shouldTransition).toBe(false);
+    expect(decision.transferControllerState?.phase).toBe("maintenance_pending");
+    expect(decision.transferControllerState?.completedAtSession).toBeNull();
+    expect(plan.miniBlocks.every((block) => block.evidencePurpose === "delayed_recheck")).toBe(true);
   });
 });

@@ -26,6 +26,14 @@ export type ProbeStatus =
   | "mix"
   | "held_out"
   | "delayed_recheck";
+export type EvidencePurpose =
+  | "training"
+  | "diagnostic"
+  | "formal_probe"
+  | "recovery"
+  | "return"
+  | "mix"
+  | "delayed_recheck";
 export type MappingTiming = "early" | "late" | null;
 export type TransferPhase =
   | "base_fluency"
@@ -42,6 +50,7 @@ export type TransferPhase =
   | "held_out_composition"
   | "full_factorial_mix"
   | "delayed_recheck"
+  | "maintenance_pending"
   | "portable"
   | "maintenance_mix";
 export type PhaseLabel =
@@ -141,6 +150,7 @@ export interface TrialDefinition {
   carrier: StimulusCarrier;
   frame: CanonicalFrame;
   probeStatus: ProbeStatus;
+  evidencePurpose: EvidencePurpose;
   mixRatio: number | null;
   mappingTiming: MappingTiming;
   lureType: string | null;
@@ -156,6 +166,11 @@ export interface TrialDefinition {
 
 export interface TrialResult {
   trial: TrialDefinition;
+  blockPurpose?: EvidencePurpose;
+  blockStartedAtMs?: number;
+  completedAtMs?: number;
+  programmeRunId?: string;
+  programmeCycle?: number;
   response: string | null;
   isCorrect: boolean;
   rtMs: number | null;
@@ -178,6 +193,7 @@ export interface MiniBlockPlan {
   referenceTrials: number;
   wrapperId: WrapperId;
   probeStatus: ProbeStatus;
+  evidencePurpose: EvidencePurpose;
   mixRatio: number | null;
   transferEventId: string | null;
 }
@@ -220,7 +236,8 @@ export interface WrapperState {
     | "mixed"
     | "delayed_due"
     | "portable"
-    | "maintenance";
+    | "maintenance"
+    | "maintenance_pending";
   validTrials: number;
   rollingWindowCount: number;
   balancedAccuracy: number;
@@ -431,6 +448,7 @@ export interface WapUserState {
   protocolGroup?: ProtocolGroup;
   completedTransitions: TransitionKey[];
   evidence: CellEvidence[];
+  freshDelayedEvidence?: CellEvidence[];
   transferControllerState?: TransferControllerState | null;
   hasGlobalFatigueFlag?: boolean;
   hasTimingLimitedFlag?: boolean;

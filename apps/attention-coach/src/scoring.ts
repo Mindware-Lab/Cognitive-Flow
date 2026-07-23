@@ -18,6 +18,7 @@ import type {
   TransitionKey,
   TrendLabel,
   TrialResult,
+  WrapperId,
 } from "./types";
 
 export const CALIBRATION_TABLE_ID = "masked-majority-v1-initial";
@@ -27,6 +28,12 @@ const H_CONDITION_BITS: Record<string, number> = {
   "4:1": 2.91,
   "3:2": 4.91,
 };
+
+export function progressionResultsForEvidence(results: TrialResult[], activeTargetWrapper: WrapperId | null | undefined): TrialResult[] {
+  return results.filter(
+    (result) => !(result.trial.evidencePurpose === "diagnostic" && result.trial.cellKey === activeTargetWrapper),
+  );
+}
 
 function adjustedExposureSeconds(result: TrialResult): number {
   const refreshRate = result.deviceRefreshRateEstimate || 60;

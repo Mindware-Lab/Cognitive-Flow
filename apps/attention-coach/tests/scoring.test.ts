@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
-import { createScoreSnapshot } from "../src/scoring";
-import type { CellEvidence } from "../src/types";
+import { generateTrial } from "../src/generator";
+import { createScoreSnapshot, progressionResultsForEvidence } from "../src/scoring";
+import type { CellEvidence, TrialResult } from "../src/types";
 
 const evidence: CellEvidence[] = [
   {
@@ -45,6 +46,27 @@ function cellEvidence(
     timingQuality: "good",
     localAsymptoteBps: currentCapacityBps,
     currentCapacityBps,
+  };
+}
+
+function result(cellKey: "arrow_abs" | "flow_abs", evidencePurpose: TrialResult["trial"]["evidencePurpose"]): TrialResult {
+  const trial = generateTrial("session", "block", cellKey === "arrow_abs" ? 0 : 1, "ACC", "P1_ARROW_ABS", cellKey, false, {
+    ratio: "4:1",
+    exposureMs: 500,
+  }, {
+    evidencePurpose,
+    probeStatus: evidencePurpose === "diagnostic" ? "diagnostic_probe" : "base",
+  });
+  return {
+    trial,
+    response: trial.correctResponse,
+    isCorrect: true,
+    rtMs: 500,
+    exposureMsActual: 500,
+    actualStimulusFrames: 30,
+    deviceRefreshRateEstimate: 60,
+    droppedFrameCount: 0,
+    timingQuality: "good",
   };
 }
 
@@ -105,5 +127,13 @@ describe("score snapshots", () => {
     });
     expect(snapshot.transfer.relationRecovery.status).toBe("coming_up");
     expect(snapshot.transfer.mixedFlexibility.status).toBe("coming_up");
+  });
+
+  it("excludes diagnostic target-wrapper trials while retaining diagnostic base trials", () => {
+    const base = result("arrow_abs", "diagnostic");
+    const target = result("flow_abs", "diagnostic");
+    const recovery = result("flow_abs", "recovery");
+
+    expect(progressionResultsForEvidence([base, target, recovery], "flow_abs")).toEqual([base, recovery]);
   });
 });

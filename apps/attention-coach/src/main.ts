@@ -1,11 +1,17 @@
 import "./styles.css";
+import { buildAttentionBlockSubmissionPayload } from "./blockPayload";
+import { selectFreshDelayedRecheckResults } from "./delayedEvidence";
 import { createFreePlaySessionPlan, createSessionPlan, generateTrial, phaseIntro } from "./generator";
 import { buildInterblockFeedback, createBlockFeedbackPoint, getInvariantPrompt, invariantPromptKey, type InterblockFeedback, type InterblockGraph } from "./interblockFeedback";
 import { opticFlowAperturesForTrial, opticFlowMaskAperturesForTrial } from "./opticFlow";
 import { NOMINAL_BANDS, PHASE_CELL, PHASE_NAMES, PHASE_ORDER_BY_GROUP, PROTOCOL_VERSION, TARGET_ENVELOPE_SESSIONS, phaseStatusForPhase, transitionEventsForPhaseAdvance } from "./protocol";
-import { createFarTransferWindows, createScoreSnapshot, updateEvidenceFromResults } from "./scoring";
+import { ABSOLUTE_PROGRESS_CELLS, RELATIONAL_PROGRESS_CELLS, evidenceForCells, progressMetricScores } from "./progressMetrics";
+import { createFarTransferWindows, createScoreSnapshot, progressionResultsForEvidence, updateEvidenceFromResults } from "./scoring";
 import { conditionForLevel, INITIAL_STAIRCASE_LEVEL, nextStaircaseLevel } from "./staircase";
 import { migrateTransferControllerState, transferPathForState } from "./transferController";
+import { ruleCueForTrial, shouldShowRuleCue, shouldShowRuleCueForTrial as shouldShowRuleCueForBlockTrial } from "./ruleCue";
+import { stimulusTimingForTrial } from "./trialTiming";
+import { eligibleFreePlayWrappers } from "./wrapperDefinitions";
 import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, compareProgressFreshness, loadDataMode, loadDataModeSeen, loadProgress, newerProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
@@ -59,7 +65,7 @@ type View =
   | "data-rights"
   | "profile";
 
-type TaskStage = "ready" | "fixation" | "stimulus" | "mask" | "response" | "feedback";
+type TaskStage = "ready" | "rule_cue" | "fixation" | "stimulus" | "mask" | "response" | "feedback" | "paused";
 type StyleMode = "iq" | "legacy";
 type ProgressDashboardMode = "overview" | "detail";
 type ProgressSectionMode = ProgressDashboardMode | "proof";
@@ -91,7 +97,9 @@ interface RuntimeState {
   feedback: "correct" | "incorrect" | "";
   readinessRunning: boolean;
   taskStage: TaskStage;
+  ruleCueTrialId: string | null;
   responseStartedAt: number;
+  activeBlockStartedAtMs: number | null;
   stageTimer: number | null;
   staircaseLevels: Record<string, number>;
   sessionMode: "protocol" | "free";
@@ -159,7 +167,7 @@ function applyStyleMode(mode: StyleMode): void {
 
 applyStyleMode(styleMode);
 
-function resolveInitialView(cloudSyncMode: CloudSyncMode): View {
+function resolveInitialView(cloudSyncMode: CloudSyncMode, dataModeSeen: boolean): View {
   const queryView = new URLSearchParams(window.location.search).get("view");
   const allowedViews: View[] = [
     "auth",
@@ -183,6 +191,7 @@ function resolveInitialView(cloudSyncMode: CloudSyncMode): View {
     "profile",
   ];
   if (allowedViews.includes(queryView as View)) return queryView as View;
+  if (cloudSyncMode === "cloud" && !dataModeSeen) return "data-rights";
   return "welcome";
 }
 
@@ -280,7 +289,7 @@ function loadAssignedProgress(): LocalProgress {
 const initialProgress = loadAssignedProgress();
 
 let state: RuntimeState = {
-  view: resolveInitialView(initialCloudSyncMode),
+  view: resolveInitialView(initialCloudSyncMode, initialDataModeSeen),
   progress: initialProgress,
   sessionPlan: null,
   activeBlockIndex: 0,
@@ -290,7 +299,9 @@ let state: RuntimeState = {
   feedback: "",
   readinessRunning: false,
   taskStage: "ready",
+  ruleCueTrialId: null,
   responseStartedAt: 0,
+  activeBlockStartedAtMs: null,
   stageTimer: null,
   staircaseLevels: {},
   sessionMode: "protocol",
@@ -530,9 +541,13 @@ function playErrorFeedbackSound(): void {
 
 async function restoreRemoteProgress(): Promise<void> {
   if (!cloudSyncActive()) return;
+  let nextView: View = state.dataModeSeen ? "welcome" : "data-rights";
+  if (!state.dataModeSeen && (state.view === "welcome" || state.view === "auth")) {
+    state.view = nextView;
+    state.viewHistory = [];
+  }
   markSync("checking", "Loading beta progress.");
   render();
-  let nextView: View = state.dataModeSeen ? "welcome" : "data-rights";
   try {
     const remote = await loadRemoteProgress();
     if (remote) {
@@ -601,7 +616,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
     "data-rights",
   ];
   const preAuthGate = state.cloudSyncMode === "cloud" && !state.authUser;
-  const showBetaStatus = cloudSyncAvailable && !preAuthGate;
+  const showBetaStatus = false;
   const contentClasses = [
     "app-content",
     `view-${state.view}`,
@@ -620,7 +635,6 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
       ? `<button class="app-auth-button" data-action="${state.cloudSyncMode === "cloud" ? "nav-auth" : "nav-data-rights"}">${state.cloudSyncMode === "cloud" ? "Sign in" : "Data"}</button>`
       : "";
   const soundControl = `<button class="app-nav-button app-sound-button ${state.soundOn ? "is-on" : "is-off"}" data-action="toggle-sound" aria-label="${state.soundOn ? "Turn sound feedback off" : "Turn sound feedback on"}">${headerIcon(state.soundOn ? "sound-on" : "sound-off")}</button>`;
-  const statusAction = state.cloudSyncMode === "cloud" && !state.authUser && state.view === "auth" ? "nav-auth" : "nav-data-rights";
   return `
     <main class="app-shell">
       <header class="app-brand-bar">
@@ -631,7 +645,6 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
         <div class="app-header-right">${authControl}${soundControl}</div>
       </header>
       <div class="${contentClasses}">
-        ${showBetaStatus ? `<div class="beta-status-bar"><button class="beta-status-link" data-action="${statusAction}">${escapeHtml(dataStatusLabel())}</button><strong>${escapeHtml(syncLabel())}</strong><em>${escapeHtml(state.syncMessage)}</em></div>` : ""}
         ${content}
       </div>
     </main>
@@ -687,6 +700,10 @@ function consumerStatus(value: string | null | undefined): string {
     delayed: "Return check",
   };
   return labels[value || ""] || (value ? value.replaceAll("_", " ") : "Calibrating");
+}
+
+function readinessStatusLabel(quality: string | null | undefined): string {
+  return quality === "poor" ? "Low confidence" : "Pass";
 }
 
 function confidenceCopy(value: string | null | undefined): string {
@@ -1098,6 +1115,24 @@ function setTaskStage(stage: TaskStage): void {
   render();
 }
 
+function pauseTask(): void {
+  if (state.view !== "task" || state.taskStage === "feedback" || state.taskStage === "paused") return;
+  clearStageTimer();
+  state.feedback = "";
+  state.responseStartedAt = 0;
+  state.taskStage = "paused";
+  render();
+}
+
+function resumePausedTask(): void {
+  if (state.view !== "task" || state.taskStage !== "paused") return;
+  state.feedback = "";
+  state.responseStartedAt = 0;
+  state.taskStage = "ready";
+  render();
+  schedule(350, startTrialPresentation);
+}
+
 function renderAuth(): string {
   const headline = "Email sign in";
   const linkSent = state.authMessage.startsWith("Check your email");
@@ -1136,10 +1171,19 @@ function renderAuth(): string {
 function dataModeCard(mode: DataMode, title: string, copy: string, action: string): string {
   const selected = state.dataMode === mode;
   return `<button class="data-mode-card ${selected ? "is-selected" : ""}" data-action="${action}" aria-pressed="${selected ? "true" : "false"}">
-    <span class="data-mode-card-kicker">${mode === "local" ? "Default" : mode === "cloud_personal" ? "Cloud personal" : "Cloud standard scores"}</span>
+    <span class="data-mode-card-kicker">${mode === "local" ? "Local only" : mode === "cloud_personal" ? "Private sync" : "Standardised sync"}</span>
     <strong>${escapeHtml(title)}</strong>
     <p>${escapeHtml(copy)}</p>
     <span class="mode-select-pill">${selected ? "Selected" : "Choose"}</span>
+  </button>`;
+}
+
+function dataRemovalCard(cloudActive: boolean): string {
+  return `<button class="data-mode-card data-removal-card" data-action="delete-attention-data">
+    <span class="data-mode-card-kicker">Delete</span>
+    <strong>Remove data</strong>
+    <p>${cloudActive ? "Delete your cloud Attention Coach data and reset this browser." : "Reset this browser's local Attention Coach progress."}</p>
+    <span class="mode-select-pill">${cloudActive ? "Delete cloud data" : "Reset local data"}</span>
   </button>`;
 }
 
@@ -1157,30 +1201,9 @@ function renderDataRights(): string {
         <p>${escapeHtml(cloudCopy)}</p>
       </section>
       <section class="data-mode-grid">
-        ${dataModeCard("cloud_personal", "Cloud personal", "Email sign-in syncs scores across G Track and WM Coach. No standardised scores.", "select-data-cloud-personal")}
-        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Email sign-in syncs scores across apps and gives you standardised scores.", "select-data-cloud-benchmark")}
-      </section>
-      <section class="data-rights-grid">
-        <article class="data-rights-card is-blue">
-          <span>Mode</span>
-          <strong>${escapeHtml(dataModeLabel())}</strong>
-          <p>${state.dataMode === "cloud_benchmark" ? "Scores sync across supported apps, and standardised scores appear when the comparison sample is sufficient." : "Scores sync across supported apps. No population-standardised scores are shown in this mode."}</p>
-          <div class="data-rights-actions">
-            ${state.cloudSyncMode === "cloud" && state.authUser ? button("Sign out", "sign-out", "ghost") : ""}
-          </div>
-        </article>
-        <article class="data-rights-card is-green">
-          <span>Export</span>
-          <strong>Data export</strong>
-          <p>Export local progress or your cloud record.</p>
-          <div class="data-rights-actions">${button(cloudActive ? "Export cloud data" : "Export local data", "export-attention-data")}</div>
-        </article>
-        <article class="data-rights-card is-red">
-          <span>Delete</span>
-          <strong>Remove data</strong>
-          <p>${cloudActive ? "Delete your cloud Attention Coach data and reset this browser." : "Reset this browser's local Attention Coach progress."}</p>
-          <div class="data-rights-actions">${button(cloudActive ? "Delete cloud data" : "Reset local data", "delete-attention-data", "secondary")}</div>
-        </article>
+        ${dataModeCard("cloud_personal", "Cloud personal", "Syncs Attention Coach progress across IQ Mindware apps without population-standardised scores.", "select-data-cloud-personal")}
+        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Syncs progress and shows standardised scores when the comparison sample is sufficient.", "select-data-cloud-benchmark")}
+        ${dataRemovalCard(cloudActive)}
       </section>
       <section class="ethics-boundary-card">
         <strong>Non-selection boundary</strong>
@@ -1279,7 +1302,6 @@ function renderWelcome(): string {
         <img src="${assetPath("attention-coach-wordmark-v3.svg")}" alt="Attention Coach" class="splash-wordmark" />
         <div class="splash-title">
           <p>Train attention control and cognitive capacity.</p>
-          <small>First step: quick setup, then today's guided attention session.</small>
         </div>
         <div class="splash-divider" aria-hidden="true"><span></span></div>
         <p class="splash-protocol">Based on the Trident-G transfer-training protocol&trade;</p>
@@ -1297,15 +1319,12 @@ function renderWelcome(): string {
             <span>Later sessions check that your training is building real cognitive skills.</span>
           </article>
         </div>
-        <p class="splash-claims">Training support only. Not a diagnosis, clinical treatment, brain measurement, or IQ score.</p>
       </section>
       <div class="splash-wave splash-wave-one" aria-hidden="true"></div>
       <div class="splash-wave splash-wave-two" aria-hidden="true"></div>
       <section class="splash-footer">
         ${button("Start today's session", "start-readiness")}
-        ${button("Choose a practice game", "nav-free-play", "secondary")}
-        <small class="splash-support-note">Setup first; the guided session takes about 5-10 minutes.</small>
-        <button class="splash-link" data-action="nav-training-map">How it works</button>
+        ${button("Choose a practice game", "nav-free-play-formats", "secondary")}
         <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer"><img class="splash-site-icon" src="${assetPath("trident-splash-icon.png")}" alt="" aria-hidden="true" />www.iqmindware.com</a>
       </section>
     </section>
@@ -1330,8 +1349,8 @@ function renderReadiness(): string {
         readiness
           ? `<div class="readiness-grid">
               <span>Display rate</span><strong>${readiness.refreshRateHz.toFixed(1)} Hz</strong>
-              <span>Score confidence</span><strong>${consumerStatus(readiness.quality === "poor" ? "timing_limited" : "moderate_confidence")}</strong>
-              <span>Motion games</span><strong>${readiness.flowEligible ? "Ready" : "Timing limited"}</strong>
+              <span>Timing check</span><strong>${readinessStatusLabel(readiness.quality)}</strong>
+              <span>Motion games</span><strong>${readiness.flowEligible ? "Pass" : "Low confidence"}</strong>
             </div>`
           : `<div class="preview-field screen-test-field ${state.readinessRunning ? "is-running" : ""}">
               <div class="screen-test-display" role="img" aria-label="Display timing check">
@@ -1354,7 +1373,7 @@ function renderTutorial(): string {
   return shell(`
     <section class="panel tutorial-grid direction-tutorial">
       <div class="direction-tutorial-copy">
-        <p class="ui-eyebrow">Direction foundation</p>
+        <p class="ui-eyebrow">Signal foundation</p>
         <h1>Pick the majority direction.</h1>
         <p class="ui-body">A brief display appears. Answer with the direction most items follow.</p>
       </div>
@@ -1374,7 +1393,7 @@ function renderTutorial(): string {
         <article class="instruction-card"><strong>Answer</strong><p>Accuracy first, then speed.</p></article>
       </div>
       <div class="action-row">
-        ${button("Start direction foundation", "begin-session")}
+        ${button("Start signal foundation", "begin-session")}
         ${button("Today's plan", "nav-today", "secondary")}
       </div>
     </section>
@@ -1436,7 +1455,7 @@ function renderToday(): string {
         <div class="today-primary-actions">
           ${button("Start today's attention session", "start-guided-instructions")}
           <button class="secondary-link-button" data-action="start-easier-instructions">Practice only</button>
-          <button class="secondary-link-button" data-action="nav-today-rationale">Why today?</button>
+          <button class="secondary-link-button" data-action="nav-today-rationale">Why this?</button>
         </div>
       </div>
       <div class="today-plan-card">
@@ -1495,7 +1514,7 @@ function renderBreakPlan(): string {
 }
 
 const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string; detail: string }> = [
-  { cell: "arrow_abs", label: "Direction foundation", detail: "Static arrows and simple signal control." },
+  { cell: "arrow_abs", label: "Signal foundation", detail: "Static arrows and simple signal control." },
   { cell: "flow_abs", label: "Motion Foundation", detail: "Moving patterns with the same rule." },
   { cell: "arrow_rel", label: "Relation Foundation", detail: "Use relationships around the centre." },
   { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational control in motion." },
@@ -1537,19 +1556,19 @@ function renderFreePlay(): string {
       </figure>
       <div class="train-choice-grid">
         <article class="train-choice-card is-blue">
-          <span>${miniIcon("rocket")}</span>
+          <span>${miniIcon("calendar-check")}</span>
           <strong>Today's coached session</strong>
           <p>This implements the Trident G Far Transfer Protocol for guided progress.</p>
           ${button("Today's Session", "nav-today", "secondary")}
         </article>
         <article class="train-choice-card is-orange">
-          <span>${miniIcon("target")}</span>
+          <span>${miniIcon("gamepad")}</span>
           <strong>Practice games</strong>
           <p>Try different games without changing your coached pathway or progress status.</p>
           ${button("Choose a game", "nav-free-play-formats", "secondary")}
         </article>
         <article class="train-choice-card is-green">
-          <span>${miniIcon("chart")}</span>
+          <span>${miniIcon("map")}</span>
           <strong>Training explained</strong>
           <p>See how the sessions connect and why they target cognitive control capacity.</p>
           ${button("View map", "nav-training-map", "secondary")}
@@ -1564,6 +1583,10 @@ function renderFreePlay(): string {
 }
 
 function renderFreePlayFormats(): string {
+  const eligibleWrappers = eligibleFreePlayWrappers(state.progress.transferControllerState);
+  const eligibleCells = FREE_PLAY_CELLS.filter(({ cell }) =>
+    cell === "mixed" ? eligibleWrappers.length >= 2 : eligibleWrappers.includes(cell as Exclude<CellKey, "mixed">),
+  );
   const card = (construct: Construct, cell: CellKey, label: string, detail: string) => `
     <button class="practice-format-card" data-free-construct="${construct}" data-free-cell="${cell}">
       <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(cell))}</span>
@@ -1585,7 +1608,7 @@ function renderFreePlayFormats(): string {
           </span>
         </div>
         <div class="practice-format-grid">
-          ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
+          ${eligibleCells.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
         </div>
       </section>
     `;
@@ -1626,11 +1649,10 @@ function renderBriefing(): string {
       </div>
       <div class="flow-rationale-card">
         <strong>Why this helps</strong>
-        <p>Train the rule, change the display, then check what survives.</p>
+        <p>Train attention to signal, change the display, then check if the attention skill survives the change.</p>
       </div>
       <div class="action-row">
-        ${button("Preview first game", "begin-session")}
-        ${button("Today's plan", "nav-today", "secondary")}
+        ${button("Start training", "begin-session")}
       </div>
     </section>
   `);
@@ -1655,7 +1677,25 @@ function activeTrial(): TrialDefinition | null {
     state.progressionScored
       ? conditionForLevel(levelForTrial(baseTrial))
       : { ratio: baseTrial.ratio, exposureMs: baseTrial.exposureMsRequested },
+    {
+      probeStatus: baseTrial.probeStatus,
+      evidencePurpose: baseTrial.evidencePurpose,
+      mixRatio: baseTrial.mixRatio,
+      mappingTiming: baseTrial.mappingTiming,
+      lureType: baseTrial.lureType,
+      transferEventId: baseTrial.transferEventId,
+    },
   );
+}
+
+function currentBlockHasVariableResponseAxis(): boolean {
+  const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
+  return block ? shouldShowRuleCue(block.cells) : false;
+}
+
+function shouldShowRuleCueForTrial(trial: TrialDefinition): boolean {
+  const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
+  return Boolean(block && shouldShowRuleCueForBlockTrial(block.cells, trial));
 }
 
 function renderTask(): string {
@@ -1664,6 +1704,7 @@ function renderTask(): string {
   if (!trial || !block) return renderToday();
   const blockProgress = state.activeTrialIndex + 1;
   const blockTotal = currentBlockTrialCount();
+  const isPaused = state.taskStage === "paused";
   const responseEnabled = state.taskStage === "response";
   const prompt = responseEnabled
     ? trial.construct === "BSE"
@@ -1675,7 +1716,11 @@ function renderTask(): string {
           : trial.cellKey.includes("rel")
             ? "Were most arrows pointing out or in?"
             : "Were most arrows pointing left or right?"
-    : state.taskStage === "ready"
+    : state.taskStage === "rule_cue"
+      ? ruleCueForTrial(trial)
+    : isPaused
+      ? "Paused."
+      : state.taskStage === "ready"
       ? "Focus on the centre."
       : "&nbsp;";
   return shell(`
@@ -1688,7 +1733,11 @@ function renderTask(): string {
         <p class="ui-eyebrow">Block ${state.activeBlockIndex + 1} of ${state.sessionPlan?.miniBlocks.length || 1} - ${escapeHtml(block.label)}</p>
       <section class="task-stage is-${state.taskStage}">
         <div class="task-stage-copy"><p>${prompt}</p></div>
-        ${stimulusSvg(trial, state.taskStage)}
+        ${isPaused
+          ? `<div class="task-paused-note" aria-live="polite"><strong>Paused</strong><span>Resume when ready.</span></div>`
+          : state.taskStage === "rule_cue"
+            ? `<div class="trial-rule-cue" aria-live="polite"><span>Rule</span><strong>${escapeHtml(ruleCueForTrial(trial))}</strong></div>`
+            : stimulusSvg(trial, state.taskStage)}
         <div class="task-feedback" aria-live="polite">
           ${
             state.taskStage === "feedback"
@@ -1704,7 +1753,7 @@ function renderTask(): string {
       </div>
       <p class="task-footnote">${trial.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction."} Click or tap the matching target.</p>
       <div class="task-controls">
-        <button class="task-skip-button" data-action="pause-session"><span>II</span> Pause</button>
+        <button class="task-skip-button" data-action="${isPaused ? "resume-paused-session" : "pause-session"}"><span>${isPaused ? "R" : "II"}</span> ${isPaused ? "Resume" : "Pause"}</button>
         <button class="task-skip-button" data-action="toggle-sound"><span>S</span> Sound ${state.soundOn ? "on" : "off"}</button>
         <button class="task-skip-button" data-action="end-block"><span>E</span> End</button>
       </div>
@@ -2107,7 +2156,7 @@ function renderComplete(): string {
     return shell(`
       <section class="panel result-panel">
         <p class="ui-eyebrow">${isSetupPractice ? "Practice block complete" : isEasierPractice ? "Easier practice complete" : "Practice complete"}</p>
-        <h1>${isSetupPractice ? `Ready for training block ${returnIndex + 1}` : isEasierPractice ? "Practice kept the session warm" : `${Math.round((correct / total) * 100)}% correct`}</h1>
+        <h1>${isSetupPractice ? `Ready for training block ${returnIndex + 1}` : isEasierPractice ? "Practice complete" : `${Math.round((correct / total) * 100)}% correct`}</h1>
         <p class="ui-body">${
           isSetupPractice
             ? "Practice helps you learn the display. It does not change your session number, phase, or transfer score."
@@ -2228,7 +2277,7 @@ function renderTrainingMap(): string {
       </figure>
       <div class="training-map-note">
         <strong>Brain-based design</strong>
-        <span>Attention Coach is evidence-informed, not a brain measurement. It targets attention control, flexible updating, relational processing, and working-memory support through adaptive training.</span>
+        <span>Attention Coach is evidence-based brain training, targeting the brain networks and structures above for attention control, flexible updating, relational processing, and working-memory, through adaptive training.</span>
       </div>
       <div class="action-row">
         ${button("Session hub", "nav-free-play", "secondary")}
@@ -2726,19 +2775,10 @@ function evidenceFor(construct: Construct, cellKey: CellKey): CellEvidence | nul
   return state.progress.evidence.find((item) => item.construct === construct && item.cellKey === cellKey) || null;
 }
 
-function scoreForEvidence(construct: Construct, cellKey: CellKey): number | null {
-  return trainingScoreFromBits(evidenceFor(construct, cellKey)?.currentCapacityBps ?? null);
-}
-
 function averageScore(values: Array<number | null>): number | null {
   const available = values.filter((value): value is number => value !== null);
   if (available.length === 0) return null;
   return Math.round(available.reduce((total, value) => total + value, 0) / available.length);
-}
-
-function trainingScoreFromBits(bitsPerSec: number | null): number | null {
-  if (bitsPerSec === null) return null;
-  return Math.round(85 + bitsPerSec * 5);
 }
 
 function changeFromStart(score: number | null): number | null {
@@ -2787,11 +2827,6 @@ function transferStatus(score: number | null): string {
   return "Bottleneck";
 }
 
-function scoreForEvidenceSet(evidence: CellEvidence[], construct: Construct, cellKey: CellKey): number | null {
-  const item = evidence.find((entry) => entry.construct === construct && entry.cellKey === cellKey);
-  return trainingScoreFromBits(item?.currentCapacityBps ?? null);
-}
-
 function averageNullableScores(values: Array<number | null>): number | null {
   const available = values.filter((value): value is number => value !== null);
   if (available.length === 0) return null;
@@ -2804,16 +2839,15 @@ function scoreHistoryEntryFromState(input: {
   sessionNumber: number;
   completedAt: string;
   phase: PhaseLabel;
+  protocolGroup: ProtocolGroup;
   evidence: CellEvidence[];
   snapshot: ReturnType<typeof createScoreSnapshot>;
 }): ProgressScoreHistoryEntry {
-  const activeCell = PHASE_CELL[input.phase];
-  const patternBinding =
-    scoreForEvidenceSet(input.evidence, "BSE", activeCell) ||
-    scoreForEvidenceSet(input.evidence, "BSE", "arrow_abs") ||
-    scoreForEvidenceSet(input.evidence, "BSE", "flow_abs") ||
-    scoreForEvidenceSet(input.evidence, "BSE", "arrow_rel") ||
-    scoreForEvidenceSet(input.evidence, "BSE", "flow_rel");
+  const metricScores = progressMetricScores({
+    evidence: input.evidence,
+    protocolGroup: input.protocolGroup,
+    activePhase: input.phase,
+  });
   return {
     programmeRunId: input.programmeRunId,
     programmeCycle: input.programmeCycle,
@@ -2822,9 +2856,9 @@ function scoreHistoryEntryFromState(input: {
     phase: input.phase,
     metrics: {
       transfer: input.snapshot.transfer.score,
-      cognitiveBandwidth: scoreForEvidenceSet(input.evidence, "ACC", "arrow_abs"),
-      frameBandwidth: scoreForEvidenceSet(input.evidence, "ACC", "arrow_rel"),
-      patternBinding,
+      cognitiveBandwidth: metricScores.cognitiveBandwidth,
+      frameBandwidth: metricScores.frameBandwidth,
+      patternBinding: metricScores.patternBinding,
       wrapperRecovery: averageNullableScores([
         input.snapshot.transfer.motionRecovery.score,
         input.snapshot.transfer.relationRecovery.score,
@@ -2906,15 +2940,21 @@ function confidenceForEvidence(evidence: CellEvidence | null): string {
 
 function progressDashboardPresentationModel(): ProgressDashboardPresentationModel {
   const snapshot = state.progress.latestSnapshot;
-  const signalScore = scoreForEvidence("ACC", "arrow_abs");
-  const relationalScore = scoreForEvidence("ACC", "arrow_rel");
+  const metricScores = progressMetricScores({
+    evidence: state.progress.evidence,
+    protocolGroup: state.progress.protocolGroup,
+    activePhase: state.progress.currentPhase,
+  });
+  const absoluteEvidence = evidenceForCells(state.progress.evidence, "ACC", ABSOLUTE_PROGRESS_CELLS[state.progress.protocolGroup]);
+  const relationalEvidence = evidenceForCells(state.progress.evidence, "ACC", RELATIONAL_PROGRESS_CELLS[state.progress.protocolGroup]);
   const activeCell = PHASE_CELL[state.progress.currentPhase];
-  const bindingScore =
-    scoreForEvidence("BSE", activeCell) ||
-    scoreForEvidence("BSE", "arrow_abs") ||
-    scoreForEvidence("BSE", "flow_abs") ||
-    scoreForEvidence("BSE", "arrow_rel") ||
-    scoreForEvidence("BSE", "flow_rel");
+  const bindingEvidence =
+    evidenceFor("BSE", activeCell) ||
+    evidenceForCells(state.progress.evidence, "BSE", ABSOLUTE_PROGRESS_CELLS[state.progress.protocolGroup]) ||
+    evidenceForCells(state.progress.evidence, "BSE", RELATIONAL_PROGRESS_CELLS[state.progress.protocolGroup]);
+  const signalScore = metricScores.cognitiveBandwidth;
+  const relationalScore = metricScores.frameBandwidth;
+  const bindingScore = metricScores.patternBinding;
   const wrapperRecoveryScore = averageScore([
     snapshot?.transfer.motionRecovery.score ?? null,
     snapshot?.transfer.relationRecovery.score ?? null,
@@ -2948,7 +2988,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         baseline: cognitiveRelative.baseline,
         status: statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta),
         statusNote: statusNoteFor(statusForMetricDisplay("cognitiveBandwidth", cognitiveRelative.delta)),
-        confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_abs")),
+        confidence: confidenceForEvidence(absoluteEvidence),
         tone: "blue",
         icon: "signal",
       },
@@ -2961,7 +3001,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         baseline: frameRelative.baseline,
         status: statusForMetricDisplay("frameBandwidth", frameRelative.delta),
         statusNote: statusNoteFor(statusForMetricDisplay("frameBandwidth", frameRelative.delta)),
-        confidence: confidenceForEvidence(evidenceFor("ACC", "arrow_rel")),
+        confidence: confidenceForEvidence(relationalEvidence),
         tone: "purple",
         icon: "relational",
       },
@@ -2974,9 +3014,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         baseline: bindingRelative.baseline,
         status: statusForMetricDisplay("patternBinding", bindingRelative.delta),
         statusNote: statusNoteFor(statusForMetricDisplay("patternBinding", bindingRelative.delta)),
-        confidence:
-          confidenceForEvidence(evidenceFor("BSE", activeCell)) ||
-          confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "BSE") || null),
+        confidence: confidenceForEvidence(bindingEvidence),
         tone: "teal",
         icon: "binding",
       },
@@ -3139,6 +3177,9 @@ function miniIcon(name: string): string {
     pathway: `<svg ${common}><path d="M5 17c2-6 12 0 14-8"/><circle cx="5" cy="17" r="2"/><circle cx="19" cy="9" r="2"/></svg>`,
     flag: `<svg ${common}><path d="M6 21V4"/><path d="M6 4h11l-2 4 2 4H6"/></svg>`,
     rocket: `<svg ${common}><path d="M5 19c3-1 6-3 8-6s3-6 6-8c-1 4-3 7-6 10s-6 5-10 6c1-1 1-2 2-2z"/><path d="M9 15l-2 2"/><path d="M14 10l2-2"/></svg>`,
+    "calendar-check": `<svg ${common}><path d="M8 2v4"/><path d="M16 2v4"/><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18"/><path d="M8 16l2.2 2.2L16 12.5"/></svg>`,
+    gamepad: `<svg ${common}><path d="M6.5 11h11A3.5 3.5 0 0 1 21 14.5v1A3.5 3.5 0 0 1 17.5 19c-1.2 0-2.1-.6-2.8-1.5H9.3C8.6 18.4 7.7 19 6.5 19A3.5 3.5 0 0 1 3 15.5v-1A3.5 3.5 0 0 1 6.5 11Z"/><path d="M8 14v3"/><path d="M6.5 15.5h3"/><path d="M16.5 15h.01"/><path d="M18.5 16.5h.01"/></svg>`,
+    map: `<svg ${common}><path d="M9 18l-6 3V6l6-3 6 3 6-3v15l-6 3-6-3Z"/><path d="M9 3v15"/><path d="M15 6v15"/></svg>`,
   };
   return icons[name] || icons.chart;
 }
@@ -3585,7 +3626,9 @@ function beginSession(): void {
   state.sessionResults = [];
   state.feedback = "";
   state.taskStage = "ready";
+  state.ruleCueTrialId = null;
   state.responseStartedAt = 0;
+  state.activeBlockStartedAtMs = null;
   state.staircaseLevels = {};
   state.sessionMode = "protocol";
   state.sessionSource = phase === "P6_DELAYED" ? "recheck" : "guided";
@@ -3598,9 +3641,10 @@ function beginSession(): void {
 function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
   clearStageTimer();
   const transferPath = transferPathForState(state.progress.transferControllerState);
+  const freePlayPool = eligibleFreePlayWrappers(state.progress.transferControllerState);
   if (
     state.progress.transferControllerState?.heldOutStatus === "clean" &&
-    (cellKey === transferPath.heldOutWrapper || cellKey === "mixed") &&
+    (cellKey === transferPath.heldOutWrapper || (cellKey === "mixed" && freePlayPool.includes(transferPath.heldOutWrapper))) &&
     source !== "guided_practice"
   ) {
     state.progress = {
@@ -3615,14 +3659,16 @@ function prepareFreePlay(construct: Construct, cellKey: CellKey, source: Session
     };
     persistProgress();
   }
-  state.sessionPlan = createFreePlaySessionPlan(construct, cellKey);
+  state.sessionPlan = createFreePlaySessionPlan(construct, cellKey, undefined, freePlayPool);
   state.activeBlockIndex = 0;
   state.activeTrialIndex = 0;
   state.blockResults = [];
   state.sessionResults = [];
   state.feedback = "";
   state.taskStage = "ready";
+  state.ruleCueTrialId = null;
   state.responseStartedAt = 0;
+  state.activeBlockStartedAtMs = null;
   state.staircaseLevels = {};
   state.sessionMode = "free";
   state.sessionSource = source;
@@ -3691,7 +3737,9 @@ function startCurrentBlockPractice(): void {
   state.sessionResults = [];
   state.feedback = "";
   state.taskStage = "ready";
+  state.ruleCueTrialId = null;
   state.responseStartedAt = 0;
+  state.activeBlockStartedAtMs = null;
   state.staircaseLevels = {};
   state.sessionMode = "free";
   state.sessionSource = "guided_practice";
@@ -3709,7 +3757,9 @@ function restoreGuidedReturn(): boolean {
   state.sessionResults = [];
   state.feedback = "";
   state.taskStage = "ready";
+  state.ruleCueTrialId = null;
   state.responseStartedAt = 0;
+  state.activeBlockStartedAtMs = null;
   state.sessionMode = "protocol";
   state.sessionSource = state.progress.currentPhase === "P6_DELAYED" ? "recheck" : "guided";
   state.progressionScored = true;
@@ -3719,6 +3769,7 @@ function restoreGuidedReturn(): boolean {
 
 function beginRestoredGuidedBlock(): void {
   if (!restoreGuidedReturn()) return;
+  state.activeBlockStartedAtMs = performance.now();
   go("task");
   schedule(350, startTrialPresentation);
 }
@@ -3726,6 +3777,13 @@ function beginRestoredGuidedBlock(): void {
 function startTrialPresentation(): void {
   const trial = activeTrial();
   if (!trial || state.view !== "task") return;
+  if (state.activeBlockStartedAtMs === null) state.activeBlockStartedAtMs = performance.now();
+  if (shouldShowRuleCueForTrial(trial) && state.ruleCueTrialId !== trial.id) {
+    state.ruleCueTrialId = trial.id;
+    setTaskStage("rule_cue");
+    schedule(420, startTrialPresentation);
+    return;
+  }
   setTaskStage("fixation");
   schedule(420, () => {
     setTaskStage("stimulus");
@@ -3757,6 +3815,7 @@ function continueAfterFeedback(): void {
     state.activeBlockIndex += 1;
     state.activeTrialIndex = 0;
     state.blockResults = [];
+    state.activeBlockStartedAtMs = null;
     if (state.activeBlockIndex >= (state.sessionPlan?.miniBlocks.length || 1)) {
       completeSession();
     } else {
@@ -3772,6 +3831,7 @@ function endCurrentBlock(): void {
   clearStageTimer();
   state.feedback = "";
   state.taskStage = "ready";
+  state.ruleCueTrialId = null;
   state.responseStartedAt = 0;
   if (state.sessionMode === "free") {
     completeSession();
@@ -3783,6 +3843,7 @@ function endCurrentBlock(): void {
   state.activeBlockIndex += 1;
   state.activeTrialIndex = 0;
   state.blockResults = [];
+  state.activeBlockStartedAtMs = null;
   if (state.activeBlockIndex >= (state.sessionPlan?.miniBlocks.length || 1)) {
     completeSession();
   } else {
@@ -3791,66 +3852,16 @@ function endCurrentBlock(): void {
 }
 
 function blockSubmissionPayload(plan: SessionPlan, block: MiniBlockPlan, results: TrialResult[]) {
-  const transferState = state.progress.transferControllerState;
-  return {
-    clientSessionId: plan.sessionId,
-    programmeRunId: plan.programmeRunId,
-    programmeCycle: plan.programmeCycle,
+  return buildAttentionBlockSubmissionPayload({
+    plan,
+    block,
+    results,
     protocolGroup: state.progress.protocolGroup,
-    startCarrier: transferState.startCarrier,
-    startCohort: transferState.startCohort,
-    startWrapper: transferState.startWrapper,
-    carrierTargetWrapper: transferState.carrierTargetWrapper,
-    frameTargetWrapper: transferState.frameTargetWrapper,
-    heldOutWrapper: transferState.heldOutWrapper,
-    heldOutStatus: transferState.heldOutStatus,
-    clientBlockId: block.id,
-    sessionNumber: plan.sessionNumber,
-    phaseLabel: plan.phase,
-    phaseStatus: plan.phaseStatus,
-    nominalSessionBand: plan.nominalBand,
-    protocolVersion: PROTOCOL_VERSION,
+    transferState: state.progress.transferControllerState,
     generatorVersion: GENERATOR_VERSION,
     adaptiveVersion: ADAPTIVE_VERSION,
     scoringVersion: SCORING_VERSION,
-    blockIndex: block.index,
-    construct: block.construct,
-    label: block.label,
-    trials: results.map((result) => ({
-      clientTrialId: result.trial.id,
-      construct: result.trial.construct,
-      cellKey: result.trial.cellKey,
-      transitionKey: result.trial.transitionKey,
-      wrapperId: result.trial.wrapperId,
-      carrier: result.trial.carrier,
-      frame: result.trial.frame,
-      probeStatus: result.trial.probeStatus,
-      mixRatio: result.trial.mixRatio,
-      mappingTiming: result.trial.mappingTiming,
-      lureType: result.trial.lureType,
-      transferEventId: result.trial.transferEventId,
-      startCarrier: transferState.startCarrier,
-      startCohort: transferState.startCohort,
-      startWrapper: transferState.startWrapper,
-      carrierTargetWrapper: transferState.carrierTargetWrapper,
-      frameTargetWrapper: transferState.frameTargetWrapper,
-      heldOutWrapper: transferState.heldOutWrapper,
-      heldOutStatus: transferState.heldOutStatus,
-      phaseLabel: result.trial.phase,
-      isReferenceRecheck: result.trial.isReferenceRecheck,
-      response: result.response,
-      correctResponse: result.trial.correctResponse,
-      isCorrect: result.isCorrect,
-      rtMs: result.rtMs,
-      ratio: result.trial.ratio,
-      exposureMsRequested: result.trial.exposureMsRequested,
-      exposureMsActual: result.exposureMsActual,
-      actualStimulusFrames: result.actualStimulusFrames,
-      deviceRefreshRateEstimate: result.deviceRefreshRateEstimate,
-      droppedFrameCount: result.droppedFrameCount,
-      timingQuality: result.timingQuality,
-    })),
-  };
+  });
 }
 
 function submitCurrentGuidedBlock(results: TrialResult[]): void {
@@ -3884,6 +3895,7 @@ function finalizeGuidedSession(input: {
   pendingBlockSubmissions = [];
   void Promise.allSettled(submissions).then(() => finalizeAttentionSession({
     clientSessionId: plan.sessionId,
+    protocolVersion: PROTOCOL_VERSION,
     programmeRunId: plan.programmeRunId,
     programmeCycle: plan.programmeCycle,
     dataMode: state.dataMode,
@@ -3950,6 +3962,20 @@ function finalizeGuidedSession(input: {
   });
 }
 
+function progressionEvidenceResults(results: TrialResult[]): TrialResult[] {
+  return progressionResultsForEvidence(results, state.progress.transferControllerState.activeTargetWrapper);
+}
+
+function delayedRecheckResults(results: TrialResult[]): TrialResult[] {
+  const plan = state.sessionPlan;
+  if (!plan) return [];
+  return selectFreshDelayedRecheckResults(results, {
+    sessionId: plan.sessionId,
+    programmeRunId: plan.programmeRunId,
+    programmeCycle: plan.programmeCycle,
+  });
+}
+
 function completeSession(): void {
   if (state.sessionMode === "free") {
     if (state.sessionSource !== "guided_practice") {
@@ -3963,10 +3989,13 @@ function completeSession(): void {
   const completedPhaseStatus = state.progress.phaseStatus;
   const guidedCompletion = completionEntry("guided", completedSessionNumber, completedPhase);
   const shouldRevealProfile = completedSessionNumber === 5 && !state.progress.profileRevealSeen;
-  const updatedEvidence = updateEvidenceFromResults(state.progress.evidence, state.sessionResults);
+  const evidenceResults = progressionEvidenceResults(state.sessionResults);
+  const freshDelayedResults = delayedRecheckResults(state.sessionResults);
+  const freshDelayedEvidence = freshDelayedResults.length ? updateEvidenceFromResults([], freshDelayedResults) : undefined;
+  const updatedEvidence = updateEvidenceFromResults(state.progress.evidence, evidenceResults);
   const farTransferWindows = createFarTransferWindows({
     existingWindows: state.progress.farTransferWindows,
-    results: state.sessionResults,
+    results: evidenceResults,
     sessionNumber: state.progress.sessionNumber,
   });
   const decision = chooseNextPhase({
@@ -3976,6 +4005,7 @@ function completeSession(): void {
     protocolGroup: state.progress.protocolGroup,
     completedTransitions: state.progress.completedTransitions,
     evidence: updatedEvidence,
+    freshDelayedEvidence,
     transferControllerState: state.progress.transferControllerState,
   });
   const transitionKeys = decision.shouldTransition
@@ -4001,6 +4031,7 @@ function completeSession(): void {
     sessionNumber: completedSessionNumber,
     completedAt: guidedCompletion.completedAt,
     phase: completedPhase,
+    protocolGroup: state.progress.protocolGroup,
     evidence: updatedEvidence,
     snapshot,
   });
@@ -4046,13 +4077,20 @@ function answerTrial(response: string | null): void {
   state.feedback = isCorrect ? "correct" : "incorrect";
   state.taskStage = "feedback";
   const responseAt = performance.now();
+  const block = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
+  const timing = stimulusTimingForTrial(trial);
   const result: TrialResult = {
     trial,
+    blockPurpose: block?.evidencePurpose,
+    blockStartedAtMs: state.activeBlockStartedAtMs ?? undefined,
+    completedAtMs: responseAt,
+    programmeRunId: state.sessionPlan?.programmeRunId,
+    programmeCycle: state.sessionPlan?.programmeCycle,
     response,
     isCorrect,
     rtMs: response === null ? null : Math.round(responseAt - state.responseStartedAt),
-    exposureMsActual: trial.exposureMsRequested,
-    actualStimulusFrames: Math.max(1, Math.round(trial.exposureMsRequested / 16.67)),
+    exposureMsActual: timing.exposureMsActual,
+    actualStimulusFrames: timing.actualStimulusFrames,
     deviceRefreshRateEstimate: state.progress.deviceReadiness?.refreshRateHz || 60,
     droppedFrameCount: 0,
     timingQuality: state.progress.deviceReadiness?.quality || "good",
@@ -4270,10 +4308,9 @@ appRoot.addEventListener("click", async (event) => {
     go("today");
   }
   else if (action === "pause-session") {
-    clearStageTimer();
-    state.taskStage = "ready";
-    go("block-break");
+    pauseTask();
   }
+  else if (action === "resume-paused-session") resumePausedTask();
   else if (action === "end-block") endCurrentBlock();
   else if (action === "toggle-sound") {
     state.soundOn = !state.soundOn;

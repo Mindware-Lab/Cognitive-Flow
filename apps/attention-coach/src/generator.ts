@@ -8,6 +8,7 @@ import {
   SESSION_TRIAL_COUNT,
 } from "./protocol";
 import { probeStatusForTransferPhase } from "./transferController";
+import { ATOMIC_WRAPPERS, atomicWrapperForCell } from "./wrapperDefinitions";
 import { hashSeed, mulberry32, shuffle, takeBalanced } from "./random";
 import type {
   BseToken,
@@ -15,6 +16,7 @@ import type {
   CanonicalFrame,
   Construct,
   DirectionRelation,
+  EvidencePurpose,
   MappingTiming,
   MiniBlockPlan,
   PhaseLabel,
@@ -43,7 +45,7 @@ export const EXPOSURE_GRID_MS = [100, 150, 200, 300, 400, 500, 700, 1000, 1500] 
 export const RATIO_GRID: Ratio[] = ["5:0", "4:1", "3:2"];
 const TOKEN_COLORS: TokenColor[] = ["blue", "yellow"];
 const ALL_CELLS: CellKey[] = ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"];
-const ATOMIC_CELLS: WrapperId[] = ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"];
+const ATOMIC_CELLS: WrapperId[] = ATOMIC_WRAPPERS;
 
 function carrierForCell(cellKey: CellKey): StimulusCarrier {
   if (cellKey === "mixed") return "mixed";
@@ -152,6 +154,7 @@ export function generateTrial(
   conditionOverride?: TrialCondition,
   transferMeta?: {
     probeStatus?: ProbeStatus;
+    evidencePurpose?: EvidencePurpose;
     mixRatio?: number | null;
     mappingTiming?: MappingTiming;
     lureType?: string | null;
@@ -174,10 +177,11 @@ export function generateTrial(
     cellKey,
     transitionKey: transitionKeyForCell(phase, cellKey),
     isReferenceRecheck,
-    wrapperId: cellKey === "mixed" ? "arrow_abs" : cellKey,
+    wrapperId: atomicWrapperForCell(cellKey) || "arrow_abs",
     carrier: carrierForCell(cellKey),
     frame: frameForCell(cellKey),
     probeStatus: transferMeta?.probeStatus || (isReferenceRecheck ? "return_to_base" : "base"),
+    evidencePurpose: transferMeta?.evidencePurpose || evidencePurposeForProbeStatus(transferMeta?.probeStatus || (isReferenceRecheck ? "return_to_base" : "base")),
     mixRatio: transferMeta?.mixRatio ?? null,
     mappingTiming: transferMeta?.mappingTiming ?? null,
     lureType: transferMeta?.lureType ?? null,
@@ -200,12 +204,13 @@ function blockPlan(
   instruction: string,
   cells: CellKey[],
   probeStatus: ProbeStatus = "base",
+  evidencePurpose: EvidencePurpose = evidencePurposeForProbeStatus(probeStatus),
   mixRatio: number | null = null,
   transferEventId: string | null = null,
 ): MiniBlockPlan {
   const currentCell = cells[0];
   const currentTrials = cells.filter((cell) => cell === currentCell).length;
-  const wrapperId = currentCell === "mixed" ? "arrow_abs" : currentCell;
+  const wrapperId = atomicWrapperForCell(currentCell) || "arrow_abs";
   return {
     id,
     index,
@@ -218,9 +223,20 @@ function blockPlan(
     referenceTrials: MINI_BLOCK_TRIALS - currentTrials,
     wrapperId,
     probeStatus,
+    evidencePurpose,
     mixRatio,
     transferEventId,
   };
+}
+
+function evidencePurposeForProbeStatus(probeStatus: ProbeStatus): EvidencePurpose {
+  if (probeStatus === "diagnostic_probe") return "diagnostic";
+  if (probeStatus === "transition_probe" || probeStatus === "held_out") return "formal_probe";
+  if (probeStatus === "recovery") return "recovery";
+  if (probeStatus === "return_to_base") return "return";
+  if (probeStatus === "mix") return "mix";
+  if (probeStatus === "delayed_recheck") return "delayed_recheck";
+  return "training";
 }
 
 function cellsByRatio(base: CellKey, target: CellKey, count: number, targetRatio: number): CellKey[] {
@@ -262,37 +278,37 @@ function transferMiniBlockPlans(
 
   if (state.phase === "diagnostic_probe") {
     return [
-      blockPlan("acc-1", 1, "ACC", "Base Attention", "Keep finding the base signal.", Array(20).fill(base), "base", null, eventId),
-      blockPlan("acc-2", 2, "ACC", "Base Attention", "Keep the current rule stable.", Array(20).fill(base), "base", null, eventId),
-      blockPlan("acc-3", 3, "ACC", "Diagnostic Probe", "A few new-format trials check transfer readiness.", cellsByRatio(base, target, 20, 0.1), "diagnostic_probe", 0.1, eventId),
-      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Keep direction and colour together.", Array(20).fill(base), "base", null, eventId),
+      blockPlan("acc-1", 1, "ACC", "Base Attention", "Keep finding the base signal.", Array(20).fill(base), "base", "training", null, eventId),
+      blockPlan("acc-2", 2, "ACC", "Base Attention", "Keep the current rule stable.", Array(20).fill(base), "base", "training", null, eventId),
+      blockPlan("acc-3", 3, "ACC", "Diagnostic Probe", "A few new-format trials check transfer readiness.", cellsByRatio(base, target, 20, 0.1), "diagnostic_probe", "diagnostic", 0.1, eventId),
+      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Keep direction and colour together.", Array(20).fill(base), "base", "training", null, eventId),
     ];
   }
 
   if (state.phase === "transition_probe" || state.phase === "expected_dip") {
     return [
-      blockPlan("acc-1", 1, "ACC", "Anchor", "Start from the familiar signal.", Array(20).fill(base), "base", null, eventId),
-      blockPlan("acc-2", 2, "ACC", "Transfer Probe", "The new format appears at a controlled dose.", shuffle(random, cellsByRatio(base, target, 20, 0.2)), "transition_probe", 0.2, eventId),
-      blockPlan("acc-3", 3, "ACC", "Recovery Check", "Recover the same rule without increasing difficulty.", Array(20).fill(target), "recovery", null, eventId),
-      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Binding stays in the familiar format today.", Array(20).fill(base), "base", null, eventId),
+      blockPlan("acc-1", 1, "ACC", "Anchor", "Start from the familiar signal.", Array(20).fill(base), "base", "training", null, eventId),
+      blockPlan("acc-2", 2, "ACC", "Transfer Probe", "The new format appears at a controlled dose.", shuffle(random, cellsByRatio(base, target, 20, 0.2)), "transition_probe", "formal_probe", 0.2, eventId),
+      blockPlan("acc-3", 3, "ACC", "Recovery Check", "Recover the same rule without increasing difficulty.", Array(20).fill(target), "recovery", "recovery", null, eventId),
+      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Binding stays in the familiar format today.", Array(20).fill(base), "base", "training", null, eventId),
     ];
   }
 
   if (state.phase === "recovering") {
     return [
-      blockPlan("acc-1", 1, "ACC", "Recovery 1", PHASE_INSTRUCTIONS[phase], Array(20).fill(target), "recovery", null, eventId),
-      blockPlan("acc-2", 2, "ACC", "Recovery 2", "Hold demand steady in the new format.", Array(20).fill(target), "recovery", null, eventId),
-      blockPlan("acc-3", 3, "ACC", "Recovery 3", "Look for the same relation, not the old surface.", Array(20).fill(target), "recovery", null, eventId),
-      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Keep direction and colour together.", Array(20).fill(target), "recovery", null, eventId),
+      blockPlan("acc-1", 1, "ACC", "Recovery 1", PHASE_INSTRUCTIONS[phase], Array(20).fill(target), "recovery", "recovery", null, eventId),
+      blockPlan("acc-2", 2, "ACC", "Recovery 2", "Hold demand steady in the new format.", Array(20).fill(target), "recovery", "recovery", null, eventId),
+      blockPlan("acc-3", 3, "ACC", "Recovery 3", "Look for the same relation, not the old surface.", Array(20).fill(target), "recovery", "recovery", null, eventId),
+      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Keep direction and colour together.", Array(20).fill(target), "recovery", "recovery", null, eventId),
     ];
   }
 
   if (state.phase === "return_to_base") {
     return [
-      blockPlan("acc-1", 1, "ACC", "Return Check 1", "Return to the base format.", Array(20).fill(base), "return_to_base", null, eventId),
-      blockPlan("acc-2", 2, "ACC", "Return Check 2", "Check that the original signal is still available.", Array(20).fill(base), "return_to_base", null, eventId),
-      blockPlan("acc-3", 3, "ACC", "Return Check 3", "Keep the base rule stable.", Array(20).fill(base), "return_to_base", null, eventId),
-      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Binding returns to the base format.", Array(20).fill(base), "return_to_base", null, eventId),
+      blockPlan("acc-1", 1, "ACC", "Return Check 1", "Return to the base format.", Array(20).fill(base), "return_to_base", "return", null, eventId),
+      blockPlan("acc-2", 2, "ACC", "Return Check 2", "Check that the original signal is still available.", Array(20).fill(base), "return_to_base", "return", null, eventId),
+      blockPlan("acc-3", 3, "ACC", "Return Check 3", "Keep the base rule stable.", Array(20).fill(base), "return_to_base", "return", null, eventId),
+      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Binding returns to the base format.", Array(20).fill(base), "return_to_base", "return", null, eventId),
     ];
   }
 
@@ -300,10 +316,10 @@ function transferMiniBlockPlans(
     const heldOut = state.heldOutWrapper || "flow_rel";
     const nearestLearned = state.frameTargetWrapper || "arrow_rel";
     return [
-      blockPlan("acc-1", 1, "ACC", "Held-out Probe", "First exposure to the recombined format.", Array(20).fill(heldOut), "held_out", null, eventId),
-      blockPlan("acc-2", 2, "ACC", "Recovery Start", "Recover the same relation in the held-out format.", Array(20).fill(heldOut), "recovery", null, eventId),
-      blockPlan("acc-3", 3, "ACC", "Base Re-entry", "Return briefly to the nearest learned relation.", Array(20).fill(nearestLearned), "return_to_base", null, eventId),
-      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Binding uses the nearest learned relation.", Array(20).fill(nearestLearned), "return_to_base", null, eventId),
+      blockPlan("acc-1", 1, "ACC", "Held-out Probe", "First exposure to the recombined format.", Array(20).fill(heldOut), "held_out", "formal_probe", null, eventId),
+      blockPlan("acc-2", 2, "ACC", "Recovery Start", "Recover the same relation in the held-out format.", Array(20).fill(heldOut), "recovery", "recovery", null, eventId),
+      blockPlan("acc-3", 3, "ACC", "Base Re-entry", "Return briefly to the nearest learned relation.", Array(20).fill(nearestLearned), "return_to_base", "return", null, eventId),
+      blockPlan("bse-1", 4, "BSE", "Binding Focus", "Binding uses the nearest learned relation.", Array(20).fill(nearestLearned), "return_to_base", "return", null, eventId),
     ];
   }
 
@@ -313,23 +329,25 @@ function transferMiniBlockPlans(
     const accCells = shuffle(random, cellsFromMix(activeMix, 60));
     const bseCells = shuffle(random, cellsFromMix(activeMix, 20));
     return [
-      blockPlan("acc-1", 1, "ACC", "Mixed Attention 1", "Formats now mix at a controlled ratio.", accCells.slice(0, 20), "mix", targetRatio, eventId),
-      blockPlan("acc-2", 2, "ACC", "Mixed Attention 2", "Keep the rule stable as formats change.", accCells.slice(20, 40), "mix", targetRatio, eventId),
-      blockPlan("acc-3", 3, "ACC", "Mixed Attention 3", "Stay flexible through the final attention block.", accCells.slice(40, 60), "mix", targetRatio, eventId),
-      blockPlan("bse-1", 4, "BSE", "Mixed Binding", "Direction-colour pairs switch across formats.", bseCells, "mix", targetRatio, eventId),
+      blockPlan("acc-1", 1, "ACC", "Mixed Attention 1", "Formats now mix at a controlled ratio.", accCells.slice(0, 20), "mix", "mix", targetRatio, eventId),
+      blockPlan("acc-2", 2, "ACC", "Mixed Attention 2", "Keep the rule stable as formats change.", accCells.slice(20, 40), "mix", "mix", targetRatio, eventId),
+      blockPlan("acc-3", 3, "ACC", "Mixed Attention 3", "Stay flexible through the final attention block.", accCells.slice(40, 60), "mix", "mix", targetRatio, eventId),
+      blockPlan("bse-1", 4, "BSE", "Mixed Binding", "Direction-colour pairs switch across formats.", bseCells, "mix", "mix", targetRatio, eventId),
     ];
   }
 
-  if (state.phase === "full_factorial_mix" || state.phase === "maintenance_mix" || state.phase === "portable" || state.phase === "delayed_recheck") {
+  if (state.phase === "full_factorial_mix" || state.phase === "maintenance_mix" || state.phase === "portable" || state.phase === "delayed_recheck" || state.phase === "maintenance_pending") {
     const cells: CellKey[] = ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"];
     const accCells = shuffle(random, balancedCells(cells, 60));
     const bseCells = shuffle(random, balancedCells(cells, 20));
-    const status = state.phase === "delayed_recheck" ? "delayed_recheck" : "mix";
+    const isDelayedCollection = state.phase === "delayed_recheck" || state.phase === "maintenance_pending";
+    const status = isDelayedCollection ? "delayed_recheck" : "mix";
+    const purpose = isDelayedCollection ? "delayed_recheck" : "mix";
     return [
-      blockPlan("acc-1", 1, "ACC", "Full Mix 1", "All trained formats can appear.", accCells.slice(0, 20), status, null, eventId),
-      blockPlan("acc-2", 2, "ACC", "Full Mix 2", "Use the relation before reacting to the surface.", accCells.slice(20, 40), status, null, eventId),
-      blockPlan("acc-3", 3, "ACC", "Full Mix 3", "Keep the rule stable across switching.", accCells.slice(40, 60), status, null, eventId),
-      blockPlan("bse-1", 4, "BSE", "Full Mix Binding", "Binding follows the same wrapper mix.", bseCells, status, null, eventId),
+      blockPlan("acc-1", 1, "ACC", "Full Mix 1", "All trained formats can appear.", accCells.slice(0, 20), status, purpose, null, eventId),
+      blockPlan("acc-2", 2, "ACC", "Full Mix 2", "Use the relation before reacting to the surface.", accCells.slice(20, 40), status, purpose, null, eventId),
+      blockPlan("acc-3", 3, "ACC", "Full Mix 3", "Keep the rule stable across switching.", accCells.slice(40, 60), status, purpose, null, eventId),
+      blockPlan("bse-1", 4, "BSE", "Full Mix Binding", "Binding follows the same wrapper mix.", bseCells, status, purpose, null, eventId),
     ];
   }
 
@@ -427,6 +445,7 @@ export function createSessionPlan(
         undefined,
         {
           probeStatus: block.probeStatus,
+          evidencePurpose: block.evidencePurpose,
           mixRatio: block.mixRatio,
           transferEventId: block.transferEventId,
         },
@@ -459,11 +478,12 @@ export function createFreePlaySessionPlan(
   construct: Construct,
   cellKey: CellKey,
   sessionSeed = `free-${construct}-${cellKey}-${Date.now()}`,
+  mixedCells: WrapperId[] = ATOMIC_CELLS,
 ): SessionPlan {
   const random = mulberry32(hashSeed(`${sessionSeed}:free-play`));
   const cells =
     cellKey === "mixed"
-      ? shuffle(random, ALL_CELLS.flatMap((cell) => Array<CellKey>(5).fill(cell)))
+      ? shuffle(random, balancedCells(mixedCells, 20))
       : Array<CellKey>(20).fill(cellKey);
   const block = blockPlan(
     "free-1",
