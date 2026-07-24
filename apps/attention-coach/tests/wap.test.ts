@@ -217,6 +217,33 @@ describe("WAP phase controller", () => {
     expect(decision.transferControllerState?.delayedRechecks[0].passed).toBe(false);
   });
 
+  it("does not promote maintenance to portable by session number alone", () => {
+    const decision = chooseNextPhase(delayedState({
+      sessionNumber: 24,
+      transferControllerState: {
+        ...createInitialTransferControllerState(),
+        phase: "maintenance_mix" as const,
+        activeBaseWrapper: null,
+        activeTargetWrapper: null,
+        activeMix: {
+          wrapperRatios: { arrow_abs: 0.25, flow_abs: 0.25, arrow_rel: 0.25, flow_rel: 0.25 },
+          randomised: true,
+        },
+        delayedRechecks: [{
+          id: "delayed-19",
+          dueAfterSession: 20,
+          completedSession: 20,
+          wrapperIds: ["arrow_abs", "flow_abs", "arrow_rel", "flow_rel"] as WrapperId[],
+          passed: false,
+        }],
+      },
+      freshDelayedEvidence: undefined,
+    }));
+
+    expect(decision.transferControllerState?.phase).toBe("maintenance_mix");
+    expect(decision.transferControllerState?.completedAtSession).toBeNull();
+  });
+
   it("assigns portable only when fresh delayed all-four evidence passes", () => {
     const decision = chooseNextPhase(delayedState({
       freshDelayedEvidence: delayedEvidence(),

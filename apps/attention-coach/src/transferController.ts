@@ -529,10 +529,40 @@ function nextTransferState(state: TransferControllerState, input: WapUserState):
   const evidence = input.evidence;
   const startEvidence = evidenceFor(evidence, "ACC", path.startWrapper);
 
-  if (state.phase === "portable" || state.phase === "maintenance_mix") {
+  if (state.phase === "portable") {
     return {
       ...state,
-      phase: input.sessionNumber < 20 ? "maintenance_mix" : "portable",
+      phase: "portable",
+      activeBaseWrapper: null,
+      activeTargetWrapper: null,
+      mixRatio: null,
+      activeMix: ALL_WRAPPER_MIX,
+      maintenanceSessionCount: state.maintenanceSessionCount + 1,
+    };
+  }
+
+  if (state.phase === "maintenance_mix") {
+    const freshDelayedEvidence = input.freshDelayedEvidence;
+    if (delayedEvidenceAdequate(freshDelayedEvidence) && mixedStable(freshDelayedEvidence || [], ALL_WRAPPER_MIX)) {
+      return appendEvent(
+        {
+          ...state,
+          phase: "portable",
+          activeBaseWrapper: null,
+          activeTargetWrapper: null,
+          mixRatio: null,
+          activeMix: ALL_WRAPPER_MIX,
+          completedAtSession: input.sessionNumber,
+          maintenanceSessionCount: state.maintenanceSessionCount + 1,
+          delayedRechecks: state.delayedRechecks.map((item) =>
+            item.completedSession === null ? { ...item, completedSession: input.sessionNumber, passed: true } : item,
+          ),
+        },
+        event("delayed_recheck", path.startWrapper, path.heldOutWrapper, input.sessionNumber, "delayed_recheck", null),
+      );
+    }
+    return {
+      ...state,
       activeBaseWrapper: null,
       activeTargetWrapper: null,
       mixRatio: null,
