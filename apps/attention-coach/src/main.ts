@@ -808,36 +808,99 @@ function guidedCompletedToday(): boolean {
 }
 
 function guidedSessionsCompleted(): number {
-  return Math.max(0, Math.min(TARGET_ENVELOPE_SESSIONS, state.progress.sessionNumber - 1));
+  return Math.max(0, state.progress.sessionNumber - 1);
+}
+
+function currentGuidedSessionNumber(): number {
+  return Math.max(1, state.progress.sessionNumber);
+}
+
+function transferPhaseLabel(): string {
+  const labels: Record<string, string> = {
+    base_fluency: "Signal foundation",
+    diagnostic_probe: "Format probe",
+    flattening: "Learning curve check",
+    transition_probe: "Transfer probe",
+    expected_dip: "Expected dip",
+    recovering: "Recovery practice",
+    return_to_base: "Return check",
+    mix_80_20: "Mixed practice",
+    mix_60_40: "Mixed practice",
+    mix_50_50: "Mixed practice",
+    random_mix: "Random mixed practice",
+    held_out_composition: "Held-out composition",
+    full_factorial_mix: "Full transfer mix",
+    delayed_recheck: "Delayed re-check",
+    maintenance_pending: "Maintenance pending",
+    portable: "Portable status",
+    maintenance_mix: "Maintenance mix",
+  };
+  return labels[state.progress.transferControllerState.phase] || PHASE_NAMES[state.progress.currentPhase];
+}
+
+function adaptiveRouteStatus(): "portable" | "extended" | "active" {
+  if (state.progress.transferControllerState.phase === "portable" || state.progress.phaseStatus === "completed") return "portable";
+  if (guidedSessionsCompleted() >= TARGET_ENVELOPE_SESSIONS || state.progress.phaseStatus === "extended_for_learning_curve") return "extended";
+  return "active";
+}
+
+function adaptiveRouteTitle(): string {
+  const status = adaptiveRouteStatus();
+  if (status === "portable") return "Portable status reached";
+  if (status === "extended") return "Extended transfer practice";
+  return `Session ${currentGuidedSessionNumber()}`;
+}
+
+function adaptiveRouteBody(): string {
+  const status = adaptiveRouteStatus();
+  if (status === "portable") return "Guided sessions now maintain transfer with mixed practice and return checks. Progress does not reset unless you reset your data or start a new programme cycle.";
+  if (status === "extended") return `You have passed the usual ${TARGET_ENVELOPE_SESSIONS}-session envelope. Guided sessions continue only where the learning curve still needs transfer, maintenance, or delayed re-check evidence.`;
+  return `Typical route: about ${TARGET_ENVELOPE_SESSIONS} guided sessions, adjusted by your learning-curve evidence. Session number alone does not advance the route.`;
+}
+
+function adaptiveNextMilestone(): string {
+  const status = adaptiveRouteStatus();
+  if (status === "portable") return "Maintain transfer across mixed and spaced checks.";
+  if (status === "extended") return "Resolve the current transfer check before portable status.";
+  const phase = state.progress.currentPhase;
+  if (phase === "P5_MIXED") return "Stable mixed-format performance.";
+  if (phase === "P6_DELAYED") return "Delayed re-check evidence.";
+  if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") return "Recovery in the changed display.";
+  return "A stable learning curve for the next challenge.";
+}
+
+function trainingStatusCard(): string {
+  return `
+    <section class="training-status-card">
+      <div class="training-status-copy">
+        <span>Training status</span>
+        <strong>${escapeHtml(adaptiveRouteTitle())}</strong>
+        <p>${escapeHtml(adaptiveRouteBody())}</p>
+      </div>
+      <div class="training-status-grid">
+        <div>
+          <span>Completed</span>
+          <strong>${guidedSessionsCompleted()}</strong>
+          <small>guided sessions</small>
+        </div>
+        <div>
+          <span>Stage</span>
+          <strong>${escapeHtml(transferPhaseLabel())}</strong>
+          <small>${escapeHtml(phaseStatusCopy(state.progress.currentPhase, state.progress.phaseStatus))}</small>
+        </div>
+        <div>
+          <span>Next milestone</span>
+          <strong>${escapeHtml(adaptiveNextMilestone())}</strong>
+          <small>Evidence-led</small>
+        </div>
+      </div>
+    </section>
+  `;
 }
 
 function hasReturnGap(): boolean {
   const latest = latestCompletion();
   return Boolean(latest && daysBetweenIsoDates(latest.date, todayIso()) >= 2);
-}
-
-function programmeProgressDots(completed = guidedSessionsCompleted()): string {
-  const dots = Array.from({ length: TARGET_ENVELOPE_SESSIONS }, (_, index) => {
-    const isComplete = index < completed;
-    const label = `Guided session ${index + 1}${isComplete ? " complete" : " not complete"}`;
-    return `<span class="${isComplete ? "is-complete" : ""}" title="${escapeHtml(label)}">${isComplete ? index + 1 : ""}</span>`;
-  });
-  return [dots.slice(0, 10), dots.slice(10, 20)]
-    .map((row) => `<div class="programme-dot-row">${row.join("")}</div>`)
-    .join("");
-}
-
-function programmeProgressCard(completed = guidedSessionsCompleted()): string {
-  return `
-    <section class="programme-progress-card">
-      <div>
-        <span>Programme progress</span>
-        <strong>${completed} of ${TARGET_ENVELOPE_SESSIONS} guided sessions complete</strong>
-        <small>Full programme: ${TARGET_ENVELOPE_SESSIONS} guided sessions. New challenge formats appear when your learning curve is ready.</small>
-      </div>
-      <div class="programme-dots" aria-label="20 guided session programme progress">${programmeProgressDots(completed)}</div>
-    </section>
-  `;
 }
 
 function completionEntry(route: CompletionRoute, sessionNumber = state.progress.sessionNumber, phase = state.progress.currentPhase) {
@@ -1403,23 +1466,23 @@ function renderTutorial(): string {
 function renderToday(): string {
   const phase = state.progress.currentPhase;
   const completedToday = guidedCompletedToday();
-  if (guidedSessionsCompleted() >= TARGET_ENVELOPE_SESSIONS) {
+  const routeStatus = adaptiveRouteStatus();
+  if (routeStatus !== "active") {
+    const isPortable = routeStatus === "portable";
     return shell(`
       ${appTabs("today")}
       <section class="daily-loop-screen">
         <div class="today-action-card programme-complete-panel">
-          <p class="ui-eyebrow">20-session envelope reached</p>
-          <h1>Mixed transfer practice continues</h1>
-          <p class="ui-body">You have reached the planned ${TARGET_ENVELOPE_SESSIONS}-session envelope. Guided sessions now continue as mixed practice, return checks, and delayed re-checks when needed.</p>
+          <p class="ui-eyebrow">Today - ${escapeHtml(adaptiveRouteTitle())}</p>
+          <h1>${isPortable ? "Maintain your portable attention skill" : "Extended transfer practice"}</h1>
+          <p class="ui-body">${escapeHtml(adaptiveRouteBody())}</p>
           <div class="today-primary-actions">
-            ${button("Continue guided practice", "start-guided-instructions")}
+            ${button(isPortable ? "Maintain transfer" : "Continue guided practice", "start-guided-instructions")}
             <button class="secondary-link-button" data-action="nav-progress">View progress</button>
             <button class="secondary-link-button" data-action="nav-free-play">Practice only</button>
           </div>
         </div>
-        <div class="today-plan-card">
-          ${programmeProgressCard(TARGET_ENVELOPE_SESSIONS)}
-        </div>
+        ${trainingStatusCard()}
       </section>
     `);
   }
@@ -1433,7 +1496,7 @@ function renderToday(): string {
     ${appTabs("today")}
     <section class="daily-loop-screen">
       <div class="today-action-card">
-        <p class="ui-eyebrow">Today - Session ${Math.min(state.progress.sessionNumber, TARGET_ENVELOPE_SESSIONS)} of ${TARGET_ENVELOPE_SESSIONS}</p>
+        <p class="ui-eyebrow">Today - Session ${currentGuidedSessionNumber()}</p>
         <h1>Today's attention session</h1>
         <p class="ui-body">Recommended: one guided session per day. Practice mode is optional.</p>
         ${returnCopy}
@@ -1458,9 +1521,7 @@ function renderToday(): string {
           <button class="secondary-link-button" data-action="nav-today-rationale">Why this?</button>
         </div>
       </div>
-      <div class="today-plan-card">
-        ${programmeProgressCard()}
-      </div>
+      ${trainingStatusCard()}
     </section>
   `);
 }
@@ -2173,19 +2234,20 @@ function renderComplete(): string {
   }
   const lastGuided = latestGuidedCompletion();
   if ((lastGuided?.sessionNumber || 0) >= TARGET_ENVELOPE_SESSIONS) {
+    const isPortable = adaptiveRouteStatus() === "portable";
     return shell(`
       <section class="panel result-panel programme-complete-panel">
-        <p class="ui-eyebrow">20-session envelope reached</p>
-        <h1>Mixed transfer practice continues</h1>
-        <p class="ui-body">Guided sessions now continue as mixed transfer practice, return checks, and delayed re-checks when needed.</p>
-        ${programmeProgressCard(TARGET_ENVELOPE_SESSIONS)}
+        <p class="ui-eyebrow">${escapeHtml(adaptiveRouteTitle())}</p>
+        <h1>${isPortable ? "Portable status reached" : "Extended transfer practice continues"}</h1>
+        <p class="ui-body">${escapeHtml(adaptiveRouteBody())}</p>
+        ${trainingStatusCard()}
         <div class="session-read-card is-green">
           <span>Next option</span>
-          <strong>Continue guided practice</strong>
-          <p>This keeps your current transfer state and adds maintenance or re-check sessions.</p>
+          <strong>${isPortable ? "Maintain transfer" : "Continue guided practice"}</strong>
+          <p>This keeps your current transfer state and adds maintenance, mixed practice, or re-check sessions.</p>
         </div>
         <div class="action-row">
-          ${button("Continue guided practice", "start-guided-instructions")}
+          ${button(isPortable ? "Maintain transfer" : "Continue guided practice", "start-guided-instructions")}
           ${button("View progress", "nav-progress", "secondary")}
           ${button("Practice only", "nav-free-play", "ghost")}
         </div>
@@ -2211,7 +2273,7 @@ function renderComplete(): string {
     <section class="panel result-panel">
       <p class="ui-eyebrow">Session complete</p>
       <h1>Nice work today</h1>
-      ${programmeProgressCard()}
+      ${trainingStatusCard()}
       <p class="return-cue is-complete-today">Today's guided session is complete. Come back tomorrow, or choose short Practice only.</p>
       <div class="session-read-card is-blue">
         <span>Today's read</span>
@@ -2931,6 +2993,33 @@ function transferDeltaTrend(current: number | null): Array<{ session: string; de
   return [{ session: "Now", delta: current === null || baseline === null ? null : Math.round(current - baseline) }];
 }
 
+function sessionTrendPoints(currentScore: number | null, currentTransfer: number | null): ProgressDashboardPresentationModel["trend"] {
+  const historyPoints = (state.progress.scoreHistory || [])
+    .slice(-20)
+    .map((entry) => ({
+      session: `S${entry.sessionNumber}`,
+      score: averageNullableScores([
+        entry.metrics.cognitiveBandwidth ?? null,
+        entry.metrics.frameBandwidth ?? null,
+        entry.metrics.patternBinding ?? null,
+      ]),
+      transfer: entry.metrics.transfer ?? null,
+    }))
+    .filter((point) => point.score !== null || point.transfer !== null);
+
+  if (historyPoints.length >= 2) return historyPoints;
+  if (historyPoints.length === 1) {
+    return [
+      { session: "Start", score: historyPoints[0].score === null ? null : 100, transfer: null },
+      historyPoints[0],
+    ];
+  }
+  return [
+    { session: "Start", score: currentScore === null ? null : 100, transfer: null },
+    { session: `S${Math.max(1, guidedSessionsCompleted() || currentGuidedSessionNumber())}`, score: currentScore, transfer: currentTransfer },
+  ];
+}
+
 function confidenceForEvidence(evidence: CellEvidence | null): string {
   if (!evidence || evidence.validTrials < 80) return "";
   if (evidence.timingQuality === "poor") return "Measured cautiously";
@@ -2973,10 +3062,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     transferDelta: scoreDisplayForMetric("transfer", transferRelative.delta),
     transferBaseline: transferRelative.baseline,
     confidence: confidenceForEvidence(state.progress.evidence.find((item) => item.construct === "ACC") || null),
-    trend: [
-      { session: "Start", score: overallScore === null ? null : 100, transfer: null },
-      { session: `S${Math.max(1, state.progress.sessionNumber - 1)}`, score: overallScore, transfer: transferReadiness },
-    ],
+    trend: sessionTrendPoints(overallScore, transferReadiness),
     transferTrend: transferDeltaTrend(transferReadiness),
     skills: [
       {
@@ -3220,8 +3306,11 @@ function trendChartSvg(points: ProgressDashboardPresentationModel["trend"]): str
   const bottom = 28;
   const plotWidth = width - left - right;
   const plotHeight = height - top - bottom;
-  const yFor = (value: number) => top + ((130 - value) / 60) * plotHeight;
-  const xFor = (index: number) => left + (index / (points.length - 1)) * plotWidth;
+  const yFor = (value: number) => {
+    const boundedValue = Math.max(70, Math.min(130, value));
+    return top + ((130 - boundedValue) / 60) * plotHeight;
+  };
+  const xFor = (index: number) => points.length <= 1 ? left + plotWidth : left + (index / (points.length - 1)) * plotWidth;
   const pathFor = (key: "score" | "transfer") => {
     const available = points
       .map((point, index) => ({ value: point[key], index }))
@@ -3354,18 +3443,44 @@ function renderProgressLevelCards(model: ProgressDashboardPresentationModel): st
     .join("");
 }
 
+function renderSessionProgressCard(model: ProgressDashboardPresentationModel): string {
+  return `
+    <section class="session-progress-card">
+      <div class="session-progress-summary">
+        <span>Session-level progress</span>
+        <strong>${escapeHtml(adaptiveRouteTitle())}</strong>
+        <p>${escapeHtml(adaptiveRouteBody())}</p>
+      </div>
+      <div class="overview-trend">
+        <div class="chart-heading">
+          <strong>Session trend</strong>
+          <span><i class="legend-line"></i>Control</span>
+          <span><i class="legend-line transfer"></i>Transfer</span>
+        </div>
+        ${trendChartSvg(model.trend)}
+      </div>
+    </section>
+  `;
+}
+
 function renderEarlyProgressDashboard(): string {
+  const completed = guidedSessionsCompleted();
+  const revealRemaining = Math.max(0, 5 - completed);
   return `
     <section class="dashboard-screen dashboard-overview">
       ${renderDashboardHeader("Progress", "overview", "Building continuity before score detail unlocks.")}
       <section class="continuity-card">
         <div>
           <span>Guided continuity</span>
-          <strong>${guidedSessionsCompleted()} of ${TARGET_ENVELOPE_SESSIONS} guided sessions</strong>
-          <small>Current guided session: ${Math.min(state.progress.sessionNumber, TARGET_ENVELOPE_SESSIONS)}</small>
+          <strong>${completed} guided session${completed === 1 ? "" : "s"} complete</strong>
+          <small>Current guided session: ${currentGuidedSessionNumber()}</small>
         </div>
-        <div class="programme-dots">${programmeProgressDots()}</div>
-        <p>Complete five guided sessions before the app shows score detail as a more reliable personal pattern. For now, the goal is consistency, fit, and a clear learning curve.</p>
+        <div>
+          <span>Route</span>
+          <strong>Adaptive</strong>
+          <small>Typical envelope: about ${TARGET_ENVELOPE_SESSIONS} sessions</small>
+        </div>
+        <p>Complete five guided sessions before the app shows score detail as a more reliable personal pattern. The full route is guided by learning-curve and transfer evidence, not a fixed session total.</p>
       </section>
       <section class="early-progress-grid">
         <article class="early-progress-card is-blue">
@@ -3380,7 +3495,7 @@ function renderEarlyProgressDashboard(): string {
         </article>
         <article class="early-progress-card is-orange">
           <span>Profile reveal</span>
-          <strong>${Math.max(0, 5 - Math.max(0, state.progress.sessionNumber - 1))} guided session${Math.max(0, 5 - Math.max(0, state.progress.sessionNumber - 1)) === 1 ? "" : "s"} to go</strong>
+          <strong>${revealRemaining} guided session${revealRemaining === 1 ? "" : "s"} to go</strong>
           <p>Your pattern becomes clearer after session 5. Score detail stays secondary until then.</p>
         </article>
       </section>
@@ -3416,13 +3531,14 @@ function renderOverviewDashboard(): string {
         <div class="progress-readiness-mid"></div>
         <div class="progress-readiness-trend">
           ${transferDeltaSparkline(model.transferTrend)}
-          <p>${model.transferDelta === null ? (benchmarkScoringSelected() ? "Benchmark pending" : "Calibrating baseline") : (benchmarkScoringSelected() ? "Personal trend retained locally" : "20-session trend from baseline")}</p>
+          <p>${model.transferDelta === null ? (benchmarkScoringSelected() ? "Benchmark pending" : "Calibrating baseline") : (benchmarkScoringSelected() ? "Personal trend retained locally" : "Session trend from baseline")}</p>
         </div>
         <div class="progress-readiness-icon" aria-hidden="true">
           <img src="${assetPath("trident-g-fpt-logo.png")}" alt="" />
         </div>
       </section>
       ${metricBoundaryStrip()}
+      ${renderSessionProgressCard(model)}
       <section class="progress-level-list">${renderProgressLevelCards(model)}</section>
     </section>
   `;

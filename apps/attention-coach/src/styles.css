@@ -1414,6 +1414,7 @@ button.score-card {
 .why-today-card,
 .today-plan-card,
 .programme-progress-card,
+.training-status-card,
 .early-progress-card,
 .train-header-card,
 .train-choice-card,
@@ -1447,6 +1448,7 @@ button.score-card {
 .why-today-card,
 .today-plan-card,
 .programme-progress-card,
+.training-status-card,
 .early-progress-card,
 .programme-rationale-card,
 .pre-task-hero,
@@ -1807,6 +1809,71 @@ button.score-card {
   border-color: rgba(23, 163, 69, 0.45);
   color: #0b6f2d;
   background: rgba(23, 163, 69, 0.1);
+}
+
+.training-status-card {
+  display: grid;
+  grid-template-columns: minmax(0, 0.82fr) minmax(0, 1.18fr);
+  align-items: stretch;
+  gap: 12px;
+  padding: 13px 14px;
+  background:
+    linear-gradient(135deg, rgba(20, 88, 255, 0.1), rgba(255, 255, 255, 0.94)),
+    radial-gradient(circle at 100% 0%, rgba(138, 214, 42, 0.14), transparent 170px);
+}
+
+.training-status-copy,
+.training-status-grid > div {
+  min-width: 0;
+  display: grid;
+  align-content: start;
+  gap: 4px;
+}
+
+.training-status-copy span,
+.training-status-grid span {
+  color: #445176;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.training-status-copy strong {
+  color: #07124a;
+  font-size: clamp(1.08rem, 2.9vmin, 1.42rem);
+  line-height: 1.08;
+  overflow-wrap: anywhere;
+}
+
+.training-status-copy p,
+.training-status-grid small {
+  margin: 0;
+  color: #4e5a7c;
+  font-size: 0.74rem;
+  font-weight: 720;
+  line-height: 1.28;
+}
+
+.training-status-grid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: 0.64fr minmax(0, 0.94fr) minmax(0, 1.14fr);
+  gap: 8px;
+}
+
+.training-status-grid > div {
+  padding: 10px;
+  border: 1px solid rgba(20, 88, 255, 0.12);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.training-status-grid strong {
+  color: #07124a;
+  font-size: 0.9rem;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
 }
 
 .plan-steps {
@@ -4150,6 +4217,7 @@ button.score-card {
 .overview-summary-card,
 .skills-overview-card,
 .guided-path-card,
+.session-progress-card,
 .overview-next-card,
 .continuity-card,
 .metric-boundary-strip,
@@ -4170,6 +4238,42 @@ button.score-card {
   grid-template-columns: 0.76fr 0.62fr 1.62fr;
   gap: 10px;
   padding: 14px 16px;
+}
+
+.session-progress-card {
+  min-height: 150px;
+  display: grid;
+  grid-template-columns: minmax(190px, 0.72fr) minmax(0, 1.28fr);
+  gap: 14px;
+  padding: 13px 16px;
+}
+
+.session-progress-summary {
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+
+.session-progress-summary span {
+  color: #445176;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.session-progress-summary strong {
+  color: var(--dash-ink);
+  font-size: clamp(1.12rem, 2.8vmin, 1.5rem);
+  line-height: 1.08;
+}
+
+.session-progress-summary p {
+  margin: 0;
+  color: #334069;
+  font-size: 0.78rem;
+  line-height: 1.28;
 }
 
 .overall-score-panel,
@@ -4467,7 +4571,7 @@ button.score-card {
 .progress-score-page {
   height: 100%;
   min-height: 0;
-  grid-template-rows: auto minmax(92px, 0.58fr) auto minmax(0, 1fr);
+  grid-template-rows: auto minmax(92px, 0.48fr) auto minmax(142px, 0.7fr) minmax(0, 1fr);
   align-content: stretch;
   gap: 10px;
 }
@@ -5819,6 +5923,9 @@ button.score-card {
 
   .today-primary-actions,
   .today-phase-grid,
+  .training-status-card,
+  .training-status-grid,
+  .session-progress-card,
   .rationale-grid,
   .pre-task-grid,
   .proof-section-grid,
@@ -5835,6 +5942,25 @@ button.score-card {
 
   .secondary-link-button {
     width: 100%;
+  }
+
+  .training-status-card,
+  .session-progress-card {
+    gap: 9px;
+  }
+
+  .training-status-grid {
+    gap: 7px;
+  }
+
+  .session-progress-card {
+    min-height: 0;
+  }
+
+  .chart-heading {
+    flex-wrap: wrap;
+    gap: 6px 10px;
+    white-space: normal;
   }
 
   .proof-entry-row {
@@ -5929,6 +6055,7 @@ button.score-card {
   .today-action-card,
   .why-today-card,
   .today-plan-card,
+  .training-status-card,
   .train-header-card,
   .training-map-hero,
   .evidence-hero {
@@ -6007,6 +6134,10 @@ button.score-card {
     grid-template-columns: 1fr;
     padding: 10px;
     overflow-x: hidden;
+  }
+
+  .training-status-card {
+    padding: 10px;
   }
 
   .plan-steps {
@@ -7418,6 +7549,7 @@ button.score-card {
   .today-action-card,
   .why-today-card,
   .today-plan-card,
+  .training-status-card,
   .programme-rationale-card,
   .pre-task-hero,
   .proof-hero,
@@ -7465,6 +7597,20 @@ button.score-card {
   .app-content.view-today .secondary-link-button {
     min-height: 32px;
     font-size: 0.66rem;
+  }
+
+  .app-content.view-today .training-status-card {
+    padding: 9px 10px;
+  }
+
+  .app-content.view-today .training-status-copy p,
+  .app-content.view-today .training-status-grid small {
+    font-size: 0.66rem;
+    line-height: 1.18;
+  }
+
+  .app-content.view-today .training-status-grid > div {
+    padding: 7px 9px;
   }
 
   .app-content.view-today .today-plan-card {
