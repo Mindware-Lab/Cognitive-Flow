@@ -3171,10 +3171,12 @@ function progressDashboardSegmentedControl(active: ProgressSectionMode): string 
         <span class="segment-icon" aria-hidden="true">${miniIcon("chart")}</span>
         Overview
       </button>
-      <button class="${active === "detail" ? "is-active" : ""}" data-action="${scoreDetailReady ? "nav-progress-detail" : "nav-progress-overview"}">
-        <span class="segment-icon" aria-hidden="true">${miniIcon("list")}</span>
-        ${scoreDetailReady ? "Score Detail" : "Unlocks after S5"}
-      </button>
+      ${scoreDetailReady ? `
+        <button class="${active === "detail" ? "is-active" : ""}" data-action="nav-progress-detail">
+          <span class="segment-icon" aria-hidden="true">${miniIcon("list")}</span>
+          Detail
+        </button>
+      ` : ""}
       <button class="${active === "proof" ? "is-active" : ""}" data-action="nav-proof">
         <span class="segment-icon" aria-hidden="true">${miniIcon("shield")}</span>
         Proof
@@ -3429,7 +3431,7 @@ function renderProgressLevelCards(model: ProgressDashboardPresentationModel): st
             <div class="progress-level-bar"><i style="width:${dashboardDeltaPercent(skill.scoreDelta)}%"></i></div>
           </div>
           <div class="progress-level-status">
-            <strong>${escapeHtml(skill.status)}<span aria-hidden="true">${miniIcon(statusIconName(skill.status))}</span></strong>
+            <strong>${escapeHtml(skill.status)}</strong>
             <p>${escapeHtml(skill.statusNote)}</p>
           </div>
         </article>
@@ -3523,13 +3525,9 @@ function renderOverviewDashboard(): string {
           </div>
           ${model.transferDelta === null ? "" : `<p>${benchmarkScoringSelected() ? "Standard score against opted-in benchmark users." : "Change from your early-session baseline."}</p>`}
         </div>
-        <div class="progress-readiness-mid"></div>
         <div class="progress-readiness-trend">
           ${transferDeltaSparkline(model.transferTrend)}
           <p>${model.transferDelta === null ? (benchmarkScoringSelected() ? "Benchmark pending" : "Calibrating baseline") : (benchmarkScoringSelected() ? "Personal trend retained locally" : "Session trend from baseline")}</p>
-        </div>
-        <div class="progress-readiness-icon" aria-hidden="true">
-          <img src="${assetPath("trident-g-fpt-logo.png")}" alt="" />
         </div>
       </section>
       ${metricBoundaryStrip()}
