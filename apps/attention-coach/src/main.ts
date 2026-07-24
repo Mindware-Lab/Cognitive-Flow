@@ -2143,8 +2143,7 @@ function renderBlockBreak(): string {
     ${renderInvariantPromptCard(prompt?.prompt || null)}
     <section class="panel block-briefing-panel game-preview-panel">
       <div class="game-preview-copy">
-        <p class="ui-eyebrow">Next game</p>
-        <h1>${escapeHtml(copy.title)}</h1>
+        <p class="ui-eyebrow">Next game - ${escapeHtml(copy.title)}</p>
         <p class="ui-body">${escapeHtml(copy.body)}</p>
       </div>
       <section class="practice-preview-card game-preview-card">
@@ -2154,10 +2153,6 @@ function renderBlockBreak(): string {
           ${example.responseOptions.map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
         </div>
       </section>
-      <div class="block-practice-card">
-        <strong>Optional practice</strong>
-        <p>10 quick trials. No progress score.</p>
-      </div>
       <div class="action-row">
         ${button("Practice first", "start-block-practice", "secondary")}
         ${button("Start training", "resume-block")}

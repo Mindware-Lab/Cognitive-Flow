@@ -298,6 +298,7 @@ button {
 .app-content.view-block-break {
   grid-template-rows: auto auto auto;
   align-content: start;
+  gap: 8px;
   overflow: auto;
 }
 
@@ -3098,16 +3099,21 @@ button.score-card {
 }
 
 .game-preview-panel {
-  grid-template-rows: auto minmax(0, 0.82fr) auto auto;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   align-content: stretch;
-  gap: 7px;
-  padding: clamp(12px, 2vmin, 18px);
+  gap: 6px;
+  padding: clamp(10px, 1.7vmin, 14px);
 }
 
 .game-preview-copy {
   display: grid;
-  gap: 4px;
+  gap: 3px;
   text-align: center;
+}
+
+.game-preview-copy .ui-eyebrow {
+  font-size: 0.72rem;
+  line-height: 1.1;
 }
 
 .game-preview-copy h1 {
@@ -3120,23 +3126,18 @@ button.score-card {
 .game-preview-copy .ui-body {
   max-width: 46rem;
   justify-self: center;
-  font-size: 0.78rem;
-  line-height: 1.18;
+  font-size: 0.74rem;
+  line-height: 1.14;
 }
 
 .game-preview-card {
-  grid-template-rows: auto minmax(82px, 1fr) auto;
-  gap: 5px;
+  grid-template-rows: auto minmax(72px, 1fr) auto;
+  gap: 4px;
   min-height: 0;
   overflow: hidden;
 }
 
-.game-preview-panel .block-practice-card {
-  padding: 10px 12px;
-}
-
-.block-context-card,
-.block-practice-card {
+.block-context-card {
   min-width: 0;
   display: grid;
   gap: 6px;
@@ -3145,8 +3146,7 @@ button.score-card {
   border-radius: 18px;
 }
 
-.block-context-card span,
-.block-practice-card strong {
+.block-context-card span {
   color: #1458ff;
   font-size: 0.78rem;
   font-weight: 900;
@@ -3160,22 +3160,17 @@ button.score-card {
   line-height: 1.22;
 }
 
-.block-context-card small,
-.block-practice-card p {
+.block-context-card small {
   margin: 0;
   color: #334069;
   font-size: 0.82rem;
   line-height: 1.3;
 }
 
-.block-practice-card {
-  background: linear-gradient(135deg, rgba(23, 163, 69, 0.1), rgba(255, 255, 255, 0.92));
-}
-
 .interblock-progress-card,
 .invariant-prompt-card {
   width: min(100%, 860px);
-  margin: 0 auto 12px;
+  margin: 0 auto 10px;
   border: 1px solid rgba(10, 30, 55, 0.1);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.94);
@@ -3184,8 +3179,8 @@ button.score-card {
 
 .interblock-progress-card {
   display: grid;
-  gap: 12px;
-  padding: 14px;
+  gap: 9px;
+  padding: 12px;
 }
 
 .interblock-progress-copy {
@@ -3214,8 +3209,8 @@ button.score-card {
 .interblock-next-row p {
   margin: 0;
   color: var(--muted);
-  font-size: 0.9rem;
-  line-height: 1.35;
+  font-size: 0.82rem;
+  line-height: 1.25;
 }
 
 .interblock-graph-grid {
@@ -3228,8 +3223,8 @@ button.score-card {
 .interblock-graph-card {
   min-width: 0;
   display: grid;
-  gap: 6px;
-  padding: 10px;
+  gap: 5px;
+  padding: 8px;
   border: 1px solid rgba(10, 30, 55, 0.08);
   border-radius: 14px;
   background: rgba(245, 248, 252, 0.86);
@@ -3252,7 +3247,7 @@ button.score-card {
 .interblock-sparkline {
   display: block;
   width: 100%;
-  height: 72px;
+  height: 58px;
   overflow: visible;
 }
 
@@ -3283,8 +3278,8 @@ button.score-card {
 
 .interblock-graph-card small {
   color: var(--muted);
-  font-size: 0.72rem;
-  line-height: 1.2;
+  font-size: 0.68rem;
+  line-height: 1.15;
 }
 
 .interblock-next-row {
@@ -3293,7 +3288,7 @@ button.score-card {
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding-top: 2px;
+  padding-top: 0;
 }
 
 .invariant-prompt-card {
@@ -3404,8 +3399,8 @@ button.score-card {
 }
 
 .game-preview-card .stimulus-wrap {
-  width: min(130px, 20dvh, 36vw);
-  max-height: 130px;
+  width: min(116px, 17dvh, 32vw);
+  max-height: 116px;
 }
 
 .game-preview-card .practice-answer-grid {
@@ -3414,10 +3409,11 @@ button.score-card {
 
 .game-preview-panel .action-row {
   gap: 8px;
+  justify-content: center;
 }
 
 .game-preview-panel .ui-button {
-  min-height: 40px;
+  min-height: 38px;
   padding: 0 16px;
 }
 
@@ -5857,7 +5853,8 @@ button.score-card {
   }
 
   .game-preview-panel {
-    gap: 7px;
+    gap: 5px;
+    padding: 10px;
   }
 
   .direction-demo {
