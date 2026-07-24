@@ -1832,14 +1832,20 @@ button.score-card {
 
 .today-primary-actions {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) repeat(2, minmax(118px, auto));
+  grid-template-columns: minmax(0, 1fr) repeat(2, minmax(108px, 146px));
   align-items: center;
-  gap: 8px;
-  margin-top: 2px;
+  gap: 10px;
+  margin-top: 4px;
+  padding-bottom: 1px;
 }
 
 .today-primary-actions .ui-button {
+  width: 100%;
+  min-width: 0;
   min-height: 44px;
+  padding-inline: 14px;
+  white-space: normal;
+  line-height: 1.12;
 }
 
 .today-primary-actions small {
@@ -1849,6 +1855,8 @@ button.score-card {
 }
 
 .secondary-link-button {
+  width: 100%;
+  min-width: 0;
   min-height: 34px;
   padding: 0 12px;
   border: 1px solid rgba(20, 88, 255, 0.2);
@@ -1857,6 +1865,8 @@ button.score-card {
   background: #f4f8ff;
   font-size: 0.78rem;
   font-weight: 850;
+  line-height: 1.1;
+  white-space: normal;
 }
 
 .return-cue {

@@ -1453,7 +1453,7 @@ function renderToday(): string {
           </div>
         </div>
         <div class="today-primary-actions">
-          ${button("Start today's attention session", "start-guided-instructions")}
+          ${button("Start today's session", "start-guided-instructions")}
           <button class="secondary-link-button" data-action="start-easier-instructions">Practice only</button>
           <button class="secondary-link-button" data-action="nav-today-rationale">Why this?</button>
         </div>
