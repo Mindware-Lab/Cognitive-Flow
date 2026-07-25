@@ -975,14 +975,12 @@ function blockTrainingCopy(block: MiniBlockPlan): { title: string; body: string;
 function renderProgrammeRationale(): string {
   return `
     <section class="programme-rationale-card">
-      <p class="ui-eyebrow">Why this programme?</p>
-      <h2>Train the skill, then test whether it survives change.</h2>
+      <p class="ui-eyebrow">What happens in the programme?</p>
+      <h2>Train the cognitive skill, then test whether it survives change.</h2>
       <div class="rationale-grid">
-        <span>You are training controlled attention: picking out goal-relevant information from brief, noisy displays.</span>
-        <span>The display changes on purpose. If the same rule survives a new format, that is stronger evidence than getting better at one screen.</span>
-        <span>Later sessions mix formats and re-check after spacing because useful learning should return after time away.</span>
+        <span>You are training a controlled attention skill. If the skill persists when the task changes, that is stronger evidence than practice effects with one task.</span>
+        <span>Later sessions mix formats and re-check after days off, because your skills should return after time away.</span>
       </div>
-      <p class="claims-note compact-note">Flexible attention helps you keep the right goal active under pressure, distraction, or uncertainty. This is training support, not a diagnosis or clinical treatment.</p>
     </section>
   `;
 }
@@ -1536,17 +1534,17 @@ function renderTodayRationale(): string {
           <span class="section-icon is-purple">${miniIcon("target")}</span>
           <div>
             <p class="ui-eyebrow">Why this today?</p>
-            <h2>${escapeHtml(PHASE_WHY_COPY[phase])}</h2>
+            <h2>We are building your starting point.</h2>
           </div>
         </div>
-        <p>${escapeHtml(phaseRationale(phase))}</p>
-        <p class="learning-curve-note">New challenges appear when your current learning curve is stable. Current status: ${escapeHtml(status)}.</p>
+        <p>This phase builds your foundations for cognitive control: picking out goal-relevant information from brief, noisy displays.</p>
+        <p class="learning-curve-note">New challenges appear when your learning curve starts to flatten. Current status: ${escapeHtml(status)}.</p>
       </div>
       ${renderProgrammeRationale()}
       <div class="action-row">
         ${button("Back to Today", "nav-today")}
         ${button("Start today's session", "start-guided-instructions", "secondary")}
-        ${button("Training map", "nav-training-map", "ghost")}
+        ${button("Brain basis", "nav-training-map", "ghost")}
       </div>
     </section>
   `);

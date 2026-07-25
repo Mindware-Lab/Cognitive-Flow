@@ -2006,6 +2006,10 @@ button.score-card {
   gap: 10px;
 }
 
+.today-rationale-screen .rationale-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .rationale-grid span,
 .instruction-rationale-card,
 .wrapper-swap-card {
