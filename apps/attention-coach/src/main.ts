@@ -889,9 +889,8 @@ function trainingStatusCard(): string {
           <small>${escapeHtml(phaseStatusCopy(state.progress.currentPhase, state.progress.phaseStatus))}</small>
         </div>
         <div>
-          <span>Next milestone</span>
-          <strong>${escapeHtml(adaptiveNextMilestone())}</strong>
-          <small>Evidence-led</small>
+          <span>Goal</span>
+          <strong>A stable learning curve.</strong>
         </div>
       </div>
     </section>

@@ -1859,7 +1859,7 @@ button.score-card {
 .training-status-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: 0.64fr minmax(0, 0.94fr) minmax(0, 1.14fr);
+  grid-template-columns: minmax(96px, 0.82fr) minmax(0, 0.94fr) minmax(0, 1fr);
   gap: 8px;
 }
 
