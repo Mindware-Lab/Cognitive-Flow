@@ -1629,7 +1629,7 @@ function renderFreePlay(): string {
           <span>${miniIcon("map")}</span>
           <strong>Training explained</strong>
           <p>See how the sessions connect and why they target cognitive control capacity.</p>
-          ${button("View map", "nav-training-map", "secondary")}
+          ${button("Brain basis", "nav-training-map", "secondary")}
         </article>
       </div>
       <div class="free-play-copy">
