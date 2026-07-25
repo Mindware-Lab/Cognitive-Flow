@@ -3431,6 +3431,7 @@ function skillScale(score: number | null, tone: string): string {
 function renderDashboardHeader(title: string, mode: ProgressSectionMode, note: string): string {
   return `
     <div class="dashboard-header" aria-label="${escapeHtml(title)} - ${escapeHtml(note)}">
+      <button class="score-help-button" type="button" data-action="nav-evidence">How scores work</button>
       ${progressDashboardSegmentedControl(mode)}
     </div>
   `;
@@ -3656,10 +3657,6 @@ function renderScoreDetailDashboard(): string {
           <span>Whether the skill survives changed displays and time away.</span>
         </div>
         <div class="transfer-mini-grid">${renderTransferDetailCards(model)}</div>
-      </section>
-      <section class="score-legend-strip">
-        <em>${benchmarkScoringSelected() ? "These standardised scores use opted-in app data only." : "These scores show change from your own starting point."} They are not IQ scores, certificates, or selection evidence.</em>
-        ${button("How scores work", "nav-evidence", "ghost")}
       </section>
     </section>
   `;

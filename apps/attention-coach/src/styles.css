@@ -4175,7 +4175,7 @@ button.score-card {
 }
 
 .dashboard-skills {
-  grid-template-rows: auto auto minmax(250px, auto) auto auto;
+  grid-template-rows: auto auto minmax(250px, auto) auto;
   align-content: start;
   gap: 10px;
   overflow: auto;
@@ -4184,10 +4184,32 @@ button.score-card {
 .dashboard-header {
   min-height: 38px;
   display: grid;
-  grid-template-columns: minmax(220px, 0.44fr);
+  grid-template-columns: auto minmax(220px, 0.44fr);
   align-items: center;
-  justify-content: end;
+  justify-content: space-between;
   gap: 10px;
+}
+
+.score-help-button {
+  min-height: 34px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 13px;
+  border: 1px solid rgba(203, 216, 239, 0.95);
+  border-radius: 999px;
+  color: #355aaf;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 8px 20px rgba(14, 47, 114, 0.06);
+  font-size: 0.72rem;
+  font-weight: 850;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.score-help-button:hover {
+  color: var(--dash-blue);
+  background: #eef5ff;
 }
 
 .dashboard-title-group {
@@ -4320,8 +4342,7 @@ button.score-card {
 .metric-boundary-strip,
 .score-explainer-strip,
 .detail-skills-card,
-.transfer-detail-strip,
-.score-legend-strip {
+.transfer-detail-strip {
   min-height: 0;
   overflow: hidden;
   border: 1px solid rgba(207, 218, 235, 0.92);
@@ -5812,34 +5833,6 @@ button.score-card {
   line-height: 1.05;
 }
 
-.score-legend-strip {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 5px 10px;
-}
-
-.score-legend-strip small {
-  color: #26335f;
-  font-size: 0.6rem;
-  line-height: 1.1;
-}
-
-.score-legend-strip em {
-  color: #5b6687;
-  font-size: 0.62rem;
-  font-style: normal;
-  text-align: center;
-}
-
-.score-legend-strip .ui-button {
-  min-height: 28px;
-  padding: 0 10px;
-  font-size: 0.62rem;
-  white-space: nowrap;
-}
-
 .detail-actions {
   grid-column: 1 / -1;
 }
@@ -6836,9 +6829,15 @@ button.score-card {
 
   .dashboard-header {
     min-height: 0;
-    grid-template-columns: 1fr;
+    grid-template-columns: auto minmax(0, 1fr);
     justify-content: stretch;
     gap: 5px;
+  }
+
+  .score-help-button {
+    min-height: 30px;
+    padding: 0 9px;
+    font-size: 0.58rem;
   }
 
   .dashboard-title-group {
@@ -7267,21 +7266,6 @@ button.score-card {
   .transfer-mini-card em,
   .transfer-mini-card > small {
     display: none;
-  }
-
-  .score-legend-strip {
-    padding: 5px 6px;
-    border-radius: 16px;
-  }
-
-  .score-legend-strip .status-chip,
-  .score-legend-strip small {
-    display: none;
-  }
-
-  .score-legend-strip em {
-    font-size: 0.54rem;
-    text-align: center;
   }
 
   .detail-actions {
