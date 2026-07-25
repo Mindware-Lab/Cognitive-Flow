@@ -1571,12 +1571,12 @@ function renderBreakPlan(): string {
   `);
 }
 
-const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string; detail: string }> = [
-  { cell: "arrow_abs", label: "Signal foundation", detail: "Static arrows and simple signal control." },
-  { cell: "flow_abs", label: "Motion Foundation", detail: "Moving patterns with the same rule." },
-  { cell: "arrow_rel", label: "Relation Foundation", detail: "Use relationships around the centre." },
-  { cell: "flow_rel", label: "Motion Relations", detail: "Recover relational control in motion." },
-  { cell: "mixed", label: "Mixed Practice", detail: "Formats switch from trial to trial." },
+const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string }> = [
+  { cell: "arrow_abs", label: "Signal foundation" },
+  { cell: "flow_abs", label: "Motion foundation" },
+  { cell: "arrow_rel", label: "Relation foundation" },
+  { cell: "flow_rel", label: "Motion relations" },
+  { cell: "mixed", label: "Mixed practice" },
 ];
 
 const FREE_PLAY_GROUPS: Record<Construct, { title: string; detail: string; icon: string }> = {
@@ -1642,7 +1642,6 @@ function renderFreePlay(): string {
 
 type PracticeFormatStatus = {
   label: "Available" | "Locked until introduced" | "Reserved for transfer check";
-  note: string;
   tone: "available" | "locked" | "reserved";
   canPractice: boolean;
 };
@@ -1653,7 +1652,6 @@ function practiceFormatStatus(cell: CellKey, eligibleWrappers: WrapperId[]): Pra
   if (cell !== "mixed" && heldOutClean && cell === transferState.heldOutWrapper) {
     return {
       label: "Reserved for transfer check",
-      note: "Kept unpractised so later transfer evidence stays meaningful.",
       tone: "reserved",
       canPractice: false,
     };
@@ -1664,14 +1662,12 @@ function practiceFormatStatus(cell: CellKey, eligibleWrappers: WrapperId[]): Pra
   if (canPractice) {
     return {
       label: "Available",
-      note: "Practice only; this does not advance the coached programme.",
       tone: "available",
       canPractice: true,
     };
   }
   return {
     label: "Locked until introduced",
-    note: "This format appears after coached sessions introduce the underlying rule.",
     tone: "locked",
     canPractice: false,
   };
@@ -1679,19 +1675,17 @@ function practiceFormatStatus(cell: CellKey, eligibleWrappers: WrapperId[]): Pra
 
 function renderFreePlayFormats(): string {
   const eligibleWrappers = eligibleFreePlayWrappers(state.progress.transferControllerState);
-  const card = (construct: Construct, cell: CellKey, label: string, detail: string) => {
+  const card = (construct: Construct, cell: CellKey, label: string) => {
     const status = practiceFormatStatus(cell, eligibleWrappers);
     const action = status.canPractice
       ? `<button class="practice-format-action" data-free-construct="${construct}" data-free-cell="${cell}">Practice</button>`
-      : `<button class="practice-format-action is-disabled" type="button" disabled aria-disabled="true">Practice</button>`;
+      : "";
     return `
       <article class="practice-format-card ${status.canPractice ? "" : "is-unavailable"}">
         <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(cell))}</span>
         <span class="practice-format-copy">
           <strong>${escapeHtml(label)}</strong>
-          <small>${escapeHtml(detail)}</small>
           <em class="practice-status-chip is-${status.tone}">${escapeHtml(status.label)}</em>
-          <small class="practice-status-note">${escapeHtml(status.note)}</small>
         </span>
         ${action}
       </article>
@@ -1709,7 +1703,7 @@ function renderFreePlayFormats(): string {
           </span>
         </div>
         <div class="practice-format-grid">
-          ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
+          ${FREE_PLAY_CELLS.map(({ cell, label }) => card(construct, cell, label)).join("")}
         </div>
       </section>
     `;
@@ -1719,7 +1713,7 @@ function renderFreePlayFormats(): string {
     <section class="train-screen free-play-formats-screen">
       <div class="practice-format-note">
         <strong>Manual practice</strong>
-        <span>Practice only - this does not advance phase, WAP readiness, or transfer scores.</span>
+        <span>Practice only - this does not advance the programme.</span>
       </div>
       <div class="practice-format-layout">
         ${group("ACC")}

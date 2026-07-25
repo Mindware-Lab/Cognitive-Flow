@@ -2553,12 +2553,12 @@ button.score-card {
 
 .practice-format-grid {
   display: grid;
-  gap: 7px;
+  gap: 6px;
 }
 
 .practice-format-card {
   width: 100%;
-  min-height: 90px;
+  min-height: 58px;
   display: grid;
   grid-template-columns: 42px minmax(0, 1fr) auto;
   align-items: center;
@@ -2595,7 +2595,7 @@ button.score-card {
 .practice-format-copy {
   min-width: 0;
   display: grid;
-  gap: 3px;
+  gap: 5px;
 }
 
 .practice-format-copy strong {
@@ -2603,12 +2603,6 @@ button.score-card {
   font-size: 0.94rem;
   line-height: 1.12;
   overflow-wrap: anywhere;
-}
-
-.practice-format-copy small {
-  color: #54617f;
-  font-size: 0.74rem;
-  line-height: 1.18;
 }
 
 .practice-status-chip {
@@ -2640,10 +2634,6 @@ button.score-card {
   background: #fff1de;
 }
 
-.practice-status-note {
-  display: block;
-}
-
 .practice-format-action {
   min-width: 82px;
   min-height: 34px;
@@ -2665,6 +2655,7 @@ button.score-card {
 }
 
 .practice-format-card.is-unavailable {
+  grid-template-columns: 42px minmax(0, 1fr);
   background: rgba(250, 252, 255, 0.82);
 }
 
@@ -6246,7 +6237,7 @@ button.score-card {
   }
 
   .practice-format-grid {
-    gap: 5px;
+    gap: 4px;
   }
 
   .practice-format-card {
@@ -6272,19 +6263,10 @@ button.score-card {
     font-size: 0.78rem;
   }
 
-  .practice-format-copy small {
-    font-size: 0.62rem;
-    line-height: 1.12;
-  }
-
   .practice-status-chip {
     min-height: 18px;
     padding: 2px 6px;
     font-size: 0.52rem;
-  }
-
-  .practice-status-note {
-    line-height: 1.12;
   }
 
   .practice-format-action {
@@ -6294,6 +6276,10 @@ button.score-card {
     min-height: 28px;
     padding: 0 10px;
     font-size: 0.62rem;
+  }
+
+  .practice-format-card.is-unavailable {
+    grid-template-columns: 34px minmax(0, 1fr);
   }
 
   .train-choice-card {
@@ -7912,8 +7898,7 @@ button.score-card {
     line-height: 1.08;
   }
 
-  .practice-format-heading small,
-  .practice-format-copy small {
+  .practice-format-heading small {
     font-size: 0.56rem;
     line-height: 1.08;
   }
@@ -7946,6 +7931,10 @@ button.score-card {
     min-height: 26px;
     padding: 0 8px;
     font-size: 0.56rem;
+  }
+
+  .practice-format-card.is-unavailable {
+    grid-template-columns: 30px minmax(0, 1fr);
   }
 
   .proof-entry-screen .proof-hero {
