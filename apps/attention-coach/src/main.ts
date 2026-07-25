@@ -3122,7 +3122,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       {
         metric: "cognitiveBandwidth",
         label: "Signal control",
-        subtitle: "Pick out the goal-relevant direction in brief, noisy displays.",
+        subtitle: "Find the target signal in noise.",
         rawScore: signalScore,
         scoreDelta: scoreDisplayForMetric("cognitiveBandwidth", cognitiveRelative.delta),
         baseline: cognitiveRelative.baseline,
@@ -3134,8 +3134,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "frameBandwidth",
-        label: "Rule flexibility",
-        subtitle: "Use the right rule when the display changes from left/right to in/out.",
+        label: "Cognitive flexibility",
+        subtitle: "Shift flexibly when the task changes.",
         rawScore: relationalScore,
         scoreDelta: scoreDisplayForMetric("frameBandwidth", frameRelative.delta),
         baseline: frameRelative.baseline,
@@ -3148,7 +3148,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       {
         metric: "patternBinding",
         label: "Feature binding",
-        subtitle: "Keep colour and direction linked while finding the dominant pattern.",
+        subtitle: "Keep colour and direction linked.",
         rawScore: bindingScore,
         scoreDelta: scoreDisplayForMetric("patternBinding", bindingRelative.delta),
         baseline: bindingRelative.baseline,
@@ -3160,8 +3160,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "wrapperRecovery",
-        label: "New display transfer",
-        subtitle: "Use the same attention-control skill when the display format changes.",
+        label: "Context transfer",
+        subtitle: "Use the skill when the task context changes.",
         rawScore: wrapperRecoveryScore,
         scoreDelta: scoreDisplayForMetric("wrapperRecovery", wrapperRelative.delta),
         baseline: wrapperRelative.baseline,
@@ -3173,8 +3173,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "delayedRecovery",
-        label: "Return after time away",
-        subtitle: "Bring the trained skill back after a break or delayed re-check.",
+        label: "Return after a break",
+        subtitle: "Bring the skill back after time away.",
         rawScore: returnScore,
         scoreDelta: scoreDisplayForMetric("delayedRecovery", delayedRelative.delta),
         baseline: delayedRelative.baseline,
@@ -3187,7 +3187,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     ],
     transferDetails: [
       {
-        label: "New display transfer",
+        label: "Context transfer",
         shortLabel: "Motion",
         score: snapshot?.transfer.motionRecovery.score ?? null,
         change: null,
@@ -3211,7 +3211,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         tone: "orange",
       },
       {
-        label: "Return after time away",
+        label: "Return after a break",
         shortLabel: "Return",
         score: snapshot?.transfer.returnStrength.score ?? null,
         change: null,
@@ -3610,7 +3610,7 @@ function renderDetailSkillRows(model: ProgressDashboardPresentationModel): strin
             <strong class="${dashboardToneClass(skill.tone)}">${skill.scoreDelta === null ? "Calibrating" : dashboardScore(skill.scoreDelta)}</strong>
             <small>${skill.scoreDelta === null ? "More guided data needed" : publicScoreContextLabel()}</small>
           </span>
-          <span class="detail-status">${statusChip(skill.status, skill.tone)}<small>${skill.confidence ? confidenceDot(skill.tone, skill.confidence) : escapeHtml(skill.statusNote)}</small></span>
+          <span class="detail-status">${statusChip(skill.status, skill.tone)}</span>
         </div>
       `,
     )
@@ -3626,7 +3626,6 @@ function renderTransferDetailCards(model: ProgressDashboardPresentationModel): s
           <span>${escapeHtml(item.label)}</span>
           <strong>${item.scoreDelta === null ? "Calibrating" : dashboardScore(item.scoreDelta)}<small>${item.scoreDelta === null ? "" : ` ${publicScoreContextLabel()}`}</small></strong>
           ${statusChip(item.status, item.tone)}
-          <small>${escapeHtml(item.subtitle)}</small>
         </div>
       `,
     )
@@ -3644,7 +3643,7 @@ function renderScoreDetailDashboard(): string {
         <div>
           <span>Skill profile</span>
           <strong>Attention control</strong>
-          <p>These are training signals from coached tasks. Deeper protocol metrics stay available for coaching review.</p>
+          <p>Training signals from coached tasks. Deeper metrics stay available for coaching review.</p>
         </div>
         <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
       </section>
