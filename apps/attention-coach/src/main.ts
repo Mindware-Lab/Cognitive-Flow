@@ -3030,6 +3030,10 @@ function scoreUnitLabel(): string {
   return benchmarkScoringSelected() ? "std" : "pts";
 }
 
+function publicScoreContextLabel(): string {
+  return benchmarkScoringSelected() ? "benchmark score" : "from your start";
+}
+
 function transferDeltaTrend(current: number | null): Array<{ session: string; delta: number | null }> {
   const baseline = baselineForMetric("transfer", current);
   const historyPoints = (state.progress.scoreHistory || [])
@@ -3117,8 +3121,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     skills: [
       {
         metric: "cognitiveBandwidth",
-        label: "Cognitive Bandwidth",
-        subtitle: "Pick out the relevant direction signal accurately and quickly.",
+        label: "Signal control",
+        subtitle: "Pick out the goal-relevant direction in brief, noisy displays.",
         rawScore: signalScore,
         scoreDelta: scoreDisplayForMetric("cognitiveBandwidth", cognitiveRelative.delta),
         baseline: cognitiveRelative.baseline,
@@ -3130,8 +3134,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "frameBandwidth",
-        label: "Frame Bandwidth",
-        subtitle: "Use the relation in the display, not just the surface feature.",
+        label: "Rule flexibility",
+        subtitle: "Use the right rule when the display changes from left/right to in/out.",
         rawScore: relationalScore,
         scoreDelta: scoreDisplayForMetric("frameBandwidth", frameRelative.delta),
         baseline: frameRelative.baseline,
@@ -3143,8 +3147,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "patternBinding",
-        label: "Pattern Binding",
-        subtitle: "Keep direction and colour linked while extracting the dominant pattern.",
+        label: "Feature binding",
+        subtitle: "Keep colour and direction linked while finding the dominant pattern.",
         rawScore: bindingScore,
         scoreDelta: scoreDisplayForMetric("patternBinding", bindingRelative.delta),
         baseline: bindingRelative.baseline,
@@ -3156,8 +3160,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "wrapperRecovery",
-        label: "Wrapper Recovery",
-        subtitle: "Recover the same control skill when the display format changes.",
+        label: "New display transfer",
+        subtitle: "Use the same attention-control skill when the display format changes.",
         rawScore: wrapperRecoveryScore,
         scoreDelta: scoreDisplayForMetric("wrapperRecovery", wrapperRelative.delta),
         baseline: wrapperRelative.baseline,
@@ -3169,8 +3173,8 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
       },
       {
         metric: "delayedRecovery",
-        label: "Delayed Recovery",
-        subtitle: "Return to a trained skill after interruption or delay.",
+        label: "Return after time away",
+        subtitle: "Bring the trained skill back after a break or delayed re-check.",
         rawScore: returnScore,
         scoreDelta: scoreDisplayForMetric("delayedRecovery", delayedRelative.delta),
         baseline: delayedRelative.baseline,
@@ -3183,7 +3187,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
     ],
     transferDetails: [
       {
-        label: "Wrapper Recovery",
+        label: "New display transfer",
         shortLabel: "Motion",
         score: snapshot?.transfer.motionRecovery.score ?? null,
         change: null,
@@ -3207,7 +3211,7 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
         tone: "orange",
       },
       {
-        label: "Delayed Recovery",
+        label: "Return after time away",
         shortLabel: "Return",
         score: snapshot?.transfer.returnStrength.score ?? null,
         change: null,
@@ -3463,7 +3467,7 @@ function renderOverviewSkillRows(model: ProgressDashboardPresentationModel): str
 
 function renderProgressLevelCards(model: ProgressDashboardPresentationModel): string {
   return model.skills
-    .filter((skill) => skill.label !== "Wrapper Recovery" && skill.label !== "Delayed Recovery")
+    .filter((skill) => skill.metric !== "wrapperRecovery" && skill.metric !== "delayedRecovery")
     .map((skill, index) => {
       const statusTone = progressStatusTone(skill.status);
       return `
@@ -3591,18 +3595,21 @@ function renderOverviewDashboard(): string {
 
 function renderDetailSkillRows(model: ProgressDashboardPresentationModel): string {
   return model.skills
+    .filter((skill) => skill.metric === "cognitiveBandwidth" || skill.metric === "frameBandwidth" || skill.metric === "patternBinding")
     .map(
       (skill, index) => `
-        <div class="detail-skill-row ${dashboardToneClass(skill.tone)}" title="${escapeHtml(skill.subtitle)}">
+        <div class="detail-skill-row public-skill-row ${dashboardToneClass(skill.tone)}" title="${escapeHtml(skill.subtitle)}">
           <span class="skill-number ${dashboardToneClass(skill.tone)}">${index + 1}</span>
           <span class="skill-icon ${dashboardToneClass(skill.tone)}" aria-hidden="true">${miniIcon(skill.icon)}</span>
           <span class="detail-skill-copy">
             <strong>${escapeHtml(skill.label)}</strong>
+            <small>${escapeHtml(skill.subtitle)}</small>
           </span>
-          <strong class="skill-score ${dashboardToneClass(skill.tone)}">${dashboardScore(skill.scoreDelta)}</strong>
-          <strong class="skill-change ${skill.scoreDelta === null || skill.scoreDelta >= 0 ? "is-up" : "is-down"}">${scoreUnitLabel()}</strong>
-          ${skillScale(skill.rawScore, skill.tone)}
-          <span class="detail-status">${statusChip(skill.status, skill.tone)}<small>${confidenceDot(skill.tone, skill.confidence)}</small></span>
+          <span class="public-skill-score">
+            <strong class="${dashboardToneClass(skill.tone)}">${skill.scoreDelta === null ? "Calibrating" : dashboardScore(skill.scoreDelta)}</strong>
+            <small>${skill.scoreDelta === null ? "More guided data needed" : publicScoreContextLabel()}</small>
+          </span>
+          <span class="detail-status">${statusChip(skill.status, skill.tone)}<small>${skill.confidence ? confidenceDot(skill.tone, skill.confidence) : escapeHtml(skill.statusNote)}</small></span>
         </div>
       `,
     )
@@ -3610,13 +3617,15 @@ function renderDetailSkillRows(model: ProgressDashboardPresentationModel): strin
 }
 
 function renderTransferDetailCards(model: ProgressDashboardPresentationModel): string {
-  return model.transferDetails
+  const transferSkills = model.skills.filter((skill) => skill.metric === "wrapperRecovery" || skill.metric === "delayedRecovery");
+  return transferSkills
     .map(
       (item) => `
-        <div class="transfer-mini-card ${dashboardToneClass(item.tone)}" title="${escapeHtml(item.helper)}">
+        <div class="transfer-mini-card ${dashboardToneClass(item.tone)}" title="${escapeHtml(item.subtitle)}">
           <span>${escapeHtml(item.label)}</span>
-          <strong>${item.score === null ? "" : `${item.score}`}<small>${item.score === null ? "" : "/100"}</small></strong>
-          <em>${dashboardChange(item.change)}</em>
+          <strong>${item.scoreDelta === null ? "Calibrating" : dashboardScore(item.scoreDelta)}<small>${item.scoreDelta === null ? "" : ` ${publicScoreContextLabel()}`}</small></strong>
+          ${statusChip(item.status, item.tone)}
+          <small>${escapeHtml(item.subtitle)}</small>
         </div>
       `,
     )
@@ -3630,32 +3639,21 @@ function renderScoreDetailDashboard(): string {
   return `
     <section class="dashboard-screen dashboard-skills">
       ${renderDashboardHeader("Skills", "skills", benchmarkScoringSelected() ? "Scores are standardised against opted-in benchmark users." : "Scores are relative to your own starting point.")}
-      <section class="progress-readiness-card progress-skills-summary">
-        <div class="progress-readiness-left">
-          <h2>Cognitive Control Capacity</h2>
-          <div class="progress-readiness-score">
-            <span class="num ${model.transferDelta === null ? "is-placeholder" : ""}">${dashboardScore(model.transferDelta)}</span><span class="denom">${scoreUnitLabel()}</span>
-            <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
-          </div>
-          ${model.transferDelta === null ? "" : `<p>${benchmarkScoringSelected() ? "Standard score against opted-in benchmark users." : "Change from your early-session baseline."}</p>`}
+      <section class="skills-summary-card">
+        <div>
+          <span>Skill profile</span>
+          <strong>Attention control</strong>
+          <p>These are training signals from coached tasks. Deeper protocol metrics stay available for coaching review.</p>
         </div>
-        <div class="progress-readiness-trend">
-          ${transferDeltaSparkline(model.transferTrend)}
-          <p>${model.transferDelta === null ? (benchmarkScoringSelected() ? "Benchmark pending" : "Calibrating baseline") : (benchmarkScoringSelected() ? "Personal trend retained locally" : "Session trend from baseline")}</p>
-        </div>
-      </section>
-      <section class="score-explainer-strip">
-        <span><i class="marker hollow"></i>100 = ${benchmarkScoringSelected() ? "benchmark average" : "your starting point"}</span>
-        <span><i class="marker blue"></i>Above 100 = ${benchmarkScoringSelected() ? "above benchmark average" : "above your start"}</span>
-        <span><i class="marker orange"></i>Below 100 = currently below your start</span>
+        <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
       </section>
       <section class="detail-skills-card">
         ${renderDetailSkillRows(model)}
       </section>
       <section class="transfer-detail-strip">
         <div class="transfer-detail-heading">
-          <strong>Transfer details</strong>
-          <span>Changed formats, switching and re-checks.</span>
+          <strong>Transfer checks</strong>
+          <span>Whether the skill survives changed displays and time away.</span>
         </div>
         <div class="transfer-mini-grid">${renderTransferDetailCards(model)}</div>
       </section>

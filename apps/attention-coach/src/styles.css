@@ -4175,8 +4175,9 @@ button.score-card {
 }
 
 .dashboard-skills {
-  grid-template-rows: auto auto auto minmax(320px, auto) auto auto;
+  grid-template-rows: auto auto minmax(250px, auto) auto auto;
   align-content: start;
+  gap: 10px;
   overflow: auto;
 }
 
@@ -4687,6 +4688,50 @@ button.score-card {
   min-height: 118px;
 }
 
+.skills-summary-card {
+  min-height: 88px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 14px 18px;
+  overflow: hidden;
+  border: 1px solid rgba(207, 218, 235, 0.92);
+  border-radius: 20px;
+  background:
+    linear-gradient(120deg, rgba(20, 88, 255, 0.08), rgba(255, 255, 255, 0.96) 62%),
+    radial-gradient(circle at 95% 12%, rgba(23, 163, 69, 0.1), transparent 150px);
+  box-shadow: 0 10px 28px rgba(16, 35, 78, 0.08);
+}
+
+.skills-summary-card div {
+  min-width: 0;
+  display: grid;
+  gap: 4px;
+}
+
+.skills-summary-card span:not(.progress-pill) {
+  color: #445176;
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.skills-summary-card strong {
+  color: var(--dash-ink);
+  font-size: clamp(1.35rem, 3.2vmin, 1.8rem);
+  line-height: 1.05;
+}
+
+.skills-summary-card p {
+  max-width: 520px;
+  margin: 0;
+  color: #334069;
+  font-size: 0.78rem;
+  line-height: 1.25;
+}
+
 .metric-boundary-strip {
   min-height: 0;
   display: grid;
@@ -5140,6 +5185,23 @@ button.score-card {
     grid-template-columns: 1fr;
   }
 
+  .skills-summary-card {
+    min-height: 0;
+    align-items: stretch;
+    flex-direction: column;
+    gap: 8px;
+    padding: 10px 12px;
+    border-radius: 16px;
+  }
+
+  .skills-summary-card p {
+    font-size: 0.66rem;
+  }
+
+  .skills-summary-card strong {
+    font-size: 1.1rem;
+  }
+
   .progress-section-title {
     font-size: 0.9rem;
   }
@@ -5517,7 +5579,7 @@ button.score-card {
 
 .detail-skills-card {
   display: grid;
-  grid-template-rows: repeat(5, minmax(0, 1fr));
+  grid-template-rows: repeat(3, minmax(82px, auto));
 }
 
 .detail-skill-row {
@@ -5526,6 +5588,48 @@ button.score-card {
   align-items: center;
   gap: 7px;
   padding: 4px 10px;
+}
+
+.public-skill-row {
+  grid-template-columns: 34px 38px minmax(0, 1fr) minmax(112px, 0.34fr) minmax(150px, 0.42fr);
+  gap: 10px;
+  min-height: 82px;
+  padding: 10px 14px;
+}
+
+.public-skill-row .detail-skill-copy {
+  display: grid;
+  gap: 4px;
+}
+
+.public-skill-row .detail-skill-copy strong {
+  font-size: clamp(0.95rem, 2.2vmin, 1.08rem);
+}
+
+.public-skill-row .detail-skill-copy small {
+  display: block;
+  color: #334069;
+  font-size: 0.72rem;
+  line-height: 1.18;
+}
+
+.public-skill-score {
+  min-width: 0;
+  display: grid;
+  justify-items: start;
+  gap: 2px;
+}
+
+.public-skill-score strong {
+  font-size: clamp(1rem, 2.4vmin, 1.24rem);
+  line-height: 1;
+}
+
+.public-skill-score small {
+  color: #445176;
+  font-size: 0.68rem;
+  font-weight: 800;
+  line-height: 1.1;
 }
 
 .detail-skill-row .skill-number {
@@ -5658,16 +5762,16 @@ button.score-card {
 .transfer-mini-grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
 }
 
 .transfer-mini-card {
   min-width: 0;
   display: grid;
   align-content: center;
-  gap: 4px;
-  padding: 8px;
+  gap: 6px;
+  padding: 10px 12px;
   border-radius: 13px;
   background: #f7fbff;
 }
@@ -5682,6 +5786,11 @@ button.score-card {
 .transfer-mini-card strong {
   font-size: 1.08rem;
   line-height: 1;
+}
+
+.transfer-mini-card .status-chip {
+  width: max-content;
+  max-width: 100%;
 }
 
 .transfer-mini-card strong small {
@@ -7001,6 +7110,16 @@ button.score-card {
     padding: 4px 7px;
   }
 
+  .public-skill-row {
+    min-height: 96px;
+    grid-template-columns: 26px minmax(0, 1fr) minmax(92px, auto);
+    grid-template-areas:
+      "num copy score"
+      "num copy status";
+    gap: 6px 8px;
+    padding: 9px 10px;
+  }
+
   .detail-skill-row .skill-number {
     grid-area: num;
     width: 23px;
@@ -7022,6 +7141,29 @@ button.score-card {
 
   .detail-skill-copy small {
     display: none;
+  }
+
+  .public-skill-row .detail-skill-copy strong {
+    font-size: 0.82rem;
+  }
+
+  .public-skill-row .detail-skill-copy small {
+    display: block;
+    font-size: 0.62rem;
+  }
+
+  .public-skill-score {
+    grid-area: score;
+    justify-items: end;
+    text-align: right;
+  }
+
+  .public-skill-score strong {
+    font-size: 0.82rem;
+  }
+
+  .public-skill-score small {
+    font-size: 0.56rem;
   }
 
   .detail-skill-row .skill-score {
@@ -7075,6 +7217,10 @@ button.score-card {
     min-height: 18px;
     padding: 2px 6px;
     font-size: 0.52rem;
+  }
+
+  .public-skill-row .detail-status {
+    align-self: start;
   }
 
   .detail-status small span:not(.confidence-dot) {
