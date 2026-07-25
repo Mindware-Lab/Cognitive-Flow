@@ -36,7 +36,7 @@ import {
 } from "./supabaseClient";
 import { runDeviceReadiness } from "./timing";
 import { chooseNextPhase } from "./wap";
-import type { CellEvidence, CellKey, Construct, MiniBlockPlan, PhaseLabel, PhaseStatus, ProtocolGroup, ScratchBaseline, SessionPlan, TrialCondition, TrialDefinition, TrialResult } from "./types";
+import type { CellEvidence, CellKey, Construct, MiniBlockPlan, PhaseLabel, PhaseStatus, ProtocolGroup, ScratchBaseline, SessionPlan, TrialCondition, TrialDefinition, TrialResult, WrapperId } from "./types";
 
 type View =
   | "auth"
@@ -1384,7 +1384,7 @@ function renderWelcome(): string {
       <div class="splash-wave splash-wave-two" aria-hidden="true"></div>
       <section class="splash-footer">
         ${button("Start today's session", "start-readiness")}
-        ${button("Choose a practice game", "nav-free-play-formats", "secondary")}
+        ${button("Manual practice", "nav-free-play-formats", "secondary")}
         <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer"><img class="splash-site-icon" src="${assetPath("trident-splash-icon.png")}" alt="" aria-hidden="true" />www.iqmindware.com</a>
       </section>
     </section>
@@ -1621,9 +1621,9 @@ function renderFreePlay(): string {
         </article>
         <article class="train-choice-card is-orange">
           <span>${miniIcon("gamepad")}</span>
-          <strong>Practice games</strong>
-          <p>Try different games without changing your coached pathway or progress status.</p>
-          ${button("Choose a game", "nav-free-play-formats", "secondary")}
+          <strong>Manual practice</strong>
+          <p>Browse the game catalogue without changing your coached pathway or progress status.</p>
+          ${button("Choose practice", "nav-free-play-formats", "secondary")}
         </article>
         <article class="train-choice-card is-green">
           <span>${miniIcon("map")}</span>
@@ -1634,26 +1634,69 @@ function renderFreePlay(): string {
       </div>
       <div class="free-play-copy">
         <strong>Coached session vs practice</strong>
-        <span>Only the Today session advances the programme. Practice games are for familiarisation.</span>
+        <span>Only the Today session advances the programme. Manual practice is for familiarisation.</span>
       </div>
     </section>
   `);
 }
 
+type PracticeFormatStatus = {
+  label: "Available" | "Locked until introduced" | "Reserved for transfer check";
+  note: string;
+  tone: "available" | "locked" | "reserved";
+  canPractice: boolean;
+};
+
+function practiceFormatStatus(cell: CellKey, eligibleWrappers: WrapperId[]): PracticeFormatStatus {
+  const transferState = state.progress.transferControllerState;
+  const heldOutClean = transferState?.heldOutStatus === "clean";
+  if (cell !== "mixed" && heldOutClean && cell === transferState.heldOutWrapper) {
+    return {
+      label: "Reserved for transfer check",
+      note: "Kept unpractised so later transfer evidence stays meaningful.",
+      tone: "reserved",
+      canPractice: false,
+    };
+  }
+  const canPractice = cell === "mixed"
+    ? eligibleWrappers.length >= 2
+    : eligibleWrappers.includes(cell as WrapperId);
+  if (canPractice) {
+    return {
+      label: "Available",
+      note: "Practice only; this does not advance the coached programme.",
+      tone: "available",
+      canPractice: true,
+    };
+  }
+  return {
+    label: "Locked until introduced",
+    note: "This format appears after coached sessions introduce the underlying rule.",
+    tone: "locked",
+    canPractice: false,
+  };
+}
+
 function renderFreePlayFormats(): string {
   const eligibleWrappers = eligibleFreePlayWrappers(state.progress.transferControllerState);
-  const eligibleCells = FREE_PLAY_CELLS.filter(({ cell }) =>
-    cell === "mixed" ? eligibleWrappers.length >= 2 : eligibleWrappers.includes(cell as Exclude<CellKey, "mixed">),
-  );
-  const card = (construct: Construct, cell: CellKey, label: string, detail: string) => `
-    <button class="practice-format-card" data-free-construct="${construct}" data-free-cell="${cell}">
-      <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(cell))}</span>
-      <span class="practice-format-copy">
-        <strong>${escapeHtml(label)}</strong>
-        <small>${escapeHtml(detail)}</small>
-      </span>
-    </button>
-  `;
+  const card = (construct: Construct, cell: CellKey, label: string, detail: string) => {
+    const status = practiceFormatStatus(cell, eligibleWrappers);
+    const action = status.canPractice
+      ? `<button class="practice-format-action" data-free-construct="${construct}" data-free-cell="${cell}">Practice</button>`
+      : `<button class="practice-format-action is-disabled" type="button" disabled aria-disabled="true">Practice</button>`;
+    return `
+      <article class="practice-format-card ${status.canPractice ? "" : "is-unavailable"}">
+        <span class="practice-format-icon" aria-hidden="true">${miniIcon(freePlayCellIcon(cell))}</span>
+        <span class="practice-format-copy">
+          <strong>${escapeHtml(label)}</strong>
+          <small>${escapeHtml(detail)}</small>
+          <em class="practice-status-chip is-${status.tone}">${escapeHtml(status.label)}</em>
+          <small class="practice-status-note">${escapeHtml(status.note)}</small>
+        </span>
+        ${action}
+      </article>
+    `;
+  };
   const group = (construct: Construct) => {
     const groupMeta = FREE_PLAY_GROUPS[construct];
     return `
@@ -1666,7 +1709,7 @@ function renderFreePlayFormats(): string {
           </span>
         </div>
         <div class="practice-format-grid">
-          ${eligibleCells.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
+          ${FREE_PLAY_CELLS.map(({ cell, label, detail }) => card(construct, cell, label, detail)).join("")}
         </div>
       </section>
     `;
@@ -1675,7 +1718,7 @@ function renderFreePlayFormats(): string {
     ${appTabs("session")}
     <section class="train-screen free-play-formats-screen">
       <div class="practice-format-note">
-        <strong>Free Play</strong>
+        <strong>Manual practice</strong>
         <span>Practice only - this does not advance phase, WAP readiness, or transfer scores.</span>
       </div>
       <div class="practice-format-layout">
