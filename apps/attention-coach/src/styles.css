@@ -4174,6 +4174,12 @@ button.score-card {
   grid-template-rows: auto auto minmax(342px, 1.12fr) minmax(104px, 0.52fr) auto;
 }
 
+.dashboard-skills {
+  grid-template-rows: auto auto auto minmax(320px, auto) auto auto;
+  align-content: start;
+  overflow: auto;
+}
+
 .dashboard-header {
   min-height: 38px;
   display: grid;
@@ -4207,10 +4213,11 @@ button.score-card {
 .progress-segmented {
   min-width: 0;
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: flex-end;
   gap: 4px;
   padding: 4px;
+  overflow-x: auto;
   border: 1px solid #cbd8ef;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.76);
@@ -4218,6 +4225,7 @@ button.score-card {
 }
 
 .progress-segmented button {
+  flex: 1 1 0;
   min-width: 0;
   min-height: 34px;
   display: inline-flex;
@@ -4664,6 +4672,21 @@ button.score-card {
   gap: 8px;
 }
 
+.progress-overview-page {
+  min-height: 0;
+  grid-template-rows: auto auto minmax(190px, 1fr) auto;
+  align-content: start;
+  gap: 10px;
+}
+
+.progress-overview-status {
+  grid-template-columns: minmax(150px, 0.58fr) minmax(150px, 0.54fr) minmax(220px, 1fr);
+}
+
+.progress-skills-summary {
+  min-height: 118px;
+}
+
 .metric-boundary-strip {
   min-height: 0;
   display: grid;
@@ -5059,6 +5082,17 @@ button.score-card {
     gap: 7px;
   }
 
+  .progress-overview-page,
+  .dashboard-skills {
+    grid-template-rows: none;
+    align-content: start;
+    gap: 7px;
+  }
+
+  .progress-overview-status {
+    grid-template-columns: 1fr;
+  }
+
   .progress-readiness-card {
     min-height: 94px;
     grid-template-columns: minmax(0, 1fr) minmax(100px, 0.72fr);
@@ -5099,6 +5133,11 @@ button.score-card {
 
   .progress-readiness-trend svg {
     height: 38px;
+  }
+
+  .progress-skills-summary {
+    min-height: 0;
+    grid-template-columns: 1fr;
   }
 
   .progress-section-title {
@@ -6680,8 +6719,10 @@ button.score-card {
     align-content: start;
   }
 
-  .dashboard-detail {
-    grid-template-rows: auto auto minmax(304px, 1.08fr) minmax(92px, 0.46fr) auto;
+  .dashboard-detail,
+  .dashboard-skills {
+    grid-template-rows: none;
+    align-content: start;
   }
 
   .dashboard-header {
@@ -6707,11 +6748,13 @@ button.score-card {
     min-width: 0;
     width: 100%;
     padding: 3px;
+    justify-content: stretch;
   }
 
   .progress-segmented button {
     min-height: 30px;
     font-size: 0.74rem;
+    padding: 0 8px;
   }
 
   .metric-boundary-strip {
@@ -7826,6 +7869,17 @@ button.score-card {
   .proof-entry-screen {
     gap: 6px;
     overflow: hidden;
+  }
+
+  .progress-overview-page {
+    grid-template-rows: none;
+    align-content: start;
+    gap: 7px;
+  }
+
+  .progress-overview-status,
+  .progress-skills-summary {
+    grid-template-columns: 1fr;
   }
 
   .free-play-formats-screen {

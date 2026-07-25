@@ -68,7 +68,7 @@ type View =
 
 type TaskStage = "ready" | "rule_cue" | "fixation" | "stimulus" | "mask" | "response" | "feedback" | "paused";
 type StyleMode = "iq" | "legacy";
-type ProgressDashboardMode = "overview" | "detail";
+type ProgressDashboardMode = "overview" | "skills";
 type ProgressSectionMode = ProgressDashboardMode | "proof";
 type SessionSource = "guided" | "guided_practice" | "free_play" | "preview" | "recheck" | "easier";
 type PendingTaskStart =
@@ -3219,29 +3219,22 @@ function progressDashboardPresentationModel(): ProgressDashboardPresentationMode
 }
 
 function progressDashboardSegmentedControl(active: ProgressSectionMode): string {
-  const scoreDetailReady = canShowScoreDetail();
   return `
     <div class="progress-segmented" aria-label="Progress dashboard view">
       <button class="${active === "overview" ? "is-active" : ""}" data-action="nav-progress-overview">
         <span class="segment-icon" aria-hidden="true">${miniIcon("chart")}</span>
         Overview
       </button>
-      ${scoreDetailReady ? `
-        <button class="${active === "detail" ? "is-active" : ""}" data-action="nav-progress-detail">
-          <span class="segment-icon" aria-hidden="true">${miniIcon("list")}</span>
-          Detail
-        </button>
-      ` : ""}
+      <button class="${active === "skills" ? "is-active" : ""}" data-action="nav-progress-skills">
+        <span class="segment-icon" aria-hidden="true">${miniIcon("list")}</span>
+        Skills
+      </button>
       <button class="${active === "proof" ? "is-active" : ""}" data-action="nav-proof">
         <span class="segment-icon" aria-hidden="true">${miniIcon("shield")}</span>
         Proof
       </button>
     </div>
   `;
-}
-
-function canShowScoreDetail(): boolean {
-  return state.progress.sessionNumber > 5 || state.progress.profileRevealSeen;
 }
 
 function signedValue(value: number): string {
@@ -3566,28 +3559,32 @@ function renderEarlyProgressDashboard(): string {
 
 function renderOverviewDashboard(): string {
   const model = progressDashboardPresentationModel();
-  const transferState = transferStatus(model.transferDelta);
-  const transferTone = transferPillTone(transferState);
+  const completed = guidedSessionsCompleted();
   return `
-    <section class="dashboard-screen dashboard-overview progress-score-page">
-      ${renderDashboardHeader("Progress", "overview", "Track transfer, bottlenecks and attention-control levels.")}
-      <section class="progress-readiness-card">
-        <div class="progress-readiness-left">
-          <h2>Cognitive Control Capacity</h2>
-          <div class="progress-readiness-score">
-            <span class="num ${model.transferDelta === null ? "is-placeholder" : ""}">${dashboardScore(model.transferDelta)}</span><span class="denom">${scoreUnitLabel()}</span>
-            <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
-          </div>
-          ${model.transferDelta === null ? "" : `<p>${benchmarkScoringSelected() ? "Standard score against opted-in benchmark users." : "Change from your early-session baseline."}</p>`}
+    <section class="dashboard-screen dashboard-overview progress-overview-page">
+      ${renderDashboardHeader("Progress", "overview", "Track session continuity and the current training route.")}
+      <section class="continuity-card progress-overview-status">
+        <div>
+          <span>Training status</span>
+          <strong>${escapeHtml(adaptiveRouteTitle())}</strong>
+          <small>${completed} guided session${completed === 1 ? "" : "s"} complete</small>
         </div>
-        <div class="progress-readiness-trend">
-          ${transferDeltaSparkline(model.transferTrend)}
-          <p>${model.transferDelta === null ? (benchmarkScoringSelected() ? "Benchmark pending" : "Calibrating baseline") : (benchmarkScoringSelected() ? "Personal trend retained locally" : "Session trend from baseline")}</p>
+        <div>
+          <span>Route</span>
+          <strong>Adaptive</strong>
+          <small>Typical envelope: about ${TARGET_ENVELOPE_SESSIONS} sessions</small>
+        </div>
+        <p>New challenges appear when your learning curve is ready. Session number alone does not advance the route.</p>
+      </section>
+      ${renderSessionProgressCard(model)}
+      <section class="overview-next-card">
+        <p><strong>Next step:</strong> Continue the guided session from Today. Skill-level scores and proof results are separated into their own tabs.</p>
+        <div class="dashboard-actions">
+          ${button("Today's session", "start-guided-instructions")}
+          ${button("Skills", "nav-progress-skills", "secondary")}
+          ${button("Proof", "nav-proof", "ghost")}
         </div>
       </section>
-      ${metricBoundaryStrip()}
-      ${renderSessionProgressCard(model)}
-      <section class="progress-level-list">${renderProgressLevelCards(model)}</section>
     </section>
   `;
 }
@@ -3628,9 +3625,25 @@ function renderTransferDetailCards(model: ProgressDashboardPresentationModel): s
 
 function renderScoreDetailDashboard(): string {
   const model = progressDashboardPresentationModel();
+  const transferState = transferStatus(model.transferDelta);
+  const transferTone = transferPillTone(transferState);
   return `
-    <section class="dashboard-screen dashboard-detail">
-      ${renderDashboardHeader("Score Detail", "detail", benchmarkScoringSelected() ? "Scores are standardised against opted-in benchmark users." : "Scores are relative to your own starting point.")}
+    <section class="dashboard-screen dashboard-skills">
+      ${renderDashboardHeader("Skills", "skills", benchmarkScoringSelected() ? "Scores are standardised against opted-in benchmark users." : "Scores are relative to your own starting point.")}
+      <section class="progress-readiness-card progress-skills-summary">
+        <div class="progress-readiness-left">
+          <h2>Cognitive Control Capacity</h2>
+          <div class="progress-readiness-score">
+            <span class="num ${model.transferDelta === null ? "is-placeholder" : ""}">${dashboardScore(model.transferDelta)}</span><span class="denom">${scoreUnitLabel()}</span>
+            <span class="progress-pill is-${transferTone}">${escapeHtml(transferState)}</span>
+          </div>
+          ${model.transferDelta === null ? "" : `<p>${benchmarkScoringSelected() ? "Standard score against opted-in benchmark users." : "Change from your early-session baseline."}</p>`}
+        </div>
+        <div class="progress-readiness-trend">
+          ${transferDeltaSparkline(model.transferTrend)}
+          <p>${model.transferDelta === null ? (benchmarkScoringSelected() ? "Benchmark pending" : "Calibrating baseline") : (benchmarkScoringSelected() ? "Personal trend retained locally" : "Session trend from baseline")}</p>
+        </div>
+      </section>
       <section class="score-explainer-strip">
         <span><i class="marker hollow"></i>100 = ${benchmarkScoringSelected() ? "benchmark average" : "your starting point"}</span>
         <span><i class="marker blue"></i>Above 100 = ${benchmarkScoringSelected() ? "above benchmark average" : "above your start"}</span>
@@ -3655,10 +3668,9 @@ function renderScoreDetailDashboard(): string {
 }
 
 function renderProgress(): string {
-  if (!canShowScoreDetail()) state.progressDashboardMode = "overview";
   return shell(`
     ${appTabs("progress")}
-    ${state.progressDashboardMode === "detail" ? renderScoreDetailDashboard() : renderOverviewDashboard()}
+    ${state.progressDashboardMode === "skills" ? renderScoreDetailDashboard() : renderOverviewDashboard()}
   `);
 }
 
@@ -4439,8 +4451,8 @@ appRoot.addEventListener("click", async (event) => {
     state.progressDashboardMode = "overview";
     go("progress");
   }
-  else if (action === "nav-progress-detail") {
-    state.progressDashboardMode = "detail";
+  else if (action === "nav-progress-skills" || action === "nav-progress-detail") {
+    state.progressDashboardMode = "skills";
     go("progress");
   }
   else if (action === "nav-transfer") go("progress");
