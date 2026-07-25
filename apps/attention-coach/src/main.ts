@@ -2186,7 +2186,6 @@ function renderBlockBreak(): string {
         </div>
       </section>
       <div class="action-row">
-        ${button("Practice first", "start-block-practice", "secondary")}
         ${button("Start training", "resume-block")}
       </div>
     </section>
