@@ -2520,35 +2520,40 @@ button.score-card {
 }
 
 .practice-format-heading {
-  display: grid;
-  grid-template-columns: 42px minmax(0, 1fr);
-  align-items: center;
-  gap: 10px;
-  padding: 4px 2px;
-}
-
-.practice-format-heading .section-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 15px;
+  display: block;
+  min-width: 0;
+  padding: 0 2px 7px;
+  border-bottom: 1px solid rgba(190, 211, 255, 0.72);
 }
 
 .practice-format-heading strong,
-.practice-format-heading small {
+.practice-format-heading small,
+.practice-format-heading em {
   display: block;
 }
 
 .practice-format-heading strong {
   color: #07124a;
-  font-size: 1rem;
+  font-size: 1.08rem;
   line-height: 1.1;
 }
 
 .practice-format-heading small {
+  margin-bottom: 3px;
+  color: #2f5fc7;
+  font-size: 0.62rem;
+  font-weight: 950;
+  letter-spacing: 0.11em;
+  line-height: 1;
+  text-transform: uppercase;
+}
+
+.practice-format-heading em {
   margin-top: 2px;
   color: #54617f;
-  font-size: 0.76rem;
-  line-height: 1.2;
+  font-size: 0.72rem;
+  font-style: normal;
+  line-height: 1.15;
 }
 
 .practice-format-grid {
@@ -6207,7 +6212,7 @@ button.score-card {
   }
 
   .practice-format-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 8px;
   }
 
@@ -6216,24 +6221,21 @@ button.score-card {
   }
 
   .practice-format-heading {
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 8px;
-    padding: 2px;
-  }
-
-  .practice-format-heading .section-icon {
-    width: 32px;
-    height: 32px;
-    border-radius: 12px;
+    padding: 0 1px 5px;
   }
 
   .practice-format-heading strong {
-    font-size: 0.82rem;
+    font-size: 0.78rem;
   }
 
   .practice-format-heading small {
-    font-size: 0.64rem;
-    line-height: 1.12;
+    margin-bottom: 2px;
+    font-size: 0.48rem;
+  }
+
+  .practice-format-heading em {
+    font-size: 0.58rem;
+    line-height: 1.08;
   }
 
   .practice-format-grid {
@@ -6242,15 +6244,15 @@ button.score-card {
 
   .practice-format-card {
     min-height: 0;
-    grid-template-columns: 34px minmax(0, 1fr);
-    gap: 8px;
-    padding: 7px 8px;
+    grid-template-columns: 28px minmax(0, 1fr);
+    gap: 6px;
+    padding: 6px 7px;
     border-radius: 13px;
   }
 
   .practice-format-icon {
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     border-radius: 12px;
   }
 
@@ -6272,14 +6274,14 @@ button.score-card {
   .practice-format-action {
     grid-column: 2;
     justify-self: start;
-    min-width: 74px;
-    min-height: 28px;
-    padding: 0 10px;
-    font-size: 0.62rem;
+    min-width: 68px;
+    min-height: 26px;
+    padding: 0 8px;
+    font-size: 0.58rem;
   }
 
   .practice-format-card.is-unavailable {
-    grid-template-columns: 34px minmax(0, 1fr);
+    grid-template-columns: 28px minmax(0, 1fr);
   }
 
   .train-choice-card {
@@ -7880,61 +7882,68 @@ button.score-card {
   }
 
   .practice-format-heading {
-    grid-template-columns: 28px minmax(0, 1fr);
-    gap: 6px;
-    padding: 0;
+    padding: 0 1px 4px;
   }
 
-  .practice-format-heading .section-icon,
   .practice-format-icon {
-    width: 28px;
-    height: 28px;
-    border-radius: 10px;
+    display: none;
   }
 
-  .practice-format-heading strong,
-  .practice-format-copy strong {
-    font-size: 0.68rem;
+  .practice-format-heading strong {
+    font-size: 0.66rem;
     line-height: 1.08;
+  }
+
+  .practice-format-copy strong {
+    font-size: 0.62rem;
+    line-height: 1.08;
+  }
+
+  .practice-format-heading em {
+    font-size: 0.5rem;
+    line-height: 1.05;
   }
 
   .practice-format-heading small {
-    font-size: 0.56rem;
-    line-height: 1.08;
-  }
-
-  .practice-format-grid {
-    gap: 5px;
+    font-size: 0.44rem;
+    line-height: 1;
   }
 
   .practice-format-card {
-    grid-template-columns: 30px minmax(0, 1fr);
-    gap: 6px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 4px;
     min-height: 0;
     padding: 5px 6px;
-    border-radius: 12px;
+    border-radius: 10px;
+  }
+
+  .practice-format-grid {
+    gap: 4px;
+  }
+
+  .practice-format-action {
+    grid-column: 1;
+    min-width: 62px;
+    min-height: 24px;
+    padding: 0 7px;
+    font-size: 0.52rem;
+  }
+
+  .practice-status-chip {
+    max-width: 100%;
+    min-height: 15px;
+    padding: 2px 4px;
+    font-size: 0.42rem;
+    white-space: normal;
+  }
+
+  .practice-format-card.is-unavailable {
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .practice-format-icon svg {
     width: 16px;
     height: 16px;
-  }
-
-  .practice-status-chip {
-    min-height: 16px;
-    padding: 2px 5px;
-    font-size: 0.48rem;
-  }
-
-  .practice-format-action {
-    min-width: 68px;
-    min-height: 26px;
-    padding: 0 8px;
-    font-size: 0.56rem;
-  }
-
-  .practice-format-card.is-unavailable {
-    grid-template-columns: 30px minmax(0, 1fr);
   }
 
   .proof-entry-screen .proof-hero {

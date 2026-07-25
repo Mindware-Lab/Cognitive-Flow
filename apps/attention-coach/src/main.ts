@@ -1579,16 +1579,14 @@ const FREE_PLAY_CELLS: Array<{ cell: CellKey; label: string }> = [
   { cell: "mixed", label: "Mixed practice" },
 ];
 
-const FREE_PLAY_GROUPS: Record<Construct, { title: string; detail: string; icon: string }> = {
+const FREE_PLAY_GROUPS: Record<Construct, { title: string; detail: string }> = {
   ACC: {
-    title: "Signal Control",
-    detail: "Pick out the main signal in brief displays.",
-    icon: "target",
+    title: "Signal control",
+    detail: "Pick out the goal-relevant signal.",
   },
   BSE: {
-    title: "Binding Stability",
-    detail: "Keep feature and colour bound.",
-    icon: "binding",
+    title: "Colour binding",
+    detail: "Keep colour and feature together.",
   },
 };
 
@@ -1696,10 +1694,10 @@ function renderFreePlayFormats(): string {
     return `
       <section class="practice-format-group" aria-label="${groupMeta.title}">
         <div class="practice-format-heading">
-          <span class="section-icon is-purple" aria-hidden="true">${miniIcon(groupMeta.icon)}</span>
           <span>
+            <small>Practice type</small>
             <strong>${groupMeta.title}</strong>
-            <small>${groupMeta.detail}</small>
+            <em>${groupMeta.detail}</em>
           </span>
         </div>
         <div class="practice-format-grid">
