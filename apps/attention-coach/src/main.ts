@@ -53,6 +53,7 @@ type View =
   | "practice-intro"
   | "task"
   | "block-break"
+  | "block-next"
   | "complete"
   | "progress"
   | "coaching"
@@ -2161,33 +2162,56 @@ function recordGuidedBlockFeedback(block: MiniBlockPlan, results: TrialResult[])
 function renderBlockBreak(): string {
   const nextBlock = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
   if (!nextBlock) return renderComplete();
-  const copy = blockTrainingCopy(nextBlock);
-  const example = exampleTrialForBlock(nextBlock, state.sessionPlan?.phase || state.progress.currentPhase);
   const feedback = buildInterblockFeedback({
     history: state.progress.blockFeedbackHistory || [],
     currentProgrammeRunId: state.progress.programmeRunId,
     wapStatus: state.progress.phaseStatus,
     phase: state.progress.currentPhase,
   });
-  const prompt = currentInvariantPrompt();
   return shell(`
-    ${renderInterblockProgressCard(feedback)}
-    ${renderInvariantPromptCard(prompt?.prompt || null)}
-    <section class="panel block-briefing-panel game-preview-panel">
-      <div class="game-preview-copy">
-        <p class="ui-eyebrow">Next game - ${escapeHtml(copy.title)}</p>
-        <p class="ui-body">${escapeHtml(copy.body)}</p>
-      </div>
-      <section class="practice-preview-card game-preview-card">
-        <p class="task-preview-question">${escapeHtml(questionForTrial(example))}</p>
-        ${stimulusSvg(example, "stimulus")}
-        <div class="response-grid practice-answer-grid">
-          ${example.responseOptions.map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
+    ${
+      feedback
+        ? renderInterblockProgressCard(feedback)
+        : `<section class="interblock-progress-card">
+            <div class="interblock-progress-copy">
+              <span>Block feedback</span>
+              <strong>Ready for the next block</strong>
+              <p>Continue to preview the next game.</p>
+            </div>
+          </section>`
+    }
+    <div class="action-row block-feedback-actions">
+      ${button("Next game", "nav-block-next")}
+    </div>
+  `);
+}
+
+function renderBlockNext(): string {
+  const nextBlock = state.sessionPlan?.miniBlocks[state.activeBlockIndex];
+  if (!nextBlock) return renderComplete();
+  const copy = blockTrainingCopy(nextBlock);
+  const example = exampleTrialForBlock(nextBlock, state.sessionPlan?.phase || state.progress.currentPhase);
+  const prompt = currentInvariantPrompt();
+  const promptCard = renderInvariantPromptCard(prompt?.prompt || null);
+  return shell(`
+    <section class="block-next-screen ${promptCard ? "has-prompt" : ""}">
+      ${promptCard}
+      <section class="panel block-briefing-panel game-preview-panel">
+        <div class="game-preview-copy">
+          <p class="ui-eyebrow">Next game - ${escapeHtml(copy.title)}</p>
+          <p class="ui-body">${escapeHtml(copy.body)}</p>
+        </div>
+        <section class="practice-preview-card game-preview-card">
+          <p class="task-preview-question">${escapeHtml(questionForTrial(example))}</p>
+          ${stimulusSvg(example, "stimulus")}
+          <div class="response-grid practice-answer-grid">
+            ${example.responseOptions.map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
+          </div>
+        </section>
+        <div class="action-row">
+          ${button("Start training", "resume-block")}
         </div>
       </section>
-      <div class="action-row">
-        ${button("Start training", "resume-block")}
-      </div>
     </section>
   `);
 }
@@ -3716,6 +3740,7 @@ function render(): void {
     "practice-intro": renderPracticeIntro,
     task: renderTask,
     "block-break": renderBlockBreak,
+    "block-next": renderBlockNext,
     complete: renderComplete,
     progress: renderProgress,
     coaching: renderCoaching,
@@ -3775,7 +3800,7 @@ function beginSession(): void {
   state.progressionScored = true;
   state.guidedReturn = null;
   pendingBlockSubmissions = [];
-  go("block-break");
+  go("block-next");
 }
 
 function prepareFreePlay(construct: Construct, cellKey: CellKey, source: SessionSource = "free_play"): void {
@@ -4431,10 +4456,11 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "begin-session") beginSession();
   else if (action === "start-block-practice") startCurrentBlockPractice();
   else if (action === "begin-block-practice") startCurrentBlockPractice();
-  else if (action === "nav-block-options") go("block-break");
+  else if (action === "nav-block-next") go("block-next");
+  else if (action === "nav-block-options") go("block-next");
   else if (action === "finish-practice-begin-block") beginRestoredGuidedBlock();
   else if (action === "finish-practice-back-to-block") {
-    if (restoreGuidedReturn()) go("block-break");
+    if (restoreGuidedReturn()) go("block-next");
   }
   else if (action === "resume-block") {
     markCurrentInvariantPromptSeen();
