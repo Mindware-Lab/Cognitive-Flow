@@ -5791,7 +5791,7 @@ button.score-card {
 .transfer-mini-card {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) auto auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 8px;
   min-height: 46px;
@@ -5815,12 +5815,6 @@ button.score-card {
 .transfer-mini-card .status-chip {
   width: max-content;
   max-width: 100%;
-}
-
-.transfer-mini-card strong small {
-  color: #1d2858;
-  font-size: 0.58rem;
-  font-weight: 700;
 }
 
 .transfer-mini-card em {
@@ -7256,7 +7250,7 @@ button.score-card {
   }
 
   .transfer-mini-card {
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    grid-template-columns: minmax(0, 1fr) auto;
     min-height: 36px;
     gap: 5px;
     padding: 5px 7px;

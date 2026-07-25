@@ -3620,15 +3620,15 @@ function renderDetailSkillRows(model: ProgressDashboardPresentationModel): strin
 function renderTransferDetailCards(model: ProgressDashboardPresentationModel): string {
   const transferSkills = model.skills.filter((skill) => skill.metric === "wrapperRecovery" || skill.metric === "delayedRecovery");
   return transferSkills
-    .map(
-      (item) => `
+    .map((item) => {
+      const displayStatus = item.scoreDelta === null || item.status === "Benchmark pending" ? "Calibrating" : item.status;
+      return `
         <div class="transfer-mini-card ${dashboardToneClass(item.tone)}" title="${escapeHtml(item.subtitle)}">
           <span>${escapeHtml(item.label)}</span>
-          <strong>${item.scoreDelta === null ? "Calibrating" : dashboardScore(item.scoreDelta)}<small>${item.scoreDelta === null ? "" : ` ${publicScoreContextLabel()}`}</small></strong>
-          ${statusChip(item.status, item.tone)}
+          ${statusChip(displayStatus, item.tone)}
         </div>
-      `,
-    )
+      `;
+    })
     .join("");
 }
 
