@@ -1620,8 +1620,9 @@ button.score-card {
   min-height: 0;
   display: grid;
   align-content: start;
-  gap: 7px;
-  padding: 12px 13px;
+  gap: 6px;
+  padding: 11px 13px;
+  overflow: hidden;
 }
 
 .coaching-value-grid span {
@@ -1646,11 +1647,20 @@ button.score-card {
   line-height: 1.08;
 }
 
+.coaching-value-grid p {
+  display: -webkit-box;
+  overflow: hidden;
+  font-size: 0.74rem;
+  line-height: 1.18;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
 .coaching-protocol-strip {
   width: 100%;
-  height: clamp(92px, 13dvh, 112px);
+  height: clamp(84px, 12dvh, 104px);
   min-height: 0;
-  margin: 0;
+  margin: 8px 0 0;
   display: grid;
   place-items: center;
   overflow: hidden;
@@ -8228,8 +8238,19 @@ button.score-card {
     grid-template-columns: 1fr;
   }
 
+  .coaching-value-grid article {
+    min-height: auto;
+    padding: 10px 12px;
+  }
+
+  .coaching-value-grid p {
+    font-size: 0.72rem;
+    -webkit-line-clamp: 3;
+  }
+
   .coaching-protocol-strip {
-    height: 82px;
+    height: 78px;
+    margin-top: 10px;
   }
 }
 
