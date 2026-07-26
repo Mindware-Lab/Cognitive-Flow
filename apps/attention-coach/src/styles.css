@@ -2720,6 +2720,7 @@ button.score-card {
 }
 
 .view-free-play .train-choice-grid {
+  align-items: stretch;
   gap: 8px;
 }
 
