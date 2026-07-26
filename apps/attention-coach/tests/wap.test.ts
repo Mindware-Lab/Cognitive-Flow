@@ -130,6 +130,14 @@ describe("WAP phase controller", () => {
     expect(decision.readiness.timingAcceptable).toBe(false);
   });
 
+  it("blocks progression when a global fatigue flag is present", () => {
+    const decision = chooseNextPhase(state({ hasGlobalFatigueFlag: true }));
+    expect(decision.shouldTransition).toBe(false);
+    expect(decision.toPhase).toBe("P1_ARROW_ABS");
+    expect(decision.readiness.noGlobalBlocker).toBe(false);
+    expect(decision.readiness.slopeStable).toBe(true);
+  });
+
   it("creates all actual transition events, but only carrier swaps are transfer boundaries", () => {
     expect(transitionEventsForPhaseAdvance("P1_ARROW_ABS", "P2_FLOW_ABS")).toEqual(["T_CM_BASE"]);
     expect(transitionEventsForPhaseAdvance("P2_FLOW_ABS", "P3_ARROW_REL")).toEqual(["T_FRAME_ARROW"]);

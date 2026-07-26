@@ -819,7 +819,8 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
     evidence: input.evidence,
     protocolGroup: input.protocolGroup,
   });
-  const next = nextTransferState(current, input);
+  const hasGlobalBlocker = Boolean(input.hasGlobalFatigueFlag || input.hasTimingLimitedFlag);
+  const next = hasGlobalBlocker ? current : nextTransferState(current, input);
   const toPhase = legacyPhaseFor(next);
   const phaseAdvanced = toPhase !== input.currentPhase;
   const activeCell = PHASE_CELL[input.currentPhase] === "mixed" ? transferPathForState(current).startWrapper : PHASE_CELL[input.currentPhase];
@@ -835,7 +836,7 @@ export function chooseNextTransferState(input: WapUserState): WapDecision {
     ),
     lapseStable: Boolean(activeEvidence && activeEvidence.lapseRate <= 0.18),
     timingAcceptable: Boolean(activeEvidence && activeEvidence.timingQuality !== "poor"),
-    noGlobalBlocker: !input.hasGlobalFatigueFlag && !input.hasTimingLimitedFlag && ready,
+    noGlobalBlocker: !hasGlobalBlocker,
   };
   const phaseStatus = phaseAdvanced ? statusForTransferPhase(next.phase) || phaseStatusForPhase(toPhase) : statusForStay(input, readiness);
   return {
