@@ -720,7 +720,7 @@ function confidenceCopy(value: string | null | undefined): string {
 }
 
 function adaptiveProgrammeCopy(): string {
-  return "Typical pathway: roughly 20 sessions, depending on learning curve progression.";
+  return "Typical pathway: around 20-30 sessions, depending on learning curve progression.";
 }
 
 function nextChallengeCopy(stateValue: string): string {
@@ -765,7 +765,7 @@ const PHASE_STATUS_COPY: Record<PhaseStatus | "ready_for_next_challenge" | "reco
   extended_for_learning_curve: "Building",
   mixed: "Stable across formats",
   delayed: "Re-check due",
-  completed: "Portable",
+  completed: "Transferable",
   ready_for_next_challenge: "Ready for a change",
   recovering_new_format: "New format dip",
   mixed_stability: "Ready to mix",
@@ -816,6 +816,9 @@ function currentGuidedSessionNumber(): number {
   return Math.max(1, state.progress.sessionNumber);
 }
 
+const TYPICAL_ROUTE_SESSION_RANGE = "20-30";
+const TYPICAL_ROUTE_UPPER_SESSION = 30;
+
 function transferPhaseLabel(): string {
   const labels: Record<string, string> = {
     base_fluency: "Signal foundation",
@@ -833,7 +836,7 @@ function transferPhaseLabel(): string {
     full_factorial_mix: "Full transfer mix",
     delayed_recheck: "Delayed re-check",
     maintenance_pending: "Maintenance pending",
-    portable: "Portable status",
+    portable: "Transferable skill",
     maintenance_mix: "Maintenance mix",
   };
   return labels[state.progress.transferControllerState.phase] || PHASE_NAMES[state.progress.currentPhase];
@@ -841,13 +844,13 @@ function transferPhaseLabel(): string {
 
 function adaptiveRouteStatus(): "portable" | "extended" | "active" {
   if (state.progress.transferControllerState.phase === "portable" || state.progress.phaseStatus === "completed") return "portable";
-  if (guidedSessionsCompleted() >= TARGET_ENVELOPE_SESSIONS || state.progress.phaseStatus === "extended_for_learning_curve") return "extended";
+  if (guidedSessionsCompleted() >= TYPICAL_ROUTE_UPPER_SESSION || (state.progress.phaseStatus === "extended_for_learning_curve" && currentGuidedSessionNumber() > TYPICAL_ROUTE_UPPER_SESSION)) return "extended";
   return "active";
 }
 
 function adaptiveRouteTitle(): string {
   const status = adaptiveRouteStatus();
-  if (status === "portable") return "Portable status reached";
+  if (status === "portable") return "Transferable skill reached";
   if (status === "extended") return "Extended transfer practice";
   return `Session ${currentGuidedSessionNumber()}`;
 }
@@ -855,19 +858,30 @@ function adaptiveRouteTitle(): string {
 function adaptiveRouteBody(): string {
   const status = adaptiveRouteStatus();
   if (status === "portable") return "Guided sessions now maintain transfer with mixed practice and return checks. Progress does not reset unless you reset your data or start a new programme cycle.";
-  if (status === "extended") return `You have passed the usual ${TARGET_ENVELOPE_SESSIONS}-session envelope. Guided sessions continue only where the learning curve still needs transfer, maintenance, or delayed re-check evidence.`;
-  return `Typical route: about ${TARGET_ENVELOPE_SESSIONS} guided sessions, adjusted by your learning-curve evidence. Session number alone does not advance the route.`;
+  if (status === "extended") return `You have passed the usual ${TYPICAL_ROUTE_SESSION_RANGE}-session range. Guided sessions continue only where the learning curve still needs transfer, maintenance, or delayed re-check evidence.`;
+  return `Typical route: around ${TYPICAL_ROUTE_SESSION_RANGE} guided sessions, adjusted by your learning-curve evidence. Session number alone does not advance the route.`;
 }
 
 function adaptiveNextMilestone(): string {
   const status = adaptiveRouteStatus();
   if (status === "portable") return "Maintain transfer across mixed and spaced checks.";
-  if (status === "extended") return "Resolve the current transfer check before portable status.";
+  if (status === "extended") return "Resolve the current transfer check before transferable skill status.";
   const phase = state.progress.currentPhase;
   if (phase === "P5_MIXED") return "Stable mixed-format performance.";
   if (phase === "P6_DELAYED") return "Delayed re-check evidence.";
   if (phase === "P2_FLOW_ABS" || phase === "P2_ARROW_ABS" || phase === "P4_FLOW_REL" || phase === "P4_ARROW_REL") return "Recovery in the changed display.";
   return "A stable learning curve for the next challenge.";
+}
+
+function transferableAchievementSession(): number | null {
+  const completedAtSession = state.progress.transferControllerState.completedAtSession;
+  return state.progress.transferControllerState.phase === "portable" && completedAtSession ? completedAtSession : null;
+}
+
+function transferableAchievementJustReached(): boolean {
+  const achievedAt = transferableAchievementSession();
+  const lastGuided = latestGuidedCompletion();
+  return Boolean(achievedAt && lastGuided?.sessionNumber === achievedAt);
 }
 
 function trainingStatusCard(): string {
@@ -893,6 +907,33 @@ function trainingStatusCard(): string {
           <span>Goal</span>
           <strong>A stable learning curve.</strong>
         </div>
+      </div>
+    </section>
+  `;
+}
+
+function transferableAchievementPanel(): string {
+  const achievedAt = transferableAchievementSession() || guidedSessionsCompleted();
+  return `
+    <section class="panel result-panel transferable-achievement-panel">
+      <div class="achievement-burst" aria-hidden="true">
+        <span></span><span></span><span></span><span></span><span></span>
+      </div>
+      <div class="achievement-trophy" aria-hidden="true">
+        <span class="achievement-cup">★</span>
+      </div>
+      <p class="ui-eyebrow">Full transferability reached</p>
+      <h1>Congratulations: reached full transferability in ${achievedAt} sessions.</h1>
+      <p class="ui-body">Your attention skill has carried through mixed formats and delayed checks. Guided sessions now maintain transfer rather than resetting your progress.</p>
+      <div class="achievement-stat-grid">
+        <span><strong>${achievedAt}</strong><small>guided sessions</small></span>
+        <span><strong>Transferable</strong><small>cognitive skill</small></span>
+        <span><strong>Maintained</strong><small>mixed and spaced checks</small></span>
+      </div>
+      <div class="action-row">
+        ${button("View progress", "nav-progress")}
+        ${button("Maintain transfer", "start-guided-instructions", "secondary")}
+        ${button("Done", "finish-complete", "ghost")}
       </div>
     </section>
   `;
@@ -1466,16 +1507,16 @@ function renderToday(): string {
   const completedToday = guidedCompletedToday();
   const routeStatus = adaptiveRouteStatus();
   if (routeStatus !== "active") {
-    const isPortable = routeStatus === "portable";
+    const isTransferable = routeStatus === "portable";
     return shell(`
       ${appTabs("today")}
       <section class="daily-loop-screen">
         <div class="today-action-card programme-complete-panel">
           <p class="ui-eyebrow">Today - ${escapeHtml(adaptiveRouteTitle())}</p>
-          <h1>${isPortable ? "Maintain your portable attention skill" : "Extended transfer practice"}</h1>
+          <h1>${isTransferable ? "Maintain your transferable cognitive skill" : "Extended transfer practice"}</h1>
           <p class="ui-body">${escapeHtml(adaptiveRouteBody())}</p>
           <div class="today-primary-actions">
-            ${button(isPortable ? "Maintain transfer" : "Continue guided practice", "start-guided-instructions")}
+            ${button(isTransferable ? "Maintain transfer" : "Continue guided practice", "start-guided-instructions")}
             <button class="secondary-link-button" data-action="nav-progress">View progress</button>
             <button class="secondary-link-button" data-action="nav-free-play">Practice only</button>
           </div>
@@ -2283,21 +2324,24 @@ function renderComplete(): string {
     `);
   }
   const lastGuided = latestGuidedCompletion();
-  if ((lastGuided?.sessionNumber || 0) >= TARGET_ENVELOPE_SESSIONS) {
-    const isPortable = adaptiveRouteStatus() === "portable";
+  if (transferableAchievementJustReached()) {
+    return shell(transferableAchievementPanel());
+  }
+  if (adaptiveRouteStatus() !== "active") {
+    const isTransferable = adaptiveRouteStatus() === "portable";
     return shell(`
       <section class="panel result-panel programme-complete-panel">
         <p class="ui-eyebrow">${escapeHtml(adaptiveRouteTitle())}</p>
-        <h1>${isPortable ? "Portable status reached" : "Extended transfer practice continues"}</h1>
+        <h1>${isTransferable ? "Transferable cognitive skill reached" : "Extended transfer practice continues"}</h1>
         <p class="ui-body">${escapeHtml(adaptiveRouteBody())}</p>
         ${trainingStatusCard()}
         <div class="session-read-card is-green">
           <span>Next option</span>
-          <strong>${isPortable ? "Maintain transfer" : "Continue guided practice"}</strong>
+          <strong>${isTransferable ? "Maintain transfer" : "Continue guided practice"}</strong>
           <p>This keeps your current transfer state and adds maintenance, mixed practice, or re-check sessions.</p>
         </div>
         <div class="action-row">
-          ${button(isPortable ? "Maintain transfer" : "Continue guided practice", "start-guided-instructions")}
+          ${button(isTransferable ? "Maintain transfer" : "Continue guided practice", "start-guided-instructions")}
           ${button("View progress", "nav-progress", "secondary")}
           ${button("Practice only", "nav-free-play", "ghost")}
         </div>
@@ -3528,7 +3572,7 @@ function renderEarlyProgressDashboard(): string {
         <div>
           <span>Route</span>
           <strong>Adaptive</strong>
-          <small>Typical envelope: about ${TARGET_ENVELOPE_SESSIONS} sessions</small>
+          <small>Typical range: around ${TYPICAL_ROUTE_SESSION_RANGE} sessions</small>
         </div>
         <p>Complete five guided sessions before the app shows score detail as a more reliable personal pattern. The full route is guided by learning-curve and transfer evidence, not a fixed session total.</p>
       </section>

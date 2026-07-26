@@ -60,4 +60,4 @@ Cue time precedes fixation and is excluded from stimulus exposure timing and cap
 
 Before the protected `flow_rel` probe, `flow_rel` is excluded from free-play pools. Any premature `flow_rel` exposure marks the held-out condition contaminated or rebaseline-needed.
 
-Portable status requires a fresh delayed-recheck block with all-four-wrapper evidence passing the existing mixed-stability and timing checks. Historical mixed evidence and ordinary training trials from the same session do not count toward the delayed decision.
+Transferable status requires a fresh delayed-recheck block with all-four-wrapper evidence passing the existing mixed-stability and timing checks. Historical mixed evidence and ordinary training trials from the same session do not count toward the delayed decision.

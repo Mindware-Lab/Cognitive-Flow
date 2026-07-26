@@ -873,9 +873,9 @@ function reasonFor(phase: TransferPhase, state: TransferControllerState): string
   if (phase.includes("mix") || phase === "full_factorial_mix") return "Practise the relation under unpredictable wrapper selection.";
   if (phase === "held_out_composition") return `Log held-out ${path.heldOutWrapper} composition before direct practice.`;
   if (phase === "delayed_recheck") return "Re-check whether mixed-wrapper performance returns after spacing.";
-  if (phase === "maintenance_pending") return "Collect enough delayed mixed-wrapper evidence before assigning portable status.";
+  if (phase === "maintenance_pending") return "Collect enough delayed mixed-wrapper evidence before assigning transferable status.";
   if (phase === "maintenance_mix") return "Use remaining programme sessions for mixed transfer maintenance.";
-  if (phase === "portable") return "The relation has passed mixed and delayed checks.";
+  if (phase === "portable") return "The relation has reached transferable status after mixed and delayed checks.";
   return "Build the base representation.";
 }
 
