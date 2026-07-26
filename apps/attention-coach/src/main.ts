@@ -1176,6 +1176,10 @@ function createPracticePlanForBlock(sourcePlan: SessionPlan, block: MiniBlockPla
   };
 }
 
+function canOfferPracticeBeforeBlock(block: MiniBlockPlan): boolean {
+  return block.evidencePurpose === "training" || block.evidencePurpose === "recovery";
+}
+
 function transferComponentCopy(label: string, status: string): string {
   if (status !== "available") {
     if (label === "Motion Recovery") return "After moving-pattern practice.";
@@ -2247,6 +2251,7 @@ function renderBlockNext(): string {
   const example = exampleTrialForBlock(nextBlock, state.sessionPlan?.phase || state.progress.currentPhase);
   const prompt = currentInvariantPrompt();
   const promptCard = renderInvariantPromptCard(prompt?.prompt || null);
+  const canPractice = canOfferPracticeBeforeBlock(nextBlock);
   return shell(`
     <section class="block-next-screen ${promptCard ? "has-prompt" : ""}">
       ${promptCard}
@@ -2259,11 +2264,17 @@ function renderBlockNext(): string {
           <p class="task-preview-question">${escapeHtml(questionForTrial(example))}</p>
           ${stimulusSvg(example, "stimulus")}
           <div class="response-grid practice-answer-grid">
-            ${example.responseOptions.map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
+            ${orderedResponseOptionsForDisplay(example.responseOptions).map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
           </div>
         </section>
+        ${
+          canPractice
+            ? ""
+            : `<p class="practice-guard-note">Practice is skipped for this block so the transfer check stays meaningful.</p>`
+        }
         <div class="action-row">
           ${button("Start training", "resume-block")}
+          ${canPractice ? button("Practice first", "start-block-practice", "secondary") : ""}
         </div>
       </section>
     </section>
@@ -2288,7 +2299,7 @@ function renderPracticeIntro(): string {
         <p class="task-preview-question">${escapeHtml(questionForTrial(example))}</p>
         ${stimulusSvg(example, "stimulus")}
         <div class="response-grid practice-answer-grid">
-          ${example.responseOptions.map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
+          ${orderedResponseOptionsForDisplay(example.responseOptions).map((option) => `<span class="practice-answer">${labelForResponse(option)}</span>`).join("")}
         </div>
       </section>
       <section class="mini-steps practice-mini-steps">
@@ -3955,6 +3966,10 @@ function startCurrentBlockPractice(): void {
   const guidedPlan = state.sessionPlan;
   const block = guidedPlan?.miniBlocks[state.activeBlockIndex];
   if (!guidedPlan || !block) return;
+  if (!canOfferPracticeBeforeBlock(block)) {
+    go("block-next");
+    return;
+  }
   clearStageTimer();
   const returnIndex = state.activeBlockIndex;
   state.guidedReturn = { sessionPlan: guidedPlan, activeBlockIndex: returnIndex };
@@ -4517,7 +4532,7 @@ appRoot.addEventListener("click", async (event) => {
   else if (action === "start-easier-instructions") startEasierInstructions();
   else if (action === "start-pending-task") startPendingTask();
   else if (action === "begin-session") beginSession();
-  else if (action === "start-block-practice") startCurrentBlockPractice();
+  else if (action === "start-block-practice") go("practice-intro");
   else if (action === "begin-block-practice") startCurrentBlockPractice();
   else if (action === "nav-block-next") go("block-next");
   else if (action === "nav-block-options") go("block-next");

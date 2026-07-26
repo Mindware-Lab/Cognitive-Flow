@@ -3322,6 +3322,17 @@ button.score-card {
   overflow: hidden;
 }
 
+.practice-guard-note {
+  justify-self: center;
+  max-width: 520px;
+  margin: 0;
+  color: #52637c;
+  font-size: 0.66rem;
+  font-weight: 800;
+  line-height: 1.16;
+  text-align: center;
+}
+
 .block-context-card {
   min-width: 0;
   display: grid;
@@ -6819,6 +6830,11 @@ button.score-card {
     padding: 4px;
     border-radius: 9px;
     font-size: 0.56rem;
+  }
+
+  .practice-guard-note {
+    font-size: 0.56rem;
+    line-height: 1.12;
   }
 
   .practice-mini-steps {
