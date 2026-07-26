@@ -1854,7 +1854,7 @@ function renderTask(): string {
     : state.taskStage === "rule_cue"
       ? ruleCueForTrial(trial)
     : isPaused
-      ? "Paused."
+      ? "&nbsp;"
       : state.taskStage === "ready"
       ? "Focus on the centre."
       : "&nbsp;";
@@ -1882,7 +1882,7 @@ function renderTask(): string {
         </div>
       </section>
       <div class="response-grid task-responses">
-        ${trial.responseOptions
+        ${orderedResponseOptionsForDisplay(trial.responseOptions)
           .map((option, index) => `<button class="response-button" data-response="${escapeHtml(option)}" ${responseEnabled ? "" : "disabled"}>${responseButtonContent(option, index, trial.responseOptions.length)}</button>`)
           .join("")}
       </div>
@@ -2037,6 +2037,19 @@ function relationForResponse(option: string): string {
 
 function colorForResponse(option: string): "blue" | "yellow" {
   return option.endsWith("_yellow") ? "yellow" : "blue";
+}
+
+function orderedResponseOptionsForDisplay(options: string[]): string[] {
+  if (options.length !== 4) return options;
+  const [first, second, third, fourth] = options;
+  const firstRelation = relationForResponse(first);
+  const secondRelation = relationForResponse(second);
+  const thirdRelation = relationForResponse(third);
+  const fourthRelation = relationForResponse(fourth);
+  if (firstRelation === secondRelation && thirdRelation === fourthRelation && firstRelation !== thirdRelation) {
+    return [first, third, second, fourth];
+  }
+  return options;
 }
 
 function responseTargetIcon(option: string): string {
