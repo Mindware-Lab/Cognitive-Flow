@@ -1631,7 +1631,7 @@ function renderFreePlay(): string {
           ${button("Brain basis", "nav-training-map", "secondary")}
         </article>
       </div>
-      <div class="free-play-copy">
+      <div class="free-play-copy" data-copy-version="20260726-session-practice">
         <strong>Today's session vs Manual practice</strong>
         <span>Only the Today session advances the programme based on the Trident G Far Transfer protocol. Manual practice allows you to select individual games when they are unlocked.</span>
       </div>
