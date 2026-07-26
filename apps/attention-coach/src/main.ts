@@ -1632,8 +1632,8 @@ function renderFreePlay(): string {
         </article>
       </div>
       <div class="free-play-copy">
-        <strong>Coached session vs practice</strong>
-        <span>Only the Today session advances the programme. Manual practice is for familiarisation.</span>
+        <strong>Today's session vs Manual practice</strong>
+        <span>Only the Today session advances the programme based on the Trident G Far Transfer protocol. Manual practice allows you to select individual games when they are unlocked.</span>
       </div>
     </section>
   `);

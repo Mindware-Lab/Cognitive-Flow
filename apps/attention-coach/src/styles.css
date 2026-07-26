@@ -2723,6 +2723,21 @@ button.score-card {
   gap: 8px;
 }
 
+.view-free-play .train-choice-card {
+  gap: 7px;
+  padding: 12px;
+}
+
+.view-free-play .train-choice-card > span {
+  width: 38px;
+  height: 38px;
+}
+
+.view-free-play .train-choice-card p {
+  font-size: 0.82rem;
+  line-height: 1.28;
+}
+
 .train-choice-card {
   display: grid;
   gap: 8px;
