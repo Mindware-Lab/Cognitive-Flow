@@ -1614,7 +1614,7 @@ function renderFreePlay(): string {
       <div class="train-choice-grid">
         <article class="train-choice-card is-blue">
           <span>${miniIcon("calendar-check")}</span>
-          <strong>Today's coached session</strong>
+          <strong>Today's session</strong>
           <p>This implements the Trident G Far Transfer Protocol for guided progress.</p>
           ${button("Today's Session", "nav-today", "secondary")}
         </article>
