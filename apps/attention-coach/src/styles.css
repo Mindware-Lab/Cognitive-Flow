@@ -4211,7 +4211,7 @@ button.score-card {
 .dashboard-header {
   min-height: 38px;
   display: grid;
-  grid-template-columns: auto minmax(220px, 0.44fr);
+  grid-template-columns: auto minmax(336px, max-content);
   align-items: center;
   justify-content: space-between;
   gap: 10px;
@@ -4261,13 +4261,14 @@ button.score-card {
 }
 
 .progress-segmented {
-  min-width: min(100%, 320px);
-  display: flex;
-  flex-wrap: nowrap;
-  justify-content: flex-end;
+  width: min(100%, 360px);
+  min-width: min(100%, 336px);
+  justify-self: end;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 4px;
   padding: 4px;
-  overflow-x: auto;
+  overflow: visible;
   border: 1px solid #cbd8ef;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.76);
@@ -4275,14 +4276,12 @@ button.score-card {
 }
 
 .progress-segmented button {
-  flex: 1 0 96px;
-  min-width: 96px;
+  min-width: 0;
   min-height: 34px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  overflow: hidden;
+  overflow: visible;
   border: 0;
   border-radius: 999px;
   color: #1d2858;
@@ -4293,6 +4292,10 @@ button.score-card {
   text-align: center;
   white-space: nowrap;
   padding: 0 14px;
+}
+
+.progress-segmented .segment-icon {
+  display: none;
 }
 
 .progress-segmented button.is-active {
@@ -6877,15 +6880,12 @@ button.score-card {
   }
 
   .progress-segmented {
-    min-width: 0;
     width: 100%;
+    min-width: 0;
     padding: 3px;
-    justify-content: stretch;
   }
 
   .progress-segmented button {
-    flex-basis: 0;
-    min-width: 0;
     min-height: 30px;
     font-size: 0.74rem;
     padding: 0 8px;
