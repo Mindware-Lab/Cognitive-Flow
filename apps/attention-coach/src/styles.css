@@ -3216,6 +3216,24 @@ button.score-card {
   line-height: 1.15;
 }
 
+.programme-restart-button {
+  justify-self: center;
+  min-height: 28px;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 999px;
+  color: #52637c;
+  background: transparent;
+  font-size: 0.74rem;
+  font-weight: 850;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.programme-restart-button:hover {
+  color: #1458ff;
+}
+
 .session-read-card p {
   margin: 0;
   color: #334069;
@@ -6133,6 +6151,11 @@ button.score-card {
     min-height: 38px;
     padding: 0 12px;
     font-size: 0.78rem;
+  }
+
+  .programme-restart-button {
+    min-height: 26px;
+    font-size: 0.68rem;
   }
 
   .app-back-button svg {

@@ -935,6 +935,7 @@ function transferableAchievementPanel(): string {
         ${button("Maintain transfer", "start-guided-instructions", "secondary")}
         ${button("Done", "finish-complete", "ghost")}
       </div>
+      <button class="programme-restart-button" data-action="restart-guided-programme">Start a new programme</button>
     </section>
   `;
 }
@@ -4590,12 +4591,14 @@ appRoot.addEventListener("click", async (event) => {
     go("welcome", { replace: true });
   }
   else if (action === "restart-guided-programme") {
+    if (!window.confirm("Start a new 20-30 session programme? This resets your Attention Coach training progress, but keeps separate proof records.")) return;
     const preservedReadiness = state.progress.deviceReadiness;
     const preservedProtocolGroup = state.progress.protocolGroup;
     const preservedProtocolAssignmentVersion = state.progress.protocolAssignmentVersion;
     const preservedProtocolAssignmentSeed = state.progress.protocolAssignmentSeed;
     const preservedProtocolAssignedAt = state.progress.protocolAssignedAt;
     const preservedScratchBaselines = state.progress.scratchBaselines;
+    const preservedProofBenchmarks = state.progress.proofBenchmarks;
     const nextProgrammeCycle = (state.progress.programmeCycle || 1) + 1;
     const restartPhase = PHASE_ORDER_BY_GROUP[preservedProtocolGroup][0];
     clearStageTimer();
@@ -4612,6 +4615,7 @@ appRoot.addEventListener("click", async (event) => {
         protocolAssignmentSeed: preservedProtocolAssignmentSeed,
         protocolAssignedAt: preservedProtocolAssignedAt,
         scratchBaselines: preservedScratchBaselines,
+        proofBenchmarks: preservedProofBenchmarks,
         transferControllerState: migrateTransferControllerState({
           existing: null,
           currentPhase: restartPhase,
