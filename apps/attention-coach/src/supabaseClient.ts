@@ -34,10 +34,27 @@ export type GTrackHistoryResult = {
   attemptNumber: number;
   completedAt: string;
   summary: Record<string, unknown>;
+  gTrackScore?: {
+    construct?: string;
+    timepoint?: string | null;
+    testId?: string | null;
+    provisionalIndex?: number | string | null;
+    confidenceLabel?: string | null;
+    normStatus?: string | null;
+    publicScores?: Record<string, unknown> | null;
+  } | null;
   issuedNorm: Record<string, { standardScore?: number | null; normStatus?: { label?: string; confidence?: string } } | undefined> | null;
   latestNorm: Record<string, { standardScore?: number | null; normStatus?: { label?: string; confidence?: string } } | undefined> | null;
   normPool: string;
   completionQuality: string;
+};
+
+export type GTrackProofScore = NonNullable<GTrackHistoryResult["gTrackScore"]> & {
+  completedAt?: string | null;
+  raw?: number | string | null;
+  maxRaw?: number | string | null;
+  standardError?: number | string | null;
+  metrics?: Record<string, number | null> | null;
 };
 
 export async function currentAuthUser(): Promise<AuthUser | null> {
@@ -63,6 +80,17 @@ export async function sendEmailSignInLink(email: string): Promise<void> {
     options: { emailRedirectTo: redirectTo },
   });
   if (error) throw new Error(error.message);
+}
+
+export async function verifyEmailSignInCode(email: string, token: string): Promise<AuthUser | null> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email",
+  });
+  if (error) throw new Error(error.message);
+  return data.user ? { id: data.user.id, email: data.user.email || undefined } : null;
 }
 
 export async function signOutUser(): Promise<void> {
@@ -171,6 +199,20 @@ export async function loadGTrackHistory(): Promise<GTrackHistoryResult[]> {
   if (!response.ok) return [];
   const payload = await response.json() as { results?: GTrackHistoryResult[] };
   return Array.isArray(payload.results) ? payload.results : [];
+}
+
+export async function loadGTrackProofSummary(): Promise<GTrackProofScore[]> {
+  if (!supabase) return [];
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return [];
+  const response = await fetch("/api/gtrack/proof-summary", {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "same-origin",
+  });
+  if (!response.ok) return [];
+  const payload = await response.json() as { scores?: GTrackProofScore[] };
+  return Array.isArray(payload.scores) ? payload.scores : [];
 }
 
 async function functionErrorMessage(error: unknown): Promise<string> {

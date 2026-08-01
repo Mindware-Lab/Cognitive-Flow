@@ -12,7 +12,7 @@ import { migrateTransferControllerState, transferPathForState } from "./transfer
 import { ruleCueForTrial, shouldShowRuleCue, shouldShowRuleCueForTrial as shouldShowRuleCueForBlockTrial } from "./ruleCue";
 import { stimulusTimingForTrial } from "./trialTiming";
 import { eligibleFreePlayWrappers } from "./wrapperDefinitions";
-import { DEFAULT_PROGRESS, browserDeviceId, cloudSyncModeForDataMode, compareProgressFreshness, loadDataMode, loadDataModeSeen, loadProgress, newerProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
+import { DEFAULT_PROGRESS, browserDeviceId, clearDataModeSeen, cloudSyncModeForDataMode, compareProgressFreshness, loadDataMode, loadDataModeSeen, loadProgress, newerProgress, newProgrammeRunId, progressForBrowserDevice, resetProgress, saveDataMode, saveDataModeSeen, saveProgress, type CloudSyncMode, type CompletionRoute, type DataMode, type LocalProgress, type ProgressScoreHistoryEntry, type ProgressScoreMetric, type ProofBenchmarkDomain, type ProofBenchmarkEntry, type ProofBenchmarkTimepoint } from "./storage";
 import {
   currentAuthUser,
   deleteAttentionData,
@@ -22,6 +22,7 @@ import {
   finalizeAttentionSession,
   isSupabaseConfigured,
   loadGTrackHistory,
+  loadGTrackProofSummary,
   loadStandardizedScores,
   loadRemoteProgress,
   onAuthChange,
@@ -31,7 +32,9 @@ import {
   sendEmailSignInLink,
   signOutUser,
   submitAttentionBlock,
+  verifyEmailSignInCode,
   type AuthUser,
+  type GTrackProofScore,
   type StandardizedScoreRow,
 } from "./supabaseClient";
 import { runDeviceReadiness } from "./timing";
@@ -116,6 +119,7 @@ interface RuntimeState {
   authReady: boolean;
   authMessage: string;
   authBusy: boolean;
+  authEmail: string;
   dataMode: DataMode;
   dataModeSeen: boolean;
   cloudSyncMode: CloudSyncMode;
@@ -128,6 +132,7 @@ const app = document.querySelector<HTMLDivElement>("#app");
 if (!app) throw new Error("Missing #app root.");
 const appRoot = app;
 const STYLE_MODE_KEY = "attentionCoachStyleModeV2";
+const AUTH_EMAIL_KEY = "attentionCoachPendingAuthEmail";
 const cloudSyncAvailable = isSupabaseConfigured;
 const initialDataMode: DataMode = cloudSyncAvailable ? loadDataMode() : "local";
 const initialDataModeSeen = loadDataModeSeen();
@@ -192,7 +197,6 @@ function resolveInitialView(cloudSyncMode: CloudSyncMode, dataModeSeen: boolean)
     "profile",
   ];
   if (allowedViews.includes(queryView as View)) return queryView as View;
-  if (cloudSyncMode === "cloud" && !dataModeSeen) return "data-rights";
   return "welcome";
 }
 
@@ -318,6 +322,7 @@ let state: RuntimeState = {
   authReady: initialCloudSyncMode !== "cloud",
   authMessage: "",
   authBusy: false,
+  authEmail: window.localStorage.getItem(AUTH_EMAIL_KEY) || "",
   dataMode: initialDataMode,
   dataModeSeen: initialDataModeSeen,
   cloudSyncMode: initialCloudSyncMode,
@@ -460,9 +465,17 @@ async function hydrateStandardizedScores(): Promise<void> {
 async function hydrateGTrackProofScores(): Promise<void> {
   if (!cloudSyncActive()) return;
   try {
-    const entries = gTrackEntriesFromHistory(await loadGTrackHistory());
-    if (!entries.length) return;
+    let entries = gTrackEntriesFromProofScores(await loadGTrackProofSummary());
+    if (!entries.length) entries = gTrackEntriesFromHistory(await loadGTrackHistory());
     const manualEntries = state.progress.proofBenchmarks.filter((entry) => !entry.id.startsWith("gtrack-"));
+    if (!entries.length) {
+      if (manualEntries.length !== state.progress.proofBenchmarks.length) {
+        state.progress = { ...state.progress, proofBenchmarks: manualEntries };
+        persistProgress();
+        render();
+      }
+      return;
+    }
     const byId = new Map<string, ProofBenchmarkEntry>();
     [...manualEntries, ...entries].forEach((entry) => byId.set(entry.id, entry));
     state.progress = { ...state.progress, proofBenchmarks: Array.from(byId.values()) };
@@ -542,8 +555,9 @@ function playErrorFeedbackSound(): void {
 
 async function restoreRemoteProgress(): Promise<void> {
   if (!cloudSyncActive()) return;
-  let nextView: View = state.dataModeSeen ? "welcome" : "data-rights";
-  if (!state.dataModeSeen && (state.view === "welcome" || state.view === "auth")) {
+  const shouldShowDataRights = !state.dataModeSeen;
+  let nextView: View = shouldShowDataRights ? "data-rights" : "welcome";
+  if (shouldShowDataRights) {
     state.view = nextView;
     state.viewHistory = [];
   }
@@ -633,7 +647,7 @@ function shell(content: string, options: { task?: boolean; splash?: boolean } = 
     : cloudSyncAvailable && state.cloudSyncMode === "cloud" && state.authUser
     ? `<button class="app-auth-button" data-action="nav-data-rights" title="${escapeHtml(authLabel())}">Data</button>`
     : cloudSyncAvailable
-      ? `<button class="app-auth-button" data-action="${state.cloudSyncMode === "cloud" ? "nav-auth" : "nav-data-rights"}">${state.cloudSyncMode === "cloud" ? "Sign in" : "Data"}</button>`
+      ? `<button class="app-auth-button" data-action="nav-data-rights">Data</button>`
       : "";
   const soundControl = `<button class="app-nav-button app-sound-button ${state.soundOn ? "is-on" : "is-off"}" data-action="toggle-sound" aria-label="${state.soundOn ? "Turn sound feedback off" : "Turn sound feedback on"}">${headerIcon(state.soundOn ? "sound-on" : "sound-off")}</button>`;
   return `
@@ -775,11 +789,11 @@ const PHASE_STATUS_COPY: Record<PhaseStatus | "ready_for_next_challenge" | "reco
 
 function appTabs(active: "today" | "session" | "progress" | "coaching"): string {
   return `
-    <nav class="tabs">
-      ${navButton("Today", "nav-today", active === "today")}
-      ${navButton("Session", "nav-free-play", active === "session")}
-      ${navButton("Progress", "nav-progress", active === "progress")}
-      ${navButton("Coaching", "nav-coaching", active === "coaching")}
+    <nav class="tabs app-tabs" aria-label="Attention Coach sections">
+      ${navButton("Today", "nav-today", active === "today", { icon: "calendar-check" })}
+      ${navButton("Session", "nav-free-play", active === "session", { icon: "gamepad", mobileLabel: "Practice" })}
+      ${navButton("Progress", "nav-progress", active === "progress", { icon: "chart" })}
+      ${navButton("Coaching", "nav-coaching", active === "coaching", { icon: "shield", mobileLabel: "Coach" })}
     </nav>
   `;
 }
@@ -1078,6 +1092,10 @@ function pendingTaskCopy(): { title: string; what: string; focus: string; why: s
   };
 }
 
+function preTaskCard(className: string, title: string, body: string): string {
+  return `<article class="instruction-card ${className}"><strong>${escapeHtml(title)}</strong><p>${escapeHtml(body)}</p></article>`;
+}
+
 function renderPreTaskInstructions(): string {
   const copy = pendingTaskCopy();
   const sameDayGuidedWarning = state.pendingTaskStart?.kind === "guided" && guidedCompletedToday()
@@ -1094,9 +1112,9 @@ function renderPreTaskInstructions(): string {
         <h1>${escapeHtml(copy.title)}</h1>
       </div>
       <div class="pre-task-grid">
-        <article class="instruction-card"><strong>What you'll do</strong><p>${escapeHtml(copy.what)}</p></article>
-        <article class="instruction-card"><strong>What to focus on</strong><p>${escapeHtml(copy.focus)}</p></article>
-        <article class="instruction-card"><strong>Why this matters</strong><p>${escapeHtml(copy.why)}</p></article>
+        ${preTaskCard("is-mobile-core", "What you'll do", copy.what)}
+        ${preTaskCard("is-mobile-core", "Focus", copy.focus)}
+        ${preTaskCard("is-mobile-extra", "Why this matters", copy.why)}
       </div>
       <div class="wrapper-swap-card">
         <strong>Why the format changes</strong>
@@ -1247,6 +1265,19 @@ function renderAuth(): string {
     return shell(`
       <section class="auth-screen">
         <div class="auth-card">
+          <p class="ui-eyebrow">${escapeHtml(dataModeLabel())}</p>
+          <h1>Enter your code</h1>
+          <p class="ui-body">Keep this tab open and type the code from your email. The link is only a fallback.</p>
+          <label>Email
+            <input id="auth-email" type="email" autocomplete="email" value="${escapeHtml(state.authEmail)}" />
+          </label>
+          <label>Code
+            <input id="auth-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" />
+          </label>
+          <div class="action-row">
+            ${button(state.authBusy ? "Checking..." : "Sign in with code", "verify-login-code")}
+            ${button("Send a new code", "send-login-link", "secondary")}
+          </div>
           <p class="auth-message">${escapeHtml(state.authMessage)}</p>
         </div>
       </section>
@@ -1257,19 +1288,19 @@ function renderAuth(): string {
       <div class="auth-card">
         <p class="ui-eyebrow">${escapeHtml(dataModeLabel())}</p>
         <h1>${escapeHtml(headline)}</h1>
-        <p class="ui-body">Enter your email to receive a secure sign-in link.</p>
+        <p class="ui-body">Enter your email, then use the code in this tab. The email link remains a fallback.</p>
         ${
           isSupabaseConfigured
             ? `<label>Email
-                <input id="auth-email" type="email" autocomplete="email" placeholder="you@example.com" />
+                <input id="auth-email" type="email" autocomplete="email" value="${escapeHtml(state.authEmail)}" placeholder="you@example.com" />
               </label>
               <div class="action-row">
-                ${button(state.authBusy ? "Sending..." : "Send sign-in link", "send-login-link")}
+                ${button(state.authBusy ? "Sending..." : "Send code", "send-login-link")}
               </div>`
             : `<p class="claims-note">Supabase is not configured. Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY before inviting beta testers.</p>
               <div class="action-row">${button("Continue local demo", "nav-welcome")}</div>`
         }
-        <p class="auth-message">${escapeHtml(state.authMessage || "You will receive a secure sign-in link. Use the email linked to your IQ Mindware access.")}</p>
+        <p class="auth-message">${escapeHtml(state.authMessage || "Use the email linked to your IQ Mindware access.")}</p>
       </div>
     </section>
   `);
@@ -1277,7 +1308,7 @@ function renderAuth(): string {
 
 function dataModeCard(mode: DataMode, title: string, copy: string, action: string): string {
   const selected = state.dataMode === mode;
-  return `<button class="data-mode-card ${selected ? "is-selected" : ""}" data-action="${action}" aria-pressed="${selected ? "true" : "false"}">
+  return `<button class="data-mode-card is-${mode.replace("_", "-")} ${selected ? "is-selected" : ""}" data-action="${action}" aria-pressed="${selected ? "true" : "false"}">
     <span class="data-mode-card-kicker">${mode === "local" ? "Local only" : mode === "cloud_personal" ? "Private sync" : "Standardised sync"}</span>
     <strong>${escapeHtml(title)}</strong>
     <p>${escapeHtml(copy)}</p>
@@ -1286,7 +1317,7 @@ function dataModeCard(mode: DataMode, title: string, copy: string, action: strin
 }
 
 function dataRemovalCard(cloudActive: boolean): string {
-  return `<button class="data-mode-card data-removal-card" data-action="delete-attention-data">
+  return `<button class="data-mode-card data-removal-card is-reset" data-action="delete-attention-data">
     <span class="data-mode-card-kicker">Delete</span>
     <strong>Remove data</strong>
     <p>${cloudActive ? "Delete your cloud Attention Coach data and reset this browser." : "Reset this browser's local Attention Coach progress."}</p>
@@ -1296,7 +1327,7 @@ function dataRemovalCard(cloudActive: boolean): string {
 
 function renderDataRights(): string {
   const cloudActive = cloudSyncActive();
-  const continueLabel = state.authUser ? "Continue testing" : "Sign in";
+  const continueLabel = state.authUser ? "Continue" : "Continue to sign in";
   const cloudCopy = cloudSyncAvailable
     ? "Choose a data option before training."
     : "Cloud sync is not configured for this build.";
@@ -1308,15 +1339,23 @@ function renderDataRights(): string {
         <p>${escapeHtml(cloudCopy)}</p>
       </section>
       <section class="data-mode-grid">
-        ${dataModeCard("cloud_personal", "Cloud personal", "Syncs Attention Coach progress across IQ Mindware apps without population-standardised scores.", "select-data-cloud-personal")}
-        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Syncs progress and shows standardised scores when the comparison sample is sufficient.", "select-data-cloud-benchmark")}
+        ${dataModeCard("cloud_personal", "Cloud personal", "Syncs across IQ Mindware apps and shows your first valid score as 100, with later change shown around that start.", "select-data-cloud-personal")}
+        ${dataModeCard("cloud_benchmark", "Cloud standard scores", "Syncs progress and shows population-standardised scores when the comparison sample is sufficient.", "select-data-cloud-benchmark")}
         ${dataRemovalCard(cloudActive)}
+      </section>
+      <section class="data-rights-explainer">
+        <strong>How synced scores are used</strong>
+        <p><b>Personal</b> keeps the same saved scores but displays progress from your own starting point. <b>Standardised</b> displays the population scale where available. Valid synced completions can contribute to anonymous aggregate calibration statistics; account details are not included in those aggregates.</p>
       </section>
       <section class="ethics-boundary-card">
         <strong>Non-selection boundary</strong>
         <p>Scores are personal training signals. The app does not create certificates, rankings, employer links, or score APIs.</p>
       </section>
-      ${state.authUser ? `<div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>` : ""}
+      ${state.authUser ? `<div class="data-rights-account-row">
+        <span>Signed in as ${escapeHtml(state.authUser.email || "IQ Mindware user")}</span>
+        ${button("Sign out", "sign-out", "secondary")}
+      </div>` : ""}
+      <div class="data-rights-primary-action">${button(continueLabel, "continue-after-data-rights")}</div>
     </section>
   `);
 }
@@ -1332,7 +1371,7 @@ function downloadJson(filename: string, payload: unknown): void {
 }
 
 function setCloudSyncMode(mode: CloudSyncMode): void {
-  setDataMode(mode === "cloud" ? "cloud_personal" : "local");
+  setDataMode(mode === "cloud" ? "cloud_benchmark" : "local");
 }
 
 function setDataMode(mode: DataMode): void {
@@ -1431,7 +1470,6 @@ function renderWelcome(): string {
       <div class="splash-wave splash-wave-two" aria-hidden="true"></div>
       <section class="splash-footer">
         ${button("Start today's session", "start-readiness")}
-        ${button("Manual practice", "nav-free-play-formats", "secondary")}
         <a class="splash-site-link" href="https://www.iqmindware.com" target="_blank" rel="noreferrer"><img class="splash-site-icon" src="${assetPath("trident-splash-icon.png")}" alt="" aria-hidden="true" />www.iqmindware.com</a>
       </section>
     </section>
@@ -1440,11 +1478,12 @@ function renderWelcome(): string {
 
 function renderReadiness(): string {
   const readiness = state.progress.deviceReadiness;
+  const readinessStateClass = state.readinessRunning ? "is-checking" : readiness ? (readiness.quality === "poor" ? "is-caution" : "is-ready") : "is-pending";
   const screenTestCopy = state.readinessRunning
     ? "Keep this tab visible."
     : "Takes a few seconds.";
   return shell(`
-    <section class="panel readiness-panel">
+    <section class="panel readiness-panel ${readinessStateClass}">
       <p class="ui-eyebrow">${readiness ? "Setup check complete" : "Quick setup"}</p>
       <h1>${readiness ? "Device check complete" : "Device check"}</h1>
       <p class="ui-body">${
@@ -1454,7 +1493,7 @@ function renderReadiness(): string {
       }</p>
       ${
         readiness
-          ? `<div class="readiness-grid">
+          ? `<div class="readiness-grid ${readinessStateClass}">
               <span>Display rate</span><strong>${readiness.refreshRateHz.toFixed(1)} Hz</strong>
               <span>Timing check</span><strong>${readinessStatusLabel(readiness.quality)}</strong>
               <span>Motion games</span><strong>${readiness.flowEligible ? "Pass" : "Low confidence"}</strong>
@@ -1670,14 +1709,14 @@ function renderFreePlay(): string {
           <p>Browse the game catalogue without changing your coached pathway or progress status.</p>
           ${button("Choose practice", "nav-free-play-formats", "secondary")}
         </article>
-        <article class="train-choice-card is-green">
+        <article class="train-choice-card is-green is-mobile-extra">
           <span>${miniIcon("map")}</span>
           <strong>Training explained</strong>
           <p>See how the sessions connect and why they target cognitive control capacity.</p>
           ${button("Brain basis", "nav-training-map", "secondary")}
         </article>
       </div>
-      <div class="free-play-copy" data-copy-version="20260726-session-practice">
+      <div class="free-play-copy is-mobile-extra" data-copy-version="20260726-session-practice">
         <strong>Today's session vs Manual practice</strong>
         <span>Only the Today session advances the programme based on the Trident G Far Transfer protocol. Manual practice allows you to select individual games when they are unlocked.</span>
       </div>
@@ -1768,8 +1807,12 @@ function renderFreePlayFormats(): string {
   `);
 }
 
-function navButton(label: string, action: string, active = false): string {
-  return `<button class="${active ? "is-active" : ""}" data-action="${action}">${label}</button>`;
+function navButton(label: string, action: string, active = false, options: { icon?: string; mobileLabel?: string } = {}): string {
+  const icon = options.icon ? `<span class="tab-icon" aria-hidden="true">${miniIcon(options.icon)}</span>` : "";
+  const labelMarkup = options.mobileLabel
+    ? `<span class="tab-label-desktop">${escapeHtml(label)}</span><span class="tab-label-mobile">${escapeHtml(options.mobileLabel)}</span>`
+    : escapeHtml(label);
+  return `<button class="${active ? "is-active" : ""}" data-action="${action}">${icon}<span class="tab-label">${labelMarkup}</span></button>`;
 }
 
 function renderBriefing(): string {
@@ -1888,10 +1931,13 @@ function renderTask(): string {
       </section>
       <div class="response-grid task-responses">
         ${orderedResponseOptionsForDisplay(trial.responseOptions)
-          .map((option, index) => `<button class="response-button" data-response="${escapeHtml(option)}" ${responseEnabled ? "" : "disabled"}>${responseButtonContent(option, index, trial.responseOptions.length)}</button>`)
+          .map((option, index) => `<button class="response-button ${responseButtonClass(option)}" data-response="${escapeHtml(option)}" ${responseEnabled ? "" : "disabled"}>${responseButtonContent(option, index, trial.responseOptions.length)}</button>`)
           .join("")}
       </div>
-      <p class="task-footnote">${trial.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction."} Click or tap the matching target.</p>
+      <p class="task-footnote">
+        <span class="task-footnote-mobile">${trial.construct === "BSE" ? "Keep colour + direction" : "Choose majority"}</span>
+        <span class="task-footnote-desktop">${trial.construct === "BSE" ? "Keep direction and colour together." : "Choose the majority direction."} Click or tap the matching target.</span>
+      </p>
       <div class="task-controls">
         <button class="task-skip-button" data-action="${isPaused ? "resume-paused-session" : "pause-session"}"><span>${isPaused ? "R" : "II"}</span> ${isPaused ? "Resume" : "Pause"}</button>
         <button class="task-skip-button" data-action="toggle-sound"><span>S</span> Sound ${state.soundOn ? "on" : "off"}</button>
@@ -2077,6 +2123,12 @@ function responseTargetIcon(option: string): string {
                 ? `<path d="M24 10a9 9 0 0 0-14 2"/><path d="M10 6v6h6"/>`
                 : `<path d="M10 16h12"/><path d="M18 10l6 6-6 6"/>`;
   return `<span class="response-target-icon is-${color} is-${escapeHtml(relation)}">${arrow(path)}</span>`;
+}
+
+function responseButtonClass(option: string): string {
+  const relation = relationForResponse(option);
+  const color = option.includes("_") ? ` is-${colorForResponse(option)}` : "";
+  return `is-${escapeHtml(relation)}${color}`;
 }
 
 function responseButtonContent(option: string, index: number, optionCount: number): string {
@@ -2480,8 +2532,8 @@ function renderEvidence(): string {
       </div>
       <article class="evidence-visual-card evidence-brain-card">
         ${brainNetworkDiagram()}
-        <p>Attention Coach is evidence-informed, not a clinical assessment. The design is based on attention-control training, adaptive visual-attention measurement, relational processing, motion-format transfer and delayed re-checks.</p>
       </article>
+      <p class="evidence-brain-note">Evidence-informed design, not a clinical assessment. It uses attention-control training, adaptive visual tasks, transfer checks and delayed re-checks.</p>
       <div class="evidence-principle-grid">
         <article class="evidence-principle-card is-blue">
           <span>${miniIcon("signal")}</span>
@@ -2527,13 +2579,79 @@ function finiteScore(value: unknown): number | null {
   return Number.isFinite(numeric) ? numeric : null;
 }
 
+function finiteStandardScore(value: unknown): number | null {
+  const score = finiteScore(value);
+  return score !== null && score >= 55 && score <= 145 ? score : null;
+}
+
 function gTrackStandardScore(row: GTrackHistoryRow, metric: string): number | null {
-  return finiteScore(row.issuedNorm?.[metric]?.standardScore) ?? finiteScore(row.latestNorm?.[metric]?.standardScore);
+  return finiteStandardScore(row.issuedNorm?.[metric]?.standardScore) ?? finiteStandardScore(row.latestNorm?.[metric]?.standardScore);
+}
+
+function gTrackPublicStandardScore(publicScores: Record<string, unknown> | null | undefined, key: string): number | null {
+  const value = publicScores?.[key];
+  if (!value || typeof value !== "object") return null;
+  const record = value as { displayStandardScore?: unknown; standardScore?: unknown };
+  return finiteStandardScore(record.displayStandardScore) ?? finiteStandardScore(record.standardScore);
+}
+
+function gTrackScoreDomain(score: GTrackHistoryRow["gTrackScore"]): ProofBenchmarkDomain | null {
+  const domains: Record<string, ProofBenchmarkDomain> = {
+    matrix_reasoning: "reasoning",
+    attention_control: "attention",
+    working_memory: "working_memory",
+  };
+  return score?.construct ? domains[score.construct] || null : null;
+}
+
+function gTrackScoreTimepoint(timepoint: string | null | undefined): ProofBenchmarkTimepoint {
+  return timepoint === "baseline" || timepoint === "post" || timepoint === "follow_up" ? timepoint : "ad_hoc";
+}
+
+function gTrackScoreValue(score: GTrackHistoryRow["gTrackScore"]): number | null {
+  const publicScores = score?.publicScores || null;
+  const composite = gTrackPublicStandardScore(publicScores, "composite");
+  if (score?.provisionalIndex !== null && score?.provisionalIndex !== undefined) return finiteStandardScore(score.provisionalIndex);
+  if (composite !== null) return composite;
+  const metricKeys = score?.construct === "attention_control"
+    ? ["conflictControl", "sustainedStability", "responseEfficiency"]
+    : score?.construct === "working_memory" ? ["workingMemoryCapacity", "bindingPrecision"] : [];
+  const scores = metricKeys
+    .map((key) => gTrackPublicStandardScore(publicScores, key))
+    .filter((value): value is number => value !== null);
+  return scores.length ? scores.reduce((total, value) => total + value, 0) / scores.length : null;
+}
+
+function gTrackScoreLabel(score: GTrackHistoryRow["gTrackScore"]): string {
+  const labels: Record<string, string> = {
+    matrix_reasoning: "G Track Matrix",
+    attention_control: "G Track Attention",
+    working_memory: "G Track Working Memory",
+  };
+  return score?.construct ? labels[score.construct] || "G Track" : "G Track";
 }
 
 function gTrackEntriesFromHistory(rows: GTrackHistoryRow[]): ProofBenchmarkEntry[] {
   return rows.flatMap((row) => {
     const completedAt = String(row.completedAt || todayIso()).slice(0, 10);
+    if (row.gTrackScore) {
+      const domain = gTrackScoreDomain(row.gTrackScore);
+      const score = gTrackScoreValue(row.gTrackScore);
+      if (!domain || score === null) return [];
+      return [{
+        id: `gtrack-${domain}-${row.id}-${row.gTrackScore.testId || "score"}`,
+        domain,
+        timepoint: gTrackScoreTimepoint(row.gTrackScore.timepoint),
+        label: gTrackScoreLabel(row.gTrackScore),
+        score,
+        raw: finiteScore((row.gTrackScore as GTrackProofScore).raw),
+        maxRaw: finiteScore((row.gTrackScore as GTrackProofScore).maxRaw),
+        confidence: row.gTrackScore.confidenceLabel || row.gTrackScore.normStatus || "G Track",
+        source: "G Track",
+        completedAt,
+        notes: "Imported from signed-in G Track history.",
+      }];
+    }
     if (row.completionQuality && row.completionQuality !== "valid") return [];
     if (row.testId === "psi-core") {
       const entries: ProofBenchmarkEntry[] = [];
@@ -2584,6 +2702,29 @@ function gTrackEntriesFromHistory(rows: GTrackHistoryRow[]): ProofBenchmarkEntry
   });
 }
 
+function gTrackEntriesFromProofScores(scores: GTrackProofScore[]): ProofBenchmarkEntry[] {
+  return scores.flatMap((score) => {
+    const domain = gTrackScoreDomain(score);
+    const value = gTrackScoreValue(score);
+    if (!domain || value === null) return [];
+    const timepoint = gTrackScoreTimepoint(score.timepoint);
+    const completedAt = String(score.completedAt || todayIso()).slice(0, 10);
+    return [{
+      id: `gtrack-${domain}-${score.testId || "score"}-${timepoint}-${completedAt}`,
+      domain,
+      timepoint,
+      label: gTrackScoreLabel(score),
+      score: value,
+      raw: finiteScore(score.raw),
+      maxRaw: finiteScore(score.maxRaw),
+      confidence: score.confidenceLabel || score.normStatus || "G Track",
+      source: "G Track",
+      completedAt,
+      notes: "Imported from signed-in G Track proof summary.",
+    }];
+  });
+}
+
 function proofEntriesFor(domain: ProofBenchmarkDomain): ProofBenchmarkEntry[] {
   return state.progress.proofBenchmarks
     .filter((entry) => entry.domain === domain)
@@ -2606,15 +2747,17 @@ function proofBarPercent(score: number | null): number {
 function proofSparkline(entries: ProofBenchmarkEntry[]): string {
   const scored = entries.filter((entry) => entry.score !== null && entry.score !== undefined).slice(-3);
   if (scored.length < 2) return "";
+  const baseline = entries.find((entry) => entry.timepoint === "baseline" && entry.score !== null && entry.score !== undefined) || scored[0] || null;
   const points = scored.map((entry, index) => {
     const left = scored.length === 1 ? 50 : (index / (scored.length - 1)) * 100;
-    const top = 100 - proofBarPercent(entry.score);
+    const displayScore = benchmarkScoringSelected() ? entry.score : personalIndexFromRaw(entry.score, baseline?.score);
+    const top = 100 - proofBarPercent(displayScore);
     return `<i style="left:${left}%;top:${top}%"></i>`;
   }).join("");
   return `<span class="proof-mini-trend" aria-hidden="true">${points}</span>`;
 }
 
-function proofSummaryCard(domain: ProofBenchmarkDomain): string {
+function legacyProofSummaryCard(domain: ProofBenchmarkDomain): string {
   const entries = proofEntriesFor(domain);
   const latest = entries[entries.length - 1] || null;
   const scoredEntries = entries.filter((entry) => entry.score !== null && entry.score !== undefined);
@@ -2628,29 +2771,138 @@ function proofSummaryCard(domain: ProofBenchmarkDomain): string {
     reasoning: "Reasoning",
   };
   const latestScore = latest?.score ?? null;
-  const scoreText = latestScore === null ? "--" : Math.round(latestScore).toString();
-  const status = proofStatus(latestScore);
+  const displayScore = benchmarkScoringSelected() ? latestScore : personalIndexFromRaw(latestScore, baseline?.score);
+  const scoreText = displayScore === null ? "--" : Math.round(displayScore).toString();
+  const status = proofStatus(displayScore);
   const source = latest?.source || (latest ? "Manual" : "G Track");
   return `
-    <article class="proof-summary-card">
+    <article class="proof-summary-card is-${domain.replace("_", "-")}">
       <div class="proof-card-top">
         <span>${shortLabels[domain]}</span>
         <strong>${scoreText}</strong>
       </div>
       <div class="proof-score-bar" aria-label="${shortLabels[domain]} score ${scoreText}">
         <b></b>
-        <i style="width:${proofBarPercent(latestScore)}%"></i>
+        <i style="width:${proofBarPercent(displayScore)}%"></i>
       </div>
       <div class="proof-card-meta">
         <small>${escapeHtml(status)}${latest ? ` · ${escapeHtml(source)}` : ""}</small>
         <small>${latest ? escapeHtml(latest.completedAt || "No date") : "Take or add a G Track check."}</small>
       </div>
       <div class="proof-card-foot">
-        ${change === null || latest === baseline ? "<em>Baseline pending</em>" : `<em>${change > 0 ? "+" : ""}${Math.round(change)} since first check</em>`}
+        ${change === null || latest === baseline ? `<em>${benchmarkScoringSelected() ? "Baseline pending" : "Personal baseline = 100"}</em>` : `<em>${change > 0 ? "+" : ""}${Math.round(change)} since first check</em>`}
         ${proofSparkline(scoredEntries)}
       </div>
     </article>
   `;
+}
+
+const PROOF_GRAPH_TIMEPOINTS: Array<[ProofBenchmarkTimepoint, string]> = [["baseline", "Pre"], ["post", "Post"], ["follow_up", "F/U"]];
+
+function proofEntryAt(entries: ProofBenchmarkEntry[], timepoint: ProofBenchmarkTimepoint): ProofBenchmarkEntry | null {
+  return entries
+    .filter((entry) => entry.timepoint === timepoint && entry.score !== null && entry.score !== undefined)
+    .sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))[0] || null;
+}
+
+function proofLatestEntry(entries: ProofBenchmarkEntry[]): ProofBenchmarkEntry | null {
+  return entries
+    .filter((entry) => entry.score !== null && entry.score !== undefined)
+    .sort((a, b) => Date.parse(b.completedAt) - Date.parse(a.completedAt))[0] || null;
+}
+
+function proofBaselineEntry(entries: ProofBenchmarkEntry[]): ProofBenchmarkEntry | null {
+  return proofEntryAt(entries, "baseline") || entries.find((entry) => entry.score !== null && entry.score !== undefined) || null;
+}
+
+function proofDisplayScore(entry: ProofBenchmarkEntry | null, baseline: ProofBenchmarkEntry | null): number | null {
+  if (!entry || entry.score === null || entry.score === undefined) return null;
+  return benchmarkScoringSelected() ? entry.score : personalIndexFromRaw(entry.score, baseline?.score);
+}
+
+function proofHistoryValue(entry: ProofBenchmarkEntry | null, baseline: ProofBenchmarkEntry | null): string {
+  const displayScore = proofDisplayScore(entry, baseline);
+  return displayScore === null ? "-" : Math.round(displayScore).toString();
+}
+
+function proofHistoryDetail(entry: ProofBenchmarkEntry | null): string {
+  if (!entry) return "open";
+  if (entry.raw !== null && entry.raw !== undefined && entry.maxRaw !== null && entry.maxRaw !== undefined) {
+    return `${Math.round(entry.raw)}/${Math.round(entry.maxRaw)} raw`;
+  }
+  return entry.confidence ? entry.confidence.replaceAll("_", " ") : "saved";
+}
+
+function proofDomainTitle(domain: ProofBenchmarkDomain): string {
+  return ({
+    attention: "Attention Control",
+    working_memory: "Working Memory",
+    reasoning: "Matrix Reasoning",
+  })[domain];
+}
+
+function proofMeasureLabel(domain: ProofBenchmarkDomain): string {
+  return ({
+    attention: "Control composite",
+    working_memory: "WM composite",
+    reasoning: "Matrix Index",
+  })[domain];
+}
+
+function proofConstructSummary(domain: ProofBenchmarkDomain, latest: ProofBenchmarkEntry | null, baseline: ProofBenchmarkEntry | null): string {
+  const displayScore = proofDisplayScore(latest, baseline);
+  if (!latest || displayScore === null) return "No saved score for this construct yet.";
+  if (!benchmarkScoringSelected()) return `Latest personal index ${Math.round(displayScore)} from synced G Track data.`;
+  if (domain === "attention") return "Latest attention profile saved from G Track.";
+  if (domain === "working_memory") return "Latest WM result saved from G Track.";
+  return `Latest estimate ${Math.round(displayScore)} with ${proofHistoryDetail(latest).toLowerCase()}.`;
+}
+
+function proofTrendChart(domain: ProofBenchmarkDomain, entries: ProofBenchmarkEntry[], baseline: ProofBenchmarkEntry | null): string {
+  const points = PROOF_GRAPH_TIMEPOINTS.map(([timepoint, label], index) => {
+    const entry = proofEntryAt(entries, timepoint);
+    const value = proofDisplayScore(entry, baseline);
+    const x = 34 + index * 86;
+    const y = value == null ? 84 : 92 - Math.max(0, Math.min(1, (value - 85) / 40)) * 66;
+    return { label, value, x, y };
+  });
+  const validPoints = points.filter((point): point is { label: string; value: number; x: number; y: number } => point.value != null);
+  const polyline = validPoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const latestValue = validPoints.length ? validPoints[validPoints.length - 1].value : null;
+  return `
+    <svg class="gtrack-trend-chart" viewBox="0 0 240 124" role="img" aria-label="${escapeHtml(proofDomainTitle(domain))} proof graph">
+      <line class="chart-grid" x1="24" y1="26" x2="224" y2="26"></line>
+      <line class="chart-grid chart-grid-mid" x1="24" y1="67" x2="224" y2="67"></line>
+      <line class="chart-grid" x1="24" y1="92" x2="224" y2="92"></line>
+      <polyline class="chart-line" points="${polyline}"></polyline>
+      ${validPoints.map((point) => `<g class="chart-point"><circle cx="${point.x}" cy="${point.y}" r="5"></circle><text x="${point.x}" y="${Math.max(14, point.y - 10)}">${Math.round(point.value)}</text></g>`).join("")}
+      ${points.map((point) => `<text class="chart-label" x="${point.x}" y="116">${escapeHtml(point.label)}</text>`).join("")}
+      <text class="chart-axis" x="21" y="30">125</text>
+      <text class="chart-axis" x="21" y="70">100</text>
+      <text class="chart-axis" x="21" y="96">85</text>
+      ${latestValue == null ? "" : `<text class="chart-latest" x="216" y="14">Latest ${Math.round(latestValue)}</text>`}
+    </svg>`;
+}
+
+function proofSummaryCard(domain: ProofBenchmarkDomain): string {
+  const entries = proofEntriesFor(domain);
+  const baseline = proofBaselineEntry(entries);
+  const latest = proofLatestEntry(entries);
+  return `
+    <article class="proof-summary-card gtrack-progress-panel is-${domain.replace("_", "-")}">
+      <div class="gtrack-progress-title">
+        <span>${escapeHtml(proofDomainTitle(domain))}</span>
+        <strong>${escapeHtml(proofMeasureLabel(domain))}</strong>
+      </div>
+      ${proofTrendChart(domain, entries, baseline)}
+      <div class="gtrack-progress-timeline">
+        ${PROOF_GRAPH_TIMEPOINTS.map(([timepoint, label]) => {
+          const entry = proofEntryAt(entries, timepoint);
+          return `<div><span>${label}</span><strong>${escapeHtml(proofHistoryValue(entry, baseline))}</strong><small>${escapeHtml(proofHistoryDetail(entry))}</small></div>`;
+        }).join("")}
+      </div>
+      <p>${escapeHtml(proofConstructSummary(domain, latest, baseline))}</p>
+    </article>`;
 }
 
 function proofEntryRows(): string {
@@ -2661,10 +2913,13 @@ function proofEntryRows(): string {
     .sort((a, b) => b.completedAt.localeCompare(a.completedAt))
     .map((entry) => {
       const isGTrack = entry.id.startsWith("gtrack-") || entry.source === "G Track";
+      const scoreText = entry.score === null || entry.score === undefined
+        ? "No score"
+        : benchmarkScoringSelected() ? Math.round(entry.score).toString() : `${Math.round(entry.score)} raw`;
       return `
         <div class="proof-entry-row">
           <span>${escapeHtml(PROOF_DOMAIN_LABELS[entry.domain])}</span>
-          <strong>${escapeHtml(entry.label)} - ${entry.score ?? "No score"}</strong>
+          <strong>${escapeHtml(entry.label)} - ${escapeHtml(scoreText)}</strong>
           <small>${escapeHtml(PROOF_TIMEPOINT_LABELS[entry.timepoint])} - ${escapeHtml(entry.completedAt || "No date")} - ${escapeHtml(entry.confidence || "Confidence not set")}</small>
           ${isGTrack ? "<em>Synced from G Track</em>" : `<button data-proof-edit="${escapeHtml(entry.id)}">Edit</button><button data-proof-delete="${escapeHtml(entry.id)}">Delete</button>`}
         </div>
@@ -2724,11 +2979,11 @@ function renderProof(): string {
   return shell(`
     ${appTabs("progress")}
     <section class="proof-screen proof-overview-screen no-scroll-screen">
-      ${renderDashboardHeader("Progress", "proof", "Private benchmark check-ins stay separate from coach scores.")}
+      ${renderDashboardHeader("Progress", "proof", "Synced G Track scores stay separate from coach training scores.")}
       <div class="proof-hero">
-        <p class="ui-eyebrow">G Track check-in</p>
-        <h1>Three quick proof signals</h1>
-        <p>Signed-in G Track scores and private entries stay separate from coach training scores.</p>
+        <p class="ui-eyebrow">Full-cycle view</p>
+        <h1>G Track results across training</h1>
+        <p>${benchmarkScoringSelected() ? "Showing synced population-standardised scores where available." : "Showing synced scores as a personal index from your first valid score."}</p>
       </div>
       <section class="proof-summary-grid">
         ${proofSummaryCard("attention")}
@@ -3002,9 +3257,9 @@ function transferStatus(score: number | null): string {
     if (score < 90) return "Below benchmark";
     return "Typical range";
   }
-  if (score >= 8) return "Strong";
-  if (score >= 0) return "Developing";
-  if (score >= -7) return "Watch";
+  if (score >= 110) return "Strong";
+  if (score >= 100) return "Developing";
+  if (score >= 90) return "Watch";
   return "Bottleneck";
 }
 
@@ -3082,12 +3337,33 @@ function benchmarkScoreForMetric(metric: ProgressScoreMetric): number | null {
   return Math.round(row.standardScore);
 }
 
+function personalIndexFromDelta(delta: number | null): number | null {
+  return delta === null ? null : Math.round(100 + delta);
+}
+
+function personalIndexFromRaw(score: number | null | undefined, baseline: number | null | undefined): number | null {
+  if (score === null || score === undefined) return null;
+  const numericScore = Number(score);
+  if (!Number.isFinite(numericScore)) return null;
+  if (baseline === null || baseline === undefined) return 100;
+  const numericBaseline = Number(baseline);
+  return Number.isFinite(numericBaseline) ? Math.round(100 + numericScore - numericBaseline) : 100;
+}
+
+function statusForPersonalIndex(score: number | null): string {
+  if (score === null) return "Calibrating";
+  if (score >= 110) return "Strong";
+  if (score < 90) return "Bottleneck";
+  if (score < 100) return "Watch";
+  return "Developing";
+}
+
 function scoreDisplayForMetric(metric: ProgressScoreMetric, personalDelta: number | null): number | null {
-  return benchmarkScoringSelected() ? benchmarkScoreForMetric(metric) : personalDelta;
+  return benchmarkScoringSelected() ? benchmarkScoreForMetric(metric) : personalIndexFromDelta(personalDelta);
 }
 
 function statusForMetricDisplay(metric: ProgressScoreMetric, personalDelta: number | null): string {
-  if (!benchmarkScoringSelected()) return statusForDelta(personalDelta);
+  if (!benchmarkScoringSelected()) return statusForPersonalIndex(personalIndexFromDelta(personalDelta));
   const standardScore = benchmarkScoreForMetric(metric);
   if (standardScore === null) return "Benchmark pending";
   if (standardScore >= 110) return "Above benchmark";
@@ -3096,11 +3372,11 @@ function statusForMetricDisplay(metric: ProgressScoreMetric, personalDelta: numb
 }
 
 function scoreUnitLabel(): string {
-  return benchmarkScoringSelected() ? "std" : "pts";
+  return benchmarkScoringSelected() ? "std" : "index";
 }
 
 function publicScoreContextLabel(): string {
-  return benchmarkScoringSelected() ? "benchmark score" : "from your start";
+  return benchmarkScoringSelected() ? "benchmark score" : "personal index";
 }
 
 function transferDeltaTrend(current: number | null): Array<{ session: string; delta: number | null }> {
@@ -3129,6 +3405,37 @@ function sessionTrendPoints(currentScore: number | null, currentTransfer: number
       transfer: entry.metrics.transfer ?? null,
     }))
     .filter((point) => point.score !== null || point.transfer !== null);
+
+  if (!benchmarkScoringSelected()) {
+    const scoreBaselineValues = historyPoints
+      .map((point) => point.score)
+      .filter((value): value is number => value !== null)
+      .slice(0, 3);
+    const scoreBaseline = scoreBaselineValues.length
+      ? Math.round(scoreBaselineValues.reduce((total, value) => total + value, 0) / scoreBaselineValues.length)
+      : currentScore;
+    const transferBaseline = baselineForMetric("transfer", currentTransfer);
+    const personalPoints = historyPoints.map((point) => ({
+      session: point.session,
+      score: personalIndexFromRaw(point.score, scoreBaseline),
+      transfer: personalIndexFromRaw(point.transfer, transferBaseline),
+    }));
+    if (personalPoints.length >= 2) return personalPoints;
+    if (personalPoints.length === 1) {
+      return [
+        { session: "Start", score: personalPoints[0].score === null ? null : 100, transfer: personalPoints[0].transfer === null ? null : 100 },
+        personalPoints[0],
+      ];
+    }
+    return [
+      { session: "Start", score: currentScore === null ? null : 100, transfer: currentTransfer === null ? null : 100 },
+      {
+        session: `S${Math.max(1, guidedSessionsCompleted() || currentGuidedSessionNumber())}`,
+        score: personalIndexFromRaw(currentScore, scoreBaseline),
+        transfer: personalIndexFromRaw(currentTransfer, transferBaseline),
+      },
+    ];
+  }
 
   if (historyPoints.length >= 2) return historyPoints;
   if (historyPoints.length === 1) {
@@ -3797,7 +4104,7 @@ function renderProfile(): string {
 
 function render(): void {
   if (state.cloudSyncMode === "cloud" && state.authReady && !state.authUser && state.view !== "auth" && state.view !== "data-rights" && state.view !== "welcome") {
-    state.view = "auth";
+    state.view = "data-rights";
     state.viewHistory = [];
   }
   const views: Record<View, () => string> = {
@@ -4394,91 +4701,136 @@ appRoot.addEventListener("click", async (event) => {
     "nav-data-rights",
     "select-data-cloud-personal",
     "select-data-cloud-benchmark",
+    "continue-after-data-rights",
+    "start-readiness",
+    "verify-login-code",
     "enable-cloud-sync",
     "use-local-only",
     "select-data-local",
   ]);
   if (preAuthGate && !preAuthAllowedActions.has(action)) {
-    state.authMessage = state.authMessage || "Sign in is required to use this app.";
-    go("auth");
+    state.authMessage = state.authMessage || "Choose a data option before signing in.";
+    go("data-rights");
     return;
   }
   if (action === "send-login-link") {
-    if (state.dataMode === "local") setDataMode("cloud_personal");
+    if (state.dataMode === "local") setDataMode("cloud_benchmark");
     const email = inputValue("auth-email");
     if (!email) {
       state.authMessage = "Enter an email address first.";
       render();
       return;
     }
+    state.authEmail = email;
+    window.localStorage.setItem(AUTH_EMAIL_KEY, email);
     state.authBusy = true;
-    state.authMessage = "Sending sign-in link...";
+    state.authMessage = "Sending sign-in code...";
     render();
     try {
       await sendEmailSignInLink(email);
-      state.authMessage = "Check your email for the secure sign-in link.";
+      state.authMessage = "Check your email. Enter the code here to continue in this tab, or use the link as a fallback.";
     } catch (error) {
       state.authMessage = error instanceof Error ? error.message : "Could not send sign-in link.";
     }
     state.authBusy = false;
     render();
+  } else if (action === "verify-login-code") {
+    const email = inputValue("auth-email") || state.authEmail;
+    const code = inputValue("auth-code").replace(/\s+/g, "");
+    if (!email || !code) {
+      state.authMessage = "Enter your email and the code from the sign-in email.";
+      render();
+      return;
+    }
+    state.authEmail = email;
+    window.localStorage.setItem(AUTH_EMAIL_KEY, email);
+    state.authBusy = true;
+    state.authMessage = "Checking code...";
+    render();
+    try {
+      const user = await verifyEmailSignInCode(email, code);
+      state.authUser = user;
+      state.authReady = true;
+      state.authMessage = "";
+      state.authBusy = false;
+      window.localStorage.removeItem(AUTH_EMAIL_KEY);
+      state.dataModeSeen = false;
+      clearDataModeSeen();
+      if (user) await restoreRemoteProgress();
+      else render();
+    } catch (error) {
+      state.authMessage = error instanceof Error ? error.message : "Could not verify that code.";
+      state.authBusy = false;
+      render();
+    }
   } else if (action === "sign-out") {
     clearStageTimer();
     await signOutUser();
     state.authUser = null;
     state.authReady = true;
-    setDataMode("cloud_personal");
+    state.authEmail = "";
+    window.localStorage.removeItem(AUTH_EMAIL_KEY);
+    setDataMode("cloud_benchmark");
+    state.dataModeSeen = false;
+    clearDataModeSeen();
     state.viewHistory = [];
-    go("data-rights", { replace: true });
+    go("welcome", { replace: true });
   } else if (action === "enable-cloud-sync") {
-    setDataMode("cloud_personal");
+    setDataMode("cloud_benchmark");
     if (state.authUser) {
       await restoreRemoteProgress();
     } else {
       state.authMessage = "Enter your email to continue with this data option.";
-      go("auth");
+      go("data-rights");
     }
   } else if (action === "use-local-only" || action === "select-data-local") {
-    setDataMode("cloud_personal");
+    setDataMode("cloud_benchmark");
     state.authMessage = "Sign in is required to use this app.";
-    go("auth");
+    go("data-rights");
   } else if (action === "select-data-cloud-personal") {
     setDataMode("cloud_personal");
     if (state.authUser) {
-      markDataModeSeen();
       go("data-rights", { replace: true });
     } else {
-      state.authMessage = "Enter your email to continue with Cloud personal.";
-      go("auth");
+      state.authMessage = "Cloud personal selected. Continue to sign in.";
+      go("data-rights", { replace: true });
     }
   } else if (action === "select-data-cloud-benchmark") {
     setDataMode("cloud_benchmark");
     if (state.authUser) {
-      markDataModeSeen();
       go("data-rights", { replace: true });
     } else {
-      state.authMessage = "Enter your email to continue with Cloud standard scores.";
-      go("auth");
+      state.authMessage = "Cloud standard scores selected. Continue to sign in.";
+      go("data-rights", { replace: true });
     }
   } else if (action === "continue-after-data-rights") {
-    markDataModeSeen();
     if (state.cloudSyncMode === "cloud" && !state.authUser) {
       state.authMessage = "Enter your email to continue with this data option.";
       go("auth");
     } else {
+      markDataModeSeen();
       go("readiness");
     }
   } else if (action === "export-attention-data") {
     await exportCurrentData();
   } else if (action === "delete-attention-data") {
     await deleteCurrentData();
-  } else if (action === "nav-auth") go("auth");
+  } else if (action === "nav-auth") {
+    if (!state.authUser && !state.dataModeSeen) go("data-rights");
+    else go("auth");
+  }
   else if (action === "nav-data-rights") go("data-rights");
   else if (action === "nav-welcome") go("welcome");
   else if (action === "nav-back") goBack();
   else if (action === "start-readiness") {
-    if (!state.dataModeSeen) go("data-rights");
-    else go("readiness");
+    if (state.cloudSyncMode === "cloud" && !state.authUser) {
+      state.authMessage = "Enter your email to continue.";
+      go("auth");
+    } else if (!state.dataModeSeen) {
+      go("data-rights");
+    } else {
+      go("readiness");
+    }
   }
   else if (action === "run-readiness") {
     if (state.readinessRunning) return;
@@ -4675,7 +5027,7 @@ async function initialiseBetaAuth(): Promise<void> {
     if (user) {
       await restoreRemoteProgress();
     } else {
-      state.view = "auth";
+      state.view = "welcome";
       state.syncState = "pending";
       state.syncMessage = "Sign in to sync devices.";
       render();
@@ -4696,7 +5048,7 @@ async function initialiseBetaAuth(): Promise<void> {
       void restoreRemoteProgress();
     } else {
       if (state.cloudSyncMode === "cloud") {
-        state.view = "auth";
+        state.view = "welcome";
         state.viewHistory = [];
         state.syncState = "pending";
         state.syncMessage = "Sign in to sync devices.";

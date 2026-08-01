@@ -42,6 +42,8 @@ export interface ProofBenchmarkEntry {
   timepoint: ProofBenchmarkTimepoint;
   label: string;
   score: number | null;
+  raw?: number | null;
+  maxRaw?: number | null;
   confidence: string;
   source: string;
   completedAt: string;
@@ -210,7 +212,7 @@ export function loadCloudSyncMode(): CloudSyncMode {
 }
 
 export function saveCloudSyncMode(mode: CloudSyncMode): void {
-  saveDataMode(mode === "cloud" ? "cloud_personal" : "local");
+  saveDataMode(mode === "cloud" ? "cloud_benchmark" : "local");
 }
 
 export function cloudSyncModeForDataMode(mode: DataMode): CloudSyncMode {
@@ -219,12 +221,15 @@ export function cloudSyncModeForDataMode(mode: DataMode): CloudSyncMode {
 
 export function loadDataMode(): DataMode {
   const saved = localStorage.getItem(`${PREFIX}:dataMode`);
+  const userChoice = localStorage.getItem(`${PREFIX}:dataModeUserChoice`);
+  if (saved === "cloud_personal" && userChoice === "cloud_personal") return "cloud_personal";
   if (saved === "cloud_benchmark") return "cloud_benchmark";
-  return "cloud_personal";
+  return "cloud_benchmark";
 }
 
 export function saveDataMode(mode: DataMode): void {
   localStorage.setItem(`${PREFIX}:dataMode`, mode);
+  localStorage.setItem(`${PREFIX}:dataModeUserChoice`, mode);
   localStorage.setItem(`${PREFIX}:cloudSyncMode`, cloudSyncModeForDataMode(mode));
 }
 
@@ -234,6 +239,10 @@ export function loadDataModeSeen(): boolean {
 
 export function saveDataModeSeen(): void {
   localStorage.setItem(`${PREFIX}:dataModeSeen`, "true");
+}
+
+export function clearDataModeSeen(): void {
+  localStorage.removeItem(`${PREFIX}:dataModeSeen`);
 }
 
 export function browserDeviceId(): string {
