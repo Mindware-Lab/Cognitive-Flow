@@ -15,4 +15,14 @@ describe("CCC shared schema migration", () => {
     expect(migration).toContain("app_id text not null");
     expect(migration).not.toContain("app_id in ('attention_coach', 'wm_coach')");
   });
+
+  it("stores the full P0 validity and value contract idempotently", () => {
+    expect(migration).toContain("client_session_id text not null");
+    expect(migration).toContain("valid_for_progression boolean not null default false");
+    expect(migration).toContain("assisted_first_contact boolean not null default false");
+    expect(migration).toContain("drain_rate_per_second numeric");
+    expect(migration).toContain("client_event_id text not null");
+    expect(migration).toContain("unique (session_id, trial_id)");
+    expect(migration).toContain("drop policy if exists");
+  });
 });

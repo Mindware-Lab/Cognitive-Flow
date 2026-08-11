@@ -41,6 +41,16 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
         ? CCC_TRIAL_TIMING.voluntaryWithholdPoints
         : CCC_TRIAL_TIMING.omissionPoints;
   const denominator = regime.correctPot + regime.errorLoss;
+  const invalidReason = input.invalidated
+    ? input.invalidReason || "aborted"
+    : answeredBeforeMinimumExposure
+      ? "early_response"
+      : responseClass === "omission"
+        ? "deadline"
+        : null;
+  const validForProgression = (responseClass === "answer" || responseClass === "withhold")
+    && !input.trial.practice
+    && !input.trial.diagnostic;
 
   return {
     scoringVersion: CCC_VALUE_SCORING_VERSION,
@@ -57,6 +67,8 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
     normalizedValue: denominator > 0 ? pointsRealised / denominator : 0,
     regimeId: input.trial.regimeId,
     configVersion: CCC_CONFIG_VERSION,
+    validForProgression,
+    invalidReason,
   };
 }
 

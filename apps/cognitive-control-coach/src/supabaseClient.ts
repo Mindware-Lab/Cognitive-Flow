@@ -140,6 +140,23 @@ export async function saveRemoteProgress(progress: LocalProgress): Promise<void>
   if (error) throw new Error(await functionErrorMessage(error));
 }
 
+export async function loadCccRemoteProgress(): Promise<Record<string, unknown> | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke("sync-coach-progress", {
+    body: { action: "load", appId: CCC_APP_ID },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return data?.progress && typeof data.progress === "object" ? data.progress as Record<string, unknown> : null;
+}
+
+export async function saveCccRemoteProgress(progress: Record<string, unknown>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-coach-progress", {
+    body: { action: "save", appId: CCC_APP_ID, progress },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
 export async function recordDeviceCheck(readiness: DeviceReadiness): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.functions.invoke("record-coach-device-check", { body: { appId: CCC_APP_ID, readiness } });

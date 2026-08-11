@@ -28,11 +28,14 @@ describe("CCC value scoring", () => {
     const omitted = scoreCccAttentionTrial({ trial, response: null, responseTimeMs: null });
     const late = scoreCccAttentionTrial({ trial, response: trial.correctResponse, responseTimeMs: 4010 });
     const early = scoreCccAttentionTrial({ trial, response: trial.correctResponse, responseTimeMs: 200 });
-    const aborted = scoreCccAttentionTrial({ trial, response: trial.correctResponse, responseTimeMs: 900, invalidated: true });
+    const aborted = scoreCccAttentionTrial({ trial, response: trial.correctResponse, responseTimeMs: 900, invalidated: true, invalidReason: "aborted" });
+    const focusLoss = scoreCccAttentionTrial({ trial, response: null, responseTimeMs: 900, invalidated: true, invalidReason: "focus_loss" });
     expect(omitted.responseClass).toBe("omission");
     expect(late.responseClass).toBe("omission");
     expect(early.responseClass).toBe("invalid");
     expect(aborted.responseClass).toBe("invalid");
+    expect(aborted.invalidReason).toBe("aborted");
+    expect(focusLoss.invalidReason).toBe("focus_loss");
   });
 
   it("summarizes valid decisions, omissions, invalidations, and answered accuracy", () => {

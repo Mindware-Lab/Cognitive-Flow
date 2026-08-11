@@ -1,0 +1,73 @@
+/* IQ Mindware App Design System
+   Version 0.1.0 — August 2026
+   Semantic tokens only. Product styles should alias these variables locally. */
+
+:root {
+  color-scheme: light;
+
+  /* Brand foundations */
+  --iqm-navy-1000: #04111d;
+  --iqm-navy-950: #071827;
+  --iqm-navy-850: #102a42;
+  --iqm-ink: #13253a;
+  --iqm-ink-soft: #53677b;
+  --iqm-canvas: #f7f9fb;
+  --iqm-canvas-alt: #eef3f7;
+  --iqm-surface: #ffffff;
+  --iqm-line: #d8e1ea;
+  --iqm-line-strong: #bdcad8;
+
+  /* Active paths and primary actions */
+  --iqm-cyan: #22aaff;
+  --iqm-cyan-600: #0b8fdf;
+  --iqm-cyan-700: #0874ba;
+  --iqm-cyan-soft: rgba(34, 170, 255, 0.1);
+
+  /* Cognitive-control semantics */
+  --iqm-extract: #0874ba;
+  --iqm-accumulate: #087f86;
+  --iqm-accumulate-text: #066a70;
+  --iqm-commit: #b76508;
+  --iqm-commit-text: #955000;
+
+  /* Evidence and outcome states */
+  --iqm-evidence: #ccff66;
+  --iqm-evidence-text: #4e7000;
+  --iqm-error: #c94c55;
+  --iqm-violet: #6d55bd;
+  --iqm-regulated: #2f8b4b;
+
+  /* Typography */
+  --iqm-font-sans: "Manrope Variable", Manrope, Inter, system-ui, -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --iqm-text-xs: 0.75rem;
+  --iqm-text-sm: 0.875rem;
+  --iqm-text-base: 1rem;
+  --iqm-text-lg: 1.125rem;
+  --iqm-text-xl: 1.35rem;
+
+  /* Spacing */
+  --iqm-space-1: 0.25rem;
+  --iqm-space-2: 0.5rem;
+  --iqm-space-3: 0.75rem;
+  --iqm-space-4: 1rem;
+  --iqm-space-5: 1.5rem;
+  --iqm-space-6: 2rem;
+  --iqm-space-7: 3rem;
+  --iqm-space-8: 4rem;
+
+  /* Shape and depth */
+  --iqm-radius-sm: 8px;
+  --iqm-radius-md: 12px;
+  --iqm-radius-lg: 16px;
+  --iqm-radius-xl: 24px;
+  --iqm-radius-pill: 999px;
+  --iqm-shadow-xs: 0 2px 10px rgba(5, 25, 44, 0.05);
+  --iqm-shadow-sm: 0 12px 30px rgba(5, 25, 44, 0.08);
+  --iqm-shadow-md: 0 24px 70px rgba(5, 25, 44, 0.12);
+
+  /* Motion */
+  --iqm-motion-fast: 140ms ease;
+  --iqm-motion-base: 220ms ease;
+  --iqm-motion-slow: 420ms cubic-bezier(0.2, 0.75, 0.2, 1);
+}

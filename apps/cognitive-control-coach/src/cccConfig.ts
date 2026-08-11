@@ -75,21 +75,31 @@ export const CCC_RATIO_MAJORITY_COUNTS = {
 export const CCC_WRAPPER_RESPONSE_LABELS: Record<CccWrapperId, CccResponseLabels> = {
   arrow_abs: {
     answerOptions: ["left", "right"],
-    labels: { left: "Left", right: "Right", withhold: "Withhold" },
+    labels: { left: "Left", right: "Right", withhold: "Not sure" },
   },
   flow_abs: {
     answerOptions: ["left", "right"],
-    labels: { left: "Left", right: "Right", withhold: "Withhold" },
+    labels: { left: "Left", right: "Right", withhold: "Not sure" },
   },
   arrow_rel: {
     answerOptions: ["in", "out"],
-    labels: { in: "Inward", out: "Outward", withhold: "Withhold" },
+    labels: { in: "Inward", out: "Outward", withhold: "Not sure" },
   },
   flow_rel: {
     answerOptions: ["in", "out"],
-    labels: { in: "Inward", out: "Outward", withhold: "Withhold" },
+    labels: { in: "Inward", out: "Outward", withhold: "Not sure" },
   },
 };
+
+export const CCC_P0_PRACTICE_VALID_TRIALS = 4;
+
+export const CCC_P0_BLOCK_MICROCYCLES = {
+  arrowStabilisation: 3,
+  flowFirstContact: 1,
+  flowRecovery: 2,
+  arrowReturn: 1,
+  absoluteMix: 2,
+} as const;
 
 export const CCC_RELATIONAL_WM: CccRelationalWmConfig = {
   onsetToOnsetCadenceMs: 4500,

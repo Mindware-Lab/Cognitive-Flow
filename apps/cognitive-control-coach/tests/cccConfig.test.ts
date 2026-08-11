@@ -20,11 +20,11 @@ describe("CCC pilot configuration", () => {
     expect(CCC_REGIMES.deep_check).toMatchObject({ correctPot: 10, errorLoss: 50, drainPointsPerSecond: 1.5 });
   });
 
-  it("uses latent-relation response labels and keeps Withhold available", () => {
-    expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_abs.labels).toMatchObject({ left: "Left", right: "Right", withhold: "Withhold" });
-    expect(CCC_WRAPPER_RESPONSE_LABELS.flow_abs.labels).toMatchObject({ left: "Left", right: "Right", withhold: "Withhold" });
-    expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_rel.labels).toMatchObject({ in: "Inward", out: "Outward", withhold: "Withhold" });
-    expect(CCC_WRAPPER_RESPONSE_LABELS.flow_rel.labels).toMatchObject({ in: "Inward", out: "Outward", withhold: "Withhold" });
+  it("keeps the withhold action available under a plain-language label", () => {
+    expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_abs.labels).toMatchObject({ left: "Left", right: "Right", withhold: "Not sure" });
+    expect(CCC_WRAPPER_RESPONSE_LABELS.flow_abs.labels).toMatchObject({ left: "Left", right: "Right", withhold: "Not sure" });
+    expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_rel.labels).toMatchObject({ in: "Inward", out: "Outward", withhold: "Not sure" });
+    expect(CCC_WRAPPER_RESPONSE_LABELS.flow_rel.labels).toMatchObject({ in: "Inward", out: "Outward", withhold: "Not sure" });
   });
 
   it("keeps Shift the View configurable and score-neutral", () => {

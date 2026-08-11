@@ -68,7 +68,7 @@ export const COGNITIVE_CONTROL_STAGE_SEQUENCE: readonly CccProgressionStage[] = 
         wrappers: ["arrow_abs", "flow_abs"],
         transitionKind: "carrier_transfer",
         strictCarrierTransferBoundary: true,
-        requiresShiftViewGate: false,
+        requiresShiftViewGate: true,
         contributesToAttentionPortability: true,
       },
     ],

@@ -1,79 +1,120 @@
-import { PROTOCOL_VERSION } from "./protocol";
-import type { MiniBlockPlan, ProtocolGroup, SessionPlan, TransferControllerState, TrialResult } from "./types";
+import {
+  CCC_CONFIG_VERSION,
+  CCC_PROTOCOL_VERSION,
+  CCC_REGIMES,
+  CCC_TRIAL_TIMING,
+} from "./cccConfig";
+import { CCC_VALUE_SCORING_VERSION } from "./cccValue";
+import type {
+  CccAttentionBlockPlan,
+  CccRecordedTrial,
+  CccRuntimeEvent,
+  CccSessionPlan,
+} from "./cccTypes";
+import type { WorkflowChoice } from "./cccCopy";
 
-export interface AttentionBlockPayloadInput {
-  plan: SessionPlan;
-  block: MiniBlockPlan;
-  results: TrialResult[];
-  protocolGroup: ProtocolGroup;
-  transferState: TransferControllerState;
-  generatorVersion: string;
-  adaptiveVersion: string;
-  scoringVersion: string;
+export interface CccBlockPayloadInput {
+  plan: CccSessionPlan;
+  block: CccAttentionBlockPlan;
+  results: readonly CccRecordedTrial[];
+  events: readonly CccRuntimeEvent[];
+  workflowChoice: WorkflowChoice;
 }
 
-export function buildAttentionBlockSubmissionPayload(input: AttentionBlockPayloadInput): Record<string, unknown> {
-  const { plan, block, results, protocolGroup, transferState } = input;
+export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Record<string, unknown> {
+  const { plan, block } = input;
   return {
+    appId: plan.appId,
     clientSessionId: plan.sessionId,
-    programmeRunId: plan.programmeRunId,
-    programmeCycle: plan.programmeCycle,
-    protocolGroup,
-    startCarrier: transferState.startCarrier,
-    startCohort: transferState.startCohort,
-    startWrapper: transferState.startWrapper,
-    carrierTargetWrapper: transferState.carrierTargetWrapper,
-    frameTargetWrapper: transferState.frameTargetWrapper,
-    heldOutWrapper: transferState.heldOutWrapper,
-    heldOutStatus: transferState.heldOutStatus,
-    clientBlockId: block.id,
-    sessionNumber: plan.sessionNumber,
-    phaseLabel: plan.phase,
-    phaseStatus: plan.phaseStatus,
-    nominalSessionBand: plan.nominalBand,
-    protocolVersion: PROTOCOL_VERSION,
-    generatorVersion: input.generatorVersion,
-    adaptiveVersion: input.adaptiveVersion,
-    scoringVersion: input.scoringVersion,
-    blockIndex: block.index,
-    blockPurpose: block.evidencePurpose,
-    construct: block.construct,
-    label: block.label,
-    trials: results.map((result) => ({
-      clientTrialId: result.trial.id,
-      construct: result.trial.construct,
-      cellKey: result.trial.cellKey,
-      transitionKey: result.trial.transitionKey,
-      wrapperId: result.trial.wrapperId,
-      carrier: result.trial.carrier,
-      frame: result.trial.frame,
-      probeStatus: result.trial.probeStatus,
-      evidencePurpose: result.trial.evidencePurpose,
-      mixRatio: result.trial.mixRatio,
-      mappingTiming: result.trial.mappingTiming,
-      lureType: result.trial.lureType,
-      transferEventId: result.trial.transferEventId,
-      startCarrier: transferState.startCarrier,
-      startCohort: transferState.startCohort,
-      startWrapper: transferState.startWrapper,
-      carrierTargetWrapper: transferState.carrierTargetWrapper,
-      frameTargetWrapper: transferState.frameTargetWrapper,
-      heldOutWrapper: transferState.heldOutWrapper,
-      heldOutStatus: transferState.heldOutStatus,
-      phaseLabel: result.trial.phase,
-      isReferenceRecheck: result.trial.isReferenceRecheck,
-      ratio: result.trial.ratio,
-      exposureMsRequested: result.trial.exposureMsRequested,
-      majorityCount: result.trial.majorityCount,
-      correctResponse: result.trial.correctResponse,
-      response: result.response,
-      isCorrect: result.isCorrect,
-      rtMs: result.rtMs,
-      exposureMsActual: result.exposureMsActual,
-      actualStimulusFrames: result.actualStimulusFrames,
-      deviceRefreshRateEstimate: result.deviceRefreshRateEstimate,
-      droppedFrameCount: result.droppedFrameCount,
-      timingQuality: result.timingQuality,
+    sessionType: plan.sessionType,
+    stage: plan.stage,
+    stepId: block.stepId,
+    phase: block.phase,
+    protocolVersion: CCC_PROTOCOL_VERSION,
+    configVersion: CCC_CONFIG_VERSION,
+    scoringVersion: CCC_VALUE_SCORING_VERSION,
+    workflowChoice: input.workflowChoice,
+    block: {
+      clientBlockId: block.id,
+      blockIndex: block.index,
+      label: block.label,
+      phase: block.phase,
+      transitionKind: block.transitionKind,
+      wrapperId: block.wrapperId,
+      wrappers: block.wrappers,
+      sourceWrapperId: block.sourceWrapperId,
+      strictCarrierTransferBoundary: block.strictCarrierTransferBoundary,
+      diagnostic: block.diagnostic,
+      plannedValidTrialCount: block.validTrialCount,
+    },
+    trials: input.results.map((result) => {
+      const trial = result.trial;
+      const scoring = result.scoring;
+      const regime = CCC_REGIMES[trial.regimeId];
+      return {
+        clientTrialId: trial.id,
+        trialIndex: trial.trialIndex,
+        blockTrialIndex: trial.blockTrialIndex,
+        operator: trial.operator,
+        wrapperId: trial.wrapperId,
+        sourceWrapperId: trial.sourceWrapperId,
+        referenceFrame: trial.referenceFrame,
+        carrier: trial.carrier,
+        regimeId: trial.regimeId,
+        phase: trial.phase,
+        stepId: trial.stepId,
+        purpose: trial.purpose,
+        transitionKind: trial.transitionKind,
+        strictCarrierTransferBoundary: trial.strictCarrierTransferBoundary,
+        relationClass: trial.targetClass,
+        evidenceLevel: trial.ratio,
+        majorityRatio: trial.ratio,
+        majorityCount: trial.majorityCount,
+        initialReward: regime.correctPot,
+        drainRatePerSecond: regime.drainPointsPerSecond,
+        errorLoss: regime.errorLoss,
+        withholdValue: CCC_TRIAL_TIMING.voluntaryWithholdPoints,
+        omissionValue: CCC_TRIAL_TIMING.omissionPoints,
+        minimumExposureMs: CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs,
+        deadlineMs: CCC_TRIAL_TIMING.maxResponseWindowMs,
+        correctResponse: trial.correctResponse,
+        response: result.response,
+        responseClass: scoring.responseClass,
+        correct: scoring.isCorrect,
+        responseTimeMs: scoring.responseTimeMs,
+        rewardRemaining: scoring.rewardRemaining,
+        pointsRealised: scoring.pointsRealised,
+        normalisedValue: scoring.normalizedValue,
+        practice: trial.practice,
+        diagnostic: trial.diagnostic,
+        assistedFirstContact: trial.assistedFirstContact,
+        validForProgression: scoring.validForProgression,
+        invalidReason: scoring.invalidReason,
+        viewportClass: result.viewportClass,
+        inputMode: result.inputMode,
+        focusLost: result.focusLost,
+        replacementOfTrialId: trial.replacementOfTrialId,
+        stimulus: {
+          ratio: trial.ratio,
+          majorityCount: trial.majorityCount,
+          coherenceNoiseLevel: trial.coherenceNoiseLevel,
+          items: trial.stimulusItems,
+          seed: trial.seed,
+        },
+        scoring: {
+          version: scoring.scoringVersion,
+          answeredBeforeMinimumExposure: scoring.answeredBeforeMinimumExposure,
+          deadlineExceeded: scoring.deadlineExceeded,
+        },
+        recordedAt: result.recordedAt,
+      };
+    }),
+    events: input.events.map((event) => ({
+      clientEventId: event.id,
+      eventType: event.eventType,
+      occurredAt: event.occurredAt,
+      blockId: event.blockId,
+      payload: event.payload,
     })),
   };
 }

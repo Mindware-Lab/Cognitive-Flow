@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 112 76" role="img" aria-labelledby="title desc">
+  <title id="title">IQ Mindware</title>
+  <desc id="desc">A geometric blue eye mark.</desc>
+  <path d="M3 38C16 15 35 4 56 4s40 11 53 34C96 61 77 72 56 72S16 61 3 38Z" fill="#22aaff"/>
+  <circle cx="56" cy="38" r="20" fill="#fff"/>
+  <circle cx="56" cy="38" r="14" fill="#071827"/>
+  <circle cx="56" cy="38" r="5" fill="#fff"/>
+  <path d="m67 52 11 10" fill="none" stroke="#071827" stroke-linecap="round" stroke-width="6"/>
+</svg>

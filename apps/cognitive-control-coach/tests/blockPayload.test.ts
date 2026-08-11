@@ -1,56 +1,58 @@
 import { describe, expect, it } from "vitest";
-import { buildAttentionBlockSubmissionPayload } from "../src/blockPayload";
-import { createSessionPlan } from "../src/generator";
-import { createInitialTransferControllerState } from "../src/transferController";
-import type { TrialResult } from "../src/types";
+import { buildCccBlockSubmissionPayload } from "../src/blockPayload";
+import { createP0AttentionCarrierTransferPlan } from "../src/cccGenerator";
+import { scoreCccAttentionTrial } from "../src/cccValue";
+import type { CccRecordedTrial } from "../src/cccTypes";
 
-describe("attention block payload", () => {
-  it("preserves atomic cellKey and wrapperId through serialization", () => {
-    const transferState = {
-      ...createInitialTransferControllerState(),
-      phase: "delayed_recheck" as const,
-      activeMix: {
-        wrapperRatios: { arrow_abs: 0.25, flow_abs: 0.25, arrow_rel: 0.25, flow_rel: 0.25 },
-        randomised: true,
-      },
+describe("CCC block payload", () => {
+  it("serialises the value, validity, transfer and workflow contract", () => {
+    const plan = createP0AttentionCarrierTransferPlan({ seed: "payload", regimePairIndex: 0 });
+    const block = plan.blocks[1];
+    const trial = plan.trials.find((candidate) => candidate.blockId === block.id)!;
+    const scoring = scoreCccAttentionTrial({ trial, response: trial.correctResponse, responseTimeMs: 900 });
+    const result: CccRecordedTrial = {
+      trial,
+      response: trial.correctResponse,
+      scoring,
+      recordedAt: "2026-08-11T12:00:00.000Z",
+      viewportClass: "desktop",
+      inputMode: "keyboard",
+      focusLost: false,
     };
-    const plan = createSessionPlan(20, "P6_DELAYED", "delayed", "return check", "payload-seed", "run", 1, transferState);
-    const trial = plan.trials.find((item) => item.construct === "ACC" && item.cellKey === "flow_rel");
-    expect(trial).toBeDefined();
-    const block = plan.miniBlocks.find((item) => item.id === trial?.miniBlockId);
-    expect(block).toBeDefined();
-    const result: TrialResult = {
-      trial: trial!,
-      blockPurpose: block!.evidencePurpose,
-      blockStartedAtMs: 1000,
-      completedAtMs: 1200,
-      programmeRunId: plan.programmeRunId,
-      programmeCycle: plan.programmeCycle,
-      response: trial!.correctResponse,
-      isCorrect: true,
-      rtMs: 240,
-      exposureMsActual: 300,
-      actualStimulusFrames: 18,
-      deviceRefreshRateEstimate: 60,
-      droppedFrameCount: 0,
-      timingQuality: "good",
-    };
-
-    const payload = buildAttentionBlockSubmissionPayload({
+    const payload = buildCccBlockSubmissionPayload({
       plan,
-      block: block!,
+      block,
       results: [result],
-      protocolGroup: "commercial_arrows_first",
-      transferState,
-      generatorVersion: "generator-test",
-      adaptiveVersion: "adaptive-test",
-      scoringVersion: "scoring-test",
+      events: [{
+        id: "event-1",
+        eventType: "shift_view_completed",
+        occurredAt: "2026-08-11T11:59:59.000Z",
+        sessionId: plan.sessionId,
+        blockId: block.id,
+        payload: { scoreAffecting: false },
+      }],
+      workflowChoice: "ai_assisted",
     });
-    const serializedTrial = (payload.trials as Array<Record<string, unknown>>)[0];
+    const serialized = (payload.trials as Array<Record<string, unknown>>)[0];
 
-    expect(serializedTrial.cellKey).toBe("flow_rel");
-    expect(serializedTrial.wrapperId).toBe("flow_rel");
-    expect(serializedTrial.wrapperId).not.toBe("mixed");
-    expect(serializedTrial.wrapperId).not.toBe("arrow_abs");
+    expect(payload).toMatchObject({
+      appId: "cognitive_control_coach",
+      workflowChoice: "ai_assisted",
+      phase: "flow_first_contact",
+    });
+    expect(serialized).toMatchObject({
+      wrapperId: "flow_abs",
+      sourceWrapperId: "arrow_abs",
+      phase: "flow_first_contact",
+      diagnostic: true,
+      assistedFirstContact: true,
+      validForProgression: false,
+      minimumExposureMs: 350,
+      deadlineMs: 4000,
+      inputMode: "keyboard",
+    });
+    expect((payload.events as Array<Record<string, unknown>>)[0]).toMatchObject({
+      eventType: "shift_view_completed",
+    });
   });
 });

@@ -20,7 +20,14 @@ export type CccTransitionKind =
   | "operator_integration"
   | "supported_unlock";
 export type CccSessionType = "guided_p0" | "practice" | "portability_check" | "return_to_now";
-export type CccAttentionTrialPurpose = "training" | "practice" | "carrier_probe" | "reference_extension" | "mix" | "return_to_now";
+export type CccAttentionTrialPurpose = "training" | "practice" | "carrier_probe" | "recovery" | "return" | "reference_extension" | "mix" | "return_to_now";
+export type CccP0Phase =
+  | "practice"
+  | "arrow_stabilisation"
+  | "flow_first_contact"
+  | "flow_recovery"
+  | "arrow_return"
+  | "absolute_mix";
 
 export interface CccPoint {
   x: number;
@@ -100,13 +107,18 @@ export interface CccAttentionBlockPlan {
   stepId: string;
   label: string;
   operator: "attention";
-  wrapperId: CccWrapperId;
+  phase: CccP0Phase;
+  wrapperId: CccWrapperId | "mixed_abs";
+  wrappers: readonly CccWrapperId[];
   sourceWrapperId: CccWrapperId | null;
   transitionKind: CccTransitionKind;
   strictCarrierTransferBoundary: boolean;
   regimePair: readonly [CccRegimeId, CccRegimeId];
   microcycleCount: number;
   validTrialCount: number;
+  practice: boolean;
+  diagnostic: boolean;
+  shiftViewBefore: boolean;
 }
 
 export interface CccAttentionTrialDefinition {
@@ -117,6 +129,7 @@ export interface CccAttentionTrialDefinition {
   blockTrialIndex: number;
   stage: CccStageId;
   stepId: string;
+  phase: CccP0Phase;
   operator: "attention";
   purpose: CccAttentionTrialPurpose;
   wrapperId: CccWrapperId;
@@ -137,6 +150,10 @@ export interface CccAttentionTrialDefinition {
   stimulusItems: CccStimulusItem[];
   coherenceNoiseLevel: 0;
   seed: string;
+  practice: boolean;
+  diagnostic: boolean;
+  assistedFirstContact: boolean;
+  replacementOfTrialId: string | null;
 }
 
 export interface CccSessionPlan {
@@ -159,6 +176,7 @@ export interface CccAttentionResponseInput {
   response: CccResponseChoice | null | undefined;
   responseTimeMs: number | null | undefined;
   invalidated?: boolean;
+  invalidReason?: "focus_loss" | "aborted";
 }
 
 export interface CccAttentionTrialScoring {
@@ -176,6 +194,29 @@ export interface CccAttentionTrialScoring {
   normalizedValue: number;
   regimeId: CccRegimeId;
   configVersion: string;
+  validForProgression: boolean;
+  invalidReason: "early_response" | "deadline" | "focus_loss" | "aborted" | null;
+}
+
+export type CccInputMode = "pointer" | "touch" | "keyboard" | "deadline" | "system";
+
+export interface CccRecordedTrial {
+  trial: CccAttentionTrialDefinition;
+  response: CccResponseChoice | null;
+  scoring: CccAttentionTrialScoring;
+  recordedAt: string;
+  viewportClass: "mobile" | "tablet" | "desktop";
+  inputMode: CccInputMode;
+  focusLost: boolean;
+}
+
+export interface CccRuntimeEvent {
+  id: string;
+  eventType: string;
+  occurredAt: string;
+  sessionId: string;
+  blockId: string | null;
+  payload: Record<string, unknown>;
 }
 
 export interface CccProgressionStep {
