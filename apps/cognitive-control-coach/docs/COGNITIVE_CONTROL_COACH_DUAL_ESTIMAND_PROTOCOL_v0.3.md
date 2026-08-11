@@ -231,7 +231,47 @@ The workflow bridge gives a real-life application prompt but explicitly states t
 - **First contact:** retained as diagnostic carrier-transfer evidence, excluded from ordinary progression.
 - **Shift the View:** score-neutral and excluded from all task scores.
 
-## 10. Claims boundary and validation programme
+## 10. Duration and programme-planning assumptions
+
+### 10.1 Current guided journey
+
+Duration is modelled from the implemented structure rather than inferred from the number of stages alone:
+
+- 4 unscored practice choices;
+- 24 masked signal observations;
+- 96 self-paced policy/transfer observations;
+- 350 ms fixation, 350 ms outcome feedback and 250 ms inter-trial interval where applicable;
+- one fixed 30-second Shift the View changeover;
+- 36 user-paced workflow, instruction, stage and feedback screens.
+
+The following are person-level planning scenarios, not empirical norms:
+
+| Assumption | Fast | Typical | Deliberate |
+| --- | ---: | ---: | ---: |
+| Practice decision | 0.80 s | 1.10 s | 1.60 s |
+| Mean signal exposure | 0.35 s | 0.50 s | 0.70 s |
+| Post-mask signal decision | 0.65 s | 0.85 s | 1.25 s |
+| Policy decision | 0.90 s | 1.25 s | 1.90 s |
+| Mean user-paced screen | 6.5 s | 11 s | 17 s |
+| **Estimated complete journey** | **8.2 min** | **11.6 min** | **16.6 min** |
+
+The consumer planning label is **about 10–15 minutes**. A first session may be slower; interruptions and timing-invalid replacement trials add time. The pilot must record observed start-to-completion, active-task, per-stage and paused durations so these assumptions can be replaced with empirical quantiles.
+
+### 10.2 Time to programme completion or transfer
+
+The current public P0 journey is one within-session signal, policy and trained-format portability exercise. It does **not** yet implement the complete multi-session P1a/P1b/P1c programme, and completing it once is not evidence of full transfer.
+
+For product and pilot planning, the existing nominal 20-session architecture can be expressed as a gate-flexible range:
+
+| Trajectory | Sessions | Active training time | Calendar at the stated frequency |
+| --- | ---: | ---: | ---: |
+| Faster criterion path | 15 | about 2–3 hours | about 3 weeks at 5/week |
+| Central planning path | 20 | about 4–5 hours | about 4–5 weeks at 4–5/week |
+| Slower/gate-limited path | 25 | about 6–7 hours | about 6–8 weeks at 3–4/week |
+
+These are scheduling assumptions, not promised learning times. A defensible transfer status requires criterion performance in the trained base, a protected first-contact probe, recovery in the changed carrier, return-to-base protection, mixed-format stability and a fresh delayed re-check after at least 18 hours, preferably 24–72 hours. Calendar time therefore cannot be inferred from active minutes alone. A supported unlock after repeated unsuccessful checks must remain labelled `supported_unlock`, never full transfer or `attention_portable`.
+
+## 11. Claims boundary and validation programme
 
 Permitted current language:
 
@@ -251,17 +291,18 @@ Not currently permitted:
 
 Required empirical work includes timing validation across devices, calibration against full MFT-M/MFT-M-R, test–retest reliability, recovery/return benchmarks, held-out policy prediction and external outcome testing.
 
-## 11. Implementation sources
+## 12. Implementation sources
 
 - `src/cccConfig.ts` — versioned timing, niches and response labels.
 - `src/cccGenerator.ts` — constrained session, relative carriers and protected phases.
 - `src/cccSignal.ts` — adaptive signal grid and timing contract.
 - `src/cccValue.ts` — forced-choice value and quota scoring.
 - `src/cccFeedback.ts` — separate signal, policy and transfer summaries.
+- `src/cccDuration.ts` — explicit response-time and user-paced-screen duration scenarios.
 - `src/main.ts` — masked signal runtime, radial optic flow and feedback screens.
 - `src/blockPayload.ts` — estimand, timing and validity telemetry.
 
-## 12. Primary methodological anchors
+## 13. Primary methodological anchors
 
 - Wu et al. (2016), *The capacity of cognitive control estimated from a perceptual decision making task*, Scientific Reports, 6, 34025. https://doi.org/10.1038/srep34025
 - He et al. (2022), *Adaptive assessment of the capacity of cognitive control*, Quarterly Journal of Experimental Psychology, 75(1), 43–52. https://doi.org/10.1177/17470218211030838

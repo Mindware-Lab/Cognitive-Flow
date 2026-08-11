@@ -1,6 +1,6 @@
 # IQ Mindware App Design System
 
-**Version:** 0.1.0
+**Version:** 0.1.1
 **Status:** working brand library; Cognitive Control Coach is the reference implementation
 **Owner:** HRP Lab Ltd
 **Applies to:** IQ Mindware cognitive-performance and human–AI workflow apps
@@ -18,7 +18,7 @@ The system combines:
 - deep navy structure;
 - predominantly white and pale-grey working surfaces;
 - IQ Mindware cyan for active paths and primary actions;
-- teal and amber only where they clarify the recurring cognitive-control loop;
+- teal where it clarifies evidence accumulation, with cyan retained for live-task commitment;
 - lime reserved for meaningful completion, accepted evidence or a passed check;
 - Manrope typography;
 - thin geometric icons and restrained signal motifs;
@@ -72,9 +72,9 @@ The Cognitive Stack for Interventions establishes three recurring control proble
 |---|---|---:|---|
 | Extract | Find what matters | Blue | `--iqm-extract` |
 | Accumulate | Take in enough | Teal | `--iqm-accumulate`; `--iqm-accumulate-text` for small text |
-| Commit | Make the call | Amber | `--iqm-commit`; `--iqm-commit-text` for small text |
+| Commit | Make the call | Cyan | `--iqm-commit`; `--iqm-commit-text` for small text |
 
-Use the triad to explain a control sequence, not to colour every surface. The dominant interaction colour remains cyan.
+Use the triad to explain a control sequence, not to colour every surface. In an explanatory diagram, a supporting hue may distinguish the three steps. In live product UI, commitment remains cyan: it is an active decision state, not a warning. Lime remains reserved for completed or accepted evidence and must not colour an unresolved trial.
 The darker `-text` variants preserve the hue while meeting contrast requirements on pale surfaces.
 
 ### 3.3 Evidence and outcome colours
@@ -163,6 +163,8 @@ Rules:
 - stimulus remains the visual centre;
 - condition cue sits above the stimulus;
 - time/value information is visible but subordinate;
+- use the cyan tint and line tokens for unresolved condition and value panels; do not use amber or lime for an active trial;
+- keep a positive grid gap between the stimulus, value panel and response controls at every supported viewport; these surfaces must never overlap;
 - active controls meet a 44 × 44 px minimum target;
 - pause is always available;
 - the task must survive 320 px width and 200% zoom.

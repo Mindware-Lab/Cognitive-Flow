@@ -1,5 +1,5 @@
 /* IQ Mindware App Design System
-   Version 0.1.0 — August 2026
+   Version 0.1.1 — August 2026
    Semantic tokens only. Product styles should alias these variables locally. */
 
 :root {
@@ -22,13 +22,15 @@
   --iqm-cyan-600: #0b8fdf;
   --iqm-cyan-700: #0874ba;
   --iqm-cyan-soft: rgba(34, 170, 255, 0.1);
+  --iqm-cyan-line: rgba(11, 143, 223, 0.24);
 
   /* Cognitive-control semantics */
   --iqm-extract: #0874ba;
   --iqm-accumulate: #087f86;
   --iqm-accumulate-text: #066a70;
-  --iqm-commit: #b76508;
-  --iqm-commit-text: #955000;
+  --iqm-commit: #0b8fdf;
+  --iqm-commit-text: #0874ba;
+  --iqm-commit-soft: rgba(34, 170, 255, 0.07);
 
   /* Evidence and outcome states */
   --iqm-evidence: #ccff66;

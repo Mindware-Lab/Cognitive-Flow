@@ -35,6 +35,10 @@ The P0 protocol layer is implemented in:
 
 The playable runtime uses forced choice throughout, a frame-counted masked signal anchor, relative In/Out arrows, contraction/expansion optic flow, two niches per session and separate block feedback for signal, policy and trained-format portability. New CCC backend work uses the shared coach schema migration under `supabase/migrations/`.
 
+The implemented 124-choice journey is planned as an approximately 10–15 minute session. The versioned assumption model in `src/cccDuration.ts` estimates 8.2 minutes for a fast path, 11.6 minutes for the central scenario and 16.6 minutes for a deliberate path. These are pre-pilot planning values; observed duration telemetry must replace them.
+
+The wider programme remains gate-based. A nominal 20-session plan corresponds to roughly 4–5 active hours over 4–5 weeks, with a planning range of 15–25 sessions. Programme completion is not synonymous with full transfer: protected carrier change, recovery, return, mixed stability and delayed re-check evidence are all required.
+
 ## Local Commands
 
 ```powershell

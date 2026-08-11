@@ -51,7 +51,12 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("var(--iqm-cyan)");
     expect(appStyles).toContain("var(--iqm-accumulate-text)");
     expect(appStyles).toContain("var(--iqm-commit-text)");
+    expect(appStyles).toContain("var(--iqm-commit-soft)");
+    expect(appStyles).not.toContain("--orange");
+    expect(appStyles).not.toContain("rgba(217, 140, 22");
     expect(sharedTokens).toContain("--iqm-evidence: #ccff66");
+    expect(sharedTokens).toContain("--iqm-commit: #0b8fdf");
+    expect(sharedTokens).toContain("--iqm-commit-soft: rgba(34, 170, 255, 0.07)");
     expect(sharedTokens).toContain("--iqm-font-sans");
   });
 
@@ -65,7 +70,11 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("html,\nbody,\n#app");
     expect(appStyles).toContain("height: calc(100dvh - 32px)");
     expect(appStyles).toContain(".ccc-viewport-view .ccc-footer");
-    expect(appStyles).toContain("grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto");
+    expect(appStyles).toContain("grid-template-rows: auto auto minmax(0, 1fr) auto auto auto");
+    expect(appStyles).toContain("row-gap: clamp(6px, 1.1vh, 10px)");
+    expect(appStyles).toMatch(/\.ccc-stimulus-stage\s*\{[\s\S]*?margin: 0 auto;/);
+    expect(appStyles).toMatch(/\.ccc-value-panel\s*\{[\s\S]*?position: relative;[\s\S]*?margin: 0;/);
+    expect(mainSource).toContain("CCC_SESSION_DURATION_LABEL");
     expect(appStyles).toContain("@media (max-height: 519px)");
     expect(appStyles).toContain("overflow-y: auto");
   });

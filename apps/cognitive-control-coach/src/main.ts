@@ -22,6 +22,7 @@ import {
   createP0PracticeTrials,
 } from "./cccGenerator";
 import { buildCccBlockFeedback } from "./cccFeedback";
+import { CCC_SESSION_DURATION_LABEL } from "./cccDuration";
 import { classifySignalTiming, signalStaircaseStateAfterResults } from "./cccSignal";
 import { startAmbiguousSphere } from "./cccShiftView";
 import {
@@ -304,7 +305,7 @@ function renderWelcome(): string {
         <h1>Focus, hold and update <em>what matters.</em></h1>
         <p class="ccc-lead">Practise staying with the goal when distraction, interference or a changing format pulls your attention elsewhere.</p>
         <div class="ccc-hero-facts" aria-label="Journey overview">
-          <span>Brief practice</span><span>Signal + policy checks</span><span>Relative transfer</span>
+          <span>${CCC_SESSION_DURATION_LABEL}</span><span>Signal + policy checks</span><span>Relative transfer</span>
         </div>
         <div class="ccc-actions">${mainAction}</div>
       </div>
@@ -653,7 +654,7 @@ function renderBlockInsights(): string {
     item.accuracy,
     1,
     item.count ? formatPercent(item.accuracy) : "Not shown",
-    item.ratio === "3:2" ? "orange" : "blue",
+    item.ratio === "3:2" ? "focus" : "blue",
   )).join("");
   const nicheBars = feedback.niches.map((item) => metricBar(
     item.label,
