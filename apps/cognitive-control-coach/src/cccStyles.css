@@ -38,10 +38,18 @@
   box-sizing: border-box;
 }
 
+html,
+body,
+#app {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
 body {
   margin: 0;
   min-width: 320px;
-  min-height: 100vh;
+  min-height: 100dvh;
   color: var(--ink);
   background:
     radial-gradient(circle at 7% 0%, rgba(34, 170, 255, 0.09), transparent 25rem),
@@ -87,7 +95,10 @@ a:focus-visible {
 
 .ccc-app {
   width: min(1180px, calc(100% - 32px));
-  min-height: calc(100vh - 32px);
+  height: calc(100dvh - 32px);
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr) auto;
   margin: 16px auto;
   overflow: hidden;
   border: 1px solid var(--line);
@@ -218,8 +229,24 @@ a:focus-visible {
 }
 
 .ccc-main {
-  min-height: calc(100vh - 156px);
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
   padding: clamp(26px, 5vw, 64px);
+}
+
+.ccc-viewport-view {
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.ccc-viewport-view .ccc-main {
+  display: grid;
+  align-items: center;
+  padding: clamp(14px, 3vh, 32px) clamp(14px, 4vw, 48px);
+}
+
+.ccc-viewport-view .ccc-footer {
+  display: none;
 }
 
 .ccc-footer {
@@ -261,7 +288,7 @@ a:focus-visible {
   grid-template-columns: minmax(0, 1.08fr) minmax(360px, 0.92fr);
   gap: clamp(34px, 6vw, 74px);
   align-items: center;
-  margin: 0 auto 46px;
+  margin: 0 auto;
   text-align: left;
 }
 
@@ -463,6 +490,15 @@ p {
   border-radius: 22px;
   background: rgba(255, 255, 255, 0.96);
   box-shadow: 0 16px 44px rgba(5, 25, 44, 0.075);
+}
+
+.ccc-viewport-view .ccc-section,
+.ccc-viewport-view .ccc-resume-card,
+.ccc-viewport-view .ccc-narrow-card,
+.ccc-viewport-view .ccc-complete-card,
+.ccc-viewport-view .ccc-shift-card {
+  width: 100%;
+  max-height: 100%;
 }
 
 .ccc-narrow-card,
@@ -875,8 +911,160 @@ p {
   color: var(--navy);
 }
 
+/* Each narrative state is a self-contained screen. Long ideas are paginated in
+   the renderer rather than placed in a scrolling document. */
+.ccc-workflow-picker,
+.ccc-stage-view .ccc-narrow-card,
+.ccc-practice-view .ccc-narrow-card,
+.ccc-review-view .ccc-narrow-card,
+.ccc-block-reconnect-view .ccc-narrow-card,
+.ccc-complete-view .ccc-complete-card,
+.ccc-reconnect-view,
+.ccc-account-view .ccc-narrow-card {
+  padding: clamp(18px, 3vh, 34px) clamp(18px, 3vw, 38px);
+}
+
+.ccc-workflow-picker h1,
+.ccc-stage-view h1,
+.ccc-practice-view h1,
+.ccc-review-view h1,
+.ccc-block-reconnect-view h1,
+.ccc-complete-view h1,
+.ccc-reconnect-screen h1,
+.ccc-account-view h1,
+.ccc-pause-view h1 {
+  margin-bottom: clamp(10px, 1.6vh, 16px);
+  font-size: clamp(2rem, min(4.4vw, 6vh), 3.45rem);
+  line-height: 1.02;
+}
+
+.ccc-workflow-picker > p,
+.ccc-stage-view .ccc-narrow-card > p,
+.ccc-practice-view .ccc-narrow-card > p,
+.ccc-review-view .ccc-narrow-card > p,
+.ccc-block-reconnect-view .ccc-narrow-card > p,
+.ccc-complete-view .ccc-complete-card > p,
+.ccc-reconnect-view > p {
+  margin-bottom: clamp(10px, 1.8vh, 18px);
+  line-height: 1.5;
+}
+
+.ccc-workflow-picker .ccc-workflow-grid {
+  margin: clamp(12px, 2vh, 22px) 0;
+}
+
+.ccc-workflow-picker .ccc-workflow-card {
+  min-height: clamp(106px, 16vh, 142px);
+  padding-top: 16px;
+  padding-bottom: 16px;
+}
+
+.ccc-compact-boundary {
+  margin: 14px 0 0 !important;
+  color: var(--muted);
+  font-size: 0.76rem;
+}
+
+.ccc-compact-boundary strong {
+  color: var(--navy);
+}
+
+.ccc-stage-view .ccc-stage-line,
+.ccc-practice-view .ccc-stage-line,
+.ccc-review-view .ccc-stage-line {
+  margin-bottom: clamp(10px, 1.8vh, 18px);
+}
+
+.ccc-stage-view .ccc-journey-rail,
+.ccc-review-view .ccc-journey-rail,
+.ccc-complete-view .ccc-journey-rail {
+  margin: 4px 0 clamp(12px, 2vh, 20px);
+}
+
+.ccc-stage-view .ccc-workflow-bridge {
+  margin: clamp(12px, 2vh, 20px) 0;
+  padding: clamp(14px, 2vh, 18px);
+}
+
+.ccc-stage-view .ccc-actions,
+.ccc-practice-view .ccc-actions,
+.ccc-review-view .ccc-actions,
+.ccc-complete-view .ccc-actions,
+.ccc-reconnect-screen .ccc-actions {
+  margin-top: clamp(14px, 2.2vh, 22px);
+}
+
+.ccc-stage-guide .ccc-regime-grid {
+  margin: clamp(12px, 2vh, 20px) 0;
+}
+
+.ccc-stage-guide .ccc-regime-card {
+  min-height: 0;
+  padding: clamp(13px, 2vh, 17px);
+}
+
+.ccc-practice-view .ccc-example-card,
+.ccc-practice-view .ccc-instruction-grid {
+  margin: clamp(14px, 2.4vh, 24px) 0;
+}
+
+.ccc-practice-view .ccc-instruction-grid article {
+  padding: clamp(12px, 2vh, 17px);
+}
+
+.ccc-review-view .ccc-summary-grid,
+.ccc-complete-view .ccc-summary-grid {
+  margin: clamp(12px, 2vh, 20px) 0;
+}
+
+.ccc-review-view .ccc-summary-grid article,
+.ccc-complete-view .ccc-summary-grid article {
+  padding: clamp(11px, 1.8vh, 17px);
+}
+
+.ccc-review-view .ccc-workflow-bridge {
+  margin: clamp(12px, 2vh, 18px) 0;
+  padding: clamp(12px, 1.8vh, 16px);
+}
+
+.ccc-review-view .ccc-metric-note,
+.ccc-complete-view .ccc-metric-note {
+  margin-bottom: 0;
+  padding: clamp(10px, 1.6vh, 14px);
+}
+
+.ccc-reconnect-screen .ccc-main {
+  justify-items: center;
+}
+
+.ccc-reconnect-view {
+  max-width: 760px;
+}
+
+.ccc-reconnect-view .ccc-reconnect-card,
+.ccc-block-reconnect-view .ccc-workflow-bridge {
+  margin: clamp(12px, 2.2vh, 22px) 0;
+  padding: clamp(14px, 2vh, 19px);
+}
+
+.ccc-block-reconnect-card {
+  max-width: 760px;
+}
+
+.ccc-account-links {
+  font-size: 0.82rem;
+}
+
+.ccc-account-links a {
+  color: var(--blue-700);
+  text-underline-offset: 0.18em;
+}
+
 .ccc-task-view .ccc-main {
-  padding: 20px;
+  height: 100%;
+  display: grid;
+  align-items: stretch;
+  padding: clamp(8px, 1.8vh, 16px) 20px;
   background:
     radial-gradient(circle at 50% 25%, rgba(34, 170, 255, 0.1), transparent 34rem),
     var(--canvas-alt);
@@ -886,14 +1074,15 @@ p {
   display: none;
 }
 
-.ccc-task-view .ccc-main {
-  min-height: calc(100vh - 108px);
-}
-
 .ccc-task-card {
+  width: min(820px, 100%);
+  height: 100%;
+  min-height: 0;
   max-width: 820px;
+  display: grid;
+  grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto;
   margin: 0 auto;
-  padding: 20px;
+  padding: clamp(10px, 1.8vh, 18px);
   border: 1px solid var(--line-strong);
   border-radius: 20px;
   background: #fff;
@@ -969,11 +1158,14 @@ p {
 }
 
 .ccc-stimulus-stage {
-  width: min(100%, 430px);
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 430px;
   aspect-ratio: 1;
   display: grid;
   place-items: center;
-  margin: 16px auto;
+  margin: clamp(6px, 1.4vh, 12px) auto;
   overflow: hidden;
   border: 1px solid var(--line);
   border-radius: 20px;
@@ -1201,6 +1393,11 @@ p {
 }
 
 .ccc-shift-card {
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: auto auto auto auto auto minmax(120px, 1fr) auto auto auto;
+  padding: clamp(14px, 2.4vh, 26px);
   text-align: center;
 }
 
@@ -1212,10 +1409,13 @@ p {
 }
 
 .ccc-sphere {
-  width: min(100%, 430px);
+  width: auto;
+  height: 100%;
+  max-width: 100%;
+  max-height: 360px;
   aspect-ratio: 1;
   display: block;
-  margin: 12px auto;
+  margin: clamp(4px, 1vh, 10px) auto;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(34, 170, 255, 0.055), transparent 68%);
 }
@@ -1223,7 +1423,7 @@ p {
 .ccc-shift-progress {
   height: 5px;
   overflow: hidden;
-  margin: -14px 0 24px;
+  margin: -8px 0 clamp(10px, 1.8vh, 18px);
   border-radius: 999px;
   background: #e8edf2;
 }
@@ -1238,11 +1438,11 @@ p {
 }
 
 .ccc-shift-controls {
-  min-height: 56px;
+  min-height: 48px;
   display: flex;
   justify-content: center;
   gap: 10px;
-  margin: 10px 0;
+  margin: 6px 0;
 }
 
 .ccc-text-button {
@@ -1262,7 +1462,7 @@ p {
 }
 
 .ccc-reconnect-card {
-  margin: 28px 0;
+  margin: clamp(14px, 2.5vh, 24px) 0;
   flex-direction: column;
   border: 1px solid rgba(78, 112, 0, 0.28);
   background: rgba(204, 255, 102, 0.12);
@@ -1305,6 +1505,7 @@ p {
 @media (max-width: 940px) {
   .ccc-hero {
     grid-template-columns: 1fr;
+    gap: 16px;
   }
 
   .ccc-hero-copy {
@@ -1327,13 +1528,15 @@ p {
 @media (max-width: 760px) {
   .ccc-app {
     width: 100%;
-    min-height: 100vh;
+    height: 100dvh;
+    min-height: 0;
     margin: 0;
     border: 0;
     border-radius: 0;
   }
 
   .ccc-header {
+    min-height: 58px;
     padding: 8px 13px;
   }
 
@@ -1355,7 +1558,26 @@ p {
   }
 
   .ccc-main {
-    padding: 22px 15px 34px;
+    padding: 16px 15px;
+  }
+
+  .ccc-hero {
+    gap: 16px;
+  }
+
+  .ccc-hero h1 {
+    margin-bottom: 10px;
+    font-size: clamp(2.2rem, 10vw, 3.2rem);
+  }
+
+  .ccc-lead {
+    margin-bottom: 14px;
+    font-size: 0.96rem;
+    line-height: 1.5;
+  }
+
+  .ccc-hero .ccc-actions {
+    margin-top: 14px;
   }
 
   .ccc-control-strip,
@@ -1366,7 +1588,33 @@ p {
   }
 
   .ccc-control-panel .ccc-control-strip {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ccc-control-panel h2 {
+    max-width: none;
+    margin-bottom: 12px;
+    font-size: 1.2rem;
+  }
+
+  .ccc-control-panel .ccc-control-strip article {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 8px;
+  }
+
+  .ccc-control-panel .ccc-control-strip article > span {
+    width: 28px;
+    height: 28px;
+  }
+
+  .ccc-control-panel .ccc-control-strip small {
+    display: none;
+  }
+
+  .ccc-control-panel .ccc-control-strip strong {
+    font-size: 0.76rem;
   }
 
   .ccc-control-panel {
@@ -1374,11 +1622,37 @@ p {
   }
 
   .ccc-workflow-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 9px;
   }
 
   .ccc-workflow-card {
-    min-height: 0;
+    min-height: 88px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    padding: 12px 32px 12px 12px;
+  }
+
+  .ccc-workflow-card > span:last-child {
+    display: none;
+  }
+
+  .ccc-workflow-icon {
+    width: 36px;
+    height: 36px;
+  }
+
+  .ccc-workflow-card strong {
+    font-size: 0.84rem;
+  }
+
+  .ccc-choice-mark {
+    top: 10px;
+    right: 10px;
+    width: 21px;
+    height: 21px;
   }
 
   .ccc-card-heading {
@@ -1399,7 +1673,7 @@ p {
   }
 
   .ccc-task-view .ccc-main {
-    padding: 10px;
+    padding: 6px 8px;
   }
 
   .ccc-task-card {
@@ -1432,8 +1706,10 @@ p {
   }
 
   .ccc-stimulus-stage {
-    width: min(100%, 52vh);
-    margin: 10px auto;
+    width: auto;
+    height: 100%;
+    max-width: 100%;
+    margin: 5px auto;
   }
 
   .ccc-response-row {
@@ -1464,8 +1740,16 @@ p {
     grid-column: 1;
   }
 
-  .ccc-actions .ccc-button {
-    width: 100%;
+  .ccc-viewport-view .ccc-actions {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+  }
+
+  .ccc-viewport-view .ccc-actions .ccc-button {
+    width: auto;
+    min-width: 0;
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
   .ccc-footer {
@@ -1485,6 +1769,31 @@ p {
     border-top: 1px solid var(--line);
     border-left: 0;
     text-align: center;
+  }
+
+  .ccc-review-view .ccc-summary-grid,
+  .ccc-complete-view .ccc-summary-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .ccc-review-view .ccc-summary-grid article,
+  .ccc-complete-view .ccc-summary-grid article {
+    min-width: 0;
+    padding: 10px 7px;
+  }
+
+  .ccc-review-view .ccc-summary-grid span,
+  .ccc-complete-view .ccc-summary-grid span {
+    font-size: 0.65rem;
+  }
+
+  .ccc-review-view .ccc-summary-grid strong,
+  .ccc-complete-view .ccc-summary-grid strong {
+    font-size: 1.15rem;
+  }
+
+  .ccc-workflow-picker h1 {
+    font-size: clamp(1.8rem, 8vw, 2.2rem);
   }
 }
 
@@ -1518,7 +1827,9 @@ p {
   }
 
   .ccc-stimulus-stage {
-    width: min(100%, 45vh);
+    width: auto;
+    height: 100%;
+    max-width: 100%;
   }
 
   .ccc-response strong {
@@ -1543,6 +1854,365 @@ p {
 
   .ccc-brand-lockup small {
     display: none;
+  }
+
+  .ccc-viewport-view .ccc-main {
+    padding: 10px;
+  }
+
+  .ccc-workflow-picker,
+  .ccc-stage-view .ccc-narrow-card,
+  .ccc-practice-view .ccc-narrow-card,
+  .ccc-review-view .ccc-narrow-card,
+  .ccc-block-reconnect-view .ccc-narrow-card,
+  .ccc-complete-view .ccc-complete-card,
+  .ccc-reconnect-view,
+  .ccc-account-view .ccc-narrow-card {
+    padding: 16px 14px;
+  }
+
+  .ccc-viewport-view .ccc-actions {
+    gap: 8px;
+  }
+}
+
+@media (max-height: 700px) {
+  .ccc-header {
+    min-height: 56px;
+    padding-top: 6px;
+    padding-bottom: 6px;
+  }
+
+  .ccc-brand .ccc-brand-mark {
+    width: 38px;
+    height: 28px;
+  }
+
+  .ccc-viewport-view .ccc-main {
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .ccc-kicker {
+    margin-bottom: 7px;
+  }
+
+  .ccc-stage-line {
+    margin-bottom: 10px;
+  }
+
+  .ccc-journey-rail {
+    margin-bottom: 10px !important;
+  }
+
+  .ccc-journey-rail li {
+    gap: 4px;
+  }
+
+  .ccc-workflow-bridge,
+  .ccc-reconnect-card,
+  .ccc-evidence-note {
+    padding: 12px 14px;
+  }
+
+  .ccc-button {
+    min-height: 46px;
+  }
+
+  .ccc-control-panel {
+    padding: 18px;
+  }
+
+  .ccc-control-panel h2 {
+    margin-bottom: 12px;
+  }
+
+  .ccc-control-strip article {
+    padding: 9px 11px;
+  }
+
+  .ccc-hero-facts {
+    display: none;
+  }
+
+  .ccc-review-view .ccc-journey-rail,
+  .ccc-complete-view .ccc-journey-rail,
+  .ccc-stage-guide .ccc-journey-rail {
+    display: none;
+  }
+
+  .ccc-workflow-picker > p {
+    margin-bottom: 6px;
+    font-size: 0.9rem;
+    line-height: 1.4;
+  }
+
+  .ccc-workflow-picker .ccc-workflow-grid {
+    margin: 8px 0;
+  }
+
+  .ccc-workflow-picker .ccc-actions {
+    margin-top: 10px;
+  }
+
+  .ccc-practice-view .ccc-instruction-grid {
+    gap: 8px;
+    margin: 10px 0;
+  }
+
+  .ccc-practice-view .ccc-instruction-grid article {
+    gap: 2px;
+    padding: 9px 12px;
+  }
+
+  .ccc-practice-view .ccc-instruction-grid span,
+  .ccc-stage-guide .ccc-regime-card small {
+    line-height: 1.32;
+  }
+
+  .ccc-stage-guide .ccc-regime-grid {
+    gap: 8px;
+    margin: 8px 0;
+  }
+
+  .ccc-stage-guide .ccc-regime-card {
+    gap: 3px;
+    padding: 10px 12px;
+  }
+
+  .ccc-task-card {
+    grid-template-rows: auto auto minmax(96px, 1fr) auto auto auto;
+    padding: 8px;
+  }
+
+  .ccc-task-topline {
+    gap: 10px;
+    margin-bottom: 7px;
+  }
+
+  .ccc-task-cue {
+    min-height: 46px;
+    padding: 8px 12px;
+  }
+
+  .ccc-value-panel {
+    padding: 8px 12px;
+  }
+
+  .ccc-response-row {
+    margin-top: 7px;
+  }
+
+  .ccc-response {
+    min-height: 58px;
+  }
+
+  .ccc-task-helper {
+    min-height: 17px;
+    margin-top: 4px;
+    font-size: 0.75rem;
+  }
+
+  .ccc-shift-card {
+    grid-template-rows: auto auto auto auto auto minmax(90px, 1fr) auto auto auto;
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+
+  .ccc-shift-card h1 {
+    margin-bottom: 7px;
+    font-size: clamp(1.8rem, 5vh, 2.6rem);
+  }
+
+  .ccc-shift-card > p {
+    margin-bottom: 6px;
+    line-height: 1.4;
+  }
+}
+
+@media (max-width: 340px) and (max-height: 590px) {
+  .ccc-header {
+    min-height: 52px;
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+
+  .ccc-brand .ccc-brand-mark {
+    width: 34px;
+    height: 26px;
+  }
+
+  .ccc-account-button {
+    min-height: 42px;
+    padding: 0 9px;
+  }
+
+  .ccc-viewport-view .ccc-main {
+    padding: 6px;
+  }
+
+  .ccc-workflow-picker,
+  .ccc-stage-view .ccc-narrow-card,
+  .ccc-practice-view .ccc-narrow-card,
+  .ccc-review-view .ccc-narrow-card,
+  .ccc-block-reconnect-view .ccc-narrow-card,
+  .ccc-complete-view .ccc-complete-card,
+  .ccc-reconnect-view,
+  .ccc-account-view .ccc-narrow-card {
+    padding: 12px;
+  }
+
+  .ccc-workflow-picker h1,
+  .ccc-stage-view h1,
+  .ccc-practice-view h1,
+  .ccc-review-view h1,
+  .ccc-block-reconnect-view h1,
+  .ccc-complete-view h1,
+  .ccc-reconnect-screen h1,
+  .ccc-account-view h1,
+  .ccc-pause-view h1 {
+    margin-bottom: 7px;
+    font-size: 1.72rem;
+    line-height: 1.02;
+  }
+
+  .ccc-kicker {
+    margin-bottom: 5px;
+    font-size: 0.63rem;
+  }
+
+  .ccc-stage-line {
+    margin-bottom: 7px;
+  }
+
+  .ccc-stage-overview .ccc-journey-rail {
+    display: none;
+  }
+
+  .ccc-stage-view .ccc-narrow-card > p,
+  .ccc-review-view .ccc-narrow-card > p,
+  .ccc-block-reconnect-view .ccc-narrow-card > p,
+  .ccc-complete-view .ccc-complete-card > p,
+  .ccc-reconnect-view > p {
+    margin-bottom: 7px;
+    font-size: 0.95rem;
+    line-height: 1.36;
+  }
+
+  .ccc-workflow-picker .ccc-workflow-card {
+    min-height: 78px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+
+  .ccc-workflow-icon {
+    width: 31px;
+    height: 31px;
+  }
+
+  .ccc-practice-view .ccc-instruction-grid article {
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+  }
+
+  .ccc-practice-view .ccc-instruction-grid span {
+    font-size: 0.95rem;
+    line-height: 1.25;
+  }
+
+  .ccc-practice-view .ccc-soft-note,
+  .ccc-stage-guide .ccc-narrow-card > .ccc-soft-note,
+  .ccc-block-reconnect-card > .ccc-soft-note,
+  .ccc-reconnect-lead {
+    display: none;
+  }
+
+  .ccc-stage-guide .ccc-regime-card {
+    padding: 8px 10px;
+  }
+
+  .ccc-stage-guide .ccc-regime-card strong {
+    font-size: 0.9rem;
+  }
+
+  .ccc-stage-guide .ccc-regime-card small {
+    font-size: 0.875rem;
+    line-height: 1.24;
+  }
+
+  .ccc-stage-view .ccc-workflow-bridge,
+  .ccc-block-reconnect-view .ccc-workflow-bridge,
+  .ccc-reconnect-view .ccc-reconnect-card {
+    margin: 8px 0;
+    padding: 10px 12px;
+  }
+
+  .ccc-workflow-bridge strong,
+  .ccc-reconnect-card p {
+    font-size: 0.95rem;
+    line-height: 1.35;
+  }
+
+  .ccc-reconnect-card h2 {
+    font-size: 1.25rem;
+  }
+
+  .ccc-review-view .ccc-summary-grid,
+  .ccc-complete-view .ccc-summary-grid {
+    margin: 8px 0;
+  }
+
+  .ccc-review-view .ccc-metric-note,
+  .ccc-complete-view .ccc-metric-note {
+    padding: 8px 9px;
+    font-size: 0.82rem;
+    line-height: 1.35;
+  }
+
+  .ccc-review-view .ccc-summary-grid span,
+  .ccc-complete-view .ccc-summary-grid span {
+    font-size: 0.75rem;
+  }
+
+  .ccc-compact-boundary {
+    margin-top: 8px !important;
+    font-size: 0.8rem !important;
+    line-height: 1.3 !important;
+  }
+
+  .ccc-viewport-view .ccc-actions {
+    margin-top: 8px;
+  }
+
+  .ccc-button {
+    min-height: 44px;
+  }
+}
+
+/* Very short CSS viewports commonly indicate browser zoom or landscape use.
+   Scrolling becomes the accessible fallback rather than clipping information. */
+@media (max-height: 519px) {
+  html,
+  body,
+  #app {
+    height: auto;
+    min-height: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .ccc-app {
+    height: auto;
+    min-height: 100dvh;
+    overflow: visible;
+  }
+
+  .ccc-main,
+  .ccc-viewport-view .ccc-main {
+    overflow: visible;
   }
 }
 

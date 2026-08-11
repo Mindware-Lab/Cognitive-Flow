@@ -116,6 +116,15 @@ Rules:
 - Use empty space to separate decisions. Do not fill every area with metrics or decoration.
 - A task screen may use a stronger focus frame, but the stimulus and response area should remain visually quiet.
 
+### Viewport choreography
+
+- Treat the guided journey as a sequence of complete screens rather than one scrolling web page.
+- At normal zoom, each screen should fit within `100dvh` at 320 × 568, 360 × 640 and representative tablet and desktop sizes.
+- If an explanation cannot fit while preserving legibility and 44 px targets, divide it into purposeful steps: meaning → conditions, results → workflow reconnect.
+- Let the task stimulus flex with available height; never push the response controls below the visible area.
+- Collapse repeated orientation detail on compact screens, but do not remove the current stage, the main instruction, metric scope or claims boundary.
+- At unusually short CSS heights caused by browser zoom or landscape use, allow vertical scrolling as an accessibility fallback rather than clipping content.
+
 ## 6. Core component contracts
 
 ### App header
@@ -329,5 +338,6 @@ The system draws on:
 - [ ] Metrics explain their scope.
 - [ ] Workflow copy does not imply measured real-life improvement.
 - [ ] Keyboard, 200% zoom, reduced motion and mobile layouts have been checked.
+- [ ] Guided screens fit without document scrolling at 320 × 568, 360 × 640, 768 × 768 and 1440 × 900 at normal zoom.
 - [ ] Task mechanics and telemetry are unchanged by decorative styling.
 - [ ] The product does not resemble an arcade, crypto dashboard or clinical portal.

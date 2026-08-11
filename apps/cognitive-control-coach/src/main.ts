@@ -54,13 +54,18 @@ import {
 
 type View =
   | "welcome"
+  | "workflow"
   | "practice_intro"
+  | "practice_guide"
   | "phase_intro"
+  | "phase_guide"
   | "task"
   | "paused"
   | "block_complete"
+  | "block_reconnect"
   | "shift_view"
   | "complete"
+  | "complete_reconnect"
   | "account";
 type TaskStage = "fixation" | "evidence" | "feedback" | "interval";
 type TaskMode = "practice" | "guided";
@@ -274,8 +279,15 @@ function renderWelcome(): string {
   const completion = journey ? Math.round(journeyCompletionRatio(journey) * 100) : 0;
   const mainAction = hasJourney
     ? `<button class="ccc-button ccc-button-primary" data-action="continue-journey">Continue your journey</button>`
-    : `<button class="ccc-button ccc-button-primary" data-action="begin-journey">Start with a short practice</button>`;
-  return shell(`
+    : `<button class="ccc-button ccc-button-primary" data-action="show-workflow">Choose your workflow</button>`;
+  return shell(hasJourney ? `
+      <section class="ccc-resume-card">
+        <div class="ccc-card-heading"><div><span class="ccc-kicker">Your current journey</span><h2>Pick up where you left off.</h2></div><strong class="ccc-progress-number">${completion}%</strong></div>
+        ${journeyRail(journey!.activeBlockIndex, journey!.activeBlockIndex)}
+        <div class="ccc-progress-track" role="progressbar" aria-label="Journey progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}"><span style="width:${completion}%"></span></div>
+        <p>Your selected context is <strong>${WORKFLOW_CHOICES[journey!.workflowChoice].label.toLowerCase()}</strong>. Your place is saved on this device.</p>
+        ${mainAction}
+      </section>` : `
     <section class="ccc-hero">
       <div class="ccc-hero-copy">
         <span class="ccc-kicker">Precision cognitive training</span>
@@ -284,6 +296,7 @@ function renderWelcome(): string {
         <div class="ccc-hero-facts" aria-label="Journey overview">
           <span>Brief practice</span><span>Five guided stages</span><span>Workflow reconnect</span>
         </div>
+        <div class="ccc-actions">${mainAction}</div>
       </div>
       <aside class="ccc-control-panel">
         <span class="ccc-kicker">One control loop</span>
@@ -295,22 +308,22 @@ function renderWelcome(): string {
         </div>
       </aside>
     </section>
-    ${hasJourney ? `
-      <section class="ccc-resume-card">
-        <div class="ccc-card-heading"><div><span class="ccc-kicker">Your current journey</span><h2>Pick up where you left off.</h2></div><strong class="ccc-progress-number">${completion}%</strong></div>
-        ${journeyRail(journey!.activeBlockIndex, journey!.activeBlockIndex)}
-        <div class="ccc-progress-track" role="progressbar" aria-label="Journey progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}"><span style="width:${completion}%"></span></div>
-        <p>Your selected context is <strong>${WORKFLOW_CHOICES[journey!.workflowChoice].label.toLowerCase()}</strong>. Your place is saved on this device.</p>
-        ${mainAction}
-      </section>` : `
-      <section class="ccc-section">
-        <div class="ccc-card-heading"><div><span class="ccc-kicker">Connect training to a task that matters</span><h2>Where is your workflow under strain?</h2></div><span class="ccc-privacy-note">Broad context only</span></div>
-        <p>Choose the closest context. The exercise remains the same; only the prompts that help you reconnect it to real work, study or planning will change.</p>
-        <div class="ccc-workflow-grid">${workflowCards()}</div>
-        ${mainAction}
-      </section>`}
-    <aside class="ccc-evidence-note"><strong>Progress means more than a higher exercise score.</strong><span>${EVIDENCE_BOUNDARY_COPY}</span></aside>
-  `, "ccc-welcome");
+  `, "ccc-welcome ccc-viewport-view");
+}
+
+function renderWorkflow(): string {
+  return shell(`
+    <section class="ccc-section ccc-workflow-picker">
+      <span class="ccc-kicker">Connect to what matters</span>
+      <h1>Where is your workflow under strain?</h1>
+      <p>Choose the closest broad context. This changes only the prompts that help you reconnect.</p>
+      <div class="ccc-workflow-grid">${workflowCards()}</div>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="begin-journey">Start with a short practice</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Back</button>
+      </div>
+    </section>
+  `, "ccc-workflow-view ccc-viewport-view");
 }
 
 function renderPracticeIntro(): string {
@@ -324,18 +337,33 @@ function renderPracticeIntro(): string {
       <div class="ccc-example-card" aria-label="Example: four arrows point right and one points left, so the answer is right">
         <span aria-hidden="true">→</span><span aria-hidden="true">→</span><span class="is-odd" aria-hidden="true">←</span><span aria-hidden="true">→</span><span aria-hidden="true">→</span><strong>Most point right</strong>
       </div>
-      <div class="ccc-instruction-grid">
-        <article><strong>Look first</strong><span>The buttons appear after a brief viewing moment.</span></article>
-        <article><strong>Watch the points</strong><span>A correct answer keeps the points still available. A wrong answer can lose points.</span></article>
-        <article><strong>Do not guess</strong><span>Choose <em>Not sure</em> when the evidence is not good enough.</span></article>
-      </div>
-      <p class="ccc-soft-note">Practice is brief and does not count towards your journey.</p>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="start-practice">Begin practice</button>
+        <button class="ccc-button ccc-button-primary" data-action="show-practice-guide">See how choices work</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Back</button>
       </div>
     </section>
-  `);
+  `, "ccc-practice-view ccc-viewport-view");
+}
+
+function renderPracticeGuide(): string {
+  if (!journey) return renderWelcome();
+  return shell(`
+    <section class="ccc-narrow-card">
+      <div class="ccc-stage-line"><span>Before the journey</span><span>Practice is not scored</span></div>
+      <span class="ccc-kicker">Three simple choices</span>
+      <h1>Look. Weigh. Choose.</h1>
+      <div class="ccc-instruction-grid">
+        <article><strong>Look first</strong><span>The buttons appear after a brief viewing moment.</span></article>
+        <article><strong>Watch the points</strong><span>Correct choices keep what remains. Wrong choices can lose points.</span></article>
+        <article><strong>Do not guess</strong><span>Choose <em>Not sure</em> when the evidence is not good enough.</span></article>
+      </div>
+      <p class="ccc-soft-note">The practice is brief. It helps you learn the controls and does not count towards your journey.</p>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="start-practice">Begin practice</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-practice-intro">Back</button>
+      </div>
+    </section>
+  `, "ccc-practice-view ccc-viewport-view");
 }
 
 function regimeCards(block: CccAttentionBlockPlan): string {
@@ -361,17 +389,36 @@ function renderPhaseIntro(): string {
       <p>${copy.body}</p>
       <aside class="ccc-workflow-bridge">
         <span>Bridge to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</span>
-        <strong>${workflowBridge(block.phase, journey.workflowChoice)}</strong>
+        <strong>${PHASE_COPY[block.phase].bridge}</strong>
       </aside>
-      <h2 class="ccc-subheading">Two ways this stage may feel</h2>
-      <div class="ccc-regime-grid">${regimeCards(block)}</div>
-      ${block.diagnostic ? `<p class="ccc-soft-note">Your first try in this format is kept apart from later practice, so you can see how quickly you settle in.</p>` : ""}
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="start-phase">${block.shiftViewBefore && !journey.shiftViewCompleted ? "Start the changeover" : "Begin this stage"}</button>
+        <button class="ccc-button ccc-button-primary" data-action="show-phase-guide">See how this stage works</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>
-  `);
+  `, "ccc-stage-view ccc-stage-overview ccc-viewport-view");
+}
+
+function renderPhaseGuide(): string {
+  if (!journey) return renderWelcome();
+  taskMode = "guided";
+  const block = currentBlock();
+  if (!block || block.phase === "practice") return renderWelcome();
+  const stageNumber = journey.activeBlockIndex + 1;
+  return shell(`
+    <section class="ccc-narrow-card">
+      <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
+      ${journeyRail(journey.activeBlockIndex, journey.activeBlockIndex)}
+      <span class="ccc-kicker">Before you begin</span>
+      <h1>Two ways this stage may feel.</h1>
+      <div class="ccc-regime-grid">${regimeCards(block)}</div>
+      ${block.diagnostic ? `<p class="ccc-soft-note">Your first try in this format is kept apart from later practice, so you can see how quickly you settle in.</p>` : `<p class="ccc-soft-note">The pattern will move between these two conditions. Keep the same goal and adjust how quickly you decide.</p>`}
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="start-phase">${block.shiftViewBefore && !journey.shiftViewCompleted ? "Start the changeover" : "Begin this stage"}</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
+      </div>
+    </section>
+  `, "ccc-stage-view ccc-stage-guide ccc-viewport-view");
 }
 
 function arrowStimulus(trial: CccAttentionTrialDefinition): string {
@@ -479,7 +526,7 @@ function renderPaused(): string {
         <button class="ccc-button ccc-button-primary" data-action="resume-task">Continue</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Leave for now</button>
       </div>
-    </section>`);
+    </section>`, "ccc-pause-view ccc-viewport-view");
 }
 
 function blockSummary(results: CccRecordedTrial[]): { accuracy: string; points: number; withholds: number } {
@@ -507,7 +554,7 @@ function renderBlockComplete(): string {
     body: "This first encounter is kept separate from the recovery practice that comes next.",
   } : {
     title: "Stage complete.",
-    body: PHASE_COPY[block.phase as Exclude<typeof block.phase, "practice">].bridge,
+    body: "You completed both parts of this stage while keeping the same goal.",
   };
   return shell(`
     <section class="ccc-narrow-card">
@@ -522,12 +569,34 @@ function renderBlockComplete(): string {
           <article><span>Guesses avoided</span><strong>${summary.withholds}</strong></article>
         </div>`}
       ${isPractice ? "" : `<p class="ccc-metric-note"><strong>Read these together.</strong> Accuracy covers answered items. Points also reflect timing and wrong choices. Guesses avoided shows when you chose not to force an answer.</p>`}
-      <aside class="ccc-workflow-bridge"><span>Reconnect</span><strong>${isPractice ? WORKFLOW_CHOICES[journey.workflowChoice].example : workflowBridge(block.phase as Exclude<typeof block.phase, "practice">, journey.workflowChoice)}</strong></aside>
+      ${isPractice ? `<aside class="ccc-workflow-bridge"><span>Next</span><strong>${WORKFLOW_CHOICES[journey.workflowChoice].example}</strong></aside>` : ""}
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${isLast ? "See your review" : "Continue"}</button>
+        <button class="ccc-button ccc-button-primary" data-action="${isPractice ? "continue-after-block" : "show-block-reconnect"}">${isPractice ? "Continue" : isLast ? "Reconnect, then review" : "Reconnect this stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
-    </section>`);
+    </section>`, `ccc-review-view ccc-viewport-view ${isPractice ? "ccc-practice-review" : ""}`);
+}
+
+function renderBlockReconnect(): string {
+  if (!journey) return renderWelcome();
+  const block = currentBlock();
+  if (!block || block.phase === "practice") return renderWelcome();
+  const isLast = journey.activeBlockIndex === journey.plan.blocks.length - 1;
+  return shell(`
+    <section class="ccc-narrow-card ccc-block-reconnect-card">
+      <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} complete</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
+      <span class="ccc-kicker">From exercise to workflow</span>
+      <h1>Reconnect before you move on.</h1>
+      <aside class="ccc-workflow-bridge">
+        <span>${WORKFLOW_CHOICES[journey.workflowChoice].label}</span>
+        <strong>${workflowBridge(block.phase, journey.workflowChoice)}</strong>
+      </aside>
+      <p class="ccc-soft-note">This is a practical bridge, not evidence that the exercise has changed performance outside the app.</p>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${isLast ? "See your journey review" : "Continue to the next stage"}</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
+      </div>
+    </section>`, "ccc-block-reconnect-view ccc-viewport-view");
 }
 
 function renderShiftView(): string {
@@ -547,19 +616,18 @@ function renderShiftView(): string {
       <button class="ccc-text-button" data-action="shift-toggle-motion">${shiftStaticMode ? "Use the moving version" : "Use a still reset"}</button>
       <p class="ccc-soft-note">There is no score. This short changeover does not affect your points or progress.</p>
     </section>
-  `, "ccc-shift-view");
+  `, "ccc-shift-view ccc-viewport-view");
 }
 
 function renderComplete(): string {
   if (!journey) return renderWelcome();
-  const reconnect = reconnectAction(journey.workflowChoice);
   const allResults = Object.values(journey.blockResults).flat();
   const summary = blockSummary(allResults);
   return shell(`
     <section class="ccc-complete-card">
       <span class="ccc-kicker">Find → Change → Recover → Return</span>
       <h1>You completed this attention journey.</h1>
-      <p>You practised the same decision across arrows and moving patterns, returned to the original format, and then handled both formats in a changing sequence.</p>
+      <p>You kept the same decision across arrows and moving patterns, returned to arrows, then switched between both.</p>
       ${journeyRail(journey.plan.blocks.length, null)}
       <div class="ccc-summary-grid">
         <article><span>Accuracy when answered</span><strong>${summary.accuracy}</strong></article>
@@ -567,17 +635,31 @@ function renderComplete(): string {
         <article><span>Guesses avoided</span><strong>${summary.withholds}</strong></article>
       </div>
       <p class="ccc-metric-note"><strong>This is exercise evidence.</strong> It shows how you handled the trained formats. The workflow step below is a separate prompt for applying the idea in context.</p>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Reconnect to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</button>
+      </div>
+    </section>`, "ccc-complete-view ccc-viewport-view");
+}
+
+function renderCompleteReconnect(): string {
+  if (!journey) return renderWelcome();
+  const reconnect = reconnectAction(journey.workflowChoice);
+  return shell(`
+    <section class="ccc-complete-card ccc-reconnect-view">
+      <span class="ccc-kicker">From exercise to workflow</span>
+      <h1>Take one move back to the task.</h1>
+      <p class="ccc-reconnect-lead">Use this prompt, then judge the result in the real task itself.</p>
       <aside class="ccc-reconnect-card">
-        <span>Reconnect to the workflow</span>
+        <span>Reconnect to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</span>
         <h2>${reconnect.title}</h2>
         <p>${reconnect.action}</p>
       </aside>
-      <aside class="ccc-evidence-note"><strong>Keep the outcomes separate.</strong><span>${EVIDENCE_BOUNDARY_COPY}</span></aside>
+      <p class="ccc-compact-boundary"><strong>Keep the outcomes separate.</strong> Use the real task—not this score—to judge whether the prompt helped.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="return-home">Return to overview</button>
         <button class="ccc-button ccc-button-quiet" data-action="restart-journey">Repeat the journey</button>
       </div>
-    </section>`);
+    </section>`, "ccc-reconnect-screen ccc-viewport-view");
 }
 
 function renderAccount(): string {
@@ -595,20 +677,26 @@ function renderAccount(): string {
       ${content}
       ${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}
       <p class="ccc-soft-note">The workflow choice is a broad category. The app does not ask you to enter confidential work, study or personal details.</p>
+      <p class="ccc-account-links"><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></p>
       <button class="ccc-button ccc-button-quiet" data-action="close-account">Back</button>
-    </section>`);
+    </section>`, "ccc-account-view ccc-viewport-view");
 }
 
 function render(): void {
   const content = view === "welcome" ? renderWelcome()
-    : view === "practice_intro" ? renderPracticeIntro()
-      : view === "phase_intro" ? renderPhaseIntro()
-        : view === "task" ? renderTask()
-          : view === "paused" ? renderPaused()
-            : view === "block_complete" ? renderBlockComplete()
-              : view === "shift_view" ? renderShiftView()
-                : view === "complete" ? renderComplete()
-                  : renderAccount();
+    : view === "workflow" ? renderWorkflow()
+      : view === "practice_intro" ? renderPracticeIntro()
+        : view === "practice_guide" ? renderPracticeGuide()
+          : view === "phase_intro" ? renderPhaseIntro()
+            : view === "phase_guide" ? renderPhaseGuide()
+              : view === "task" ? renderTask()
+                : view === "paused" ? renderPaused()
+                  : view === "block_complete" ? renderBlockComplete()
+                    : view === "block_reconnect" ? renderBlockReconnect()
+                      : view === "shift_view" ? renderShiftView()
+                        : view === "complete" ? renderComplete()
+                          : view === "complete_reconnect" ? renderCompleteReconnect()
+                            : renderAccount();
   appRoot.innerHTML = content;
   if (view === "shift_view") mountShiftView();
 }
@@ -1026,19 +1114,33 @@ appRoot.addEventListener("click", (event) => {
   if (action === "choose-workflow") {
     selectedWorkflow = button.dataset.workflow as WorkflowChoice;
     render();
+  } else if (action === "show-workflow") {
+    setView("workflow");
   } else if (action === "begin-journey") {
     createNewJourney();
     setView("practice_intro");
   } else if (action === "continue-journey") {
     resumeJourney();
+  } else if (action === "show-practice-guide") {
+    setView("practice_guide");
+  } else if (action === "back-practice-intro") {
+    setView("practice_intro");
   } else if (action === "start-practice") {
     startTask("practice");
+  } else if (action === "show-phase-guide") {
+    setView("phase_guide");
+  } else if (action === "back-phase-intro") {
+    setView("phase_intro");
   } else if (action === "start-phase") {
     const block = currentBlock();
     if (journey && block?.shiftViewBefore && !journey.shiftViewCompleted) setView("shift_view");
     else startTask("guided");
   } else if (action === "continue-after-block") {
     continueAfterBlock();
+  } else if (action === "show-block-reconnect") {
+    setView("block_reconnect");
+  } else if (action === "show-complete-reconnect") {
+    setView("complete_reconnect");
   } else if (action === "pause-session") {
     recordEvent("pause", { taskStage });
     if (taskStage === "fixation" || taskStage === "evidence") completeTrial(null, "system", true, false, "aborted");

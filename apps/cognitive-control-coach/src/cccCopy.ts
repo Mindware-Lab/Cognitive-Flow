@@ -95,19 +95,19 @@ export function reconnectAction(workflow: WorkflowChoice): { title: string; acti
   const actions: Record<WorkflowChoice, { title: string; action: string }> = {
     focused_work: {
       title: "Reconnect to a focused work task",
-      action: "Before your next high-focus task, write down the one output that matters. When a message, document or display interrupts you, restate that output before continuing.",
+      action: "Write down the one output that matters before your next high-focus task. After an interruption, restate it before continuing.",
     },
     study: {
       title: "Reconnect to a study task",
-      action: "Before your next reading block, write down the question you need to answer. When you move between sources or notes, bring that question with you.",
+      action: "Write down the question you need to answer. Bring it with you whenever you move between sources or notes.",
     },
     ai_assisted: {
       title: "Reconnect to an AI-assisted task",
-      action: "Before opening an AI tool, write down the constraint its answer must satisfy. After each new output, check that the constraint is still active before accepting or revising the result.",
+      action: "Write down the constraint an AI answer must satisfy. Recheck it before accepting or revising each new output.",
     },
     everyday_planning: {
       title: "Reconnect to an everyday task",
-      action: "Before a multi-step task, name the next useful decision. After an interruption or change of plan, return to that decision before acting.",
+      action: "Name the next useful decision. After an interruption or change of plan, return to it before acting.",
     },
   };
   return actions[workflow];

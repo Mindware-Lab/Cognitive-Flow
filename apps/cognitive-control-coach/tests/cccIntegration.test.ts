@@ -49,6 +49,21 @@ describe("CCC playable integration", () => {
     expect(sharedTokens).toContain("--iqm-font-sans");
   });
 
+  it("paginates long explanations and keeps every state inside the viewport shell", () => {
+    for (const view of ["workflow", "practice_guide", "phase_guide", "block_reconnect", "complete_reconnect"]) {
+      expect(mainSource).toContain(`| "${view}"`);
+    }
+    for (const action of ["show-workflow", "show-practice-guide", "show-phase-guide", "show-block-reconnect", "show-complete-reconnect"]) {
+      expect(mainSource).toContain(action);
+    }
+    expect(appStyles).toContain("html,\nbody,\n#app");
+    expect(appStyles).toContain("height: calc(100dvh - 32px)");
+    expect(appStyles).toContain(".ccc-viewport-view .ccc-footer");
+    expect(appStyles).toContain("grid-template-rows: auto auto minmax(120px, 1fr) auto auto auto");
+    expect(appStyles).toContain("@media (max-height: 519px)");
+    expect(appStyles).toContain("overflow-y: auto");
+  });
+
   it("provides the three authenticated shared-schema functions used by the browser", () => {
     expect(submitFunction).toContain('from("coach_sessions")');
     expect(submitFunction).toContain('from("coach_trials")');
