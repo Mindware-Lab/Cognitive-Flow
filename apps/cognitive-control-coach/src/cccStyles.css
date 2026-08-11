@@ -1,3 +1,11 @@
+@font-face {
+  font-family: "Manrope Variable";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 200 800;
+  src: url("@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2") format("woff2-variations");
+}
+
 :root {
   font-family: "Manrope Variable", Manrope, Inter, system-ui, sans-serif;
   color: #13253a;

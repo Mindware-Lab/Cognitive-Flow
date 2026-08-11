@@ -1,4 +1,3 @@
-import "@fontsource-variable/manrope";
 import "../../../UX/iqmindware-app-design-system/tokens.css";
 import "./cccStyles.css";
 import { buildCccBlockSubmissionPayload } from "./blockPayload";

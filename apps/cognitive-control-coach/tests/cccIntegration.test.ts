@@ -39,7 +39,7 @@ describe("CCC playable integration", () => {
   });
 
   it("uses the shared IQ Mindware app identity and accessible semantic colour roles", () => {
-    expect(mainSource).toContain("@fontsource-variable/manrope");
+    expect(appStyles).toContain("@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2");
     expect(mainSource).toContain("iqmindware-app-design-system/tokens.css");
     expect(mainSource).toContain('aria-label="Journey completion"');
     expect(appStyles).toContain("var(--iqm-cyan)");
