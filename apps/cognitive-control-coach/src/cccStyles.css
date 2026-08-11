@@ -236,6 +236,15 @@ a:focus-visible {
   font-weight: 650;
 }
 
+.ccc-footer a {
+  color: var(--blue-700);
+  text-underline-offset: 0.18em;
+}
+
+.ccc-footer a:hover {
+  color: var(--navy);
+}
+
 .ccc-hero,
 .ccc-section,
 .ccc-resume-card,

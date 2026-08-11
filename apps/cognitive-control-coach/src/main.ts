@@ -225,7 +225,7 @@ function header(): string {
 }
 
 function shell(content: string, className = ""): string {
-  return `<main class="ccc-app ${className}">${header()}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · cognitive training for demanding workflows</span><span>Non-clinical · broader benefit is checked, not assumed</span></footer></main>`;
+  return `<main class="ccc-app ${className}">${header()}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · cognitive training for demanding workflows</span><span>Non-clinical · broader benefit is checked, not assumed</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
 }
 
 const JOURNEY_LABELS: Record<Exclude<CccP0Phase, "practice">, string> = {
