@@ -1,0 +1,261 @@
+import { createClient } from "@supabase/supabase-js";
+import { CCC_APP_ID } from "./cccConfig";
+import type { ScratchBaseline } from "./types";
+import type { DeviceReadiness } from "./types";
+import type { LocalProgress, ProofBenchmarkEntry } from "./storage";
+
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
+
+export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const supabase = isSupabaseConfigured
+  ? createClient(supabaseUrl!, supabaseAnonKey!, {
+      auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true },
+    })
+  : null;
+
+export type AuthUser = {
+  id: string;
+  email?: string;
+};
+
+export type StandardizedScoreRow = {
+  metric_key: string;
+  standard_score: number | null;
+  z_score: number | null;
+  norm_n: number | null;
+  session_number: number | null;
+  recorded_at: string | null;
+};
+
+export type GTrackHistoryResult = {
+  id: string;
+  testId: string;
+  testVersion: string;
+  attemptNumber: number;
+  completedAt: string;
+  summary: Record<string, unknown>;
+  gTrackScore?: {
+    construct?: string;
+    timepoint?: string | null;
+    testId?: string | null;
+    provisionalIndex?: number | string | null;
+    confidenceLabel?: string | null;
+    normStatus?: string | null;
+    publicScores?: Record<string, unknown> | null;
+  } | null;
+  issuedNorm: Record<string, { standardScore?: number | null; normStatus?: { label?: string; confidence?: string } } | undefined> | null;
+  latestNorm: Record<string, { standardScore?: number | null; normStatus?: { label?: string; confidence?: string } } | undefined> | null;
+  normPool: string;
+  completionQuality: string;
+};
+
+export type GTrackProofScore = NonNullable<GTrackHistoryResult["gTrackScore"]> & {
+  completedAt?: string | null;
+  score?: number | string | null;
+  standardScore?: number | string | null;
+  displayStandardScore?: number | string | null;
+  raw?: number | string | null;
+  maxRaw?: number | string | null;
+  standardError?: number | string | null;
+  metrics?: Record<string, number | null> | null;
+};
+
+export async function currentAuthUser(): Promise<AuthUser | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.auth.getUser();
+  if (error || !data.user) return null;
+  return { id: data.user.id, email: data.user.email || undefined };
+}
+
+export function onAuthChange(callback: (user: AuthUser | null) => void): { unsubscribe: () => void } | null {
+  if (!supabase) return null;
+  const { data } = supabase.auth.onAuthStateChange((_event, session) => {
+    callback(session?.user ? { id: session.user.id, email: session.user.email || undefined } : null);
+  });
+  return { unsubscribe: () => data.subscription.unsubscribe() };
+}
+
+export async function sendEmailSignInLink(email: string): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const redirectTo = `${window.location.origin}${window.location.pathname}`;
+  const { error } = await supabase.auth.signInWithOtp({
+    email,
+    options: { emailRedirectTo: redirectTo },
+  });
+  if (error) throw new Error(error.message);
+}
+
+export async function verifyEmailSignInCode(email: string, token: string): Promise<AuthUser | null> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase.auth.verifyOtp({
+    email,
+    token,
+    type: "email",
+  });
+  if (error) throw new Error(error.message);
+  return data.user ? { id: data.user.id, email: data.user.email || undefined } : null;
+}
+
+export async function signOutUser(): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.auth.signOut();
+  if (error) throw new Error(error.message);
+}
+
+export async function submitCoachBlock(payload: Record<string, unknown>): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("submit-coach-block", { body: { ...payload, appId: CCC_APP_ID } });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function finalizeCoachSession(payload: Record<string, unknown>): Promise<unknown> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke("finalize-coach-session", { body: { ...payload, appId: CCC_APP_ID } });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return data;
+}
+
+export async function fetchCoachScratchBaselines(payload: Record<string, unknown>): Promise<ScratchBaseline[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase.functions.invoke("get-coach-scratch-baselines", { body: { ...payload, appId: CCC_APP_ID } });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return Array.isArray(data) ? (data as ScratchBaseline[]) : [];
+}
+
+export async function loadRemoteProgress(): Promise<LocalProgress | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase.functions.invoke("sync-coach-progress", {
+    body: { action: "load", appId: CCC_APP_ID },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return data?.progress ?? null;
+}
+
+export async function saveRemoteProgress(progress: LocalProgress): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-coach-progress", {
+    body: { action: "save", appId: CCC_APP_ID, progress },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function recordDeviceCheck(readiness: DeviceReadiness): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("record-coach-device-check", { body: { appId: CCC_APP_ID, readiness } });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function saveProofBenchmark(entry: ProofBenchmarkEntry): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-proof-benchmark", {
+    body: { action: "upsert", appId: CCC_APP_ID, entry },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function deleteProofBenchmark(id: string): Promise<void> {
+  if (!supabase) return;
+  const { error } = await supabase.functions.invoke("sync-proof-benchmark", {
+    body: { action: "delete", appId: CCC_APP_ID, id },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function exportCoachData(): Promise<Record<string, unknown>> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { data, error } = await supabase.functions.invoke("export-coach-data", {
+    body: { appId: CCC_APP_ID },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  return (data && typeof data === "object" ? data : {}) as Record<string, unknown>;
+}
+
+export async function deleteCoachData(): Promise<void> {
+  if (!supabase) throw new Error("Supabase is not configured.");
+  const { error } = await supabase.functions.invoke("delete-coach-data", {
+    body: { appId: CCC_APP_ID, confirm: "delete-coach-data" },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+}
+
+export async function loadStandardizedScores(appId: "attention_coach" | "wm_coach" | "cognitive_control_coach"): Promise<StandardizedScoreRow[]> {
+  if (!supabase) return [];
+  if (appId === "attention_coach") {
+    const exportData = await exportCoachData();
+    const rows = Array.isArray(exportData.standardizedScores) ? exportData.standardizedScores : [];
+    return rows
+      .map((row) => row && typeof row === "object" ? row as Record<string, unknown> : null)
+      .filter((row): row is Record<string, unknown> => Boolean(row))
+      .map((row) => ({
+        metric_key: String(row.metric_key || ""),
+        standard_score: finiteNumberOrNull(row.standard_score),
+        z_score: finiteNumberOrNull(row.z_score),
+        norm_n: finiteNumberOrNull(row.norm_n),
+        session_number: finiteNumberOrNull(row.session_number),
+        recorded_at: typeof row.recorded_at === "string" ? row.recorded_at : null,
+      }))
+      .filter((row) => row.metric_key);
+  }
+  const { data, error } = await supabase
+    .from("coach_metric_standardized_scores")
+    .select("metric_key,standard_score,z_score,norm_n,session_number,recorded_at")
+    .eq("app_id", appId)
+    .order("recorded_at", { ascending: false })
+    .limit(200);
+  if (error) throw new Error(error.message);
+  return (data || []) as StandardizedScoreRow[];
+}
+
+function finiteNumberOrNull(value: unknown): number | null {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) ? numberValue : null;
+}
+
+export async function loadGTrackHistory(): Promise<GTrackHistoryResult[]> {
+  if (!supabase) return [];
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return [];
+  const response = await fetch("/api/cpt/history", {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "same-origin",
+  });
+  if (!response.ok) return [];
+  const payload = await response.json() as { results?: GTrackHistoryResult[] };
+  return Array.isArray(payload.results) ? payload.results : [];
+}
+
+export async function loadGTrackProofSummary(): Promise<GTrackProofScore[]> {
+  if (!supabase) return [];
+  const { data: sessionData } = await supabase.auth.getSession();
+  const token = sessionData.session?.access_token;
+  if (!token) return [];
+  const response = await fetch("/api/gtrack/proof-summary", {
+    headers: { Authorization: `Bearer ${token}` },
+    credentials: "same-origin",
+  });
+  if (!response.ok) return [];
+  const payload = await response.json() as { scores?: GTrackProofScore[] };
+  return Array.isArray(payload.scores) ? payload.scores : [];
+}
+
+async function functionErrorMessage(error: unknown): Promise<string> {
+  const fallback = error instanceof Error ? error.message : "Supabase request failed.";
+  const context = error && typeof error === "object" && "context" in error
+    ? (error as { context?: Response }).context
+    : null;
+  if (!context || typeof context.clone !== "function") return fallback;
+  try {
+    const body = await context.clone().json() as { error?: unknown; message?: unknown };
+    const detail = typeof body.error === "string" ? body.error : typeof body.message === "string" ? body.message : "";
+    return detail || fallback;
+  } catch {
+    try {
+      const text = await context.clone().text();
+      return text || fallback;
+    } catch {
+      return fallback;
+    }
+  }
+}

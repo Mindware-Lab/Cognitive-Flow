@@ -1,0 +1,11 @@
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: camera=(), microphone=(), geolocation=()
+
+/cognitive-control-coach/
+  Cache-Control: no-cache, no-store, must-revalidate
+
+/cognitive-control-coach/index.html
+  Cache-Control: no-cache, no-store, must-revalidate
