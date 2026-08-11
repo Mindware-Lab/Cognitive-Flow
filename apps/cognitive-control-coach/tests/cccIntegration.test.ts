@@ -54,6 +54,7 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("var(--iqm-commit-soft)");
     expect(appStyles).not.toContain("--orange");
     expect(appStyles).not.toContain("rgba(217, 140, 22");
+    expect(appStyles).toMatch(/\.ccc-signal-panel\s*\{[\s\S]*?border-color: var\(--control-line\);[\s\S]*?background: var\(--control-soft\);/);
     expect(sharedTokens).toContain("--iqm-evidence: #ccff66");
     expect(sharedTokens).toContain("--iqm-commit: #0b8fdf");
     expect(sharedTokens).toContain("--iqm-commit-soft: rgba(34, 170, 255, 0.07)");
