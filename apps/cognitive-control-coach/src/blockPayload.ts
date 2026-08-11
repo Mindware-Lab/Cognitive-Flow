@@ -39,6 +39,8 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
       blockIndex: block.index,
       label: block.label,
       phase: block.phase,
+      estimand: block.estimand,
+      presentationMode: block.presentationMode,
       transitionKind: block.transitionKind,
       wrapperId: block.wrapperId,
       wrappers: block.wrappers,
@@ -51,11 +53,14 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
       const trial = result.trial;
       const scoring = result.scoring;
       const regime = CCC_REGIMES[trial.regimeId];
+      const isValueTrial = trial.presentationMode === "self_paced_value" && !trial.practice;
       return {
         clientTrialId: trial.id,
         trialIndex: trial.trialIndex,
         blockTrialIndex: trial.blockTrialIndex,
         operator: trial.operator,
+        estimand: trial.estimand,
+        presentationMode: trial.presentationMode,
         wrapperId: trial.wrapperId,
         sourceWrapperId: trial.sourceWrapperId,
         referenceFrame: trial.referenceFrame,
@@ -70,13 +75,14 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
         evidenceLevel: trial.ratio,
         majorityRatio: trial.ratio,
         majorityCount: trial.majorityCount,
-        initialReward: regime.correctPot,
-        drainRatePerSecond: regime.drainPointsPerSecond,
-        errorLoss: regime.errorLoss,
-        withholdValue: CCC_TRIAL_TIMING.voluntaryWithholdPoints,
+        initialReward: isValueTrial ? regime.correctPot : null,
+        drainRatePerSecond: isValueTrial ? regime.drainPointsPerSecond : null,
+        errorLoss: isValueTrial ? regime.errorLoss : null,
         omissionValue: CCC_TRIAL_TIMING.omissionPoints,
-        minimumExposureMs: CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs,
-        deadlineMs: CCC_TRIAL_TIMING.maxResponseWindowMs,
+        minimumExposureMs: isValueTrial ? CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs : null,
+        deadlineMs: trial.presentationMode === "masked_forced_choice"
+          ? CCC_TRIAL_TIMING.signalResponseDeadlineMs
+          : CCC_TRIAL_TIMING.maxResponseWindowMs,
         correctResponse: trial.correctResponse,
         response: result.response,
         responseClass: scoring.responseClass,
@@ -89,11 +95,18 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
         diagnostic: trial.diagnostic,
         assistedFirstContact: trial.assistedFirstContact,
         validForProgression: scoring.validForProgression,
+        countsTowardQuota: scoring.countsTowardQuota,
         invalidReason: scoring.invalidReason,
         viewportClass: result.viewportClass,
         inputMode: result.inputMode,
         focusLost: result.focusLost,
         replacementOfTrialId: trial.replacementOfTrialId,
+        exposureMsRequested: trial.exposureMsRequested,
+        exposureMsActual: result.exposureMsActual,
+        actualStimulusFrames: result.actualStimulusFrames,
+        deviceRefreshRateEstimate: result.deviceRefreshRateEstimate,
+        timingQuality: result.timingQuality,
+        signalStaircaseLevel: trial.signalStaircaseLevel,
         stimulus: {
           ratio: trial.ratio,
           majorityCount: trial.majorityCount,

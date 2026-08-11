@@ -83,7 +83,7 @@ The darker `-text` variants preserve the hue while meeting contrast requirements
 |---|---:|---|
 | Completed / checked / accepted evidence | Lime `#CCFF66` | Sparse; use navy text on lime |
 | Error needing correction | Coral `#C94C55` | Pair with an icon and words |
-| Accumulation / careful withhold | Teal `#087F86` | Pair with explicit copy |
+| Accumulation / evidence sampling | Teal `#087F86` | Pair with explicit copy |
 | Overloaded profile or reasoning layer | Violet `#6D55BD` | Diagrams and labelled profiles only |
 | Regulated profile | Green `#2F8B4B` | Labelled state/profile communication only |
 
@@ -152,7 +152,7 @@ Rules:
 
 ### Journey rail
 
-- five or fewer labelled steps;
+- prefer five or fewer labelled steps; six may be used when each label is a single short word and the 320 px layout is verified;
 - numbered pending step, cyan current step, lime completed step with a tick;
 - the current step also uses `aria-current="step"`;
 - continuity is the reward; do not turn the rail into competitive pressure.
@@ -170,10 +170,18 @@ Rules:
 ### Feedback state
 
 - show a symbol, plain-language message and value consequence;
-- distinguish correct, careful withhold, incorrect and interrupted states;
+- distinguish correct, incorrect, deadline omission and interrupted states according to the paradigm's response contract;
 - preserve the answered stimulus for the feedback moment;
 - do not use celebratory animation on every trial;
 - delay detailed interpretation until the stage review.
+
+### Metric charts
+
+- Use compact horizontal bars for block-level comparisons; do not introduce dashboard density into the live task.
+- Put the number beside the label so the graph is interpretable without colour or precise visual estimation.
+- Keep denominators and scope explicit: accuracy by clarity, viewing time by condition, or value retained.
+- Explain the everyday analogue separately from the measured result; a workflow example must not be presented as measured transfer.
+- Never combine capacity, policy adjustment and portability into one invented brain score.
 
 ### Evidence boundary
 

@@ -39,12 +39,12 @@ export const REGIME_COPY: Record<CccRegimeId, { title: string; instruction: stri
   clean_precision: {
     title: "Check before you choose",
     instruction: "The pattern is often clear, but a wrong answer costs more.",
-    cue: "Use the time you need; do not guess.",
+    cue: "Use the time you need, then make your best choice.",
   },
   deep_check: {
     title: "Take the time you need",
     instruction: "The pattern is often close and a wrong answer costs more.",
-    cue: "Keep looking until the evidence is good enough.",
+    cue: "Keep looking, then make your best choice.",
   },
 };
 
@@ -54,34 +54,40 @@ export const PHASE_COPY: Record<Exclude<CccP0Phase, "practice">, {
   body: string;
   bridge: string;
 }> = {
-  arrow_stabilisation: {
-    eyebrow: "Find what matters",
-    title: "Build a steady starting point",
-    body: "Choose the direction followed by most arrows. The points help you practise when to answer and when not to guess.",
-    bridge: "In a crowded task, this is the move of finding the instruction, figure or signal that matters now.",
+  signal_anchor: {
+    eyebrow: "Check the signal",
+    title: "Start with a protected signal check",
+    body: "The arrows appear briefly, then a mask covers them. Choose Left or Right every time; the viewing time adapts to your answers.",
+    bridge: "This checks how much competing visual information you can resolve under controlled timing. It is kept apart from the later decision-policy practice.",
   },
-  flow_first_contact: {
+  arrow_rel_stabilisation: {
+    eyebrow: "Find the relation",
+    title: "Move from Left and Right to In and Out",
+    body: "Choose whether most arrows point towards the centre or away from it. The two work conditions change clarity, time pressure and the cost of a wrong choice.",
+    bridge: "In a demanding workflow, relevance is often relational: whether information supports or moves away from the goal—not simply where it appears.",
+  },
+  flow_rel_first_contact: {
     eyebrow: "Train through change",
-    title: "The display is about to move",
-    body: "The look of the task will change, but your goal will not: find the direction followed by most patterns.",
-    bridge: "A dashboard, document or AI output can change its presentation while the underlying goal stays the same.",
+    title: "The same relation is about to move",
+    body: "The arrows become moving dot fields. Choose whether most fields expand or contract; your first encounter is protected from later recovery practice.",
+    bridge: "A dashboard, document or AI output can change its presentation while the underlying decision still points towards or away from the goal.",
   },
-  flow_recovery: {
-    eyebrow: "Recover the same skill",
-    title: "Settle into the new format",
-    body: "Keep finding the majority direction while the information moves. Use the same careful decision rule as before.",
-    bridge: "When a tool or source changes, recover the goal before reacting to the new surface details.",
+  flow_rel_recovery: {
+    eyebrow: "Recover the same relation",
+    title: "Settle into expansion and contraction",
+    body: "Keep finding the majority motion while the evidence moves. Adjust how long you look across the two work conditions, then make a forced choice.",
+    bridge: "When a tool or source changes, recover the governing relation before reacting to new surface detail.",
   },
-  arrow_return: {
+  arrow_rel_return: {
     eyebrow: "Return without losing the base",
-    title: "Come back to the original format",
-    body: "Return to arrows and check that the starting task still feels clear after adapting to motion.",
+    title: "Come back to radial arrows",
+    body: "Return to In and Out arrows and check that the relative rule remains available after adapting to motion.",
     bridge: "Adaptation should not make the familiar workflow harder when you return to it.",
   },
-  absolute_mix: {
-    eyebrow: "Keep the goal across formats",
-    title: "Switch without losing what matters",
-    body: "Arrows and moving patterns will now alternate. The surface changes; the decision stays the same.",
+  relative_mix: {
+    eyebrow: "Keep the relation across formats",
+    title: "Switch without losing In and Out",
+    body: "Radial arrows and expanding or contracting motion will alternate. The carrier changes; the relative decision stays the same.",
     bridge: "This resembles moving between sources, tools or views while keeping the same work or study goal active.",
   },
 };

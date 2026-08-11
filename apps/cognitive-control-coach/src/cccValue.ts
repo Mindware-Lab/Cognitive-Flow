@@ -1,7 +1,7 @@
 import { CCC_CONFIG_VERSION, CCC_REGIMES, CCC_TRIAL_TIMING } from "./cccConfig";
 import type { CccAttentionResponseInput, CccAttentionTrialScoring, CccResponseChoice, CccResponseClass } from "./cccTypes";
 
-export const CCC_VALUE_SCORING_VERSION = "ccc-value-v0.1";
+export const CCC_VALUE_SCORING_VERSION = "ccc-dual-value-v0.3";
 
 function bounded(value: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, value));
@@ -16,29 +16,37 @@ export function rewardRemainingForResponse(regimeId: CccAttentionResponseInput["
 
 export function classifyCccAttentionResponse(input: CccAttentionResponseInput): CccResponseClass {
   const responseTimeMs = Number.isFinite(input.responseTimeMs) ? Number(input.responseTimeMs) : null;
+  const isSignal = input.trial.presentationMode === "masked_forced_choice";
+  const deadlineMs = isSignal
+    ? CCC_TRIAL_TIMING.signalResponseDeadlineMs
+    : CCC_TRIAL_TIMING.maxResponseWindowMs;
   if (input.invalidated) return "invalid";
-  if (responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs) return "invalid";
-  if (responseTimeMs === null || responseTimeMs > CCC_TRIAL_TIMING.maxResponseWindowMs) return "omission";
-  if (input.response === "withhold") return "withhold";
+  if (!isSignal && responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs) return "invalid";
+  if (responseTimeMs === null || responseTimeMs > deadlineMs) return "omission";
   if (!input.response) return "omission";
   return "answer";
 }
 
 export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAttentionTrialScoring {
   const responseTimeMs = Number.isFinite(input.responseTimeMs) ? Number(input.responseTimeMs) : null;
+  const isSignal = input.trial.presentationMode === "masked_forced_choice";
+  const deadlineMs = isSignal
+    ? CCC_TRIAL_TIMING.signalResponseDeadlineMs
+    : CCC_TRIAL_TIMING.maxResponseWindowMs;
   const regime = CCC_REGIMES[input.trial.regimeId];
   const responseClass = classifyCccAttentionResponse(input);
-  const answeredBeforeMinimumExposure = responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs;
-  const deadlineExceeded = responseTimeMs !== null && responseTimeMs > CCC_TRIAL_TIMING.maxResponseWindowMs;
-  const rewardRemaining = rewardRemainingForResponse(input.trial.regimeId, responseTimeMs);
+  const answeredBeforeMinimumExposure = !isSignal && responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs;
+  const deadlineExceeded = responseTimeMs !== null && responseTimeMs > deadlineMs;
   const response = input.response as CccResponseChoice | null | undefined;
   const isCorrect = responseClass === "answer" && response === input.trial.correctResponse;
-  const pointsRealised = isCorrect
-    ? rewardRemaining
-    : responseClass === "answer"
-      ? -regime.errorLoss
-      : responseClass === "withhold"
-        ? CCC_TRIAL_TIMING.voluntaryWithholdPoints
+  const isValueTrial = input.trial.presentationMode === "self_paced_value" && !input.trial.practice;
+  const rewardRemaining = isValueTrial ? rewardRemainingForResponse(input.trial.regimeId, responseTimeMs) : 0;
+  const pointsRealised = !isValueTrial
+    ? 0
+    : isCorrect
+      ? rewardRemaining
+      : responseClass === "answer"
+        ? -regime.errorLoss
         : CCC_TRIAL_TIMING.omissionPoints;
   const denominator = regime.correctPot + regime.errorLoss;
   const invalidReason = input.invalidated
@@ -48,7 +56,10 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
       : responseClass === "omission"
         ? "deadline"
         : null;
-  const validForProgression = (responseClass === "answer" || responseClass === "withhold")
+  const countsTowardQuota = input.trial.practice
+    ? responseClass === "answer"
+    : responseClass !== "invalid";
+  const validForProgression = responseClass === "answer"
     && !input.trial.practice
     && !input.trial.diagnostic;
 
@@ -56,7 +67,7 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
     scoringVersion: CCC_VALUE_SCORING_VERSION,
     responseClass,
     isCorrect,
-    isValidDecision: responseClass === "answer" || responseClass === "withhold",
+    isValidDecision: responseClass === "answer",
     isOmission: responseClass === "omission",
     isInvalidated: responseClass === "invalid",
     answeredBeforeMinimumExposure,
@@ -68,6 +79,7 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
     regimeId: input.trial.regimeId,
     configVersion: CCC_CONFIG_VERSION,
     validForProgression,
+    countsTowardQuota,
     invalidReason,
   };
 }
@@ -75,7 +87,6 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
 export function summarizeCccAttentionScores(scores: readonly CccAttentionTrialScoring[]): {
   validDecisionCount: number;
   answeredCount: number;
-  withholdCount: number;
   omissionCount: number;
   invalidCount: number;
   answeredAccuracy: number | null;
@@ -86,7 +97,6 @@ export function summarizeCccAttentionScores(scores: readonly CccAttentionTrialSc
   return {
     validDecisionCount,
     answeredCount: answered.length,
-    withholdCount: scores.filter((score) => score.responseClass === "withhold").length,
     omissionCount: scores.filter((score) => score.responseClass === "omission").length,
     invalidCount: scores.filter((score) => score.responseClass === "invalid").length,
     answeredAccuracy: answered.length > 0 ? answered.filter((score) => score.isCorrect).length / answered.length : null,

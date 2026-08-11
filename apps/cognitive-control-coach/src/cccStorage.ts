@@ -6,10 +6,10 @@ import type {
   CccSessionPlan,
 } from "./cccTypes";
 
-export const CCC_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:p0:v0.1";
+export const CCC_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:p0:v0.3";
 
 export interface CccSavedJourney {
-  storageVersion: 1;
+  storageVersion: 2;
   plan: CccSessionPlan;
   workflowChoice: WorkflowChoice;
   activeBlockIndex: number;
@@ -30,7 +30,7 @@ export function loadCccJourney(storage: Pick<Storage, "getItem"> = window.localS
     const raw = storage.getItem(CCC_LOCAL_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<CccSavedJourney>;
-    if (parsed.storageVersion !== 1 || !parsed.plan?.sessionId || !parsed.workflowChoice) return null;
+    if (parsed.storageVersion !== 2 || !parsed.plan?.sessionId || !parsed.workflowChoice) return null;
     if (!Array.isArray(parsed.plan.blocks) || !Array.isArray(parsed.plan.trials)) return null;
     return parsed as CccSavedJourney;
   } catch {
@@ -50,7 +50,7 @@ export function clearCccJourney(storage: Pick<Storage, "removeItem"> = window.lo
 export function completedValidTrials(journey: CccSavedJourney): number {
   return Object.values(journey.blockResults)
     .flat()
-    .filter((result) => result.scoring.isValidDecision).length;
+    .filter((result) => result.scoring.countsTowardQuota).length;
 }
 
 export function plannedValidTrials(journey: CccSavedJourney): number {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import migration from "../supabase/migrations/202608110001_cognitive_control_shared_schema.sql?raw";
+import dualEstimandMigration from "../supabase/migrations/202608120001_cognitive_control_dual_estimand.sql?raw";
 
 describe("CCC shared schema migration", () => {
   it("creates the approved hybrid table shape", () => {
@@ -24,5 +25,13 @@ describe("CCC shared schema migration", () => {
     expect(migration).toContain("client_event_id text not null");
     expect(migration).toContain("unique (session_id, trial_id)");
     expect(migration).toContain("drop policy if exists");
+  });
+
+  it("adds the protected signal, policy and timing fields without rewriting the shared schema", () => {
+    expect(dualEstimandMigration).toContain("add column if not exists estimand text");
+    expect(dualEstimandMigration).toContain("add column if not exists presentation_mode text");
+    expect(dualEstimandMigration).toContain("add column if not exists counts_toward_quota boolean");
+    expect(dualEstimandMigration).toContain("add column if not exists actual_stimulus_frames integer");
+    expect(dualEstimandMigration).toContain("add column if not exists signal_staircase_level integer");
   });
 });

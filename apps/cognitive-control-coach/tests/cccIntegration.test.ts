@@ -15,11 +15,17 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain('from "./cccValue"');
     expect(mainSource).toContain("createP0AttentionCarrierTransferPlan");
     expect(mainSource).toContain("createCccReplacementTrial");
+    expect(mainSource).toContain("adaptSignalTrial");
+    expect(mainSource).toContain("buildCccBlockFeedback");
     expect(mainSource).toContain("startAmbiguousSphere");
     expect(mainSource).not.toContain('from "./generator"');
     expect(mainSource).not.toContain("Binding Focus");
     expect(mainSource).not.toContain("Improves focus");
     expect(mainSource).not.toContain("Transferable cognitive skill reached");
+    expect(mainSource).not.toContain('data-response="withhold"');
+    expect(mainSource).not.toContain("Not sure");
+    expect(mainSource).toContain("Five moving dot fields expanding or contracting");
+    expect(mainSource).toContain("maskStimulus");
   });
 
   it("keeps consumer copy plain, workflow-centred and evidence-bounded", () => {
@@ -50,10 +56,10 @@ describe("CCC playable integration", () => {
   });
 
   it("paginates long explanations and keeps every state inside the viewport shell", () => {
-    for (const view of ["workflow", "practice_guide", "phase_guide", "block_reconnect", "complete_reconnect"]) {
+    for (const view of ["workflow", "practice_guide", "phase_guide", "block_insights", "block_reconnect", "complete_reconnect"]) {
       expect(mainSource).toContain(`| "${view}"`);
     }
-    for (const action of ["show-workflow", "show-practice-guide", "show-phase-guide", "show-block-reconnect", "show-complete-reconnect"]) {
+    for (const action of ["show-workflow", "show-practice-guide", "show-phase-guide", "show-block-insights", "show-block-reconnect", "show-complete-reconnect"]) {
       expect(mainSource).toContain(action);
     }
     expect(appStyles).toContain("html,\nbody,\n#app");
@@ -69,6 +75,8 @@ describe("CCC playable integration", () => {
     expect(submitFunction).toContain('from("coach_trials")');
     expect(submitFunction).toContain('from("coach_events")');
     expect(submitFunction).toContain("valid_for_progression");
+    expect(submitFunction).toContain("counts_toward_quota");
+    expect(submitFunction).toContain("actual_stimulus_frames");
     expect(syncFunction).toContain('from("cognitive_control_progress")');
     expect(finaliseFunction).toContain('status: "completed"');
     expect(finaliseFunction).toContain('from("coach_events")');

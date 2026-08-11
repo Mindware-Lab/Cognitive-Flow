@@ -7,8 +7,11 @@ export type CccWrapperId = "arrow_abs" | "flow_abs" | "arrow_rel" | "flow_rel";
 export type CccRatio = "5:0" | "4:1" | "3:2";
 export type CccRegimeId = "clear_sprint" | "calculated_risk" | "clean_precision" | "deep_check";
 export type CccAttentionAnswer = "left" | "right" | "in" | "out";
-export type CccResponseChoice = CccAttentionAnswer | "withhold";
-export type CccResponseClass = "answer" | "withhold" | "omission" | "invalid";
+export type CccResponseChoice = CccAttentionAnswer;
+export type CccResponseClass = "answer" | "omission" | "invalid";
+export type CccEstimand = "practice" | "signal_capacity" | "policy" | "transfer";
+export type CccPresentationMode = "masked_forced_choice" | "self_paced_value";
+export type CccTimingQuality = "good" | "acceptable" | "poor" | "not_applicable";
 export type CccTransitionKind =
   | "baseline_stabilization"
   | "carrier_transfer"
@@ -23,11 +26,12 @@ export type CccSessionType = "guided_p0" | "practice" | "portability_check" | "r
 export type CccAttentionTrialPurpose = "training" | "practice" | "carrier_probe" | "recovery" | "return" | "reference_extension" | "mix" | "return_to_now";
 export type CccP0Phase =
   | "practice"
-  | "arrow_stabilisation"
-  | "flow_first_contact"
-  | "flow_recovery"
-  | "arrow_return"
-  | "absolute_mix";
+  | "signal_anchor"
+  | "arrow_rel_stabilisation"
+  | "flow_rel_first_contact"
+  | "flow_rel_recovery"
+  | "arrow_rel_return"
+  | "relative_mix";
 
 export interface CccPoint {
   x: number;
@@ -38,9 +42,9 @@ export interface CccTrialTimingConfig {
   fixationCueMs: number;
   minimumExposureBeforeAnswerMs: number;
   maxResponseWindowMs: number;
+  signalResponseDeadlineMs: number;
   outcomeFeedbackMs: number;
   interTrialIntervalMs: number;
-  voluntaryWithholdPoints: number;
   omissionPoints: number;
   validTrialsPerRegimeMicrocycle: number;
   minimumBalancedMicrocyclesBeforeFlattening: number;
@@ -90,7 +94,7 @@ export interface CccShiftViewConfig {
 
 export interface CccResponseLabels {
   answerOptions: readonly CccAttentionAnswer[];
-  labels: Partial<Record<CccResponseChoice, string>> & { withhold: string };
+  labels: Partial<Record<CccResponseChoice, string>>;
 }
 
 export interface CccStimulusItem {
@@ -108,7 +112,9 @@ export interface CccAttentionBlockPlan {
   label: string;
   operator: "attention";
   phase: CccP0Phase;
-  wrapperId: CccWrapperId | "mixed_abs";
+  estimand: CccEstimand;
+  presentationMode: CccPresentationMode;
+  wrapperId: CccWrapperId | "mixed_abs" | "mixed_rel";
   wrappers: readonly CccWrapperId[];
   sourceWrapperId: CccWrapperId | null;
   transitionKind: CccTransitionKind;
@@ -131,6 +137,8 @@ export interface CccAttentionTrialDefinition {
   stepId: string;
   phase: CccP0Phase;
   operator: "attention";
+  estimand: CccEstimand;
+  presentationMode: CccPresentationMode;
   purpose: CccAttentionTrialPurpose;
   wrapperId: CccWrapperId;
   sourceWrapperId: CccWrapperId | null;
@@ -153,6 +161,8 @@ export interface CccAttentionTrialDefinition {
   practice: boolean;
   diagnostic: boolean;
   assistedFirstContact: boolean;
+  exposureMsRequested: number | null;
+  signalStaircaseLevel: number | null;
   replacementOfTrialId: string | null;
 }
 
@@ -195,6 +205,7 @@ export interface CccAttentionTrialScoring {
   regimeId: CccRegimeId;
   configVersion: string;
   validForProgression: boolean;
+  countsTowardQuota: boolean;
   invalidReason: "early_response" | "deadline" | "focus_loss" | "aborted" | null;
 }
 
@@ -208,6 +219,10 @@ export interface CccRecordedTrial {
   viewportClass: "mobile" | "tablet" | "desktop";
   inputMode: CccInputMode;
   focusLost: boolean;
+  exposureMsActual: number | null;
+  actualStimulusFrames: number | null;
+  deviceRefreshRateEstimate: number | null;
+  timingQuality: CccTimingQuality;
 }
 
 export interface CccRuntimeEvent {

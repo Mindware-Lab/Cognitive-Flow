@@ -6,7 +6,7 @@ Product: IQ Mindware - Cognitive Control Coach
 Canonical route: /cognitive-control-coach/
 Source app path: IQ-Coach/apps/cognitive-control-coach
 
-This document updates `Cognitive_Control_Coach_Product_and_Implementation_Spec_v0.1.md` and should be treated as the implementation guide for v1 planning. The v0.1 spec remains the governing product contract except where this v0.2 amendment is more specific.
+This document is retained as design history. The P0 response, estimand, reference-frame and feedback contract is superseded by `COGNITIVE_CONTROL_COACH_DUAL_ESTIMAND_PROTOCOL_v0.3.md`. In particular, P0 no longer exposes Withhold, and the main trained endpoint is relative In/Out rather than absolute Left/Right.
 
 ## Source And Route Decisions
 

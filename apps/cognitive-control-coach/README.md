@@ -11,10 +11,12 @@ Legacy routes stay operational during development and early validation:
 
 ## Product Contract
 
+- `docs/COGNITIVE_CONTROL_COACH_DUAL_ESTIMAND_PROTOCOL_v0.3.md` — current scientific and runtime contract
 - `docs/PRODUCT_IMPLEMENTATION_SPEC_v0.2.md`
 - Source app folder: `IQ-Coach/apps/cognitive-control-coach`
-- P0: absolute Attention carrier transfer and core value mechanic
-- P1a: relative-rule extension and full Attention Portability
+- P0: protected signal anchor, relative Attention policy and relative carrier transfer
+- Guided P0: 80% relative In/Out observations; absolute Left/Right is practice and signal anchoring
+- P1a: held-out and delayed relative-format portability validation
 - P1b: upward relational-WM introduction and WM carrier transfer
 - P1c: Return to Now and bidirectional operator integration
 - Public launch waits for the complete Attention -> WM -> Attention journey
@@ -26,10 +28,12 @@ The P0 protocol layer is implemented in:
 - `src/cccConfig.ts`
 - `src/cccProgression.ts`
 - `src/cccGenerator.ts`
+- `src/cccSignal.ts`
 - `src/cccValue.ts`
+- `src/cccFeedback.ts`
 - `src/cccTypes.ts`
 
-The copied Attention runtime remains as the UI scaffold while the CCC runtime is wired in stages. New CCC backend work uses the shared coach schema migration under `supabase/migrations/`.
+The playable runtime uses forced choice throughout, a frame-counted masked signal anchor, relative In/Out arrows, contraction/expansion optic flow, two niches per session and separate block feedback for signal, policy and trained-format portability. New CCC backend work uses the shared coach schema migration under `supabase/migrations/`.
 
 ## Local Commands
 

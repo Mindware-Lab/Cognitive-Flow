@@ -21,11 +21,13 @@ describe("CCC staged progression", () => {
     expect(COGNITIVE_CONTROL_STAGE_SEQUENCE.map((stage) => stage.id)).toEqual(["P0", "P1a", "P1b", "P1c", "PublicLaunch"]);
     expect(COGNITIVE_CONTROL_STAGE_SEQUENCE.at(-1)?.releaseGate).toBe("public_launch");
     expect(progressionStepById("p1c_return_to_now_attention")?.transitionKind).toBe("return_to_now");
-    expect(progressionStepById("p0_flow_abs_transfer")?.requiresShiftViewGate).toBe(true);
+    expect(progressionStepById("p0_flow_rel_first_contact")?.requiresShiftViewGate).toBe(true);
   });
 
   it("does not switch operator and wrapper at the same progression boundary", () => {
     const steps = flatProgressionSteps();
+    expect(steps.map((step) => step.order)).toEqual(steps.map((_, index) => index + 1));
+    expect(new Set(steps.map((step) => step.id)).size).toBe(steps.length);
     for (let index = 1; index < steps.length; index += 1) {
       expect(switchesOperatorAndWrapperTogether(steps[index - 1], steps[index])).toBe(false);
     }

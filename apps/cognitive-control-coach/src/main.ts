@@ -2,7 +2,6 @@ import "../../../UX/iqmindware-app-design-system/tokens.css";
 import "./cccStyles.css";
 import { buildCccBlockSubmissionPayload } from "./blockPayload";
 import {
-  EVIDENCE_BOUNDARY_COPY,
   PHASE_COPY,
   REGIME_COPY,
   WORKFLOW_CHOICES,
@@ -16,11 +15,14 @@ import {
   CCC_TRIAL_TIMING,
 } from "./cccConfig";
 import {
+  adaptSignalTrial,
   createCccReplacementTrial,
   createP0AttentionCarrierTransferPlan,
   createP0PracticeBlock,
   createP0PracticeTrials,
 } from "./cccGenerator";
+import { buildCccBlockFeedback } from "./cccFeedback";
+import { classifySignalTiming, signalStaircaseStateAfterResults } from "./cccSignal";
 import { startAmbiguousSphere } from "./cccShiftView";
 import {
   clearCccJourney,
@@ -38,7 +40,7 @@ import type {
   CccResponseChoice,
   CccRuntimeEvent,
 } from "./cccTypes";
-import { scoreCccAttentionTrial, summarizeCccAttentionScores } from "./cccValue";
+import { scoreCccAttentionTrial } from "./cccValue";
 import {
   currentAuthUser,
   finalizeCoachSession,
@@ -62,12 +64,13 @@ type View =
   | "task"
   | "paused"
   | "block_complete"
+  | "block_insights"
   | "block_reconnect"
   | "shift_view"
   | "complete"
   | "complete_reconnect"
   | "account";
-type TaskStage = "fixation" | "evidence" | "feedback" | "interval";
+type TaskStage = "fixation" | "evidence" | "mask" | "feedback" | "interval";
 type TaskMode = "practice" | "guided";
 
 const appElement = document.querySelector<HTMLDivElement>("#app");
@@ -89,6 +92,10 @@ let feedbackResult: CccRecordedTrial | null = null;
 let pauseAfterFeedback = false;
 let taskTimers: number[] = [];
 let potTimer = 0;
+let taskAnimationFrame = 0;
+let signalExposureMsActual: number | null = null;
+let signalStimulusFrames: number | null = null;
+let signalRefreshRate: number | null = null;
 let sphereStop: (() => void) | null = null;
 let shiftTimer = 0;
 let shiftStartedAt = 0;
@@ -153,7 +160,7 @@ function blockIsComplete(block = currentBlock()): boolean {
   const queue = taskMode === "practice" ? journey.practiceQueue : journey.blockQueues[block.id] || [];
   const results = taskMode === "practice" ? journey.practiceResults : journey.blockResults[block.id] || [];
   return results.length >= queue.length
-    && results.filter((result) => result.scoring.isValidDecision).length >= block.validTrialCount;
+    && results.filter((result) => result.scoring.countsTowardQuota).length >= block.validTrialCount;
 }
 
 function totalJourneyPoints(): number {
@@ -188,6 +195,8 @@ function clearTaskTiming(): void {
   taskTimers = [];
   if (potTimer) window.clearInterval(potTimer);
   potTimer = 0;
+  if (taskAnimationFrame) window.cancelAnimationFrame(taskAnimationFrame);
+  taskAnimationFrame = 0;
 }
 
 function stopShiftView(): void {
@@ -234,11 +243,12 @@ function shell(content: string, className = ""): string {
 }
 
 const JOURNEY_LABELS: Record<Exclude<CccP0Phase, "practice">, string> = {
-  arrow_stabilisation: "Find",
-  flow_first_contact: "Change",
-  flow_recovery: "Recover",
-  arrow_return: "Return",
-  absolute_mix: "Switch",
+  signal_anchor: "Signal",
+  arrow_rel_stabilisation: "Relate",
+  flow_rel_first_contact: "Change",
+  flow_rel_recovery: "Recover",
+  arrow_rel_return: "Return",
+  relative_mix: "Switch",
 };
 
 function journeyRail(completedBeforeIndex: number, currentIndex: number | null = null): string {
@@ -294,7 +304,7 @@ function renderWelcome(): string {
         <h1>Focus, hold and update <em>what matters.</em></h1>
         <p class="ccc-lead">Practise staying with the goal when distraction, interference or a changing format pulls your attention elsewhere.</p>
         <div class="ccc-hero-facts" aria-label="Journey overview">
-          <span>Brief practice</span><span>Five guided stages</span><span>Workflow reconnect</span>
+          <span>Brief practice</span><span>Signal + policy checks</span><span>Relative transfer</span>
         </div>
         <div class="ccc-actions">${mainAction}</div>
       </div>
@@ -304,7 +314,7 @@ function renderWelcome(): string {
         <div class="ccc-control-strip" aria-label="The three moves trained in this app">
           <article><span>1</span><strong>Find what matters</strong><small>Separate the useful signal from competing information.</small></article>
           <article><span>2</span><strong>Take in enough</strong><small>Keep looking until the pattern is clear enough.</small></article>
-          <article><span>3</span><strong>Make the call</strong><small>Choose at the right time—or avoid a guess.</small></article>
+          <article><span>3</span><strong>Make the call</strong><small>Commit to your best choice at the right time.</small></article>
         </div>
       </aside>
     </section>
@@ -350,12 +360,12 @@ function renderPracticeGuide(): string {
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Before the journey</span><span>Practice is not scored</span></div>
-      <span class="ccc-kicker">Three simple choices</span>
+      <span class="ccc-kicker">A forced choice</span>
       <h1>Look. Weigh. Choose.</h1>
       <div class="ccc-instruction-grid">
         <article><strong>Look first</strong><span>The buttons appear after a brief viewing moment.</span></article>
-        <article><strong>Watch the points</strong><span>Correct choices keep what remains. Wrong choices can lose points.</span></article>
-        <article><strong>Do not guess</strong><span>Choose <em>Not sure</em> when the evidence is not good enough.</span></article>
+        <article><strong>Choose every time</strong><span>Use Left or Right in practice. If uncertain, make your best choice.</span></article>
+        <article><strong>Points come later</strong><span>The guided stages add different costs and time pressure; practice stays unscored.</span></article>
       </div>
       <p class="ccc-soft-note">The practice is brief. It helps you learn the controls and does not count towards your journey.</p>
       <div class="ccc-actions">
@@ -405,14 +415,22 @@ function renderPhaseGuide(): string {
   const block = currentBlock();
   if (!block || block.phase === "practice") return renderWelcome();
   const stageNumber = journey.activeBlockIndex + 1;
+  const isSignal = block.estimand === "signal_capacity";
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
       ${journeyRail(journey.activeBlockIndex, journey.activeBlockIndex)}
       <span class="ccc-kicker">Before you begin</span>
-      <h1>Two ways this stage may feel.</h1>
-      <div class="ccc-regime-grid">${regimeCards(block)}</div>
-      ${block.diagnostic ? `<p class="ccc-soft-note">Your first try in this format is kept apart from later practice, so you can see how quickly you settle in.</p>` : `<p class="ccc-soft-note">The pattern will move between these two conditions. Keep the same goal and adjust how quickly you decide.</p>`}
+      <h1>${isSignal ? "Brief pattern. Mask. Best choice." : "Two work conditions, one relation."}</h1>
+      ${isSignal ? `
+        <div class="ccc-instruction-grid">
+          <article><strong>Adaptive view</strong><span>The display becomes shorter or harder as the check learns from your answers.</span></article>
+          <article><strong>Always choose</strong><span>Respond Left or Right after the mask, even when uncertain.</span></article>
+          <article><strong>Kept separate</strong><span>No points or niches enter this signal estimate.</span></article>
+        </div>
+        <p class="ccc-soft-note">This is a short MFT-M-derived anchor. The app reports it as provisional, not as a literature-standard MFT-M-R assessment.</p>` : `
+        <div class="ccc-regime-grid">${regimeCards(block)}</div>
+        ${block.diagnostic ? `<p class="ccc-soft-note">Your first try in this format is kept apart from later recovery practice, so the change itself remains visible.</p>` : `<p class="ccc-soft-note">Every trial is In/Out or Expand/Contract. Make your best forced choice before time ends.</p>`}`}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-phase">${block.shiftViewBefore && !journey.shiftViewCompleted ? "Start the changeover" : "Begin this stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
@@ -428,7 +446,10 @@ function arrowStimulus(trial: CccAttentionTrialDefinition): string {
     const angle = Math.atan2(item.vector.y, item.vector.x) * 180 / Math.PI;
     return `<g transform="translate(${x} ${y}) rotate(${angle})"><path d="M-24 -8 H6 V-16 L26 0 L6 16 V8 H-24 Z" /></g>`;
   }).join("");
-  return `<svg class="ccc-stimulus-svg" viewBox="0 0 360 360" role="img" aria-label="Five arrows pointing left or right"><g class="ccc-arrow-items">${arrows}</g></svg>`;
+  const label = trial.referenceFrame === "relative"
+    ? "Five arrows pointing towards or away from the centre"
+    : "Five arrows pointing left or right";
+  return `<svg class="ccc-stimulus-svg" viewBox="0 0 360 360" role="img" aria-label="${label}"><circle class="ccc-centre-marker" cx="180" cy="180" r="5" /><g class="ccc-arrow-items">${arrows}</g></svg>`;
 }
 
 function flowStimulus(trial: CccAttentionTrialDefinition): string {
@@ -440,26 +461,42 @@ function flowStimulus(trial: CccAttentionTrialDefinition): string {
   const apertures = trial.stimulusItems.map((item, index) => {
     const x = item.position.x * 3.6;
     const y = item.position.y * 3.6;
-    const direction = item.vector.x >= 0 ? 1 : -1;
     const dots = Array.from({ length: 9 }, (_, dotIndex) => {
-      const start = -46 + dotIndex * 12;
-      const end = start + direction * 48;
-      return `<circle cy="${-18 + (dotIndex % 4) * 12}" r="3.2"><animate attributeName="cx" values="${start};${end}" dur="1.05s" begin="${-dotIndex * 0.09}s" repeatCount="indefinite" /></circle>`;
+      const angle = dotIndex / 9 * Math.PI * 2 + (index % 3) * 0.22;
+      const inner = 5 + (dotIndex % 3) * 3.5;
+      const outer = 25 + (dotIndex % 3) * 2;
+      const expanding = item.relation === "out";
+      const fromRadius = expanding ? inner : outer;
+      const toRadius = expanding ? outer : inner;
+      const fromX = Math.cos(angle) * fromRadius;
+      const fromY = Math.sin(angle) * fromRadius;
+      const toX = Math.cos(angle) * toRadius;
+      const toY = Math.sin(angle) * toRadius;
+      return `<circle r="3.1"><animate attributeName="cx" values="${fromX};${toX}" dur="0.95s" begin="${-dotIndex * 0.08}s" repeatCount="indefinite" /><animate attributeName="cy" values="${fromY};${toY}" dur="0.95s" begin="${-dotIndex * 0.08}s" repeatCount="indefinite" /></circle>`;
     }).join("");
     return `<g clip-path="url(#flow-clip-${index})" transform="translate(${x} ${y})"><rect x="-34" y="-34" width="68" height="68" rx="34" /><g class="ccc-flow-points">${dots}</g></g><circle class="ccc-flow-ring" cx="${x}" cy="${y}" r="31" />`;
   }).join("");
-  return `<svg class="ccc-stimulus-svg" viewBox="0 0 360 360" role="img" aria-label="Five moving dot patterns travelling left or right"><defs>${definitions}</defs>${apertures}</svg>`;
+  return `<svg class="ccc-stimulus-svg" viewBox="0 0 360 360" role="img" aria-label="Five moving dot fields expanding or contracting"><circle class="ccc-centre-marker" cx="180" cy="180" r="5" /><defs>${definitions}</defs>${apertures}</svg>`;
 }
 
 function stimulusFor(trial: CccAttentionTrialDefinition): string {
-  return trial.wrapperId === "arrow_abs" ? arrowStimulus(trial) : flowStimulus(trial);
+  return trial.carrier === "arrow" ? arrowStimulus(trial) : flowStimulus(trial);
+}
+
+function maskStimulus(): string {
+  const marks = Array.from({ length: 42 }, (_, index) => {
+    const x = 26 + (index * 67) % 308;
+    const y = 24 + (index * 101) % 312;
+    return `<circle cx="${x}" cy="${y}" r="${3 + index % 4}" />`;
+  }).join("");
+  return `<svg class="ccc-stimulus-svg ccc-mask-svg" viewBox="0 0 360 360" role="img" aria-label="Visual mask"><g>${marks}</g></svg>`;
 }
 
 function taskProgress(block: CccAttentionBlockPlan): string {
-  const valid = currentResults().filter((result) => result.scoring.isValidDecision).length;
+  const valid = currentResults().filter((result) => result.scoring.countsTowardQuota).length;
   const target = block.validTrialCount;
   const percentage = Math.min(100, Math.round(valid / Math.max(1, target) * 100));
-  return `<div class="ccc-task-progress" role="progressbar" aria-label="Stage decisions" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(valid, target)}"><span style="width:${percentage}%"></span></div><small>${Math.min(valid, target)} of ${target} decisions</small>`;
+  return `<div class="ccc-task-progress" role="progressbar" aria-label="Stage observations" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(valid, target)}"><span style="width:${percentage}%"></span></div><small>${Math.min(valid, target)} of ${target} patterns</small>`;
 }
 
 function renderTask(): string {
@@ -469,18 +506,39 @@ function renderTask(): string {
   const regime = CCC_REGIMES[trial.regimeId];
   const regimeCopy = REGIME_COPY[trial.regimeId];
   const isPractice = taskMode === "practice";
-  const wrapperLabel = trial.wrapperId === "arrow_abs" ? "Arrows" : "Moving patterns";
-  const controlsDisabled = taskStage !== "evidence" || !responseEnabled || responseLocked;
+  const isSignal = trial.estimand === "signal_capacity";
+  const wrapperLabel = trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
+    : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
+      : "Expand / Contract motion";
+  const responseStage = isSignal ? taskStage === "mask" : taskStage === "evidence";
+  const controlsDisabled = !responseStage || !responseEnabled || responseLocked;
   const feedbackPoints = feedbackResult?.scoring.pointsRealised ?? 0;
   const feedbackState = feedbackResult?.scoring.isCorrect
     ? "is-correct"
-    : feedbackResult?.scoring.responseClass === "withhold"
-      ? "is-withhold"
-      : feedbackResult?.scoring.responseClass === "answer"
+    : feedbackResult?.scoring.responseClass === "answer"
         ? "is-incorrect"
         : "is-neutral";
-  const feedbackIcon = feedbackState === "is-correct" ? "✓" : feedbackState === "is-withhold" ? "–" : feedbackState === "is-incorrect" ? "×" : "↻";
+  const feedbackIcon = feedbackState === "is-correct" ? "✓" : feedbackState === "is-incorrect" ? "×" : "·";
   const pot = regime.correctPot;
+  const taskTitle = isSignal ? "Signal check" : isPractice ? "Practice" : regimeCopy.title;
+  const taskCue = taskStage === "fixation" ? "Get ready"
+    : taskStage === "interval" ? "Next pattern"
+      : taskStage === "feedback" ? feedbackMessage
+        : taskStage === "mask" ? "Make your best choice"
+          : isSignal ? "Hold the majority direction" : regimeCopy.cue;
+  const stimulus = taskStage === "fixation"
+    ? `<span class="ccc-fixation" aria-label="Get ready">+</span>`
+    : taskStage === "interval"
+      ? `<span class="ccc-interval-dot" aria-hidden="true"></span>`
+      : taskStage === "mask"
+        ? maskStimulus()
+        : stimulusFor(trial);
+  const responseButtons = trial.answerOptions.map((answer, index) => {
+    const label = trial.responseLabels.labels[answer] || answer;
+    const icon = answer === "left" ? "←" : answer === "right" ? "→" : answer === "in" ? "⇥" : "⇤";
+    const key = index === 0 ? "←" : "→";
+    return `<button class="ccc-response" data-response="${answer}" aria-label="Choose ${label}" ${controlsDisabled ? "disabled" : ""}><span aria-hidden="true">${icon}</span><strong>${label}</strong><kbd>${key}</kbd></button>`;
+  }).join("");
   return shell(`
     <section class="ccc-task-card">
       <div class="ccc-task-topline">
@@ -489,29 +547,29 @@ function renderTask(): string {
         <button class="ccc-exit" data-action="pause-session">Pause</button>
       </div>
       <div class="ccc-task-cue">
-        <span>${regimeCopy.title}</span>
-        <strong>${taskStage === "fixation" ? "Get ready" : taskStage === "interval" ? "Next pattern" : taskStage === "feedback" ? feedbackMessage : regimeCopy.cue}</strong>
+        <span>${taskTitle}</span>
+        <strong>${taskCue}</strong>
       </div>
       <div class="ccc-stimulus-stage ${taskStage === "fixation" || taskStage === "interval" ? "is-fixation" : ""} ${taskStage === "feedback" ? "is-feedback" : ""}">
-        ${taskStage === "fixation" ? `<span class="ccc-fixation" aria-label="Get ready">+</span>` : taskStage === "interval" ? `<span class="ccc-interval-dot" aria-hidden="true"></span>` : stimulusFor(trial)}
+        ${stimulus}
       </div>
       ${taskStage === "feedback" ? `
         <div class="ccc-value-panel ccc-result-panel ${feedbackState}" role="status" aria-live="polite">
           <span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span>
-          <div><span>This choice</span><strong>${formatPoints(feedbackPoints)}</strong></div>
+          <div><span>${isSignal || isPractice ? "This pattern" : "This choice"}</span><strong>${isSignal || isPractice ? (feedbackResult?.scoring.isCorrect ? "Correct" : "Recorded") : formatPoints(feedbackPoints)}</strong></div>
           <small>${feedbackMessage}</small>
         </div>` : `
-        <div class="ccc-value-panel">
+        ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Protected timing</span><strong>${trial.exposureMsRequested} ms</strong></div><small>The mask separates signal extraction from later self-paced decisions.</small></div>`
+          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>Unscored</strong></div><small>Make a Left or Right choice on every pattern.</small></div>`
+          : `<div class="ccc-value-panel">
           <div><span>Available if correct</span><strong id="ccc-live-pot">${Math.round(pot)}</strong></div>
           <div class="ccc-pot-track"><span id="ccc-pot-bar" style="width:100%"></span></div>
-          <small>Correct: keep what remains · Wrong: ${regime.errorLoss} points lost · Not sure: 0</small>
-        </div>`}
-      <div class="ccc-response-row" aria-label="Choose the majority direction">
-        <button class="ccc-response ccc-response-left" data-response="left" aria-label="Choose left" ${controlsDisabled ? "disabled" : ""}><span aria-hidden="true">←</span><strong>Left</strong><kbd>←</kbd></button>
-        <button class="ccc-response ccc-response-unsure" data-response="withhold" aria-label="Choose not sure for zero points" ${controlsDisabled ? "disabled" : ""}><span aria-hidden="true">?</span><strong>Not sure</strong><kbd>↓</kbd></button>
-        <button class="ccc-response ccc-response-right" data-response="right" aria-label="Choose right" ${controlsDisabled ? "disabled" : ""}><span aria-hidden="true">→</span><strong>Right</strong><kbd>→</kbd></button>
+          <small>Correct: keep what remains · Wrong: ${regime.errorLoss} points lost · No response: no points</small>
+        </div>`}`}
+      <div class="ccc-response-row" aria-label="Choose the majority relation">
+        ${responseButtons}
       </div>
-      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : responseEnabled ? "Choose when the evidence is good enough." : "Look at the whole pattern first."}</p>
+      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? (taskStage === "mask" ? "Choose Left or Right—even if uncertain." : "Take in the pattern before the mask.") : responseEnabled ? "Make your best choice when you have enough evidence." : "Look at the whole pattern first."}</p>
     </section>
   `, "ccc-task-view");
 }
@@ -529,13 +587,17 @@ function renderPaused(): string {
     </section>`, "ccc-pause-view ccc-viewport-view");
 }
 
-function blockSummary(results: CccRecordedTrial[]): { accuracy: string; points: number; withholds: number } {
-  const summary = summarizeCccAttentionScores(results.map((result) => result.scoring));
-  return {
-    accuracy: summary.answeredAccuracy === null ? "—" : `${Math.round(summary.answeredAccuracy * 100)}%`,
-    points: summary.totalPoints,
-    withholds: summary.withholdCount,
-  };
+function formatPercent(value: number | null): string {
+  return value === null ? "—" : `${Math.round(value * 100)}%`;
+}
+
+function formatTime(value: number | null): string {
+  return value === null ? "—" : `${(value / 1000).toFixed(2)} s`;
+}
+
+function metricBar(label: string, value: number | null, maximum: number, display: string, tone = "blue"): string {
+  const percentage = value === null ? 0 : Math.max(0, Math.min(100, value / maximum * 100));
+  return `<div class="ccc-metric-row"><div><span>${label}</span><strong>${display}</strong></div><div class="ccc-metric-bar is-${tone}" role="img" aria-label="${label}: ${display}"><i style="width:${percentage}%"></i></div></div>`;
 }
 
 function renderBlockComplete(): string {
@@ -543,12 +605,15 @@ function renderBlockComplete(): string {
   const block = currentBlock();
   if (!block) return renderComplete();
   const results = currentResults();
-  const summary = blockSummary(results);
+  const feedback = buildCccBlockFeedback(results);
   const isPractice = taskMode === "practice";
-  const isLast = !isPractice && journey.activeBlockIndex === journey.plan.blocks.length - 1;
+  const isSignal = block.estimand === "signal_capacity";
   const copy = block.phase === "practice" ? {
     title: "You know the task.",
-    body: "Next, the points and changing evidence become part of the training journey.",
+    body: "Next comes a protected signal check, followed by In/Out policy practice.",
+  } : isSignal ? {
+    title: "Your signal check is complete.",
+    body: "This short estimate is kept apart from the later points, time pressure and format changes.",
   } : block.diagnostic ? {
     title: "Your first look is recorded.",
     body: "This first encounter is kept separate from the recovery practice that comes next.",
@@ -564,17 +629,61 @@ function renderBlockComplete(): string {
       <p>${copy.body}</p>
       ${isPractice ? "" : `
         <div class="ccc-summary-grid">
-          <article><span>Accuracy when answered</span><strong>${summary.accuracy}</strong></article>
-          <article><span>Points this stage</span><strong>${formatPoints(summary.points)}</strong></article>
-          <article><span>Guesses avoided</span><strong>${summary.withholds}</strong></article>
+          <article><span>${isSignal ? "Patterns resolved" : "Best-choice accuracy"}</span><strong>${formatPercent(feedback.accuracy)}</strong></article>
+          <article><span>${isSignal ? "Signal estimate" : "Typical decision time"}</span><strong>${isSignal ? (feedback.attentionControlBps === null ? "Calibrating" : `${feedback.attentionControlBps} bps`) : formatTime(feedback.medianDecisionMs)}</strong></article>
+          <article><span>${isSignal ? "Timing quality" : "Points kept"}</span><strong>${isSignal ? feedback.signalTimingQuality : `${feedback.pointsKeptPercent}%`}</strong></article>
         </div>`}
-      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>Read these together.</strong> Accuracy covers answered items. Points also reflect timing and wrong choices. Guesses avoided shows when you chose not to force an answer.</p>`}
+      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "A provisional signal anchor." : "Read accuracy, time and value together."}</strong> ${isSignal ? "The estimate uses masked, frame-timed forced choices and remains separate from policy or transfer." : "A missed deadline counts as an unresolved pattern; it is not removed or replaced."}</p>`}
       ${isPractice ? `<aside class="ccc-workflow-bridge"><span>Next</span><strong>${WORKFLOW_CHOICES[journey.workflowChoice].example}</strong></aside>` : ""}
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="${isPractice ? "continue-after-block" : "show-block-reconnect"}">${isPractice ? "Continue" : isLast ? "Reconnect, then review" : "Reconnect this stage"}</button>
+        <button class="ccc-button ccc-button-primary" data-action="${isPractice ? "continue-after-block" : "show-block-insights"}">${isPractice ? "Continue" : "See what changed"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>`, `ccc-review-view ccc-viewport-view ${isPractice ? "ccc-practice-review" : ""}`);
+}
+
+function renderBlockInsights(): string {
+  if (!journey) return renderWelcome();
+  const block = currentBlock();
+  if (!block || block.phase === "practice") return renderWelcome();
+  const feedback = buildCccBlockFeedback(currentResults());
+  const isSignal = block.estimand === "signal_capacity";
+  const clarityBars = feedback.clarity.map((item) => metricBar(
+    `${item.label} pattern`,
+    item.accuracy,
+    1,
+    item.count ? formatPercent(item.accuracy) : "Not shown",
+    item.ratio === "3:2" ? "orange" : "blue",
+  )).join("");
+  const nicheBars = feedback.niches.map((item) => metricBar(
+    item.label,
+    item.medianDecisionMs,
+    CCC_TRIAL_TIMING.maxResponseWindowMs,
+    formatTime(item.medianDecisionMs),
+    "teal",
+  )).join("");
+  const shift = feedback.timingShiftMs === null
+    ? "More matched trials are needed before comparing the two conditions."
+    : Math.abs(feedback.timingShiftMs) < 100
+      ? "You used a similar viewing time in both conditions."
+      : feedback.timingShiftMs > 0
+        ? `You looked ${Math.abs(feedback.timingShiftMs)} ms longer when mistakes cost more.`
+        : `You looked ${Math.abs(feedback.timingShiftMs)} ms less when mistakes cost more.`;
+  return shell(`
+    <section class="ccc-narrow-card ccc-insights-card">
+      <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} feedback</span><span>${feedback.observationCount} patterns</span></div>
+      <span class="ccc-kicker">${isSignal ? "Spot the pattern" : "Take in enough, then commit"}</span>
+      <h1>${isSignal ? "How clarity affected the signal check" : "How your decisions changed with the conditions"}</h1>
+      <div class="ccc-chart-grid ${isSignal ? "is-single" : ""}">
+        <section><h2>Accuracy by clarity</h2>${clarityBars}</section>
+        ${isSignal ? "" : `<section><h2>Viewing time by condition</h2>${nicheBars}</section>`}
+      </div>
+      <p class="ccc-insight-callout"><strong>${isSignal ? "Everyday meaning:" : "Your timing response:"}</strong> ${isSignal ? "Clear and close patterns show how signal competition changes what you can resolve under brief viewing. This is exercise evidence, not a claim about a real task." : `${shift} In a real workflow, the comparable skill is changing how long you check when time pressure or the cost of an error changes; this graph measures only the exercise.`}</p>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="show-block-reconnect">Connect this to your workflow</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
+      </div>
+    </section>`, "ccc-insights-view ccc-viewport-view");
 }
 
 function renderBlockReconnect(): string {
@@ -622,19 +731,21 @@ function renderShiftView(): string {
 function renderComplete(): string {
   if (!journey) return renderWelcome();
   const allResults = Object.values(journey.blockResults).flat();
-  const summary = blockSummary(allResults);
+  const signalFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.estimand === "signal_capacity"));
+  const policyFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.estimand !== "signal_capacity"));
+  const portabilityFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.phase === "relative_mix"));
   return shell(`
     <section class="ccc-complete-card">
-      <span class="ccc-kicker">Find → Change → Recover → Return</span>
+      <span class="ccc-kicker">Signal → Relate → Change → Recover → Return → Switch</span>
       <h1>You completed this attention journey.</h1>
-      <p>You kept the same decision across arrows and moving patterns, returned to arrows, then switched between both.</p>
+      <p>You separated a protected signal check from self-paced decisions, then carried the In/Out relation across arrows and motion.</p>
       ${journeyRail(journey.plan.blocks.length, null)}
       <div class="ccc-summary-grid">
-        <article><span>Accuracy when answered</span><strong>${summary.accuracy}</strong></article>
-        <article><span>Total exercise points</span><strong>${formatPoints(summary.points)}</strong></article>
-        <article><span>Guesses avoided</span><strong>${summary.withholds}</strong></article>
+        <article><span>Attention Control signal</span><strong>${signalFeedback.attentionControlBps === null ? "Calibrating" : `${signalFeedback.attentionControlBps} bps`}</strong></article>
+        <article><span>Decision Fit</span><strong>${policyFeedback.timingShiftMs === null ? "Calibrating" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
+        <article><span>Portability Progress</span><strong>${formatPercent(portabilityFeedback.accuracy)}</strong></article>
       </div>
-      <p class="ccc-metric-note"><strong>This is exercise evidence.</strong> It shows how you handled the trained formats. The workflow step below is a separate prompt for applying the idea in context.</p>
+      <p class="ccc-metric-note"><strong>Three separate readings.</strong> Signal is the masked anchor; Decision Fit is the observed timing change between conditions; Portability is accuracy in the trained mixed relative formats. None establishes wider real-life improvement.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Reconnect to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</button>
       </div>
@@ -692,7 +803,8 @@ function render(): void {
               : view === "task" ? renderTask()
                 : view === "paused" ? renderPaused()
                   : view === "block_complete" ? renderBlockComplete()
-                    : view === "block_reconnect" ? renderBlockReconnect()
+                    : view === "block_insights" ? renderBlockInsights()
+                      : view === "block_reconnect" ? renderBlockReconnect()
                       : view === "shift_view" ? renderShiftView()
                         : view === "complete" ? renderComplete()
                           : view === "complete_reconnect" ? renderCompleteReconnect()
@@ -711,7 +823,7 @@ function createNewJourney(): void {
   const results = Object.fromEntries(plan.blocks.map((block) => [block.id, [] as CccRecordedTrial[]]));
   const now = new Date().toISOString();
   journey = {
-    storageVersion: 1,
+    storageVersion: 2,
     plan,
     workflowChoice: selectedWorkflow,
     activeBlockIndex: 0,
@@ -755,6 +867,8 @@ function startTask(mode: TaskMode): void {
   if (!journey || !block) return;
   recordEvent("block_started", {
     phase: block.phase,
+    estimand: block.estimand,
+    presentationMode: block.presentationMode,
     wrappers: block.wrappers,
     transitionKind: block.transitionKind,
     practice: block.practice,
@@ -771,9 +885,51 @@ function startTask(mode: TaskMode): void {
   beginTrial();
 }
 
+function prepareActiveTrial(): CccAttentionTrialDefinition | null {
+  if (!journey) return null;
+  const queue = currentQueue();
+  const resultIndex = currentResults().length;
+  const template = queue[resultIndex];
+  if (!template || template.estimand !== "signal_capacity") return template || null;
+  const state = signalStaircaseStateAfterResults(currentResults());
+  const adapted = adaptSignalTrial(template, state.level);
+  queue[resultIndex] = adapted;
+  saveJourney();
+  return adapted;
+}
+
+function startSignalExposure(trial: CccAttentionTrialDefinition): void {
+  const requestedMs = trial.exposureMsRequested || 500;
+  taskStage = "evidence";
+  evidenceStartedAt = performance.now();
+  const exposureStartedAt = evidenceStartedAt;
+  signalExposureMsActual = null;
+  signalStimulusFrames = 0;
+  signalRefreshRate = null;
+  render();
+  const step = (now: number) => {
+    signalStimulusFrames = (signalStimulusFrames || 0) + 1;
+    const elapsed = now - exposureStartedAt;
+    if (elapsed < requestedMs) {
+      taskAnimationFrame = window.requestAnimationFrame(step);
+      return;
+    }
+    taskAnimationFrame = 0;
+    signalExposureMsActual = Math.max(1, Math.round(elapsed));
+    signalRefreshRate = Math.round(((signalStimulusFrames || 1) / (signalExposureMsActual / 1000)) * 10) / 10;
+    taskStage = "mask";
+    evidenceStartedAt = performance.now();
+    responseEnabled = true;
+    render();
+    enableResponseControls();
+    taskTimers.push(window.setTimeout(() => completeTrial(null, "deadline"), CCC_TRIAL_TIMING.signalResponseDeadlineMs));
+  };
+  taskAnimationFrame = window.requestAnimationFrame(step);
+}
+
 function beginTrial(): void {
   clearTaskTiming();
-  const trial = activeTrial();
+  const trial = prepareActiveTrial();
   if (!trial) {
     finishCurrentBlock();
     return;
@@ -786,6 +942,9 @@ function beginTrial(): void {
   feedbackResult = null;
   taskStage = "fixation";
   evidenceStartedAt = 0;
+  signalExposureMsActual = null;
+  signalStimulusFrames = null;
+  signalRefreshRate = null;
   const previous = currentResults().at(-1)?.trial;
   if (previous && previous.regimeId !== trial.regimeId) {
     recordEvent("regime_transition", { from: previous.regimeId, to: trial.regimeId }, trial.blockId);
@@ -795,11 +954,15 @@ function beginTrial(): void {
       sourceWrapperId: previous.wrapperId,
       targetWrapperId: trial.wrapperId,
       transitionKind: trial.transitionKind,
-      withinMixedBlock: trial.phase === "absolute_mix",
+      withinMixedBlock: trial.phase === "relative_mix",
     }, trial.blockId);
   }
   render();
   taskTimers.push(window.setTimeout(() => {
+    if (trial.presentationMode === "masked_forced_choice") {
+      startSignalExposure(trial);
+      return;
+    }
     taskStage = "evidence";
     evidenceStartedAt = performance.now();
     render();
@@ -819,7 +982,9 @@ function enableResponseControls(): void {
     button.disabled = false;
   });
   const helper = document.querySelector<HTMLElement>(".ccc-task-helper");
-  if (helper) helper.textContent = "Choose when the evidence is good enough.";
+  if (helper) helper.textContent = currentBlock()?.estimand === "signal_capacity"
+    ? "Choose Left or Right—even if uncertain."
+    : "Make your best choice when you have enough evidence.";
 }
 
 function startPotDisplay(trial: CccAttentionTrialDefinition): void {
@@ -854,8 +1019,10 @@ function appendReplacement(original: CccAttentionTrialDefinition): void {
 
 function feedbackFor(result: CccRecordedTrial): string {
   if (result.scoring.responseClass === "invalid") return "Paused — this item will return.";
-  if (result.scoring.responseClass === "omission") return "Time ended — this item will return.";
-  if (result.scoring.responseClass === "withhold") return "Good choice not to guess.";
+  if (result.scoring.responseClass === "omission") return result.trial.practice
+    ? "Time ended — this practice item will return."
+    : "Time ended — counted as an unresolved pattern.";
+  if (result.trial.estimand === "signal_capacity") return result.scoring.isCorrect ? "Correct." : "Not quite — the next view will adapt.";
   return result.scoring.isCorrect
     ? taskMode === "practice" ? "Correct." : `${formatPoints(result.scoring.pointsRealised)} points`
     : taskMode === "practice" ? "Not quite." : `${formatPoints(result.scoring.pointsRealised)} points`;
@@ -875,6 +1042,10 @@ function completeTrial(
   const responseTimeMs = evidenceStartedAt > 0 ? Math.max(0, Math.round(performance.now() - evidenceStartedAt)) : null;
   clearTaskTiming();
   const scoring = scoreCccAttentionTrial({ trial, response, responseTimeMs, invalidated, invalidReason });
+  const exposureMsActual = trial.estimand === "signal_capacity" ? signalExposureMsActual : null;
+  const timingQuality = trial.estimand === "signal_capacity" && trial.exposureMsRequested && exposureMsActual
+    ? classifySignalTiming(trial.exposureMsRequested, exposureMsActual)
+    : "not_applicable";
   const result: CccRecordedTrial = {
     trial,
     response,
@@ -883,10 +1054,14 @@ function completeTrial(
     viewportClass: currentViewportClass(),
     inputMode,
     focusLost,
+    exposureMsActual,
+    actualStimulusFrames: trial.estimand === "signal_capacity" ? signalStimulusFrames : null,
+    deviceRefreshRateEstimate: trial.estimand === "signal_capacity" ? signalRefreshRate : null,
+    timingQuality,
   };
   if (taskMode === "practice") journey.practiceResults.push(result);
   else journey.blockResults[trial.blockId].push(result);
-  if (!scoring.isValidDecision) appendReplacement(trial);
+  if (!scoring.countsTowardQuota) appendReplacement(trial);
   feedbackTrial = trial;
   feedbackResult = result;
   feedbackMessage = feedbackFor(result);
@@ -898,7 +1073,14 @@ function completeTrial(
     wrapperId: trial.wrapperId,
     regimeId: trial.regimeId,
     responseClass: scoring.responseClass,
+    estimand: trial.estimand,
+    presentationMode: trial.presentationMode,
+    countsTowardQuota: scoring.countsTowardQuota,
     validForProgression: scoring.validForProgression,
+    exposureMsRequested: trial.exposureMsRequested,
+    exposureMsActual,
+    actualStimulusFrames: result.actualStimulusFrames,
+    timingQuality,
     invalidReason: scoring.invalidReason,
   }, trial.blockId);
   saveJourney();
@@ -945,7 +1127,8 @@ function finishCurrentBlock(): void {
   if (taskMode === "practice") journey.practiceComplete = true;
   recordEvent("block_completed", {
     phase: block.phase,
-    validDecisionCount: results.filter((result) => result.scoring.isValidDecision).length,
+    observationCount: results.filter((result) => result.scoring.countsTowardQuota).length,
+    answeredDecisionCount: results.filter((result) => result.scoring.isValidDecision).length,
     plannedValidTrialCount: block.validTrialCount,
     diagnostic: block.diagnostic,
     practice: block.practice,
@@ -1105,7 +1288,9 @@ appRoot.addEventListener("click", (event) => {
   if (!button) return;
   const response = button.dataset.response as CccResponseChoice | undefined;
   if (response) {
-    if (view !== "task" || taskStage !== "evidence" || !responseEnabled || responseLocked) return;
+    const trial = activeTrial();
+    const responseStage = trial?.estimand === "signal_capacity" ? taskStage === "mask" : taskStage === "evidence";
+    if (view !== "task" || !responseStage || !responseEnabled || responseLocked) return;
     const inputMode: CccInputMode = event instanceof PointerEvent && event.pointerType === "touch" ? "touch" : "pointer";
     completeTrial(response, inputMode);
     return;
@@ -1137,13 +1322,15 @@ appRoot.addEventListener("click", (event) => {
     else startTask("guided");
   } else if (action === "continue-after-block") {
     continueAfterBlock();
+  } else if (action === "show-block-insights") {
+    setView("block_insights");
   } else if (action === "show-block-reconnect") {
     setView("block_reconnect");
   } else if (action === "show-complete-reconnect") {
     setView("complete_reconnect");
   } else if (action === "pause-session") {
     recordEvent("pause", { taskStage });
-    if (taskStage === "fixation" || taskStage === "evidence") completeTrial(null, "system", true, false, "aborted");
+    if (taskStage === "fixation" || taskStage === "evidence" || taskStage === "mask") completeTrial(null, "system", true, false, "aborted");
     else setView("paused");
   } else if (action === "resume-task") {
     recordEvent("resume", {});
@@ -1197,11 +1384,12 @@ appRoot.addEventListener("click", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
-  if (view !== "task" || taskStage !== "evidence" || !responseEnabled || responseLocked) return;
-  const response = event.key === "ArrowLeft" ? "left"
-    : event.key === "ArrowRight" ? "right"
-      : event.key === "ArrowDown" ? "withhold"
-        : null;
+  const trial = activeTrial();
+  const responseStage = trial?.estimand === "signal_capacity" ? taskStage === "mask" : taskStage === "evidence";
+  if (view !== "task" || !responseStage || !responseEnabled || responseLocked || !trial) return;
+  const response = event.key === "ArrowLeft" ? trial.answerOptions[0]
+    : event.key === "ArrowRight" ? trial.answerOptions[1]
+      : null;
   if (!response) return;
   event.preventDefault();
   completeTrial(response, "keyboard");
@@ -1209,7 +1397,7 @@ window.addEventListener("keydown", (event) => {
 
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden || view !== "task" || responseLocked) return;
-  if (taskStage === "fixation" || taskStage === "evidence") {
+  if (taskStage === "fixation" || taskStage === "evidence" || taskStage === "mask") {
     completeTrial(null, "system", true, true, "focus_loss");
     recordEvent("focus_loss", { taskStage });
   }
@@ -1229,7 +1417,7 @@ window.addEventListener("beforeunload", saveJourney);
 async function hydrateCloudProgress(user: AuthUser): Promise<void> {
   try {
     const remote = await loadCccRemoteProgress() as unknown as CccSavedJourney | null;
-    if (remote?.storageVersion === 1 && remote.plan?.appId === "cognitive_control_coach"
+    if (remote?.storageVersion === 2 && remote.plan?.appId === "cognitive_control_coach"
       && (!journey || Date.parse(remote.updatedAt) > Date.parse(journey.updatedAt))) {
       journey = remote;
       selectedWorkflow = remote.workflowChoice;

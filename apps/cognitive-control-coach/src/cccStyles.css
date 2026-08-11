@@ -917,6 +917,7 @@ p {
 .ccc-stage-view .ccc-narrow-card,
 .ccc-practice-view .ccc-narrow-card,
 .ccc-review-view .ccc-narrow-card,
+.ccc-insights-view .ccc-narrow-card,
 .ccc-block-reconnect-view .ccc-narrow-card,
 .ccc-complete-view .ccc-complete-card,
 .ccc-reconnect-view,
@@ -928,6 +929,7 @@ p {
 .ccc-stage-view h1,
 .ccc-practice-view h1,
 .ccc-review-view h1,
+.ccc-insights-view h1,
 .ccc-block-reconnect-view h1,
 .ccc-complete-view h1,
 .ccc-reconnect-screen h1,
@@ -942,6 +944,7 @@ p {
 .ccc-stage-view .ccc-narrow-card > p,
 .ccc-practice-view .ccc-narrow-card > p,
 .ccc-review-view .ccc-narrow-card > p,
+.ccc-insights-view .ccc-narrow-card > p,
 .ccc-block-reconnect-view .ccc-narrow-card > p,
 .ccc-complete-view .ccc-complete-card > p,
 .ccc-reconnect-view > p {
@@ -989,6 +992,7 @@ p {
 .ccc-stage-view .ccc-actions,
 .ccc-practice-view .ccc-actions,
 .ccc-review-view .ccc-actions,
+.ccc-insights-view .ccc-actions,
 .ccc-complete-view .ccc-actions,
 .ccc-reconnect-screen .ccc-actions {
   margin-top: clamp(14px, 2.2vh, 22px);
@@ -1216,6 +1220,16 @@ p {
   fill: var(--blue-700);
 }
 
+.ccc-centre-marker {
+  fill: var(--navy);
+  opacity: 0.68;
+}
+
+.ccc-mask-svg g {
+  fill: var(--blue-700);
+  opacity: 0.2;
+}
+
 .ccc-value-panel {
   display: grid;
   grid-template-columns: auto minmax(90px, 1fr);
@@ -1284,16 +1298,6 @@ p {
   background: var(--lime);
 }
 
-.ccc-result-panel.is-withhold {
-  border-color: rgba(8, 127, 134, 0.22);
-  background: rgba(8, 127, 134, 0.055);
-}
-
-.ccc-result-panel.is-withhold .ccc-feedback-icon {
-  color: #fff;
-  background: var(--teal);
-}
-
 .ccc-result-panel.is-incorrect {
   border-color: rgba(201, 76, 85, 0.24);
   background: rgba(201, 76, 85, 0.055);
@@ -1306,9 +1310,100 @@ p {
 
 .ccc-response-row {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 12px;
   margin-top: 14px;
+}
+
+.ccc-signal-panel {
+  border-color: rgba(8, 127, 134, 0.2);
+  background: rgba(8, 127, 134, 0.05);
+}
+
+.ccc-signal-panel strong {
+  color: var(--teal-text);
+}
+
+.ccc-insights-card {
+  max-width: 880px;
+}
+
+.ccc-chart-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin: clamp(12px, 2vh, 20px) 0;
+}
+
+.ccc-chart-grid.is-single {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.ccc-chart-grid > section {
+  padding: clamp(12px, 1.8vh, 17px);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--canvas);
+}
+
+.ccc-chart-grid h2 {
+  margin: 0 0 10px;
+  color: var(--navy);
+  font-size: 0.88rem;
+}
+
+.ccc-metric-row + .ccc-metric-row {
+  margin-top: 9px;
+}
+
+.ccc-metric-row > div:first-child {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 4px;
+  color: var(--muted);
+  font-size: 0.73rem;
+}
+
+.ccc-metric-row strong {
+  color: var(--navy);
+}
+
+.ccc-metric-bar {
+  height: 7px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #e3eaf1;
+}
+
+.ccc-metric-bar i {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: var(--blue-600);
+}
+
+.ccc-metric-bar.is-teal i {
+  background: var(--teal);
+}
+
+.ccc-metric-bar.is-orange i {
+  background: var(--orange);
+}
+
+.ccc-insight-callout {
+  margin: 0;
+  padding: clamp(10px, 1.6vh, 14px);
+  border-left: 3px solid var(--iqm-cyan);
+  border-radius: 0 12px 12px 0;
+  color: var(--muted);
+  background: rgba(34, 170, 255, 0.055);
+  font-size: 0.83rem;
+  line-height: 1.45;
+}
+
+.ccc-insight-callout strong {
+  color: var(--navy);
 }
 
 .ccc-response {
@@ -1328,14 +1423,6 @@ p {
   color: var(--blue-700);
   font-size: 1.7rem;
   font-weight: 700;
-}
-
-.ccc-response-unsure > span {
-  color: var(--orange);
-}
-
-.ccc-response-unsure {
-  background: var(--canvas);
 }
 
 .ccc-response kbd {
@@ -1864,6 +1951,7 @@ p {
   .ccc-stage-view .ccc-narrow-card,
   .ccc-practice-view .ccc-narrow-card,
   .ccc-review-view .ccc-narrow-card,
+  .ccc-insights-view .ccc-narrow-card,
   .ccc-block-reconnect-view .ccc-narrow-card,
   .ccc-complete-view .ccc-complete-card,
   .ccc-reconnect-view,
@@ -1980,6 +2068,52 @@ p {
     padding: 10px 12px;
   }
 
+  .ccc-insights-view .ccc-narrow-card {
+    padding: 10px 12px;
+  }
+
+  .ccc-insights-view h1 {
+    margin-bottom: 7px;
+    font-size: clamp(1.55rem, min(4vw, 4.7vh), 2.35rem);
+  }
+
+  .ccc-insights-view .ccc-stage-line {
+    margin-bottom: 6px;
+  }
+
+  .ccc-insights-view .ccc-chart-grid {
+    gap: 7px;
+    margin: 7px 0;
+  }
+
+  .ccc-insights-view .ccc-chart-grid > section {
+    padding: 8px 9px;
+  }
+
+  .ccc-insights-view .ccc-chart-grid h2 {
+    margin-bottom: 6px;
+    font-size: 0.78rem;
+  }
+
+  .ccc-insights-view .ccc-metric-row + .ccc-metric-row {
+    margin-top: 5px;
+  }
+
+  .ccc-insights-view .ccc-metric-row > div:first-child {
+    margin-bottom: 3px;
+    font-size: 0.67rem;
+  }
+
+  .ccc-insights-view .ccc-insight-callout {
+    padding: 7px 9px;
+    font-size: 0.72rem;
+    line-height: 1.28;
+  }
+
+  .ccc-insights-view .ccc-actions {
+    margin-top: 8px;
+  }
+
   .ccc-task-card {
     grid-template-rows: auto auto minmax(96px, 1fr) auto auto auto;
     padding: 8px;
@@ -2055,6 +2189,7 @@ p {
   .ccc-stage-view .ccc-narrow-card,
   .ccc-practice-view .ccc-narrow-card,
   .ccc-review-view .ccc-narrow-card,
+  .ccc-insights-view .ccc-narrow-card,
   .ccc-block-reconnect-view .ccc-narrow-card,
   .ccc-complete-view .ccc-complete-card,
   .ccc-reconnect-view,
@@ -2066,6 +2201,7 @@ p {
   .ccc-stage-view h1,
   .ccc-practice-view h1,
   .ccc-review-view h1,
+  .ccc-insights-view h1,
   .ccc-block-reconnect-view h1,
   .ccc-complete-view h1,
   .ccc-reconnect-screen h1,
