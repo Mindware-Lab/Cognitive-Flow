@@ -628,6 +628,13 @@ function renderTask(): string {
         ? "is-incorrect"
         : "is-neutral";
   const feedbackIcon = feedbackState === "is-correct" ? "✓" : feedbackState === "is-incorrect" ? "×" : "·";
+  const feedbackOutcome = isPractice
+    ? feedbackResult?.scoring.responseClass === "answer"
+      ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
+      : feedbackResult?.scoring.responseClass === "omission" ? "No response" : "Paused"
+    : isSignal
+      ? feedbackResult?.scoring.isCorrect ? "Correct" : "Recorded"
+      : formatPoints(feedbackPoints);
   const pot = regime.correctPot;
   const taskTitle = isSignal ? "Signal check" : isWm ? `Hold and compare · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
   const taskCue = taskStage === "fixation" ? "Get ready"
@@ -667,7 +674,7 @@ function renderTask(): string {
       ${taskStage === "feedback" ? `
         <div class="ccc-value-panel ccc-result-panel ${feedbackState}" role="status" aria-live="polite">
           <span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span>
-          <div><span>${isSignal || isPractice ? "This pattern" : "This choice"}</span><strong>${isSignal || isPractice ? (feedbackResult?.scoring.isCorrect ? "Correct" : "Recorded") : formatPoints(feedbackPoints)}</strong></div>
+          <div><span>${isSignal || isPractice ? "This pattern" : "This choice"}</span><strong>${feedbackOutcome}</strong></div>
           <small>${feedbackMessage}</small>
         </div>` : `
         ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Protected timing</span><strong>${trial.exposureMsRequested} ms</strong></div><small>The mask separates signal extraction from later self-paced decisions.</small></div>`
@@ -1212,7 +1219,7 @@ function feedbackFor(result: CccRecordedTrial): string {
   if (result.trial.estimand === "signal_capacity") return result.scoring.isCorrect ? "Correct." : "Not quite — the next view will adapt.";
   return result.scoring.isCorrect
     ? taskMode === "practice" ? "Correct." : `${formatPoints(result.scoring.pointsRealised)} points`
-    : taskMode === "practice" ? "Not quite." : `${formatPoints(result.scoring.pointsRealised)} points`;
+    : taskMode === "practice" ? "Incorrect." : `${formatPoints(result.scoring.pointsRealised)} points`;
 }
 
 function completeTrial(

@@ -63,6 +63,12 @@ describe("CCC playable integration", () => {
     expect(sharedTokens).toContain("--iqm-font-sans");
   });
 
+  it("shows explicit correct or incorrect outcomes for every answered practice item", () => {
+    expect(mainSource).toContain('feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"');
+    expect(mainSource).toContain('taskMode === "practice" ? "Incorrect."');
+    expect(mainSource).not.toContain('taskMode === "practice" ? "Not quite."');
+  });
+
   it("paginates long explanations and keeps every state inside the viewport shell", () => {
     for (const view of ["workflow", "practice_guide", "phase_guide", "block_insights", "block_reconnect", "full_transfer", "complete_reconnect"]) {
       expect(mainSource).toContain(`| "${view}"`);
