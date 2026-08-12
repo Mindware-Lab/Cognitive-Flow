@@ -175,7 +175,11 @@ describe("CCC playable integration", () => {
 
   it("makes stage, session and G Track feedback accessible in the UX", () => {
     expect(mainSource).toContain("Across this session");
-    expect(mainSource).toContain("Your personal score");
+    expect(mainSource).toContain("Your session feedback");
+    expect(mainSource).toContain("Payoffs have changed");
+    expect(mainSource).toContain("Match certainty and viewing time to the payoffs");
+    expect(mainSource).toContain("neither fastest nor slowest is always best");
+    expect(mainSource).toContain("Strategy takeaway");
     expect(mainSource).toContain("Training feedback you can return to");
     expect(mainSource).toContain("G Track check-ins");
     expect(mainSource).toContain("Personal progress");

@@ -1154,11 +1154,92 @@ p {
   color: var(--navy);
 }
 
+.ccc-regime-card em {
+  margin-top: 4px;
+  padding: 7px 9px;
+  border-radius: 9px;
+  color: var(--control-text);
+  background: rgba(102, 204, 51, 0.1);
+  font-size: 0.72rem;
+  font-style: normal;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.ccc-regime-card p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.ccc-regime-intro-card {
+  max-width: 780px;
+}
+
+.ccc-payoff-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  margin: 22px 0;
+}
+
+.ccc-payoff-grid article {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 17px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--canvas);
+}
+
+.ccc-payoff-grid span,
+.ccc-strategy-principle > span {
+  color: var(--control-text);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ccc-payoff-grid strong {
+  color: var(--navy);
+  font-size: 1.35rem;
+}
+
+.ccc-payoff-grid small {
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.ccc-strategy-principle {
+  margin: 0;
+  padding: 16px 18px;
+  border-left: 3px solid var(--control);
+  border-radius: 0 13px 13px 0;
+  color: var(--muted);
+  background: rgba(102, 204, 51, 0.08);
+  line-height: 1.48;
+}
+
+.ccc-strategy-principle strong {
+  display: block;
+  margin: 4px 0;
+  color: var(--navy);
+}
+
+.ccc-strategy-principle p {
+  margin: 0;
+  font-size: 0.8rem;
+}
+
 /* Each narrative state is a self-contained screen. Long ideas are paginated in
    the renderer rather than placed in a scrolling document. */
 .ccc-workflow-picker,
 .ccc-stage-view .ccc-narrow-card,
 .ccc-practice-view .ccc-narrow-card,
+.ccc-regime-intro-view .ccc-narrow-card,
 .ccc-review-view .ccc-narrow-card,
 .ccc-insights-view .ccc-narrow-card,
 .ccc-block-reconnect-view .ccc-narrow-card,
@@ -1694,6 +1775,110 @@ p {
   color: var(--navy);
 }
 
+.ccc-policy-coaching {
+  margin-top: 12px;
+}
+
+.ccc-strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin: 9px 0;
+}
+
+.ccc-strategy-card {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--blue);
+  border-radius: 13px;
+  background: #fff;
+}
+
+.ccc-strategy-card.is-speed_up {
+  border-top-color: var(--blue-700);
+}
+
+.ccc-strategy-card.is-slow_down {
+  border-top-color: var(--control);
+}
+
+.ccc-strategy-card.is-well_balanced {
+  border-top-color: var(--teal);
+}
+
+.ccc-strategy-card > span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  text-transform: uppercase;
+}
+
+.ccc-strategy-card strong {
+  color: var(--navy);
+}
+
+.ccc-strategy-card p,
+.ccc-strategy-card small {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.74rem;
+  line-height: 1.38;
+}
+
+.ccc-strategy-card small {
+  margin-top: auto;
+  font-weight: 750;
+}
+
+.ccc-strategy-takeaway {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 4px 14px;
+  margin: 12px 0;
+  padding: 14px 16px;
+  border: 1px solid rgba(102, 204, 51, 0.28);
+  border-radius: 14px;
+  background: rgba(102, 204, 51, 0.07);
+}
+
+.ccc-strategy-takeaway > span {
+  color: var(--control-text);
+  font-size: 0.7rem;
+  font-weight: 900;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ccc-strategy-takeaway strong {
+  grid-column: 1;
+  color: var(--navy);
+}
+
+.ccc-strategy-takeaway p {
+  grid-column: 1;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.ccc-strategy-takeaway small {
+  grid-column: 2;
+  grid-row: 1 / 4;
+  align-self: center;
+  max-width: 18ch;
+  color: var(--muted);
+  font-weight: 800;
+  text-align: right;
+}
+
+.ccc-strategy-takeaway.is-persistent {
+  margin-top: 16px;
+}
+
 .ccc-response {
   height: 100%;
   min-height: 0;
@@ -2118,7 +2303,9 @@ p {
   .ccc-control-strip,
   .ccc-instruction-grid,
   .ccc-regime-grid,
-  .ccc-summary-grid {
+  .ccc-summary-grid,
+  .ccc-payoff-grid,
+  .ccc-strategy-grid {
     grid-template-columns: 1fr;
   }
 

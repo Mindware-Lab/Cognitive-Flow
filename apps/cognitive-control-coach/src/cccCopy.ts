@@ -25,26 +25,30 @@ export const WORKFLOW_CHOICES: Record<WorkflowChoice, { label: string; shortLabe
   },
 };
 
-export const REGIME_COPY: Record<CccRegimeId, { title: string; instruction: string; cue: string }> = {
+export const REGIME_COPY: Record<CccRegimeId, { title: string; instruction: string; cue: string; strategy: string }> = {
   clear_sprint: {
     title: "Move when it is clear",
     instruction: "The pattern is often clear and the available points fade quickly.",
     cue: "Find what matters, then make the call.",
+    strategy: "Aim for enough certainty to see the majority, then commit before too many points disappear.",
   },
   calculated_risk: {
     title: "Read a changing pattern",
     instruction: "The pattern is often less clear and the available points fade quickly.",
     cue: "Take in enough before you choose.",
+    strategy: "Take in a little more information for close patterns, without waiting for perfect certainty.",
   },
   clean_precision: {
     title: "Check before you choose",
     instruction: "The pattern is often clear, but a wrong answer costs more.",
     cue: "Use the time you need, then make your best choice.",
+    strategy: "Protect against the costly error, but commit once the clear majority is reliable.",
   },
   deep_check: {
     title: "Take the time you need",
     instruction: "The pattern is often close and a wrong answer costs more.",
     cue: "Keep looking, then make your best choice.",
+    strategy: "Build more certainty before choosing; here, avoiding a wrong answer is worth extra viewing time.",
   },
 };
 
