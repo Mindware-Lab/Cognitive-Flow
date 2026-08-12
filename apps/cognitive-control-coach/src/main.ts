@@ -283,7 +283,7 @@ function shell(content: string, className = ""): string {
   return `<main class="ccc-app ${className}">${header()}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · cognitive training for demanding workflows</span><span>Non-clinical · broader benefit is checked, not assumed</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
 }
 
-const JOURNEY_LABELS: Partial<Record<Exclude<CccProgrammePhase, "practice">, string>> = {
+const JOURNEY_LABELS: Partial<Record<CccProgrammePhase, string>> = {
   signal_anchor: "Signal",
   arrow_rel_stabilisation: "Relate",
   flow_rel_first_contact: "Change",
@@ -311,15 +311,17 @@ const JOURNEY_LABELS: Partial<Record<Exclude<CccProgrammePhase, "practice">, str
 
 function journeyRail(completedBeforeIndex: number, currentIndex: number | null = null): string {
   if (!journey) return "";
-  const steps = journey.plan.blocks.map((block, index) => {
-    if (block.phase === "practice") return "";
-    const isComplete = index < completedBeforeIndex;
-    const isCurrent = currentIndex === index;
+  const visibleStages = journey.plan.blocks
+    .map((block, planIndex) => ({ block, planIndex }))
+    .filter(({ block }) => block.phase !== "practice");
+  const steps = visibleStages.map(({ block, planIndex }, stageIndex) => {
+    const isComplete = planIndex < completedBeforeIndex;
+    const isCurrent = currentIndex === planIndex;
     const state = isComplete ? "is-complete" : isCurrent ? "is-current" : "";
-    const marker = isComplete ? "✓" : String(index + 1);
+    const marker = isComplete ? "✓" : String(stageIndex + 1);
     return `<li class="${state}" ${isCurrent ? 'aria-current="step"' : ""}><span aria-hidden="true">${marker}</span><small>${JOURNEY_LABELS[block.phase] || "Train"}</small></li>`;
   }).join("");
-  return `<ol class="ccc-journey-rail" aria-label="Training journey">${steps}</ol>`;
+  return `<ol class="ccc-journey-rail" style="--ccc-journey-count:${Math.max(1, visibleStages.length)}" aria-label="Training journey">${steps}</ol>`;
 }
 
 function workflowIcon(id: WorkflowChoice): string {

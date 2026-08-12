@@ -688,8 +688,10 @@ p {
 }
 
 .ccc-journey-rail {
+  --ccc-rail-marker-half: 17px;
+  --ccc-rail-row-gap: 18px;
   display: grid;
-  grid-template-columns: repeat(5, minmax(0, 1fr));
+  grid-template-columns: repeat(var(--ccc-journey-count, 1), minmax(0, 1fr));
   gap: 0;
   margin: 8px 0 26px;
   padding: 0;
@@ -2049,6 +2051,31 @@ p {
   }
 }
 
+@media (max-width: 560px) {
+  .ccc-journey-rail {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    row-gap: var(--ccc-rail-row-gap);
+  }
+
+  /* Continue the rail from stage 3 to the next row as one deliberate path. */
+  .ccc-journey-rail li:nth-child(3):not(:last-child)::after {
+    top: 15px;
+    right: calc(50% - var(--ccc-rail-marker-half));
+    left: auto;
+    width: calc(200% + var(--ccc-rail-marker-half));
+    height: calc(100% + var(--ccc-rail-row-gap));
+    border-right: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    border-bottom-right-radius: 12px;
+    background: none;
+  }
+
+  .ccc-journey-rail li.is-complete:nth-child(3):not(:last-child)::after {
+    border-color: var(--lime-dark);
+    background: none;
+  }
+}
+
 @media (max-width: 430px) {
   .ccc-full-transfer-card {
     padding: 10px;
@@ -2138,10 +2165,21 @@ p {
     height: 28px;
   }
 
+  .ccc-journey-rail {
+    --ccc-rail-marker-half: 15px;
+  }
+
   .ccc-journey-rail li:not(:last-child)::after {
     top: 13px;
     left: calc(50% + 15px);
     width: calc(100% - 30px);
+  }
+
+  .ccc-journey-rail li:nth-child(3):not(:last-child)::after {
+    top: 13px;
+    right: calc(50% - var(--ccc-rail-marker-half));
+    left: auto;
+    width: calc(200% + var(--ccc-rail-marker-half));
   }
 
   .ccc-brand-lockup small {

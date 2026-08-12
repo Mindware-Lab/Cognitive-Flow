@@ -69,6 +69,16 @@ describe("CCC playable integration", () => {
     expect(mainSource).not.toContain('taskMode === "practice" ? "Not quite."');
   });
 
+  it("keeps stage numbering continuous and lays every journey rail out responsively", () => {
+    expect(mainSource).toContain('.filter(({ block }) => block.phase !== "practice")');
+    expect(mainSource).toContain("String(stageIndex + 1)");
+    expect(mainSource).toContain("--ccc-journey-count:${Math.max(1, visibleStages.length)}");
+    expect(appStyles).toContain("repeat(var(--ccc-journey-count, 1), minmax(0, 1fr))");
+    expect(appStyles).toContain("@media (max-width: 560px)");
+    expect(appStyles).toContain("li:nth-child(3):not(:last-child)::after");
+    expect(appStyles).not.toContain("grid-template-columns: repeat(5, minmax(0, 1fr))");
+  });
+
   it("paginates long explanations and keeps every state inside the viewport shell", () => {
     for (const view of ["workflow", "practice_guide", "phase_guide", "block_insights", "block_reconnect", "full_transfer", "complete_reconnect"]) {
       expect(mainSource).toContain(`| "${view}"`);
