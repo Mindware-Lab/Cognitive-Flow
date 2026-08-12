@@ -34,7 +34,7 @@ describe("CCC forced-choice value scoring", () => {
 
   it("keeps masked signal choices free from value scoring and the policy minimum-view rule", () => {
     const scored = scoreCccAttentionTrial({ trial: signalTrial, response: signalTrial.correctResponse, responseTimeMs: 250 });
-    const afterMaskDeadline = scoreCccAttentionTrial({ trial: signalTrial, response: signalTrial.correctResponse, responseTimeMs: 2410 });
+    const afterMaskDeadline = scoreCccAttentionTrial({ trial: signalTrial, response: signalTrial.correctResponse, responseTimeMs: 2510 });
     expect(scored).toMatchObject({ responseClass: "answer", isCorrect: true, rewardRemaining: 0, pointsRealised: 0, countsTowardQuota: true });
     expect(afterMaskDeadline).toMatchObject({ responseClass: "omission", deadlineExceeded: true, countsTowardQuota: true });
   });

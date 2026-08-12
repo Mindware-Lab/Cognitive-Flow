@@ -98,7 +98,7 @@ describe("CCC block payload", () => {
       drainRatePerSecond: null,
       errorLoss: null,
       minimumExposureMs: null,
-      deadlineMs: 2400,
+      deadlineMs: 2500,
       exposureMsRequested: 500,
       exposureMsActual: 516,
       actualStimulusFrames: 31,

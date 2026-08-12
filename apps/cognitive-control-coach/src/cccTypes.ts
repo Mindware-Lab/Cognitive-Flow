@@ -64,6 +64,19 @@ export type CccProgrammePhase = CccP0Phase
 export type CccTransferStatus = "building" | "attention_portable" | "supported_unlock";
 export type CccProgrammeStatus = "active" | "programme_complete" | "full_transfer" | "supported_completion";
 
+export interface CccSessionMetrics {
+  attentionAccuracy: number | null;
+  signalAccuracy: number | null;
+  wmAccuracy: number | null;
+  medianDecisionMs: number | null;
+  pointsKeptPercent: number | null;
+  omissionRate: number | null;
+  timingShiftMs: number | null;
+  closePatternAccuracy: number | null;
+  attentionControlBps: number | null;
+  observationCount: number;
+}
+
 export interface CccProgrammeEvidence {
   carrierFirstContactObserved: boolean;
   carrierFirstContactPassed: boolean;
@@ -93,6 +106,20 @@ export interface CccProgrammeSessionSummary {
   startedAt: string;
   completedAt: string;
   gateDecisions: string[];
+  metrics?: CccSessionMetrics;
+}
+
+export type CccProofDomain = "attention" | "working_memory" | "reasoning";
+export type CccProofTimepoint = "baseline" | "midpoint" | "post" | "follow_up" | "ad_hoc";
+
+export interface CccProofScore {
+  id: string;
+  domain: CccProofDomain;
+  timepoint: CccProofTimepoint;
+  label: string;
+  score: number;
+  completedAt: string;
+  source: "G Track";
 }
 
 export interface CccProgrammeState {
@@ -110,6 +137,7 @@ export interface CccProgrammeState {
   pairHistory: string[];
   evidence: CccProgrammeEvidence;
   sessions: CccProgrammeSessionSummary[];
+  proofScores?: CccProofScore[];
   createdAt: string;
   updatedAt: string;
   completedAt: string | null;
@@ -124,6 +152,7 @@ export interface CccTrialTimingConfig {
   fixationCueMs: number;
   minimumExposureBeforeAnswerMs: number;
   maxResponseWindowMs: number;
+  signalMaskMs: number;
   signalResponseDeadlineMs: number;
   outcomeFeedbackMs: number;
   interTrialIntervalMs: number;

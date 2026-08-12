@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildCccBlockFeedback } from "../src/cccFeedback";
+import { buildCccBlockFeedback, buildCccSessionMetrics } from "../src/cccFeedback";
 import { createP0AttentionCarrierTransferPlan } from "../src/cccGenerator";
 import { scoreCccAttentionTrial } from "../src/cccValue";
 import type { CccAttentionTrialDefinition, CccRecordedTrial } from "../src/cccTypes";
@@ -50,5 +50,19 @@ describe("CCC block feedback", () => {
     expect(buildCccBlockFeedback(few).attentionControlBps).toBeNull();
     expect(buildCccBlockFeedback(enough).attentionControlBps).not.toBeNull();
     expect(buildCccBlockFeedback(enough).signalTimingQuality).toBe("good");
+  });
+
+  it("creates a plain session summary from recorded trials", () => {
+    const attention = { ...policyTemplate, operator: "attention" as const, regimeId: "clear_sprint" as const };
+    const wm = { ...policyTemplate, operator: "relational_wm" as const, estimand: "relational_wm" as const, wmNLevel: 1 as const };
+    const metrics = buildCccSessionMetrics([
+      recorded(attention, 800, true),
+      recorded(attention, 1000, false),
+      recorded(wm, 1100, true),
+    ]);
+    expect(metrics.attentionAccuracy).toBe(0.5);
+    expect(metrics.wmAccuracy).toBe(1);
+    expect(metrics.medianDecisionMs).toBe(1000);
+    expect(metrics.observationCount).toBe(3);
   });
 });

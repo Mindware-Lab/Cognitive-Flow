@@ -1,6 +1,6 @@
 import { CCC_REGIMES } from "./cccConfig";
 import { signalDemandBitsPerSecond } from "./cccSignal";
-import type { CccRatio, CccRecordedTrial, CccRegimeId } from "./cccTypes";
+import type { CccRatio, CccRecordedTrial, CccRegimeId, CccSessionMetrics } from "./cccTypes";
 
 export interface CccClarityMetric {
   ratio: CccRatio;
@@ -149,5 +149,30 @@ export function buildCccBlockFeedback(results: readonly CccRecordedTrial[]): Ccc
     timingShiftMs: carefulMedian !== null && quickMedian !== null ? Math.round(carefulMedian - quickMedian) : null,
     attentionControlBps: estimateAttentionControlBps(results),
     signalTimingQuality: signalTimingQuality(results),
+  };
+}
+
+export function buildCccSessionMetrics(results: readonly CccRecordedTrial[]): CccSessionMetrics {
+  const scored = results.filter((result) => !result.trial.practice && !result.trial.wmBuffer);
+  const signal = scored.filter((result) => result.trial.estimand === "signal_capacity");
+  const attention = scored.filter((result) => result.trial.operator === "attention" && result.trial.estimand !== "signal_capacity");
+  const wm = scored.filter((result) => result.trial.operator === "relational_wm");
+  const policy = scored.filter((result) => result.trial.estimand !== "signal_capacity");
+  const allFeedback = buildCccBlockFeedback(scored);
+  const signalFeedback = buildCccBlockFeedback(signal);
+  const attentionFeedback = buildCccBlockFeedback(attention);
+  const wmFeedback = buildCccBlockFeedback(wm);
+  const policyFeedback = buildCccBlockFeedback(policy);
+  return {
+    attentionAccuracy: attentionFeedback.accuracy,
+    signalAccuracy: signalFeedback.accuracy,
+    wmAccuracy: wmFeedback.accuracy,
+    medianDecisionMs: allFeedback.medianDecisionMs,
+    pointsKeptPercent: policyFeedback.observationCount ? policyFeedback.pointsKeptPercent : null,
+    omissionRate: allFeedback.observationCount ? allFeedback.omissionCount / allFeedback.observationCount : null,
+    timingShiftMs: policyFeedback.timingShiftMs,
+    closePatternAccuracy: allFeedback.clarity.find((item) => item.ratio === "3:2")?.accuracy ?? null,
+    attentionControlBps: signalFeedback.attentionControlBps,
+    observationCount: allFeedback.observationCount,
   };
 }

@@ -10,6 +10,17 @@ import type {
 export const CCC_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:journey:v0.4";
 export const CCC_LEGACY_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:p0:v0.3";
 export const CCC_PROGRAMME_STORAGE_KEY = "iqmindware:cognitive-control-coach:programme:v0.4";
+export const CCC_COMPARISON_MODE_KEY = "iqmindware:cognitive-control-coach:comparison-mode:v1";
+
+export type CccSavedComparisonMode = "personal" | "population";
+
+export function loadCccComparisonMode(storage: Pick<Storage, "getItem"> = window.localStorage): CccSavedComparisonMode {
+  return storage.getItem(CCC_COMPARISON_MODE_KEY) === "population" ? "population" : "personal";
+}
+
+export function saveCccComparisonMode(mode: CccSavedComparisonMode, storage: Pick<Storage, "setItem"> = window.localStorage): void {
+  storage.setItem(CCC_COMPARISON_MODE_KEY, mode);
+}
 
 export interface CccSavedJourney {
   storageVersion: 3;

@@ -15,6 +15,8 @@ describe("CCC pilot configuration", () => {
     expect(CCC_TRIAL_TIMING.fixationCueMs).toBe(350);
     expect(CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs).toBe(350);
     expect(CCC_TRIAL_TIMING.maxResponseWindowMs).toBe(4000);
+    expect(CCC_TRIAL_TIMING.signalMaskMs).toBe(500);
+    expect(CCC_TRIAL_TIMING.signalResponseDeadlineMs).toBe(2500);
     expect(CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle).toBe(6);
     expect(CCC_REGIMES.clear_sprint).toMatchObject({ correctPot: 50, errorLoss: 10, drainPointsPerSecond: 15 });
     expect(CCC_REGIMES.deep_check).toMatchObject({ correctPot: 10, errorLoss: 50, drainPointsPerSecond: 1.5 });

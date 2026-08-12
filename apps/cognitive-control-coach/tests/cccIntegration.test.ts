@@ -40,6 +40,18 @@ describe("CCC playable integration", () => {
     expect(appStyles).toMatch(/\.ccc-mask-items\s*\{[\s\S]*?fill: var\(--blue-700\);/);
   });
 
+  it("uses a brief literature-timed mask followed by a separate response state", () => {
+    expect(mainSource).toContain('type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval"');
+    expect(mainSource).toContain('taskStage = "mask"');
+    expect(mainSource).toContain('taskStage = "response"');
+    expect(mainSource).toContain('CCC_TRIAL_TIMING.signalMaskMs');
+    expect(mainSource).toContain('setTimeout(() => completeTrial(null, "deadline"), CCC_TRIAL_TIMING.signalResponseDeadlineMs)');
+    expect(mainSource).toContain('taskStage === "response"');
+    expect(mainSource).not.toContain('estimand === "signal_capacity" ? taskStage === "mask"');
+    expect(mainSource).not.toContain("<span>Viewing time</span>");
+    expect(mainSource).not.toContain("trial.exposureMsRequested} ms");
+  });
+
   it("keeps consumer copy plain and workflow-centred", () => {
     const visibleCopy = JSON.stringify({
       phases: PHASE_COPY,
@@ -126,7 +138,8 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("html,\nbody,\n#app");
     expect(appStyles).toContain("height: calc(100dvh - 32px)");
     expect(appStyles).toContain(".ccc-viewport-view .ccc-footer");
-    expect(appStyles).toContain("grid-template-rows: auto auto minmax(0, 1fr) auto auto auto");
+    expect(appStyles).toContain("grid-template-rows: auto var(--ccc-task-cue-row) minmax(0, 1fr) var(--ccc-task-detail-row) var(--ccc-task-response-row) var(--ccc-task-helper-row)");
+    expect(appStyles).toContain("--ccc-task-detail-row: 68px");
     expect(appStyles).toContain("row-gap: clamp(6px, 1.1vh, 10px)");
     expect(appStyles).toMatch(/\.ccc-stimulus-stage\s*\{[\s\S]*?margin: 0 auto;/);
     expect(appStyles).toMatch(/\.ccc-value-panel\s*\{[\s\S]*?position: relative;[\s\S]*?margin: 0;/);
@@ -155,5 +168,18 @@ describe("CCC playable integration", () => {
     expect(finaliseFunction).toContain('status: "completed"');
     expect(finaliseFunction).toContain('from("coach_events")');
     expect(finaliseFunction).toContain("client_event_id");
+    expect(finaliseFunction).toContain('from("coach_metric_observations")');
+    expect(finaliseFunction).toContain('from("coach_metric_norms")');
+    expect(finaliseFunction).toContain("latestByUser");
+  });
+
+  it("makes stage, session and G Track feedback accessible in the UX", () => {
+    expect(mainSource).toContain("Across this session");
+    expect(mainSource).toContain("Your personal score");
+    expect(mainSource).toContain("Training feedback you can return to");
+    expect(mainSource).toContain("G Track check-ins");
+    expect(mainSource).toContain("Personal progress");
+    expect(mainSource).toContain("Population comparison");
+    expect(mainSource).toContain("loadCccGTrackScores");
   });
 });

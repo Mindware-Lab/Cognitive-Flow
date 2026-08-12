@@ -18,7 +18,10 @@ export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
   minimumExposureBeforeAnswerMs: 350,
   maxResponseWindowMs: 4000,
-  signalResponseDeadlineMs: 2400,
+  // Published MFT-M mask duration, followed by the original Attention Coach's
+  // separate post-mask response state.
+  signalMaskMs: 500,
+  signalResponseDeadlineMs: 2500,
   outcomeFeedbackMs: 350,
   interTrialIntervalMs: 250,
   omissionPoints: 0,
@@ -160,6 +163,9 @@ export function validateCccPilotConfig(): string[] {
 
   if (CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs > CCC_TRIAL_TIMING.maxResponseWindowMs) {
     issues.push("Minimum exposure cannot exceed the response window.");
+  }
+  if (CCC_TRIAL_TIMING.signalMaskMs <= 0 || CCC_TRIAL_TIMING.signalResponseDeadlineMs <= 0) {
+    issues.push("Signal mask and response timings must be positive.");
   }
   if (CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle % 2 !== 0) {
     issues.push("Balanced attention microcycles require an even trial count for two target classes.");

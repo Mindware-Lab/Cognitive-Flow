@@ -86,6 +86,7 @@ export function estimateCccSessionDuration(
     + CCC_TRIAL_TIMING.outcomeFeedbackMs;
   const signalBody = CCC_TRIAL_TIMING.fixationCueMs
     + assumptions.meanSignalExposureMs
+    + CCC_TRIAL_TIMING.signalMaskMs
     + assumptions.signalDecisionMs
     + CCC_TRIAL_TIMING.outcomeFeedbackMs;
   const policyBody = CCC_TRIAL_TIMING.fixationCueMs

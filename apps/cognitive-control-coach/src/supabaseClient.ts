@@ -3,6 +3,7 @@ import { CCC_APP_ID } from "./cccConfig";
 import type { ScratchBaseline } from "./types";
 import type { DeviceReadiness } from "./types";
 import type { LocalProgress, ProofBenchmarkEntry } from "./storage";
+import type { CccProofDomain, CccProofScore, CccProofTimepoint } from "./cccTypes";
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
@@ -255,6 +256,70 @@ export async function loadGTrackProofSummary(): Promise<GTrackProofScore[]> {
   if (!response.ok) return [];
   const payload = await response.json() as { scores?: GTrackProofScore[] };
   return Array.isArray(payload.scores) ? payload.scores : [];
+}
+
+function finiteStandardScore(value: unknown): number | null {
+  const numberValue = Number(value);
+  return Number.isFinite(numberValue) && numberValue >= 55 && numberValue <= 145 ? numberValue : null;
+}
+
+function publicStandardScore(publicScores: Record<string, unknown> | null | undefined, key: string): number | null {
+  const value = publicScores?.[key];
+  if (!value || typeof value !== "object") return null;
+  const row = value as { displayStandardScore?: unknown; standardScore?: unknown };
+  return finiteStandardScore(row.displayStandardScore) ?? finiteStandardScore(row.standardScore);
+}
+
+function proofDomain(construct: string | undefined): CccProofDomain | null {
+  if (construct === "attention_control") return "attention";
+  if (construct === "working_memory") return "working_memory";
+  if (construct === "matrix_reasoning") return "reasoning";
+  return null;
+}
+
+function proofTimepoint(value: string | null | undefined): CccProofTimepoint {
+  return value === "baseline" || value === "midpoint" || value === "post" || value === "follow_up" ? value : "ad_hoc";
+}
+
+function proofScoreValue(score: GTrackProofScore): number | null {
+  const direct = finiteStandardScore(score.provisionalIndex)
+    ?? finiteStandardScore(score.displayStandardScore)
+    ?? finiteStandardScore(score.standardScore)
+    ?? finiteStandardScore(score.score);
+  if (direct !== null) return direct;
+  const composite = publicStandardScore(score.publicScores, "composite");
+  if (composite !== null) return composite;
+  const keys = score.construct === "attention_control"
+    ? ["conflictControl", "sustainedStability", "responseEfficiency"]
+    : score.construct === "working_memory" ? ["workingMemoryCapacity", "bindingPrecision"] : [];
+  const values = keys.map((key) => publicStandardScore(score.publicScores, key)).filter((value): value is number => value !== null);
+  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : null;
+}
+
+function proofLabel(domain: CccProofDomain): string {
+  if (domain === "attention") return "G Track Attention";
+  if (domain === "working_memory") return "G Track Working Memory";
+  return "G Track Matrix Reasoning";
+}
+
+export async function loadCccGTrackScores(): Promise<CccProofScore[]> {
+  const scores = await loadGTrackProofSummary();
+  return scores.flatMap((score) => {
+    const domain = proofDomain(score.construct);
+    const value = proofScoreValue(score);
+    if (!domain || value === null) return [];
+    const completedAt = String(score.completedAt || new Date().toISOString()).slice(0, 10);
+    const timepoint = proofTimepoint(score.timepoint);
+    return [{
+      id: `gtrack-${domain}-${score.testId || "score"}-${timepoint}-${completedAt}`,
+      domain,
+      timepoint,
+      label: proofLabel(domain),
+      score: Math.round(value),
+      completedAt,
+      source: "G Track" as const,
+    }];
+  });
 }
 
 async function functionErrorMessage(error: unknown): Promise<string> {

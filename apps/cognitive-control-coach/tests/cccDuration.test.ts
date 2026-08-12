@@ -21,7 +21,7 @@ describe("CCC session-duration planning model", () => {
   it("reports transparent fast, typical and deliberate planning scenarios", () => {
     const estimates = (["fast", "typical", "deliberate"] as const)
       .map((scenario) => estimateCccSessionDuration(plan, scenario));
-    expect(estimates.map((estimate) => estimate.totalMinutes)).toEqual([8.2, 11.6, 16.6]);
+    expect(estimates.map((estimate) => estimate.totalMinutes)).toEqual([8.4, 11.8, 16.8]);
     expect(estimates[0].totalMs).toBeLessThan(estimates[1].totalMs);
     expect(estimates[1].totalMs).toBeLessThan(estimates[2].totalMs);
     expect(CCC_DURATION_ASSUMPTIONS.typical.policyDecisionMs).toBe(1250);

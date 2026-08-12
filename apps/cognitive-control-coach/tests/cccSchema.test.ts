@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import migration from "../supabase/migrations/202608110001_cognitive_control_shared_schema.sql?raw";
 import dualEstimandMigration from "../supabase/migrations/202608120001_cognitive_control_dual_estimand.sql?raw";
 import programmeMigration from "../supabase/migrations/202608120002_cognitive_control_multisession_programme.sql?raw";
+import feedbackMigration from "../supabase/migrations/202608120003_cognitive_control_feedback_metrics.sql?raw";
 
 describe("CCC shared schema migration", () => {
   it("creates the approved hybrid table shape", () => {
@@ -41,5 +42,12 @@ describe("CCC shared schema migration", () => {
     expect(programmeMigration).toContain("add column if not exists match_status text");
     expect(programmeMigration).toContain("add column if not exists lure_type text");
     expect(programmeMigration).toContain("add column if not exists wm_buffer boolean");
+  });
+
+  it("adds session feedback observations and population scores", () => {
+    expect(feedbackMigration).toContain("public.coach_metric_observations");
+    expect(feedbackMigration).toContain("public.coach_metric_norms");
+    expect(feedbackMigration).toContain("public.coach_metric_standardized_scores");
+    expect(feedbackMigration).toContain("100 + 15");
   });
 });

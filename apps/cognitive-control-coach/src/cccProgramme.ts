@@ -1,5 +1,6 @@
 import { CCC_DELAYED_RECHECK, CCC_REGIME_PAIRS } from "./cccConfig";
 import { hashSeed } from "./random";
+import { buildCccSessionMetrics } from "./cccFeedback";
 import type { CccSavedJourney } from "./cccStorage";
 import type {
   CccAttentionBlockPlan,
@@ -69,6 +70,7 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
       failedFinalDelayedChecks: 0,
     },
     sessions: [],
+    proofScores: [],
     createdAt: timestamp,
     updatedAt: timestamp,
     completedAt: null,
@@ -319,6 +321,7 @@ export function applyCompletedSession(
     startedAt: journey.startedAt,
     completedAt: journey.completedAt,
     gateDecisions: decisions,
+    metrics: buildCccSessionMetrics(Object.values(journey.blockResults).flat()),
   });
   programme.updatedAt = new Date().toISOString();
   return { programme, gateDecisions: decisions };
