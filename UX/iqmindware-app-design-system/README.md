@@ -327,6 +327,16 @@ UX/iqmindware-app-design-system/tokens.css
 
 The Cognitive Control Coach stylesheet aliases shared tokens locally so its product-specific styles remain isolated.
 
+### Multi-session evidence states
+
+Session completion and transfer status are separate interface states. A completed session may show what evidence was recorded, but it must not use the full-transfer treatment unless the versioned programme gate has passed.
+
+- Use neutral or cyan treatment for an active programme, completed session, scheduled recovery or delayed wait.
+- Use explicit text for missing carrier-change, recovery, return, mixed-format and delayed evidence; never rely on colour alone.
+- Reserve the lime completion treatment and “full transfer” label for the complete P1a/P1b/P1c gate, including fresh delayed re-entry.
+- Label the supported route as “supported completion”; it does not inherit the full-transfer label.
+- Show the two environments selected for the current session without implying that one session covers the full four-environment programme.
+
 ## 13. Evidence and standards basis
 
 The system draws on:

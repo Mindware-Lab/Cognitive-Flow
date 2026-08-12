@@ -11,8 +11,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-dual-estimand-v0.3";
-export const CCC_CONFIG_VERSION = "ccc-relative-pilot-v0.3";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.4";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.4";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -64,6 +64,10 @@ export const CCC_REGIMES: Record<CccRegimeId, CccRegimeConfig> = {
 export const CCC_REGIME_PAIRS = [
   ["clear_sprint", "deep_check"],
   ["calculated_risk", "clean_precision"],
+  ["clear_sprint", "calculated_risk"],
+  ["clear_sprint", "clean_precision"],
+  ["calculated_risk", "deep_check"],
+  ["clean_precision", "deep_check"],
 ] as const satisfies readonly (readonly [CccRegimeId, CccRegimeId])[];
 
 export const CCC_RATIO_MAJORITY_COUNTS = {
@@ -91,6 +95,11 @@ export const CCC_WRAPPER_RESPONSE_LABELS: Record<CccWrapperId, CccResponseLabels
   },
 };
 
+export const CCC_WM_RESPONSE_LABELS: CccResponseLabels = {
+  answerOptions: ["match", "different"],
+  labels: { match: "Match", different: "Different" },
+};
+
 export const CCC_P0_PRACTICE_VALID_TRIALS = 4;
 export const CCC_SIGNAL_ANCHOR_VALID_TRIALS = 24;
 
@@ -103,7 +112,7 @@ export const CCC_P0_BLOCK_MICROCYCLES = {
 } as const;
 
 export const CCC_RELATIONAL_WM: CccRelationalWmConfig = {
-  onsetToOnsetCadenceMs: 4500,
+  onsetToOnsetCadenceMs: 5000,
   responseDeadlineMs: 4000,
   initialNBack: 1,
   launchProgression: [1, 2],
@@ -136,7 +145,7 @@ export const CCC_SHIFT_VIEW: CccShiftViewConfig = {
 };
 
 export function answersForWrapper(wrapperId: CccWrapperId): readonly CccAttentionAnswer[] {
-  return CCC_WRAPPER_RESPONSE_LABELS[wrapperId].answerOptions;
+  return CCC_WRAPPER_RESPONSE_LABELS[wrapperId].answerOptions as readonly CccAttentionAnswer[];
 }
 
 export function validateCccPilotConfig(): string[] {

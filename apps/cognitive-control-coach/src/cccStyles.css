@@ -1555,6 +1555,164 @@ p {
   max-width: 880px;
 }
 
+.ccc-full-transfer-view .ccc-main {
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 22%, rgba(204, 255, 102, 0.22), transparent 34%),
+    linear-gradient(160deg, rgba(34, 170, 255, 0.08), rgba(255, 255, 255, 0.96) 48%, rgba(204, 255, 102, 0.11));
+}
+
+.ccc-full-transfer-card {
+  width: min(820px, 100%);
+  padding: clamp(18px, 2.6vh, 28px) clamp(18px, 3.6vw, 44px);
+  display: grid;
+  justify-items: center;
+  gap: clamp(8px, 1.25vh, 13px);
+  overflow: hidden;
+  border: 1px solid rgba(121, 184, 14, 0.35);
+  border-radius: 28px;
+  text-align: center;
+  background: rgba(255, 255, 255, 0.94);
+  box-shadow: 0 24px 70px rgba(39, 100, 183, 0.16), 0 0 0 6px rgba(204, 255, 102, 0.12);
+}
+
+.ccc-full-transfer-card h1 {
+  max-width: 760px;
+  margin: 0;
+  color: var(--navy);
+  font-size: clamp(2rem, min(5vw, 6vh), 3.7rem);
+  line-height: 0.98;
+  letter-spacing: -0.045em;
+}
+
+.ccc-achievement-lead {
+  max-width: 680px;
+  margin: 0;
+  color: var(--muted);
+  font-size: clamp(0.9rem, 1.8vw, 1.05rem);
+  line-height: 1.42;
+}
+
+.ccc-achievement-burst {
+  position: relative;
+  width: clamp(92px, 14vh, 126px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  animation: ccc-achievement-pop 620ms cubic-bezier(0.2, 0.9, 0.2, 1.18) both;
+}
+
+.ccc-achievement-burst svg {
+  width: 100%;
+  height: 100%;
+  padding: 17px;
+  overflow: visible;
+  border-radius: 50%;
+  fill: rgba(204, 255, 102, 0.34);
+  stroke: var(--blue-700);
+  stroke-width: 6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  background: linear-gradient(145deg, #f7ffe8, #eaf6ff);
+  box-shadow: 0 14px 34px rgba(39, 100, 183, 0.18), inset 0 0 0 2px rgba(121, 184, 14, 0.26);
+}
+
+.ccc-achievement-burst .ccc-trophy-check {
+  fill: none;
+  stroke: #4e7000;
+  stroke-width: 8;
+}
+
+.ccc-achievement-burst > span {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--cyan);
+  animation: ccc-achievement-spark 1.4s ease-in-out infinite alternate;
+}
+
+.ccc-achievement-burst > span:nth-child(1) { left: -8px; top: 24%; transform: rotate(18deg); }
+.ccc-achievement-burst > span:nth-child(2) { right: -6px; top: 18%; background: var(--lime-dark); transform: rotate(38deg); animation-delay: -0.5s; }
+.ccc-achievement-burst > span:nth-child(3) { left: 4%; bottom: 2%; background: var(--blue-700); transform: rotate(52deg); animation-delay: -0.9s; }
+.ccc-achievement-burst > span:nth-child(4) { right: 2%; bottom: 4%; background: var(--control); transform: rotate(24deg); animation-delay: -0.25s; }
+.ccc-achievement-burst > span:nth-child(5) { left: 22%; top: -8px; background: var(--lime-dark); transform: rotate(62deg); animation-delay: -0.75s; }
+.ccc-achievement-burst > span:nth-child(6) { right: 20%; top: -6px; background: var(--cyan); transform: rotate(8deg); animation-delay: -1.1s; }
+
+.ccc-achievement-badge {
+  min-width: min(380px, 100%);
+  padding: 10px 22px;
+  display: grid;
+  gap: 1px;
+  border: 1px solid rgba(121, 184, 14, 0.38);
+  border-radius: 18px;
+  color: var(--navy);
+  background: linear-gradient(120deg, rgba(204, 255, 102, 0.25), rgba(34, 170, 255, 0.11));
+}
+
+.ccc-achievement-badge span,
+.ccc-achievement-badge small {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ccc-achievement-badge strong {
+  color: #4e7000;
+  font-size: clamp(1.15rem, 2.7vw, 1.6rem);
+  letter-spacing: 0.045em;
+}
+
+.ccc-achievement-evidence {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.ccc-achievement-evidence span {
+  padding: 7px 10px;
+  border: 1px solid rgba(34, 170, 255, 0.2);
+  border-radius: 999px;
+  color: var(--blue-700);
+  background: rgba(34, 170, 255, 0.06);
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.ccc-achievement-boundary {
+  max-width: 700px;
+  margin: 0;
+  padding: 9px 12px;
+  border-radius: 12px;
+  color: var(--muted);
+  background: var(--canvas);
+  font-size: 0.75rem;
+  line-height: 1.35;
+}
+
+.ccc-achievement-boundary strong {
+  color: var(--navy);
+}
+
+.ccc-full-transfer-card .ccc-actions {
+  width: 100%;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+@keyframes ccc-achievement-pop {
+  from { opacity: 0; transform: translateY(12px) scale(0.72) rotate(-7deg); }
+  to { opacity: 1; transform: translateY(0) scale(1) rotate(0); }
+}
+
+@keyframes ccc-achievement-spark {
+  to { transform: translateY(-4px) rotate(82deg) scale(1.2); }
+}
+
 .ccc-reconnect-card {
   margin: clamp(14px, 2.5vh, 24px) 0;
   flex-direction: column;
@@ -1892,6 +2050,46 @@ p {
 }
 
 @media (max-width: 430px) {
+  .ccc-full-transfer-card {
+    padding: 10px;
+    gap: 5px;
+    border-radius: 20px;
+  }
+
+  .ccc-full-transfer-card h1 {
+    font-size: 1.75rem;
+  }
+
+  .ccc-achievement-burst {
+    width: 72px;
+  }
+
+  .ccc-achievement-lead {
+    font-size: 0.78rem;
+    line-height: 1.25;
+  }
+
+  .ccc-achievement-badge {
+    min-width: 0;
+    padding: 6px 12px;
+    border-radius: 13px;
+  }
+
+  .ccc-achievement-evidence {
+    gap: 4px;
+  }
+
+  .ccc-achievement-evidence span {
+    padding: 4px 6px;
+    font-size: 0.6rem;
+  }
+
+  .ccc-achievement-boundary {
+    padding: 6px 8px;
+    font-size: 0.64rem;
+    line-height: 1.24;
+  }
+
   .ccc-account-button {
     min-height: 44px;
     padding: 0 10px;

@@ -12,6 +12,7 @@ export interface CccDurationAssumptions {
   meanSignalExposureMs: number;
   signalDecisionMs: number;
   policyDecisionMs: number;
+  wmItemCadenceMs: number;
   manualScreenMs: number;
 }
 
@@ -30,6 +31,13 @@ export interface CccDurationEstimate {
  */
 export const CCC_GUIDED_MANUAL_SCREEN_COUNT = 36;
 
+/** Later sessions omit workflow selection and practice but retain five guided screens per block. */
+export function guidedManualScreenCount(plan: CccSessionPlan): number {
+  return plan.programmeSessionKind === "p0_foundation"
+    ? CCC_GUIDED_MANUAL_SCREEN_COUNT
+    : plan.blocks.length * 5 + 2;
+}
+
 /** Person-level planning scenarios. Pilot telemetry must replace these values. */
 export const CCC_DURATION_ASSUMPTIONS: Record<CccDurationScenarioId, CccDurationAssumptions> = {
   fast: {
@@ -37,6 +45,7 @@ export const CCC_DURATION_ASSUMPTIONS: Record<CccDurationScenarioId, CccDuration
     meanSignalExposureMs: 350,
     signalDecisionMs: 650,
     policyDecisionMs: 900,
+    wmItemCadenceMs: 5000,
     manualScreenMs: 6500,
   },
   typical: {
@@ -44,6 +53,7 @@ export const CCC_DURATION_ASSUMPTIONS: Record<CccDurationScenarioId, CccDuration
     meanSignalExposureMs: 500,
     signalDecisionMs: 850,
     policyDecisionMs: 1250,
+    wmItemCadenceMs: 5000,
     manualScreenMs: 11000,
   },
   deliberate: {
@@ -51,6 +61,7 @@ export const CCC_DURATION_ASSUMPTIONS: Record<CccDurationScenarioId, CccDuration
     meanSignalExposureMs: 700,
     signalDecisionMs: 1250,
     policyDecisionMs: 1900,
+    wmItemCadenceMs: 5000,
     manualScreenMs: 17000,
   },
 };
@@ -68,7 +79,8 @@ export function estimateCccSessionDuration(
 ): CccDurationEstimate {
   const assumptions = CCC_DURATION_ASSUMPTIONS[scenario];
   const signalCount = plan.trials.filter((trial) => trial.estimand === "signal_capacity").length;
-  const policyCount = plan.trials.length - signalCount;
+  const wmCount = plan.trials.filter((trial) => trial.estimand === "relational_wm").length;
+  const policyCount = plan.trials.length - signalCount - wmCount;
   const practiceBody = CCC_TRIAL_TIMING.fixationCueMs
     + assumptions.practiceDecisionMs
     + CCC_TRIAL_TIMING.outcomeFeedbackMs;
@@ -80,14 +92,16 @@ export function estimateCccSessionDuration(
     + assumptions.policyDecisionMs
     + CCC_TRIAL_TIMING.outcomeFeedbackMs;
   const policyIntervals = plan.blocks
-    .filter((block) => block.estimand !== "signal_capacity")
+    .filter((block) => block.estimand === "policy" || block.estimand === "transfer")
     .reduce((total, block) => total + Math.max(0, block.validTrialCount - 1) * CCC_TRIAL_TIMING.interTrialIntervalMs, 0);
-  const automatedTaskMs = trialSequenceMs(CCC_P0_PRACTICE_VALID_TRIALS, practiceBody)
+  const practiceCount = plan.programmeSessionKind === "p0_foundation" ? CCC_P0_PRACTICE_VALID_TRIALS : 0;
+  const automatedTaskMs = trialSequenceMs(practiceCount, practiceBody)
     + trialSequenceMs(signalCount, signalBody)
     + policyCount * policyBody
     + policyIntervals
+    + wmCount * assumptions.wmItemCadenceMs
     + (plan.shiftViewEligible ? CCC_SHIFT_VIEW.durationMs : 0);
-  const manualScreenMs = CCC_GUIDED_MANUAL_SCREEN_COUNT * assumptions.manualScreenMs;
+  const manualScreenMs = guidedManualScreenCount(plan) * assumptions.manualScreenMs;
   const totalMs = automatedTaskMs + manualScreenMs;
   return {
     scenario,

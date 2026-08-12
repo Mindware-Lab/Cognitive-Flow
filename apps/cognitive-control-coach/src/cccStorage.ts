@@ -3,13 +3,17 @@ import type {
   CccAttentionTrialDefinition,
   CccRecordedTrial,
   CccRuntimeEvent,
+  CccProgrammeState,
   CccSessionPlan,
 } from "./cccTypes";
 
-export const CCC_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:p0:v0.3";
+export const CCC_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:journey:v0.4";
+export const CCC_LEGACY_LOCAL_STORAGE_KEY = "iqmindware:cognitive-control-coach:p0:v0.3";
+export const CCC_PROGRAMME_STORAGE_KEY = "iqmindware:cognitive-control-coach:programme:v0.4";
 
 export interface CccSavedJourney {
-  storageVersion: 2;
+  storageVersion: 3;
+  programme: CccProgrammeState;
   plan: CccSessionPlan;
   workflowChoice: WorkflowChoice;
   activeBlockIndex: number;
@@ -27,12 +31,12 @@ export interface CccSavedJourney {
 
 export function loadCccJourney(storage: Pick<Storage, "getItem"> = window.localStorage): CccSavedJourney | null {
   try {
-    const raw = storage.getItem(CCC_LOCAL_STORAGE_KEY);
+    const raw = storage.getItem(CCC_LOCAL_STORAGE_KEY) || storage.getItem(CCC_LEGACY_LOCAL_STORAGE_KEY);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Partial<CccSavedJourney>;
-    if (parsed.storageVersion !== 2 || !parsed.plan?.sessionId || !parsed.workflowChoice) return null;
+    if (![2, 3].includes(Number(parsed.storageVersion)) || !parsed.plan?.sessionId || !parsed.workflowChoice) return null;
     if (!Array.isArray(parsed.plan.blocks) || !Array.isArray(parsed.plan.trials)) return null;
-    return parsed as CccSavedJourney;
+    return { ...parsed, storageVersion: 3 } as CccSavedJourney;
   } catch {
     return null;
   }
@@ -41,10 +45,32 @@ export function loadCccJourney(storage: Pick<Storage, "getItem"> = window.localS
 export function saveCccJourney(journey: CccSavedJourney, storage: Pick<Storage, "setItem"> = window.localStorage): void {
   journey.updatedAt = new Date().toISOString();
   storage.setItem(CCC_LOCAL_STORAGE_KEY, JSON.stringify(journey));
+  storage.setItem(CCC_PROGRAMME_STORAGE_KEY, JSON.stringify(journey.programme));
 }
 
 export function clearCccJourney(storage: Pick<Storage, "removeItem"> = window.localStorage): void {
   storage.removeItem(CCC_LOCAL_STORAGE_KEY);
+  storage.removeItem(CCC_LEGACY_LOCAL_STORAGE_KEY);
+}
+
+export function loadCccProgramme(storage: Pick<Storage, "getItem"> = window.localStorage): CccProgrammeState | null {
+  try {
+    const raw = storage.getItem(CCC_PROGRAMME_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as Partial<CccProgrammeState>;
+    return parsed.programmeVersion === 1 && parsed.programmeRunId ? parsed as CccProgrammeState : null;
+  } catch {
+    return null;
+  }
+}
+
+export function saveCccProgramme(programme: CccProgrammeState, storage: Pick<Storage, "setItem"> = window.localStorage): void {
+  programme.updatedAt = new Date().toISOString();
+  storage.setItem(CCC_PROGRAMME_STORAGE_KEY, JSON.stringify(programme));
+}
+
+export function clearCccProgramme(storage: Pick<Storage, "removeItem"> = window.localStorage): void {
+  storage.removeItem(CCC_PROGRAMME_STORAGE_KEY);
 }
 
 export function completedValidTrials(journey: CccSavedJourney): number {

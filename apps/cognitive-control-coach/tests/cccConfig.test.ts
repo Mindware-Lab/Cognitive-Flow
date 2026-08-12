@@ -40,7 +40,7 @@ describe("CCC pilot configuration", () => {
 
   it("captures relational WM and delayed-unlock parameters for later P1 stages", () => {
     expect(CCC_RELATIONAL_WM).toMatchObject({
-      onsetToOnsetCadenceMs: 4500,
+      onsetToOnsetCadenceMs: 5000,
       responseDeadlineMs: 4000,
       initialNBack: 1,
       matchFrequency: 0.5,

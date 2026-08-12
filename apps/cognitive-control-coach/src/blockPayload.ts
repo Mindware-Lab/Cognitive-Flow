@@ -1,6 +1,7 @@
 import {
   CCC_CONFIG_VERSION,
   CCC_PROTOCOL_VERSION,
+  CCC_RELATIONAL_WM,
   CCC_REGIMES,
   CCC_TRIAL_TIMING,
 } from "./cccConfig";
@@ -28,6 +29,10 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
     clientSessionId: plan.sessionId,
     sessionType: plan.sessionType,
     stage: plan.stage,
+    programmeRunId: plan.programmeRunId,
+    programmeSessionNumber: plan.programmeSessionNumber,
+    programmeSessionKind: plan.programmeSessionKind,
+    delayedRecheckNotBefore: plan.delayedRecheckNotBefore,
     stepId: block.stepId,
     phase: block.phase,
     protocolVersion: CCC_PROTOCOL_VERSION,
@@ -47,13 +52,15 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
       sourceWrapperId: block.sourceWrapperId,
       strictCarrierTransferBoundary: block.strictCarrierTransferBoundary,
       diagnostic: block.diagnostic,
+      operator: block.operator,
+      wmNLevel: block.wmNLevel,
       plannedValidTrialCount: block.validTrialCount,
     },
     trials: input.results.map((result) => {
       const trial = result.trial;
       const scoring = result.scoring;
       const regime = CCC_REGIMES[trial.regimeId];
-      const isValueTrial = trial.presentationMode === "self_paced_value" && !trial.practice;
+      const isValueTrial = trial.presentationMode === "self_paced_value" && !trial.practice && !trial.wmBuffer;
       return {
         clientTrialId: trial.id,
         trialIndex: trial.trialIndex,
@@ -75,6 +82,10 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
         evidenceLevel: trial.ratio,
         majorityRatio: trial.ratio,
         majorityCount: trial.majorityCount,
+        nLevel: trial.wmNLevel,
+        matchStatus: trial.wmBuffer ? "buffer" : trial.wmIsMatch === null ? null : trial.wmIsMatch ? "match" : "different",
+        lureType: trial.wmLureType,
+        wmBuffer: trial.wmBuffer,
         initialReward: isValueTrial ? regime.correctPot : null,
         drainRatePerSecond: isValueTrial ? regime.drainPointsPerSecond : null,
         errorLoss: isValueTrial ? regime.errorLoss : null,
@@ -82,7 +93,9 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
         minimumExposureMs: isValueTrial ? CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs : null,
         deadlineMs: trial.presentationMode === "masked_forced_choice"
           ? CCC_TRIAL_TIMING.signalResponseDeadlineMs
-          : CCC_TRIAL_TIMING.maxResponseWindowMs,
+          : trial.operator === "relational_wm"
+            ? CCC_RELATIONAL_WM.responseDeadlineMs
+            : CCC_TRIAL_TIMING.maxResponseWindowMs,
         correctResponse: trial.correctResponse,
         response: result.response,
         responseClass: scoring.responseClass,

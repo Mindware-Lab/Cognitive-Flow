@@ -1,6 +1,8 @@
 # Cognitive Control Coach Dual-Estimand Protocol v0.3
 
-Status: implementation contract for early-access P0 pilot
+Status: superseded P0 implementation contract; retained as design history
+
+Superseded by `COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` for the implemented P0/P1a/P1b/P1c programme. The signal/policy separation and MFT-M response boundary remain in force.
 
 Date: 12 August 2026
 

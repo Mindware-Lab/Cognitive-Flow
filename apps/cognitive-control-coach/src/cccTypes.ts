@@ -1,15 +1,18 @@
 export type CccAppId = "cognitive_control_coach";
 export type CccStageId = "P0" | "P1a" | "P1b" | "P1c" | "PublicLaunch";
 export type CccOperator = "attention" | "relational_wm";
+export type CccSessionOperator = CccOperator | "integrated";
 export type CccCarrier = "arrow" | "flow";
 export type CccReferenceFrame = "absolute" | "relative";
 export type CccWrapperId = "arrow_abs" | "flow_abs" | "arrow_rel" | "flow_rel";
 export type CccRatio = "5:0" | "4:1" | "3:2";
 export type CccRegimeId = "clear_sprint" | "calculated_risk" | "clean_precision" | "deep_check";
 export type CccAttentionAnswer = "left" | "right" | "in" | "out";
-export type CccResponseChoice = CccAttentionAnswer;
+export type CccWmAnswer = "match" | "different";
+export type CccResponseChoice = CccAttentionAnswer | CccWmAnswer;
+export type CccStimulusRelation = CccAttentionAnswer | "cw" | "ccw";
 export type CccResponseClass = "answer" | "omission" | "invalid";
-export type CccEstimand = "practice" | "signal_capacity" | "policy" | "transfer";
+export type CccEstimand = "practice" | "signal_capacity" | "policy" | "transfer" | "relational_wm";
 export type CccPresentationMode = "masked_forced_choice" | "self_paced_value";
 export type CccTimingQuality = "good" | "acceptable" | "poor" | "not_applicable";
 export type CccTransitionKind =
@@ -22,8 +25,15 @@ export type CccTransitionKind =
   | "return_to_now"
   | "operator_integration"
   | "supported_unlock";
-export type CccSessionType = "guided_p0" | "practice" | "portability_check" | "return_to_now";
-export type CccAttentionTrialPurpose = "training" | "practice" | "carrier_probe" | "recovery" | "return" | "reference_extension" | "mix" | "return_to_now";
+export type CccSessionType = "guided_p0" | "practice" | "portability_check" | "wm_bridge" | "return_to_now";
+export type CccProgrammeSessionKind =
+  | "p0_foundation"
+  | "p1a_consolidation"
+  | "p1a_delayed_recheck"
+  | "p1b_wm_bridge"
+  | "p1c_operator_integration"
+  | "p1c_delayed_integration";
+export type CccAttentionTrialPurpose = "training" | "practice" | "carrier_probe" | "recovery" | "return" | "reference_extension" | "mix" | "delayed_recheck" | "wm_training" | "wm_carrier_probe" | "wm_recovery" | "wm_return" | "wm_mix" | "return_to_now" | "operator_integration";
 export type CccP0Phase =
   | "practice"
   | "signal_anchor"
@@ -32,6 +42,78 @@ export type CccP0Phase =
   | "flow_rel_recovery"
   | "arrow_rel_return"
   | "relative_mix";
+export type CccProgrammePhase = CccP0Phase
+  | "p1a_arrow_stabilisation"
+  | "p1a_flow_first_contact"
+  | "p1a_flow_recovery"
+  | "p1a_arrow_return"
+  | "p1a_relative_mix"
+  | "p1a_delayed_recheck"
+  | "p1b_attention_bridge"
+  | "p1b_wm_arrow_stabilisation"
+  | "p1b_wm_flow_first_contact"
+  | "p1b_wm_flow_recovery"
+  | "p1b_wm_arrow_return"
+  | "p1b_wm_relative_mix"
+  | "p1c_attention_entry"
+  | "p1c_delayed_reentry"
+  | "p1c_wm_hold"
+  | "p1c_attention_reentry"
+  | "p1c_operator_mix";
+
+export type CccTransferStatus = "building" | "attention_portable" | "supported_unlock";
+export type CccProgrammeStatus = "active" | "programme_complete" | "full_transfer" | "supported_completion";
+
+export interface CccProgrammeEvidence {
+  carrierFirstContactObserved: boolean;
+  carrierFirstContactPassed: boolean;
+  recoveryPasses: number;
+  returnPasses: number;
+  mixedPasses: number;
+  delayedPasses: number;
+  failedDelayedChecks: number;
+  policyCoverageSessions: number;
+  wmStabilityPasses: number;
+  wmRecoveryPasses: number;
+  wmReturnPasses: number;
+  wmMixedPasses: number;
+  returnToNowPasses: number;
+  integrationPasses: number;
+  integrationCarriers: CccCarrier[];
+  finalDelayedPasses: number;
+  failedFinalDelayedChecks: number;
+}
+
+export interface CccProgrammeSessionSummary {
+  sessionId: string;
+  sessionNumber: number;
+  stage: CccStageId;
+  kind: CccProgrammeSessionKind;
+  regimePair: readonly [CccRegimeId, CccRegimeId];
+  startedAt: string;
+  completedAt: string;
+  gateDecisions: string[];
+}
+
+export interface CccProgrammeState {
+  programmeVersion: 1;
+  programmeRunId: string;
+  status: CccProgrammeStatus;
+  currentStage: Exclude<CccStageId, "PublicLaunch"> | "complete";
+  transferStatus: CccTransferStatus;
+  sessionNumber: number;
+  attentionSessionCount: number;
+  wmLevel: 1 | 2;
+  delayedRecheckDueAt: string | null;
+  delayedRecheckWindowEndsAt: string | null;
+  regimeExposure: Record<CccRegimeId, number>;
+  pairHistory: string[];
+  evidence: CccProgrammeEvidence;
+  sessions: CccProgrammeSessionSummary[];
+  createdAt: string;
+  updatedAt: string;
+  completedAt: string | null;
+}
 
 export interface CccPoint {
   x: number;
@@ -93,14 +175,14 @@ export interface CccShiftViewConfig {
 }
 
 export interface CccResponseLabels {
-  answerOptions: readonly CccAttentionAnswer[];
+  answerOptions: readonly CccResponseChoice[];
   labels: Partial<Record<CccResponseChoice, string>>;
 }
 
 export interface CccStimulusItem {
   positionIndex: number;
   position: CccPoint;
-  relation: CccAttentionAnswer;
+  relation: CccStimulusRelation;
   vector: CccPoint;
 }
 
@@ -110,8 +192,8 @@ export interface CccAttentionBlockPlan {
   stage: CccStageId;
   stepId: string;
   label: string;
-  operator: "attention";
-  phase: CccP0Phase;
+  operator: CccOperator;
+  phase: CccProgrammePhase;
   estimand: CccEstimand;
   presentationMode: CccPresentationMode;
   wrapperId: CccWrapperId | "mixed_abs" | "mixed_rel";
@@ -125,6 +207,7 @@ export interface CccAttentionBlockPlan {
   practice: boolean;
   diagnostic: boolean;
   shiftViewBefore: boolean;
+  wmNLevel: 1 | 2 | null;
 }
 
 export interface CccAttentionTrialDefinition {
@@ -135,8 +218,8 @@ export interface CccAttentionTrialDefinition {
   blockTrialIndex: number;
   stage: CccStageId;
   stepId: string;
-  phase: CccP0Phase;
-  operator: "attention";
+  phase: CccProgrammePhase;
+  operator: CccOperator;
   estimand: CccEstimand;
   presentationMode: CccPresentationMode;
   purpose: CccAttentionTrialPurpose;
@@ -151,9 +234,9 @@ export interface CccAttentionTrialDefinition {
   balancedSlotIndex: number;
   ratio: CccRatio;
   majorityCount: 3 | 4 | 5;
-  targetClass: CccAttentionAnswer;
-  correctResponse: CccAttentionAnswer;
-  answerOptions: readonly CccAttentionAnswer[];
+  targetClass: CccStimulusRelation;
+  correctResponse: CccResponseChoice;
+  answerOptions: readonly CccResponseChoice[];
   responseLabels: CccResponseLabels;
   stimulusItems: CccStimulusItem[];
   coherenceNoiseLevel: 0;
@@ -163,6 +246,10 @@ export interface CccAttentionTrialDefinition {
   assistedFirstContact: boolean;
   exposureMsRequested: number | null;
   signalStaircaseLevel: number | null;
+  wmNLevel: 1 | 2 | null;
+  wmIsMatch: boolean | null;
+  wmBuffer: boolean;
+  wmLureType: "none" | "wrong_lag" | null;
   replacementOfTrialId: string | null;
 }
 
@@ -174,7 +261,11 @@ export interface CccSessionPlan {
   sessionId: string;
   sessionType: CccSessionType;
   stage: CccStageId;
-  operator: CccOperator;
+  operator: CccSessionOperator;
+  programmeRunId: string | null;
+  programmeSessionNumber: number;
+  programmeSessionKind: CccProgrammeSessionKind;
+  delayedRecheckNotBefore: string | null;
   regimePair: readonly [CccRegimeId, CccRegimeId];
   shiftViewEligible: boolean;
   blocks: CccAttentionBlockPlan[];

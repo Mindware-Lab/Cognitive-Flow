@@ -37,7 +37,10 @@ import type {
 export interface CreateP0AttentionPlanInput {
   sessionId?: string;
   planId?: string;
-  regimePairIndex?: 0 | 1;
+  regimePairIndex?: number;
+  regimePair?: readonly [CccRegimeId, CccRegimeId];
+  programmeRunId?: string | null;
+  programmeSessionNumber?: number;
   /** Test-only override for the initial relative-arrow block. */
   microcyclesPerWrapper?: number;
   seed?: string;
@@ -170,6 +173,10 @@ function buildTrial(input: {
     assistedFirstContact: input.assistedFirstContact,
     exposureMsRequested: input.exposureMsRequested ?? null,
     signalStaircaseLevel: input.signalStaircaseLevel ?? null,
+    wmNLevel: null,
+    wmIsMatch: null,
+    wmBuffer: false,
+    wmLureType: null,
     replacementOfTrialId: input.replacementOfTrialId ?? null,
   };
 }
@@ -334,8 +341,8 @@ export function createP0AttentionCarrierTransferPlan(input: CreateP0AttentionPla
   const random = mulberry32(hashSeed(seed));
   const sessionId = input.sessionId || `ccc-p0-${hashSeed(seed).toString(16)}`;
   const planId = input.planId || `${sessionId}:p0`;
-  const pairIndex = input.regimePairIndex ?? (hashSeed(seed) % CCC_REGIME_PAIRS.length === 0 ? 0 : 1);
-  const basePair = CCC_REGIME_PAIRS[pairIndex];
+  const pairIndex = input.regimePairIndex ?? hashSeed(seed) % CCC_REGIME_PAIRS.length;
+  const basePair = input.regimePair || CCC_REGIME_PAIRS[pairIndex];
   const regimePair = (hashSeed(`${seed}:niche-order`) % 2 === 0 ? [...basePair] : [...basePair].reverse()) as [CccRegimeId, CccRegimeId];
   const arrowMicrocycles = input.microcyclesPerWrapper ?? CCC_P0_BLOCK_MICROCYCLES.arrowRelStabilisation;
   const blocks: CccAttentionBlockPlan[] = [];
@@ -410,6 +417,7 @@ export function createP0AttentionCarrierTransferPlan(input: CreateP0AttentionPla
       practice: false,
       diagnostic: spec.diagnostic,
       shiftViewBefore: spec.shiftViewBefore,
+      wmNLevel: null,
     });
   });
 
@@ -422,6 +430,10 @@ export function createP0AttentionCarrierTransferPlan(input: CreateP0AttentionPla
     sessionType: "guided_p0",
     stage: "P0",
     operator: "attention",
+    programmeRunId: input.programmeRunId ?? null,
+    programmeSessionNumber: input.programmeSessionNumber ?? 1,
+    programmeSessionKind: "p0_foundation",
+    delayedRecheckNotBefore: null,
     regimePair,
     shiftViewEligible: true,
     blocks,
@@ -482,6 +494,7 @@ export function createP0PracticeBlock(plan: CccSessionPlan): CccAttentionBlockPl
     practice: true,
     diagnostic: false,
     shiftViewBefore: false,
+    wmNLevel: null,
   };
 }
 
@@ -499,7 +512,7 @@ export function adaptSignalTrial(
     trialIndex: original.trialIndex,
     blockTrialIndex: original.blockTrialIndex,
     stepId: original.stepId,
-    phase: original.phase,
+    phase: original.phase as CccP0Phase,
     estimand: original.estimand,
     presentationMode: original.presentationMode,
     purpose: original.purpose,
@@ -510,7 +523,7 @@ export function adaptSignalTrial(
     regimeId: original.regimeId,
     microcycleIndex: original.microcycleIndex,
     balancedSlotIndex: original.balancedSlotIndex,
-    targetClass: original.targetClass,
+    targetClass: original.targetClass as CccAttentionAnswer,
     ratio: condition.ratio,
     random,
     seed,
@@ -529,6 +542,15 @@ export function createCccReplacementTrial(
   trialIndex = original.trialIndex + replacementIndex * 10000,
 ): CccAttentionTrialDefinition {
   const seed = `${original.seed}:replacement:${replacementIndex}`;
+  if (original.operator === "relational_wm") {
+    return {
+      ...original,
+      id: `${original.id}-r${replacementIndex}`,
+      trialIndex,
+      seed,
+      replacementOfTrialId: original.replacementOfTrialId || original.id,
+    };
+  }
   const random = mulberry32(hashSeed(seed));
   return buildTrial({
     id: `${original.id}-r${replacementIndex}`,
@@ -537,7 +559,7 @@ export function createCccReplacementTrial(
     trialIndex,
     blockTrialIndex: original.blockTrialIndex,
     stepId: original.stepId,
-    phase: original.phase,
+    phase: original.phase as CccP0Phase,
     estimand: original.estimand,
     presentationMode: original.presentationMode,
     purpose: original.purpose,
@@ -548,7 +570,7 @@ export function createCccReplacementTrial(
     regimeId: original.regimeId,
     microcycleIndex: original.microcycleIndex,
     balancedSlotIndex: original.balancedSlotIndex,
-    targetClass: original.targetClass,
+    targetClass: original.targetClass as CccAttentionAnswer,
     ratio: original.ratio,
     random,
     seed,

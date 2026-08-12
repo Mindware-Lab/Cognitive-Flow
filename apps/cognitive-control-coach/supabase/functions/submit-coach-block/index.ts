@@ -39,12 +39,16 @@ Deno.serve(async (request) => {
       protocol_version: protocolVersion,
       config_version: configVersion,
       session_type: stringValue(payload.sessionType, "guided_p0"),
+      session_number: numberValue(payload.programmeSessionNumber),
       progression_stage: stringValue(payload.stage, "P0"),
       progression_step_id: stringValue(payload.stepId) || null,
       workflow_choice: stringValue(payload.workflowChoice) || null,
       metadata: {
         scoringVersion: stringValue(payload.scoringVersion),
         latestBlock: block,
+        programmeRunId: stringValue(payload.programmeRunId),
+        programmeSessionKind: stringValue(payload.programmeSessionKind),
+        delayedRecheckNotBefore: stringValue(payload.delayedRecheckNotBefore),
       },
     }, { onConflict: "user_id,app_id,client_session_id" })
     .select("id")
@@ -80,6 +84,10 @@ Deno.serve(async (request) => {
       evidence_level: stringValue(trial.evidenceLevel) || null,
       majority_ratio: stringValue(trial.majorityRatio) || null,
       majority_count: numberValue(trial.majorityCount),
+      n_level: numberValue(trial.nLevel),
+      match_status: stringValue(trial.matchStatus) || null,
+      lure_type: stringValue(trial.lureType) || null,
+      wm_buffer: booleanValue(trial.wmBuffer),
       target_class: stringValue(trial.relationClass) || null,
       correct_response: stringValue(trial.correctResponse) || null,
       response: stringValue(trial.response) || null,

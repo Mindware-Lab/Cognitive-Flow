@@ -15,6 +15,8 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain('from "./cccValue"');
     expect(mainSource).toContain("createP0AttentionCarrierTransferPlan");
     expect(mainSource).toContain("createCccReplacementTrial");
+    expect(mainSource).toContain("createProgrammeSessionPlan");
+    expect(mainSource).toContain("applyCompletedSession");
     expect(mainSource).toContain("adaptSignalTrial");
     expect(mainSource).toContain("buildCccBlockFeedback");
     expect(mainSource).toContain("startAmbiguousSphere");
@@ -47,7 +49,7 @@ describe("CCC playable integration", () => {
   it("uses the shared IQ Mindware app identity and accessible semantic colour roles", () => {
     expect(appStyles).toContain("@fontsource-variable/manrope/files/manrope-latin-wght-normal.woff2");
     expect(mainSource).toContain("iqmindware-app-design-system/tokens.css");
-    expect(mainSource).toContain('aria-label="Journey completion"');
+    expect(mainSource).toContain('aria-label="Programme completion"');
     expect(appStyles).toContain("var(--iqm-cyan)");
     expect(appStyles).toContain("var(--iqm-accumulate-text)");
     expect(appStyles).toContain("var(--iqm-commit-text)");
@@ -62,10 +64,10 @@ describe("CCC playable integration", () => {
   });
 
   it("paginates long explanations and keeps every state inside the viewport shell", () => {
-    for (const view of ["workflow", "practice_guide", "phase_guide", "block_insights", "block_reconnect", "complete_reconnect"]) {
+    for (const view of ["workflow", "practice_guide", "phase_guide", "block_insights", "block_reconnect", "full_transfer", "complete_reconnect"]) {
       expect(mainSource).toContain(`| "${view}"`);
     }
-    for (const action of ["show-workflow", "show-practice-guide", "show-phase-guide", "show-block-insights", "show-block-reconnect", "show-complete-reconnect"]) {
+    for (const action of ["show-workflow", "show-practice-guide", "show-phase-guide", "show-block-insights", "show-block-reconnect", "show-full-transfer", "show-complete-reconnect"]) {
       expect(mainSource).toContain(action);
     }
     expect(appStyles).toContain("html,\nbody,\n#app");
@@ -78,6 +80,15 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("CCC_SESSION_DURATION_LABEL");
     expect(appStyles).toContain("@media (max-height: 519px)");
     expect(appStyles).toContain("overflow-y: auto");
+  });
+
+  it("reserves the congratulations achievement screen for the full-transfer state", () => {
+    expect(mainSource).toContain('programme.status !== "full_transfer"');
+    expect(mainSource).toContain("Congratulations — Full Transfer!");
+    expect(mainSource).toContain("game achievement for the trained programme");
+    expect(mainSource).toContain('programme.status === "full_transfer" ? "full_transfer" : "complete"');
+    expect(appStyles).toContain(".ccc-full-transfer-card");
+    expect(appStyles).toContain("ccc-achievement-pop");
   });
 
   it("provides the three authenticated shared-schema functions used by the browser", () => {

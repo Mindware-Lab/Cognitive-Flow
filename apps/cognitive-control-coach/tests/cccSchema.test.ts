@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import migration from "../supabase/migrations/202608110001_cognitive_control_shared_schema.sql?raw";
 import dualEstimandMigration from "../supabase/migrations/202608120001_cognitive_control_dual_estimand.sql?raw";
+import programmeMigration from "../supabase/migrations/202608120002_cognitive_control_multisession_programme.sql?raw";
 
 describe("CCC shared schema migration", () => {
   it("creates the approved hybrid table shape", () => {
@@ -33,5 +34,12 @@ describe("CCC shared schema migration", () => {
     expect(dualEstimandMigration).toContain("add column if not exists counts_toward_quota boolean");
     expect(dualEstimandMigration).toContain("add column if not exists actual_stimulus_frames integer");
     expect(dualEstimandMigration).toContain("add column if not exists signal_staircase_level integer");
+  });
+
+  it("adds relational-memory and multi-session telemetry additively", () => {
+    expect(programmeMigration).toContain("add column if not exists n_level integer");
+    expect(programmeMigration).toContain("add column if not exists match_status text");
+    expect(programmeMigration).toContain("add column if not exists lure_type text");
+    expect(programmeMigration).toContain("add column if not exists wm_buffer boolean");
   });
 });

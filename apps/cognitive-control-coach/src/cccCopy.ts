@@ -1,4 +1,4 @@
-import type { CccP0Phase, CccRegimeId } from "./cccTypes";
+import type { CccProgrammePhase, CccRegimeId } from "./cccTypes";
 
 export type WorkflowChoice = "focused_work" | "study" | "ai_assisted" | "everyday_planning";
 
@@ -48,7 +48,7 @@ export const REGIME_COPY: Record<CccRegimeId, { title: string; instruction: stri
   },
 };
 
-export const PHASE_COPY: Record<Exclude<CccP0Phase, "practice">, {
+export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   eyebrow: string;
   title: string;
   body: string;
@@ -90,9 +90,111 @@ export const PHASE_COPY: Record<Exclude<CccP0Phase, "practice">, {
     body: "Radial arrows and expanding or contracting motion will alternate. The carrier changes; the relative decision stays the same.",
     bridge: "This resembles moving between sources, tools or views while keeping the same work or study goal active.",
   },
+  p1a_arrow_stabilisation: {
+    eyebrow: "Stabilise the rule",
+    title: "Strengthen In and Out before the next change",
+    body: "Use the same relative decision across two different work conditions. Accuracy, decision time and value remain separate readings.",
+    bridge: "A reliable strategy needs to hold before its presentation changes again.",
+  },
+  p1a_flow_first_contact: {
+    eyebrow: "Protected first contact",
+    title: "Meet the moving format without practice credit",
+    body: "Expansion and contraction appear as a fresh check. These first responses are kept apart from the recovery that follows.",
+    bridge: "The first attempt after a tool or display changes reveals disruption that later familiarity can hide.",
+  },
+  p1a_flow_recovery: {
+    eyebrow: "Recover in motion",
+    title: "Rebuild the same decision in moving evidence",
+    body: "Find the majority motion while clarity and decision costs change across the two work conditions.",
+    bridge: "Recovery means regaining the useful rule rather than merely spending more time with the new surface.",
+  },
+  p1a_arrow_return: {
+    eyebrow: "Protect the base",
+    title: "Return to arrows without losing the familiar rule",
+    body: "Come back to In and Out arrows after motion and check that adaptation has not displaced the original skill.",
+    bridge: "A portable strategy should still work when you return to the original tool or task view.",
+  },
+  p1a_relative_mix: {
+    eyebrow: "Stabilise across formats",
+    title: "Switch between arrows and motion",
+    body: "The surface changes from trial to trial while the relative decision remains In or Out.",
+    bridge: "Mixed practice asks you to preserve the goal while the source or interface changes repeatedly.",
+  },
+  p1a_delayed_recheck: {
+    eyebrow: "Fresh delayed re-check",
+    title: "See what returns after time away",
+    body: "This mixed-format check comes before any same-day recovery practice. Only new responses from the scheduled return count.",
+    bridge: "A skill that reappears after a break is stronger evidence than performance measured immediately after practice.",
+  },
+  p1b_attention_bridge: {
+    eyebrow: "Read the present",
+    title: "Find the current relation before holding it",
+    body: "Resolve the majority In or Out relation under the two work conditions. The next stage will ask whether that relation repeats over time.",
+    bridge: "Working memory cannot protect a relation that was not extracted accurately in the first place.",
+  },
+  p1b_wm_arrow_stabilisation: {
+    eyebrow: "Hold the relation",
+    title: "Compare the current arrow relation with an earlier one",
+    body: "Choose Match or Different. The first one or two patterns in each condition fill the memory buffer and are not scored.",
+    bridge: "This practises keeping the relevant relation available while new information arrives.",
+  },
+  p1b_wm_flow_first_contact: {
+    eyebrow: "Memory through change",
+    title: "Carry the held relation into motion",
+    body: "The memory rule stays Match or Different while arrows become moving relational patterns. First contact remains diagnostic.",
+    bridge: "The challenge is to preserve what matters when both new evidence and a new presentation arrive.",
+  },
+  p1b_wm_flow_recovery: {
+    eyebrow: "Recover the held relation",
+    title: "Settle the memory rule in motion",
+    body: "Continue comparing the current motion relation with the one held from one or two steps earlier.",
+    bridge: "Recovery means holding the same dependency after the surrounding format changes.",
+  },
+  p1b_wm_arrow_return: {
+    eyebrow: "Return with memory",
+    title: "Bring the relation back to arrows",
+    body: "Return to the familiar arrow display while keeping the same Match or Different memory rule.",
+    bridge: "Returning tests whether adapting to a new tool has made the original workflow less accessible.",
+  },
+  p1b_wm_relative_mix: {
+    eyebrow: "Hold across formats",
+    title: "Keep the relation while arrows and motion alternate",
+    body: "Compare relations across time even when the current surface differs from the one held in memory.",
+    bridge: "In real workflows, a dependency may begin in one source and need to be checked in another.",
+  },
+  p1c_attention_entry: {
+    eyebrow: "Return to now",
+    title: "Read the relation that is present",
+    body: "Begin with a direct majority decision in one format before memory load is added.",
+    bridge: "This establishes the current signal before asking you to hold and update it.",
+  },
+  p1c_delayed_reentry: {
+    eyebrow: "Final delayed re-entry",
+    title: "See whether the control loop returns after time away",
+    body: "This direct relation check comes before any same-day memory or re-entry practice. Its fresh timing is protected.",
+    bridge: "Returning after a break tests whether the trained control sequence can be re-entered without an immediate warm-up.",
+  },
+  p1c_wm_hold: {
+    eyebrow: "Hold over time",
+    title: "Keep the relation active as new patterns arrive",
+    body: "Choose Match or Different using the same display and work conditions as the preceding attention block.",
+    bridge: "The task moves from what matters now to whether that same relation persists across time.",
+  },
+  p1c_attention_reentry: {
+    eyebrow: "Re-enter the present",
+    title: "Release the memory rule and read what is here now",
+    body: "Return to a direct majority decision in the same format. This checks whether the simpler control operation remains available.",
+    bridge: "After holding several dependencies, effective work often requires returning cleanly to the immediate next decision.",
+  },
+  p1c_operator_mix: {
+    eyebrow: "Switch the operation",
+    title: "Hold the format while the mental operation changes",
+    body: "Use the same visual surface for a final relational-memory block. The format stays fixed at the operation boundary.",
+    bridge: "Flexible control means changing what you do with information without also needing the interface to change.",
+  },
 };
 
-export function workflowBridge(phase: Exclude<CccP0Phase, "practice">, workflow: WorkflowChoice): string {
+export function workflowBridge(phase: Exclude<CccProgrammePhase, "practice">, workflow: WorkflowChoice): string {
   const context = WORKFLOW_CHOICES[workflow];
   return `${PHASE_COPY[phase].bridge} For ${context.shortLabel}, the aim is to notice the change without dropping the task.`;
 }
