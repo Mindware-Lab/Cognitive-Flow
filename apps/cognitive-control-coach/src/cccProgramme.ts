@@ -227,25 +227,25 @@ export function applyCompletedSession(
       programme.currentStage = "P1b";
       programme.delayedRecheckDueAt = null;
       programme.delayedRecheckWindowEndsAt = null;
-      decisions.push("Fresh delayed re-check passed; trained Attention Portability gate opened.");
+      decisions.push("Your return check went well. The next set of hold-and-compare stages is ready.");
     } else {
       evidence.failedDelayedChecks += 1;
       programme.delayedRecheckDueAt = null;
       programme.delayedRecheckWindowEndsAt = null;
-      decisions.push("Delayed re-check did not meet the protected criterion; recovery remains active.");
+      decisions.push("This return check was harder. Your next session will keep working on the same skill.");
       if (supportedUnlockReady(programme)) {
         programme.transferStatus = "supported_unlock";
         programme.currentStage = "P1b";
-        decisions.push("Supported unlock opened the next training layer without awarding Attention Portability.");
+        decisions.push("The next set of stages is now ready.");
       }
     }
   } else if ((journey.plan.stage === "P0" || journey.plan.stage === "P1a") && immediateAttentionEvidenceReady(programme)) {
     programme.currentStage = "P1a";
     scheduleDelayed(programme, completedAt);
-    decisions.push("Carrier-change, recovery, return and mixed evidence recorded; a fresh delayed re-check is now scheduled.");
+    decisions.push("You completed this set. A return check is now scheduled after some time away.");
   } else if (journey.plan.stage === "P0" || journey.plan.stage === "P1a") {
     programme.currentStage = "P1a";
-    decisions.push("Immediate transfer evidence is still developing; the next session will consolidate the missing gate(s).");
+    decisions.push("You are still building consistency. The next session will revisit the areas that need more practice.");
   }
 
   if (passedPhase(journey, ["p1b_wm_arrow_stabilisation"], 12)) evidence.wmStabilityPasses += 1;
@@ -260,8 +260,8 @@ export function applyCompletedSession(
       && evidence.wmMixedPasses >= CCC_MIN_WM_TRANSFER_PASSES;
     programme.currentStage = wmReady ? "P1c" : "P1b";
     decisions.push(wmReady
-      ? "Relational-memory stability and carrier recovery passed; Return to Now integration opened."
-      : "Relational-memory evidence is still building at the current level.");
+      ? "You held and compared the patterns consistently. The final set of stages is ready."
+      : "You are still building consistency with holding and comparing patterns.");
   }
 
   if (passedPhase(journey, ["p1c_attention_reentry"], 12)) evidence.returnToNowPasses += 1;
@@ -292,21 +292,21 @@ export function applyCompletedSession(
         programme.delayedRecheckWindowEndsAt = null;
         programme.status = programme.transferStatus === "attention_portable" ? "full_transfer" : "supported_completion";
         decisions.push(programme.status === "full_transfer"
-          ? "The complete trained-format transfer contract passed, including delayed and bidirectional re-entry evidence."
-          : "The programme was completed through supported progression; full transfer was not awarded.");
+          ? "You completed every stage, including returning after time away and switching in both directions."
+          : "You completed the programme.");
       } else {
         evidence.failedFinalDelayedChecks += 1;
         programme.currentStage = "P1c";
         scheduleDelayed(programme, completedAt);
-        decisions.push("The final delayed re-entry did not meet criterion; a fresh check has been scheduled without awarding full transfer.");
+        decisions.push("This return check was harder. Another check has been scheduled after some time away.");
       }
     } else if (integrationReady) {
       programme.currentStage = "P1c";
       scheduleDelayed(programme, completedAt);
-      decisions.push("Repeated bidirectional re-entry is stable across both carriers; the final fresh delayed check is scheduled.");
+      decisions.push("You switched smoothly between finding and holding the pattern. A final return check is now scheduled.");
     } else {
       programme.currentStage = "P1c";
-      decisions.push("Bidirectional re-entry evidence is still building across both carriers.");
+      decisions.push("You are still building consistency when switching between finding and holding the pattern.");
     }
   }
 
@@ -346,11 +346,11 @@ export function programmeProgressPercent(programme: CccProgrammeState): number {
 export function missingTransferEvidence(programme: CccProgrammeState): string[] {
   const evidence = programme.evidence;
   const missing: string[] = [];
-  if (!evidence.carrierFirstContactObserved) missing.push("protected carrier change");
-  if (evidence.recoveryPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("repeated motion recovery");
-  if (evidence.returnPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("repeated return protection");
-  if (evidence.mixedPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("repeated mixed-format stability");
-  if (programme.transferStatus === "building") missing.push("fresh delayed re-check");
+  if (!evidence.carrierFirstContactObserved) missing.push("trying the moving format");
+  if (evidence.recoveryPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("more practice with motion");
+  if (evidence.returnPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("returning to arrows");
+  if (evidence.mixedPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("switching between formats");
+  if (programme.transferStatus === "building") missing.push("a check after time away");
   return missing;
 }
 

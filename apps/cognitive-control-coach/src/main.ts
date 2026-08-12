@@ -281,7 +281,7 @@ function header(): string {
 }
 
 function shell(content: string, className = ""): string {
-  return `<main class="ccc-app ${className}">${header()}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · cognitive training for demanding workflows</span><span>Non-clinical · broader benefit is checked, not assumed</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
+  return `<main class="ccc-app ${className}">${header()}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>For training and practice, not diagnosis</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
 }
 
 const JOURNEY_LABELS: Partial<Record<CccProgrammePhase, string>> = {
@@ -358,13 +358,13 @@ function renderWelcome(): string {
         : nextAction.type === "wait"
           ? `<button class="ccc-button ccc-button-primary" disabled>Re-check opens ${new Intl.DateTimeFormat("en-GB", { weekday: "short", hour: "2-digit", minute: "2-digit" }).format(new Date(nextAction.availableAt))}</button>`
           : programme.status === "full_transfer"
-            ? `<button class="ccc-button ccc-button-primary" data-action="show-full-transfer">View your Full Transfer achievement</button>`
+            ? `<button class="ccc-button ccc-button-primary" data-action="show-full-transfer">View your programme achievement</button>`
             : `<button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Review your programme</button>`;
   const programmeComplete = programme.status !== "active";
   const stageLabel = programme.currentStage === "P0" ? "Foundation"
-    : programme.currentStage === "P1a" ? "Attention portability"
-      : programme.currentStage === "P1b" ? "Relational memory"
-        : programme.currentStage === "P1c" ? "Return to Now"
+    : programme.currentStage === "P1a" ? "Changing patterns"
+      : programme.currentStage === "P1b" ? "Hold and compare"
+        : programme.currentStage === "P1c" ? "Switch and return"
           : "Programme complete";
   const missing = missingTransferEvidence(programme);
   return shell(hasJourney ? `
@@ -381,34 +381,34 @@ function renderWelcome(): string {
         <div class="ccc-summary-grid ccc-programme-summary">
           <article><span>Sessions completed</span><strong>${programme.sessionNumber}</strong></article>
           <article><span>Current layer</span><strong>${stageLabel}</strong></article>
-          <article><span>Transfer evidence</span><strong>${programme.transferStatus === "attention_portable" ? "Delayed gate passed" : programme.transferStatus === "supported_unlock" ? "Supported route" : "Building"}</strong></article>
+          <article><span>Current progress</span><strong>${programme.transferStatus === "attention_portable" ? "Return check complete" : programme.transferStatus === "supported_unlock" ? "Next stages ready" : "Building"}</strong></article>
         </div>
         <p>${programmeComplete
           ? programme.status === "full_transfer"
-            ? "All protected trained-format gates passed, including the delayed return and bidirectional re-entry checks."
-            : "The programme was completed through supported progression; it is not labelled full transfer."
+            ? "You completed every stage, including returning after a break and switching between task types."
+            : "You completed the programme."
           : nextAction.type === "wait"
-            ? "The next evidence must be collected after time away. Same-day practice cannot substitute for the protected delayed re-check."
+            ? "Your next check opens after some time away. Take a break and return when it is ready."
             : missing.length
-              ? `Still to establish: ${missing.slice(0, 3).join(", ")}.`
-              : "The next layer opens from the evidence already recorded."}</p>
+              ? `Coming up: ${missing.slice(0, 3).join(", ")}.`
+              : "Your next set of stages is ready."}</p>
         ${mainAction}
       </section>` : `
     <section class="ccc-hero">
       <div class="ccc-hero-copy">
-        <span class="ccc-kicker">Precision cognitive training</span>
+        <span class="ccc-kicker">Focus practice for real tasks</span>
         <h1>Focus, hold and update <em>what matters.</em></h1>
-        <p class="ccc-lead">Practise staying with the goal when distraction, interference or a changing format pulls your attention elsewhere.</p>
+        <p class="ccc-lead">Practise staying with the goal when distractions or a changing format pull your attention elsewhere.</p>
         <div class="ccc-hero-facts" aria-label="Journey overview">
-          <span>${CCC_SESSION_DURATION_LABEL}</span><span>Four decision environments</span><span>Evidence-gated progression</span>
+          <span>${CCC_SESSION_DURATION_LABEL}</span><span>Four work conditions</span><span>Progress at your pace</span>
         </div>
         <div class="ccc-actions">${mainAction}</div>
       </div>
       <aside class="ccc-control-panel">
-        <span class="ccc-kicker">One control loop</span>
+        <span class="ccc-kicker">Three simple moves</span>
         <h2>The pattern changes. The core moves stay the same.</h2>
         <div class="ccc-control-strip" aria-label="The three moves trained in this app">
-          <article><span>1</span><strong>Find what matters</strong><small>Separate the useful signal from competing information.</small></article>
+          <article><span>1</span><strong>Find what matters</strong><small>Spot the main pattern among competing information.</small></article>
           <article><span>2</span><strong>Take in enough</strong><small>Keep looking until the pattern is clear enough.</small></article>
           <article><span>3</span><strong>Make the call</strong><small>Commit to your best choice at the right time.</small></article>
         </div>
@@ -456,11 +456,11 @@ function renderPracticeGuide(): string {
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Before the journey</span><span>Practice is not scored</span></div>
-      <span class="ccc-kicker">A forced choice</span>
+      <span class="ccc-kicker">Making your choice</span>
       <h1>Look. Weigh. Choose.</h1>
       <div class="ccc-instruction-grid">
         <article><strong>Look first</strong><span>The buttons appear after a brief viewing moment.</span></article>
-        <article><strong>Choose every time</strong><span>Use Left or Right in practice. If uncertain, make your best choice.</span></article>
+        <article><strong>Choose every time</strong><span>Use Left or Right in practice. If you are unsure, make your best choice.</span></article>
         <article><strong>Points come later</strong><span>The guided stages add different costs and time pressure; practice stays unscored.</span></article>
       </div>
       <p class="ccc-soft-note">The practice is brief. It helps you learn the controls and does not count towards your journey.</p>
@@ -518,22 +518,22 @@ function renderPhaseGuide(): string {
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
       ${journeyRail(journey.activeBlockIndex, journey.activeBlockIndex)}
       <span class="ccc-kicker">Before you begin</span>
-      <h1>${isSignal ? "Brief pattern. Mask. Best choice." : isWm ? `Hold the relation · ${block.wmNLevel}-back` : "Two work conditions, one relation."}</h1>
+      <h1>${isSignal ? "Brief pattern. Mask. Best choice." : isWm ? `Hold and compare · ${block.wmNLevel === 1 ? "one step back" : "two steps back"}` : "Two work conditions, one pattern."}</h1>
       ${isSignal ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Adaptive view</strong><span>The display becomes shorter or harder as the check learns from your answers.</span></article>
-          <article><strong>Always choose</strong><span>Respond Left or Right after the mask, even when uncertain.</span></article>
-          <article><strong>Kept separate</strong><span>No points or niches enter this signal estimate.</span></article>
+          <article><strong>Changing view</strong><span>The display becomes shorter or harder as the task adjusts to your answers.</span></article>
+          <article><strong>Always choose</strong><span>Respond Left or Right after the mask, even when you are unsure.</span></article>
+          <article><strong>No points yet</strong><span>Focus only on getting the direction right.</span></article>
         </div>
-        <p class="ccc-soft-note">This is a short MFT-M-derived anchor. The app reports it as provisional, not as a literature-standard MFT-M-R assessment.</p>` : isWm ? `
+        <p class="ccc-soft-note">Look at the whole group of arrows rather than following just one.</p>` : isWm ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Extract</strong><span>Find the current majority relation across the five items.</span></article>
-          <article><strong>Hold and compare</strong><span>Compare it with the relation ${block.wmNLevel === 1 ? "one step" : "two steps"} earlier.</span></article>
-          <article><strong>Commit</strong><span>Choose Match or Different. Each item keeps a fixed five-second rhythm.</span></article>
+          <article><strong>Find</strong><span>Find the main In or Out pattern across the five items.</span></article>
+          <article><strong>Remember and compare</strong><span>Compare it with the pattern ${block.wmNLevel === 1 ? "one step" : "two steps"} earlier.</span></article>
+          <article><strong>Choose</strong><span>Choose Match or Different before the next pattern.</span></article>
         </div>
-        <p class="ccc-soft-note">The first ${block.wmNLevel === 1 ? "item" : "two items"} in each condition fills the memory buffer and is not scored. A missed deadline remains an omission.</p>` : `
+        <p class="ccc-soft-note">The first ${block.wmNLevel === 1 ? "item gives" : "two items give"} you something to compare with and ${block.wmNLevel === 1 ? "is" : "are"} not scored. If time ends, the task moves on.</p>` : `
         <div class="ccc-regime-grid">${regimeCards(block)}</div>
-        ${block.diagnostic ? `<p class="ccc-soft-note">Your first try in this format is kept apart from later recovery practice, so the change itself remains visible.</p>` : `<p class="ccc-soft-note">Every trial is In/Out or Expand/Contract. Make your best forced choice before time ends.</p>`}`}
+        ${block.diagnostic ? `<p class="ccc-soft-note">This is your first try with the new display. Keep using the same rule.</p>` : `<p class="ccc-soft-note">Every pattern is In or Out, or Expand or Contract. Make your best choice before time ends.</p>`}`}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-phase">${block.shiftViewBefore && !journey.shiftViewCompleted ? "Start the changeover" : "Begin this stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
@@ -601,7 +601,7 @@ function taskProgress(block: CccAttentionBlockPlan): string {
   const valid = currentResults().filter((result) => result.scoring.countsTowardQuota).length;
   const target = block.validTrialCount;
   const percentage = Math.min(100, Math.round(valid / Math.max(1, target) * 100));
-  return `<div class="ccc-task-progress" role="progressbar" aria-label="Stage observations" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(valid, target)}"><span style="width:${percentage}%"></span></div><small>${Math.min(valid, target)} of ${target} patterns</small>`;
+  return `<div class="ccc-task-progress" role="progressbar" aria-label="Stage progress" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(valid, target)}"><span style="width:${percentage}%"></span></div><small>${Math.min(valid, target)} of ${target} patterns</small>`;
 }
 
 function renderTask(): string {
@@ -614,7 +614,7 @@ function renderTask(): string {
   const isSignal = trial.estimand === "signal_capacity";
   const isWm = trial.operator === "relational_wm";
   const wrapperLabel = trial.operator === "relational_wm"
-    ? `${trial.wrapperId === "arrow_rel" ? "Relational arrows" : "Relational motion"} · ${trial.wmNLevel}-back`
+    ? `${trial.wrapperId === "arrow_rel" ? "In / Out arrows" : "Expand / Contract motion"} · ${trial.wmNLevel === 1 ? "one step back" : "two steps back"}`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
       : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
         : "Expand / Contract motion";
@@ -632,10 +632,10 @@ function renderTask(): string {
       ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
       : feedbackResult?.scoring.responseClass === "omission" ? "No response" : "Paused"
     : isSignal
-      ? feedbackResult?.scoring.isCorrect ? "Correct" : "Recorded"
+      ? feedbackResult?.scoring.isCorrect ? "Correct" : "Incorrect"
       : formatPoints(feedbackPoints);
   const pot = regime.correctPot;
-  const taskTitle = isSignal ? "Signal check" : isWm ? `Hold and compare · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
+  const taskTitle = isSignal ? "Pattern check" : isWm ? `Hold and compare · ${trial.wmNLevel === 1 ? "one step back" : "two steps back"}` : isPractice ? "Practice" : regimeCopy.title;
   const taskCue = taskStage === "fixation" ? "Get ready"
     : taskStage === "interval" ? "Next pattern"
       : taskStage === "feedback" ? feedbackMessage
@@ -676,9 +676,9 @@ function renderTask(): string {
           <div><span>${isSignal || isPractice ? "This pattern" : "This choice"}</span><strong>${feedbackOutcome}</strong></div>
           <small>${feedbackMessage}</small>
         </div>` : `
-        ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Protected timing</span><strong>${trial.exposureMsRequested} ms</strong></div><small>The mask separates signal extraction from later self-paced decisions.</small></div>`
+        ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Viewing time</span><strong>${trial.exposureMsRequested} ms</strong></div><small>Look at the arrows, then choose after the masks appear.</small></div>`
           : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>Unscored</strong></div><small>Make a Left or Right choice on every pattern.</small></div>`
-          : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Memory buffer</span><strong>Hold this relation</strong></div><small>This item sets the ${trial.wmNLevel}-back sequence and is not scored.</small></div>`
+          : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Get ready to compare</span><strong>Remember this pattern</strong></div><small>This first ${trial.wmNLevel === 1 ? "item" : "set"} is not scored.</small></div>`
           : `<div class="ccc-value-panel">
           <div><span>Available if correct</span><strong id="ccc-live-pot">${Math.round(pot)}</strong></div>
           <div class="ccc-pot-track"><span id="ccc-pot-bar" style="width:100%"></span></div>
@@ -687,7 +687,7 @@ function renderTask(): string {
       <div class="ccc-response-row" aria-label="${isWm ? "Choose Match or Different" : "Choose the majority relation"}">
         ${responseButtons}
       </div>
-      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? (taskStage === "mask" ? "Choose Left or Right—even if uncertain." : "Take in the pattern before the mask.") : trial.wmBuffer ? "Hold this relation; the response begins after the buffer." : isWm ? responseEnabled ? "Choose Match or Different before the rhythm moves on." : "Extract the current relation first." : responseEnabled ? "Make your best choice when you have enough evidence." : "Look at the whole pattern first."}</p>
+      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? (taskStage === "mask" ? "Choose Left or Right—even if you are unsure." : "Take in the pattern before the mask.") : trial.wmBuffer ? "Remember this pattern; you will compare it with a later one." : isWm ? responseEnabled ? "Choose Match or Different before the next pattern." : "Find the current pattern first." : responseEnabled ? "Look at the whole pattern, then make your best choice." : "Look at the whole pattern first."}</p>
     </section>
   `, "ccc-task-view");
 }
@@ -728,13 +728,13 @@ function renderBlockComplete(): string {
   const isSignal = block.estimand === "signal_capacity";
   const copy = block.phase === "practice" ? {
     title: "You know the task.",
-    body: "Next comes a protected signal check, followed by In/Out policy practice.",
+    body: "Next comes a quick pattern check, followed by In and Out practice.",
   } : isSignal ? {
-    title: "Your signal check is complete.",
-    body: "This short estimate is kept apart from the later points, time pressure and format changes.",
+    title: "Your pattern check is complete.",
+    body: "Next you will practise with points, time pressure and changing formats.",
   } : block.diagnostic ? {
     title: "Your first look is recorded.",
-    body: "This first encounter is kept separate from the recovery practice that comes next.",
+    body: "Next you will have more practice with this new display.",
   } : {
     title: "Stage complete.",
     body: "You completed both parts of this stage while keeping the same goal.",
@@ -747,11 +747,11 @@ function renderBlockComplete(): string {
       <p>${copy.body}</p>
       ${isPractice ? "" : `
         <div class="ccc-summary-grid">
-          <article><span>${isSignal ? "Patterns resolved" : "Best-choice accuracy"}</span><strong>${formatPercent(feedback.accuracy)}</strong></article>
-          <article><span>${isSignal ? "Signal estimate" : "Typical decision time"}</span><strong>${isSignal ? (feedback.attentionControlBps === null ? "Calibrating" : `${feedback.attentionControlBps} bps`) : formatTime(feedback.medianDecisionMs)}</strong></article>
-          <article><span>${isSignal ? "Timing quality" : "Points kept"}</span><strong>${isSignal ? feedback.signalTimingQuality : `${feedback.pointsKeptPercent}%`}</strong></article>
+          <article><span>${isSignal ? "Patterns correct" : "Best-choice accuracy"}</span><strong>${formatPercent(feedback.accuracy)}</strong></article>
+          <article><span>${isSignal ? "Typical answer time" : "Typical decision time"}</span><strong>${formatTime(feedback.medianDecisionMs)}</strong></article>
+          <article><span>${isSignal ? "Patterns completed" : "Points kept"}</span><strong>${isSignal ? feedback.observationCount : `${feedback.pointsKeptPercent}%`}</strong></article>
         </div>`}
-      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "A provisional signal anchor." : "Read accuracy, time and value together."}</strong> ${isSignal ? "The estimate uses masked, frame-timed forced choices and remains separate from policy or transfer." : "A missed deadline counts as an unresolved pattern; it is not removed or replaced."}</p>`}
+      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "The viewing time changed as you answered." : "Read accuracy, time and points together."}</strong> ${isSignal ? "Use this result as a simple guide for the stages ahead." : "If time ended before you answered, that pattern remains part of your result."}</p>`}
       ${isPractice ? `<aside class="ccc-workflow-bridge"><span>Next</span><strong>${WORKFLOW_CHOICES[journey.workflowChoice].example}</strong></aside>` : ""}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="${isPractice ? "continue-after-block" : "show-block-insights"}">${isPractice ? "Continue" : "See what changed"}</button>
@@ -796,7 +796,7 @@ function renderBlockInsights(): string {
         <section><h2>Accuracy by clarity</h2>${clarityBars}</section>
         ${isSignal ? "" : `<section><h2>Viewing time by condition</h2>${nicheBars}</section>`}
       </div>
-      <p class="ccc-insight-callout"><strong>${isSignal ? "Everyday meaning:" : "Your timing response:"}</strong> ${isSignal ? "Clear and close patterns show how signal competition changes what you can resolve under brief viewing. This is exercise evidence, not a claim about a real task." : `${shift} In a real workflow, the comparable skill is changing how long you check when time pressure or the cost of an error changes; this graph measures only the exercise.`}</p>
+      <p class="ccc-insight-callout"><strong>${isSignal ? "What to notice:" : "Your timing response:"}</strong> ${isSignal ? "Compare the clear and close patterns to see when the majority direction was easiest or hardest to spot." : `${shift} In your own workflow, notice whether you give harder or more important decisions enough checking time.`}</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-block-reconnect">Connect this to your workflow</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
@@ -818,7 +818,7 @@ function renderBlockReconnect(): string {
         <span>${WORKFLOW_CHOICES[journey.workflowChoice].label}</span>
         <strong>${workflowBridge(block.phase, journey.workflowChoice)}</strong>
       </aside>
-      <p class="ccc-soft-note">This is a practical bridge, not evidence that the exercise has changed performance outside the app.</p>
+      <p class="ccc-soft-note">Try this idea in your real task and notice whether it helps.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${isLast ? "See your journey review" : "Continue to the next stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
@@ -859,16 +859,16 @@ function renderComplete(): string {
   const next = nextProgrammeAction(programme);
   return shell(`
     <section class="ccc-complete-card">
-      <span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber} · ${journey.plan.stage}</span>
+      <span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber} complete</span>
       <h1>This session is complete.</h1>
-      <p>${sessionSummary?.gateDecisions.at(-1) || "Your evidence has been added to the multi-session programme record."}</p>
+      <p>${sessionSummary?.gateDecisions.at(-1) || "Your progress has been saved."}</p>
       ${journeyRail(journey.plan.blocks.length, null)}
       <div class="ccc-summary-grid">
-        <article><span>${hasSignal ? "Attention Control signal" : "Attention accuracy"}</span><strong>${hasSignal ? (signalFeedback.attentionControlBps === null ? "Calibrating" : `${signalFeedback.attentionControlBps} bps`) : formatPercent(attentionFeedback.accuracy)}</strong></article>
-        <article><span>${hasWm ? "Relational memory" : "Decision Fit"}</span><strong>${hasWm ? formatPercent(wmFeedback.accuracy) : policyFeedback.timingShiftMs === null ? "Calibrating" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
-        <article><span>Programme evidence</span><strong>${programmeProgressPercent(programme)}%</strong></article>
+        <article><span>${hasSignal ? "Pattern accuracy" : "Attention accuracy"}</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
+        <article><span>${hasWm ? "Hold-and-compare accuracy" : "Change in checking time"}</span><strong>${hasWm ? formatPercent(wmFeedback.accuracy) : policyFeedback.timingShiftMs === null ? "More practice needed" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
+        <article><span>Programme progress</span><strong>${programmeProgressPercent(programme)}%</strong></article>
       </div>
-      <p class="ccc-metric-note"><strong>Completion and transfer remain separate.</strong> ${programme.status === "full_transfer" ? "All protected trained-format gates have passed." : next.type === "wait" ? "The next gate must use fresh responses after the scheduled delay." : programme.transferStatus === "supported_unlock" ? "Later layers are open through supported progression, without a full-transfer label." : "The next session is chosen from the evidence still missing."}</p>
+      <p class="ccc-metric-note"><strong>${programme.status === "full_transfer" ? "Every stage is complete." : "Your programme will adapt to your progress."}</strong> ${programme.status === "full_transfer" ? "You can now review your achievement." : next.type === "wait" ? "Take a break and return when the next check opens." : programme.transferStatus === "supported_unlock" ? "The next set of stages is ready." : "The next session will revisit the skills that need more practice."}</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Reconnect to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</button>
         <button class="ccc-button ccc-button-quiet" data-action="return-home">Programme overview</button>
@@ -878,7 +878,7 @@ function renderComplete(): string {
 
 function renderFullTransfer(): string {
   if (programme.status !== "full_transfer") return renderWelcome();
-  const environmentEvidence = allRegimesBalanced(programme) ? "All four environments balanced" : "Four-environment record retained";
+  const environmentProgress = allRegimesBalanced(programme) ? "All four work conditions" : "Four work conditions practised";
   return shell(`
     <section class="ccc-full-transfer-card" aria-labelledby="ccc-full-transfer-title">
       <div class="ccc-achievement-burst" aria-hidden="true">
@@ -891,18 +891,18 @@ function renderFullTransfer(): string {
         </svg>
       </div>
       <span class="ccc-kicker">Achievement unlocked · Session ${programme.sessionNumber}</span>
-      <h1 id="ccc-full-transfer-title">Congratulations — Full Transfer!</h1>
-      <p class="ccc-achievement-lead">You completed the full trained-format challenge: finding, holding and updating the target relation across changing formats, decision environments, operations and delayed returns.</p>
-      <div class="ccc-achievement-badge"><span>Adaptive Cognition</span><strong>FULL TRANSFER</strong><small>P1a · P1b · P1c complete</small></div>
-      <div class="ccc-achievement-evidence" aria-label="Evidence unlocked">
-        <span>Protected change</span>
-        <span>Recovery + return</span>
-        <span>Mixed formats</span>
-        <span>Delayed re-checks</span>
-        <span>Attention ↔ memory</span>
-        <span>${environmentEvidence}</span>
+      <h1 id="ccc-full-transfer-title">Congratulations — Programme Complete!</h1>
+      <p class="ccc-achievement-lead">You completed the full challenge: finding, remembering and updating the main pattern as the display and task changed.</p>
+      <div class="ccc-achievement-badge"><span>Adaptive Cognition</span><strong>PROGRAMME COMPLETE</strong><small>All stages finished</small></div>
+      <div class="ccc-achievement-evidence" aria-label="Skills completed">
+        <span>New displays</span>
+        <span>Return to familiar tasks</span>
+        <span>Switching formats</span>
+        <span>Returning after a break</span>
+        <span>Finding ↔ remembering</span>
+        <span>${environmentProgress}</span>
       </div>
-      <p class="ccc-achievement-boundary"><strong>This is a game achievement for the trained programme.</strong> Judge broader benefit in the real task itself; the badge is not a claim of general or clinical transfer.</p>
+      <p class="ccc-achievement-boundary"><strong>This badge marks your progress in the app.</strong> The most useful next step is to try the skills in the work, study or everyday task you chose.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Take the win back to your workflow</button>
         <button class="ccc-button ccc-button-quiet" data-action="return-home">Programme overview</button>
@@ -923,7 +923,7 @@ function renderCompleteReconnect(): string {
         <h2>${reconnect.title}</h2>
         <p>${reconnect.action}</p>
       </aside>
-      <p class="ccc-compact-boundary"><strong>Keep the outcomes separate.</strong> Use the real task—not this score—to judge whether the prompt helped.</p>
+      <p class="ccc-compact-boundary"><strong>Try it in your real task.</strong> Notice whether the prompt helps you return to what matters.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="return-home">Return to overview</button>
         <button class="ccc-button ccc-button-quiet" data-action="restart-journey">Start a fresh programme</button>
@@ -1173,10 +1173,10 @@ function enableResponseControls(): void {
   });
   const helper = document.querySelector<HTMLElement>(".ccc-task-helper");
   if (helper) helper.textContent = currentBlock()?.estimand === "signal_capacity"
-    ? "Choose Left or Right—even if uncertain."
+    ? "Choose Left or Right—even if you are unsure."
     : currentBlock()?.operator === "relational_wm"
-      ? "Choose Match or Different before the rhythm moves on."
-      : "Make your best choice when you have enough evidence.";
+      ? "Choose Match or Different before the next pattern."
+      : "Look at the whole pattern, then make your best choice.";
 }
 
 function startPotDisplay(trial: CccAttentionTrialDefinition): void {
@@ -1215,7 +1215,7 @@ function feedbackFor(result: CccRecordedTrial): string {
   if (result.scoring.responseClass === "omission") return result.trial.practice
     ? "Time ended — this practice item will return."
     : "Time ended — counted as an unresolved pattern.";
-  if (result.trial.estimand === "signal_capacity") return result.scoring.isCorrect ? "Correct." : "Not quite — the next view will adapt.";
+  if (result.trial.estimand === "signal_capacity") return result.scoring.isCorrect ? "Correct." : "Incorrect.";
   return result.scoring.isCorrect
     ? taskMode === "practice" ? "Correct." : `${formatPoints(result.scoring.pointsRealised)} points`
     : taskMode === "practice" ? "Incorrect." : `${formatPoints(result.scoring.pointsRealised)} points`;

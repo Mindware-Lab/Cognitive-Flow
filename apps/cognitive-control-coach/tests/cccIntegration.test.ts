@@ -40,7 +40,7 @@ describe("CCC playable integration", () => {
     expect(appStyles).toMatch(/\.ccc-mask-items\s*\{[\s\S]*?fill: var\(--blue-700\);/);
   });
 
-  it("keeps consumer copy plain, workflow-centred and evidence-bounded", () => {
+  it("keeps consumer copy plain and workflow-centred", () => {
     const visibleCopy = JSON.stringify({
       phases: PHASE_COPY,
       conditions: REGIME_COPY,
@@ -48,12 +48,39 @@ describe("CCC playable integration", () => {
       reconnect: reconnectAction("ai_assisted"),
       boundary: EVIDENCE_BOUNDARY_COPY,
     });
-    for (const technicalTerm of ["carrier transfer", "reference frame", "entropy", "operator integration", "valid observation"]) {
+    for (const technicalTerm of [
+      "carrier transfer",
+      "reference frame",
+      "entropy",
+      "operator integration",
+      "valid observation",
+      "protected",
+      "diagnostic",
+      "forced choice",
+      "decision-policy",
+      "evidence",
+      "estimand",
+      "mft-m",
+      "provisional",
+      "literature-standard",
+      "memory buffer",
+      "operation boundary",
+    ]) {
       expect(visibleCopy.toLowerCase()).not.toContain(technicalTerm);
     }
     expect(visibleCopy).toContain("AI-assisted work");
     expect(visibleCopy).toContain("workflow");
-    expect(visibleCopy).toContain("an in-app score does not establish a wider benefit");
+    expect(visibleCopy).toContain("The most useful check");
+    for (const removedCopy of [
+      "MFT-M-derived anchor",
+      "literature-standard MFT-M-R assessment",
+      "A provisional signal anchor",
+      "frame-timed forced choices",
+      "Full Transfer!",
+      "trained-format gates",
+    ]) {
+      expect(mainSource).not.toContain(removedCopy);
+    }
   });
 
   it("uses the shared IQ Mindware app identity and accessible semantic colour roles", () => {
@@ -108,10 +135,10 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("overflow-y: auto");
   });
 
-  it("reserves the congratulations achievement screen for the full-transfer state", () => {
+  it("reserves the congratulations achievement screen for the completed programme state", () => {
     expect(mainSource).toContain('programme.status !== "full_transfer"');
-    expect(mainSource).toContain("Congratulations — Full Transfer!");
-    expect(mainSource).toContain("game achievement for the trained programme");
+    expect(mainSource).toContain("Congratulations — Programme Complete!");
+    expect(mainSource).toContain("This badge marks your progress in the app");
     expect(mainSource).toContain('programme.status === "full_transfer" ? "full_transfer" : "complete"');
     expect(appStyles).toContain(".ccc-full-transfer-card");
     expect(appStyles).toContain("ccc-achievement-pop");
