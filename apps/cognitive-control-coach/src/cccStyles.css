@@ -1209,7 +1209,12 @@ p {
 
 .ccc-arrow-items {
   fill: var(--blue-700);
-  filter: drop-shadow(0 7px 8px rgba(8, 116, 186, 0.12));
+}
+
+.ccc-centre-fixation line {
+  stroke: var(--navy);
+  stroke-width: 0.8;
+  stroke-linecap: round;
 }
 
 .ccc-flow-ring {
@@ -1231,9 +1236,8 @@ p {
   opacity: 0.68;
 }
 
-.ccc-mask-svg g {
+.ccc-mask-items {
   fill: var(--blue-700);
-  opacity: 0.2;
 }
 
 .ccc-value-panel {

@@ -30,6 +30,16 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("maskStimulus");
   });
 
+  it("reuses the original Attention Coach arrow proportions and location-matched diamond masks", () => {
+    expect(mainSource).toContain('viewBox="0 0 100 100"');
+    expect(mainSource).toContain('<polygon points="${arrowPolygonPoints()}"');
+    expect(mainSource).toContain('<polygon points="${diamondPolygonPoints(item.position)}"');
+    expect(mainSource).toContain("maskStimulus(trial)");
+    expect(mainSource).not.toContain("Array.from({ length: 42 }");
+    expect(mainSource).not.toContain("M-24 -8 H6 V-16 L26 0 L6 16 V8 H-24 Z");
+    expect(appStyles).toMatch(/\.ccc-mask-items\s*\{[\s\S]*?fill: var\(--blue-700\);/);
+  });
+
   it("keeps consumer copy plain, workflow-centred and evidence-bounded", () => {
     const visibleCopy = JSON.stringify({
       phases: PHASE_COPY,

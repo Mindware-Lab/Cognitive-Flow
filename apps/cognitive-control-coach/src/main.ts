@@ -1,6 +1,7 @@
 import "../../../UX/iqmindware-app-design-system/tokens.css";
 import "./cccStyles.css";
 import { buildCccBlockSubmissionPayload } from "./blockPayload";
+import { arrowPolygonPoints, diamondPolygonPoints } from "./cccStimulusGeometry";
 import {
   PHASE_COPY,
   REGIME_COPY,
@@ -543,15 +544,13 @@ function renderPhaseGuide(): string {
 
 function arrowStimulus(trial: CccAttentionTrialDefinition): string {
   const arrows = trial.stimulusItems.map((item) => {
-    const x = item.position.x * 3.6;
-    const y = item.position.y * 3.6;
     const angle = Math.atan2(item.vector.y, item.vector.x) * 180 / Math.PI;
-    return `<g transform="translate(${x} ${y}) rotate(${angle})"><path d="M-24 -8 H6 V-16 L26 0 L6 16 V8 H-24 Z" /></g>`;
+    return `<g transform="translate(${item.position.x} ${item.position.y}) rotate(${angle})"><polygon points="${arrowPolygonPoints()}" /></g>`;
   }).join("");
   const label = trial.referenceFrame === "relative"
     ? "Five arrows pointing towards or away from the centre"
     : "Five arrows pointing left or right";
-  return `<svg class="ccc-stimulus-svg" viewBox="0 0 360 360" role="img" aria-label="${label}"><circle class="ccc-centre-marker" cx="180" cy="180" r="5" /><g class="ccc-arrow-items">${arrows}</g></svg>`;
+  return `<svg class="ccc-stimulus-svg" viewBox="0 0 100 100" role="img" aria-label="${label}"><g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g><g class="ccc-arrow-items">${arrows}</g></svg>`;
 }
 
 function flowStimulus(trial: CccAttentionTrialDefinition): string {
@@ -591,13 +590,11 @@ function stimulusFor(trial: CccAttentionTrialDefinition): string {
   return trial.carrier === "arrow" ? arrowStimulus(trial) : flowStimulus(trial);
 }
 
-function maskStimulus(): string {
-  const marks = Array.from({ length: 42 }, (_, index) => {
-    const x = 26 + (index * 67) % 308;
-    const y = 24 + (index * 101) % 312;
-    return `<circle cx="${x}" cy="${y}" r="${3 + index % 4}" />`;
-  }).join("");
-  return `<svg class="ccc-stimulus-svg ccc-mask-svg" viewBox="0 0 360 360" role="img" aria-label="Visual mask"><g>${marks}</g></svg>`;
+function maskStimulus(trial: CccAttentionTrialDefinition): string {
+  const masks = trial.stimulusItems
+    .map((item) => `<polygon points="${diamondPolygonPoints(item.position)}" />`)
+    .join("");
+  return `<svg class="ccc-stimulus-svg ccc-mask-svg" viewBox="0 0 100 100" role="img" aria-label="Five diamond masks covering the previous arrow positions"><g class="ccc-mask-items">${masks}</g></svg>`;
 }
 
 function taskProgress(block: CccAttentionBlockPlan): string {
@@ -651,7 +648,7 @@ function renderTask(): string {
     : taskStage === "interval"
       ? `<span class="ccc-interval-dot" aria-hidden="true"></span>`
       : taskStage === "mask"
-        ? maskStimulus()
+        ? maskStimulus(trial)
         : stimulusFor(trial);
   const responseButtons = trial.answerOptions.map((answer, index) => {
     const label = trial.responseLabels.labels[answer] || answer;
