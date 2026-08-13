@@ -1,6 +1,15 @@
 export type SpherePoint = { x: number; y: number; z: number };
 
-export function createSpherePoints(count = 180): SpherePoint[] {
+export const CCC_SHIFT_VIEW_RENDER_SETTINGS = {
+  dotCount: 96,
+  dotRadiusPx: 2.2,
+  rotationHz: 0.06,
+  dotColour: "rgba(39, 100, 183, 0.80)",
+  backgroundColour: "#f7f9fb",
+  outlineColour: "rgba(39, 100, 183, 0.20)",
+} as const;
+
+export function createSpherePoints(count = CCC_SHIFT_VIEW_RENDER_SETTINGS.dotCount): SpherePoint[] {
   const points: SpherePoint[] = [];
   const goldenAngle = Math.PI * (3 - Math.sqrt(5));
   for (let index = 0; index < count; index += 1) {
@@ -41,32 +50,29 @@ export function startAmbiguousSphere(canvas: HTMLCanvasElement, options: { stati
       canvas.height = pixelSize;
     }
     context.setTransform(density, 0, 0, density, 0, 0);
-    context.clearRect(0, 0, size, size);
+    context.fillStyle = CCC_SHIFT_VIEW_RENDER_SETTINGS.backgroundColour;
+    context.fillRect(0, 0, size, size);
+
     const centre = size / 2;
     const radius = size * 0.37;
-    const angle = options.staticMode ? Math.PI / 8 : (now - startedAt) * 0.00048;
+    const elapsedSeconds = (now - startedAt) / 1000;
+    const angle = options.staticMode
+      ? Math.PI / 8
+      : elapsedSeconds * Math.PI * 2 * CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationHz;
 
-    const wash = context.createRadialGradient(centre, centre, radius * 0.15, centre, centre, radius * 1.18);
-    wash.addColorStop(0, "rgba(20, 88, 255, 0.045)");
-    wash.addColorStop(1, "rgba(20, 88, 255, 0)");
-    context.fillStyle = wash;
-    context.beginPath();
-    context.arc(centre, centre, radius * 1.18, 0, Math.PI * 2);
-    context.fill();
-
-    context.strokeStyle = "rgba(20, 88, 255, 0.2)";
+    context.strokeStyle = CCC_SHIFT_VIEW_RENDER_SETTINGS.outlineColour;
     context.lineWidth = 1.25;
     context.beginPath();
     context.arc(centre, centre, radius, 0, Math.PI * 2);
     context.stroke();
 
-    context.fillStyle = "rgba(10, 42, 114, 0.72)";
+    context.fillStyle = CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColour;
     for (const point of points) {
       const rotated = rotateSpherePoint(point, angle);
       const x = centre + rotated.x * radius;
       const y = centre + rotated.y * radius;
       context.beginPath();
-      context.arc(x, y, Math.max(1.25, size * 0.0052), 0, Math.PI * 2);
+      context.arc(x, y, CCC_SHIFT_VIEW_RENDER_SETTINGS.dotRadiusPx, 0, Math.PI * 2);
       context.fill();
     }
 
