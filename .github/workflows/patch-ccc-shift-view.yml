@@ -1,393 +1,28 @@
-name: Patch and validate CCC Shift the View
+name: Clean Shift the View release branch
 
 on:
   push:
     branches:
       - fix/ccc-shift-view-protocol-20260813
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  patch-and-test:
-    if: ${{ !contains(github.event.head_commit.message || '', '[shift-view-patched]') }}
+  clean-and-verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
-    defaults:
-      run:
-        working-directory: apps/cognitive-control-coach
+    timeout-minutes: 20
     steps:
-      - name: Check out branch
+      - name: Check out release branch
         uses: actions/checkout@v4
         with:
           ref: fix/ccc-shift-view-protocol-20260813
           fetch-depth: 0
 
-      - name: Apply the protocol-safe interaction patch
-        working-directory: .
-        shell: bash
+      - name: Remove temporary release helpers
         run: |
-          python - <<'PY'
-          from pathlib import Path
-          import re
-
-          main_path = Path('apps/cognitive-control-coach/src/main.ts')
-          css_path = Path('apps/cognitive-control-coach/src/cccStyles.css')
-          docs_path = Path('apps/cognitive-control-coach/docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md')
-          test_path = Path('apps/cognitive-control-coach/tests/cccShiftView.test.ts')
-          main = main_path.read_text()
-
-          def replace_once(old: str, new: str, label: str) -> None:
-              global main
-              if old not in main:
-                  if new in main:
-                      return
-                  raise SystemExit(f'Could not locate {label}')
-              main = main.replace(old, new, 1)
-
-          replace_once(
-              'import { startAmbiguousSphere } from "./cccShiftView";',
-              'import { CCC_SHIFT_VIEW_RENDER_SETTINGS, startAmbiguousSphere } from "./cccShiftView";',
-              'Shift the View import',
-          )
-
-          replace_once(
-              'let shiftConfirmedAt: number | null = null;\nlet shiftNotFormedRecorded = false;\nlet shiftStaticMode = window.matchMedia("(prefers-reduced-motion: reduce)").matches;',
-              'let shiftConfirmedAt: number | null = null;\nlet shiftNotFormedRecorded = false;\nlet shiftReversalCount = 0;\nlet shiftLastReversalAt = 0;\nlet shiftStaticMode = window.matchMedia("(prefers-reduced-motion: reduce)").matches;',
-              'Shift the View state',
-          )
-
-          current_block = '''function currentBlock(): CccAttentionBlockPlan | null {
-            if (!journey) return null;
-            if (taskMode === "wm_practice" && journey.wmPracticeLevel) return createWmPracticeBlock(journey.plan, journey.wmPracticeLevel);
-            if (taskMode === "practice") return createP0PracticeBlock(journey.plan);
-            return journey.plan.blocks[journey.activeBlockIndex] || null;
-          }
-          '''
-          shift_guard = current_block + '''
-          function shouldRunShiftView(block: CccAttentionBlockPlan | null = currentBlock()): boolean {
-            if (!journey || !block || !CCC_SHIFT_VIEW.enabled || journey.shiftViewCompleted) return false;
-            if (!block.shiftViewBefore || block.practice || !block.diagnostic) return false;
-            if (!block.sourceWrapperId || block.wrappers.length !== 1) return false;
-            if (block.wrappers[0] === block.sourceWrapperId) return false;
-            return block.transitionKind === "carrier_transfer" || block.transitionKind === "wm_carrier_transfer";
-          }
-          '''
-          replace_once(current_block, shift_guard, 'Shift the View eligibility guard')
-
-          replacement_render = '''function renderShiftView(): string {
-            return shell(`
-              <section class="ccc-shift-card">
-                <div class="ccc-stage-line"><span>New pattern ahead</span><strong id="ccc-shift-countdown">0:30</strong></div>
-                <div class="ccc-shift-progress" aria-hidden="true"><span id="ccc-shift-progress-bar"></span></div>
-                <span class="ccc-kicker">Shift the View</span>
-                <h1>Actively group the dots into one rotating sphere.</h1>
-                <p id="ccc-shift-instruction">Bring the dots together as one complete 3D ball. This may require actively grouping them rather than simply watching separate dots.</p>
-                <canvas id="ccc-sphere" class="ccc-sphere" role="img" aria-label="A sparse, slowly rotating field of soft-blue dots that can be actively grouped into one ambiguous sphere"></canvas>
-                <div id="ccc-shift-controls" class="ccc-shift-controls">
-                  ${shiftStaticMode
-                    ? `<p class="ccc-soft-note">Still image selected.</p>`
-                    : `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see one whole sphere</button><button class="ccc-button ccc-button-quiet" data-action="shift-not-yet">Not yet</button>`}
-                </div>
-                <p class="ccc-shift-grouping-note"><strong>Actively group the dots.</strong> Some people first see two flat sheets. Keep bringing them together until they form one complete sphere.</p>
-                <button class="ccc-text-button" data-action="shift-toggle-motion">${shiftStaticMode ? "Use the moving version" : "Use a still reset"}</button>
-              </section>
-            `, "ccc-shift-view ccc-viewport-view");
-          }
-
-          function renderComplete'''
-          main, count = re.subn(
-              r'function renderShiftView\(\): string \{.*?\n\}\n\nfunction renderComplete',
-              replacement_render,
-              main,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1 and 'Actively group the dots into one rotating sphere.' not in main:
-              raise SystemExit('Could not replace renderShiftView')
-
-          replacement_runtime = '''function mountShiftView(): void {
-            stopShiftView();
-            const canvas = document.querySelector<HTMLCanvasElement>("#ccc-sphere");
-            const block = currentBlock();
-            if (!canvas || !journey || !shouldRunShiftView(block)) return;
-            sphereStop = startAmbiguousSphere(canvas, { staticMode: shiftStaticMode });
-            shiftStartedAt = performance.now();
-            shiftConfirmedAt = null;
-            shiftNotFormedRecorded = false;
-            shiftReversalCount = 0;
-            shiftLastReversalAt = 0;
-            recordEvent("shift_view_started", {
-              durationMs: CCC_SHIFT_VIEW.durationMs,
-              reducedMotion: shiftStaticMode,
-              scoreAffecting: false,
-              renderVersion: "ccc-shift-view-v2",
-              sourceWrapperId: block?.sourceWrapperId || null,
-              targetWrapperId: block?.wrappers.length === 1 ? block.wrappers[0] : null,
-              dotCount: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotCount,
-              rotationHz: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationHz,
-              dotColour: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColour,
-            });
-            const update = () => {
-              if (!journey) return;
-              const elapsed = performance.now() - shiftStartedAt;
-              const remainingMs = Math.max(0, CCC_SHIFT_VIEW.durationMs - elapsed);
-              const countdown = document.querySelector<HTMLElement>("#ccc-shift-countdown");
-              const progress = document.querySelector<HTMLElement>("#ccc-shift-progress-bar");
-              if (countdown) countdown.textContent = `0:${String(Math.ceil(remainingMs / 1000)).padStart(2, "0")}`;
-              if (progress) progress.style.width = `${Math.max(0, Math.min(100, elapsed / CCC_SHIFT_VIEW.durationMs * 100))}%`;
-              if (!shiftStaticMode && elapsed >= 10000 && shiftConfirmedAt === null && !shiftNotFormedRecorded) {
-                shiftNotFormedRecorded = true;
-                recordEvent("sphere_not_formed", { elapsedMs: Math.round(elapsed) });
-                updateShiftControls();
-              }
-              if (remainingMs <= 0) completeShiftView();
-            };
-            update();
-            shiftTimer = window.setInterval(update, 100);
-          }
-
-          function updateShiftControls(): void {
-            const controls = document.querySelector<HTMLElement>("#ccc-shift-controls");
-            const instruction = document.querySelector<HTMLElement>("#ccc-shift-instruction");
-            const note = document.querySelector<HTMLElement>(".ccc-shift-grouping-note");
-            if (!controls || !instruction) return;
-            if (shiftStaticMode) {
-              controls.innerHTML = `<p class="ccc-soft-note">Still image selected.</p>`;
-              instruction.textContent = "Let your eyes rest on the complete pattern for the full 30 seconds.";
-              if (note) note.innerHTML = `<strong>Reduced-motion version:</strong> rest your eyes on the complete pattern for the full interval.`;
-              return;
-            }
-            if (shiftConfirmedAt !== null) {
-              controls.innerHTML = `<button class="ccc-button ccc-button-secondary ccc-reversal-button" data-action="shift-reversal"><span>The whole sphere reversed</span><kbd>Space</kbd></button>`;
-              instruction.textContent = "Keep the dots actively grouped as one object. Press Space every time the whole sphere appears to reverse its direction of rotation.";
-              if (note) note.innerHTML = `<strong>Count only whole-object reversals.</strong> Do not respond when separate sheets, layers or groups of dots seem to change independently.`;
-              return;
-            }
-            if (shiftNotFormedRecorded) {
-              controls.innerHTML = `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see one whole sphere now</button>`;
-              instruction.textContent = "Keep actively bringing the separate dots or sheets together. Respond when they form one complete sphere.";
-              if (note) note.innerHTML = `<strong>Keep grouping.</strong> The target is one coherent rotating object, not two transparent sheets of dots.`;
-            }
-          }
-
-          function recordShiftReversal(inputMode: "keyboard" | "pointer" | "touch"): void {
-            if (view !== "shift_view" || shiftStaticMode || shiftConfirmedAt === null) return;
-            const now = performance.now();
-            if (now - shiftLastReversalAt < 180) return;
-            shiftLastReversalAt = now;
-            shiftReversalCount += 1;
-            recordEvent("perceived_reversal", {
-              elapsedMs: Math.round(now - shiftStartedAt),
-              reversalIndex: shiftReversalCount,
-              inputMode,
-              wholeSphere: true,
-            });
-            const button = document.querySelector<HTMLElement>("[data-action='shift-reversal']");
-            button?.classList.add("is-key-pressed");
-            window.setTimeout(() => button?.classList.remove("is-key-pressed"), 150);
-          }
-
-          function completeShiftView(): void {
-            if (!journey || journey.shiftViewCompleted) return;
-            const block = currentBlock();
-            stopShiftView();
-            journey.shiftViewCompleted = true;
-            recordEvent("shift_view_completed", {
-              durationMs: CCC_SHIFT_VIEW.durationMs,
-              sphereConfirmed: shiftConfirmedAt !== null,
-              reversalCount: shiftReversalCount,
-              reducedMotion: shiftStaticMode,
-              scoreAffecting: false,
-              renderVersion: "ccc-shift-view-v2",
-              sourceWrapperId: block?.sourceWrapperId || null,
-              targetWrapperId: block?.wrappers.length === 1 ? block.wrappers[0] : null,
-            });
-            saveJourney();
-            setView("phase_intro");
-          }
-
-          async function sendSignIn'''
-          main, count = re.subn(
-              r'function mountShiftView\(\): void \{.*?\n\}\n\nfunction updateShiftControls\(\): void \{.*?\n\}\n\nfunction completeShiftView\(\): void \{.*?\n\}\n\nasync function sendSignIn',
-              replacement_runtime,
-              main,
-              count=1,
-              flags=re.S,
-          )
-          if count != 1 and 'function recordShiftReversal' not in main:
-              raise SystemExit('Could not replace Shift the View runtime')
-
-          replace_once(
-              '  taskMode = "guided";\n  if (blockIsComplete()) setView("block_complete");\n  else routeToCurrentBlockIntro();',
-              '  taskMode = "guided";\n  if (blockIsComplete()) setView("block_complete");\n  else if (shouldRunShiftView()) setView("shift_view");\n  else routeToCurrentBlockIntro();',
-              'resume placement',
-          )
-
-          replace_once(
-              '  journey.activeBlockIndex += 1;\n  saveJourney();\n  routeToCurrentBlockIntro();',
-              '  journey.activeBlockIndex += 1;\n  saveJourney();\n  if (shouldRunShiftView()) setView("shift_view");\n  else routeToCurrentBlockIntro();',
-              'between-block placement',
-          )
-
-          replace_once(
-              '    else if (journey && block?.shiftViewBefore && !journey.shiftViewCompleted) setView("shift_view");',
-              '    else if (shouldRunShiftView(block)) setView("shift_view");',
-              'start-phase fallback',
-          )
-
-          replace_once(
-              '  } else if (action === "shift-reversal") {\n    recordEvent("perceived_reversal", { elapsedMs: Math.round(performance.now() - shiftStartedAt) });',
-              '  } else if (action === "shift-reversal") {\n    const inputMode = event instanceof PointerEvent && event.pointerType === "touch" ? "touch" : "pointer";\n    recordShiftReversal(inputMode);',
-              'reversal click handler',
-          )
-
-          keydown_old = '''window.addEventListener("keydown", (event) => {
-            const trial = activeTrial();'''
-          keydown_new = '''window.addEventListener("keydown", (event) => {
-            if (view === "shift_view" && event.code === "Space") {
-              if (!event.repeat && shiftConfirmedAt !== null && !shiftStaticMode) {
-                event.preventDefault();
-                recordShiftReversal("keyboard");
-              }
-              return;
-            }
-            const trial = activeTrial();'''
-          replace_once(keydown_old, keydown_new, 'Space-key handler')
-
-          main_path.write_text(main)
-
-          css = css_path.read_text()
-          css_marker = '/* Shift the View v2: whole-object grouping and reversal key */'
-          if css_marker not in css:
-              css += '''
-
-          /* Shift the View v2: whole-object grouping and reversal key */
-          .ccc-shift-grouping-note {
-            max-width: 42rem;
-            margin: 0.55rem auto 0;
-            padding: 0.72rem 0.9rem;
-            border: 1px solid rgba(39, 100, 183, 0.20);
-            border-radius: 12px;
-            color: #334b64;
-            background: rgba(39, 100, 183, 0.055);
-            font-size: 0.82rem;
-            line-height: 1.5;
-            text-align: left;
-          }
-
-          .ccc-shift-grouping-note strong { color: #173c68; }
-
-          .ccc-reversal-button { gap: 0.7rem; }
-          .ccc-reversal-button kbd {
-            min-width: 4.4rem;
-            padding: 0.28rem 0.55rem;
-            border: 1px solid rgba(39, 100, 183, 0.30);
-            border-bottom-width: 2px;
-            border-radius: 7px;
-            color: #173c68;
-            background: #fff;
-            font-size: 0.72rem;
-            font-weight: 850;
-            letter-spacing: 0.04em;
-            text-transform: uppercase;
-          }
-
-          .ccc-reversal-button.is-key-pressed {
-            transform: translateY(1px);
-            border-color: #2764b7;
-            background: rgba(39, 100, 183, 0.16);
-          }
-
-          @media (max-width: 600px) {
-            .ccc-shift-grouping-note { font-size: 0.76rem; }
-            .ccc-reversal-button { width: 100%; flex-wrap: wrap; }
-          }
-          '''
-              css_path.write_text(css)
-
-          if docs_path.exists():
-              docs = docs_path.read_text()
-              old = '- remaining time: press **The whole ball reversed** when a whole-sphere reversal is experienced;'
-              new = '- remaining time: actively keep the dots grouped as one sphere and press **Space** (or the touch button) for every whole-sphere reversal; do not count separate sheets or layers of dots;'
-              if old in docs:
-                  docs_path.write_text(docs.replace(old, new, 1))
-
-          test_path.write_text('''import { readFileSync } from "node:fs";
-          import { describe, expect, it } from "vitest";
-          import { CCC_SHIFT_VIEW } from "../src/cccConfig";
-          import { createP0AttentionCarrierTransferPlan } from "../src/cccGenerator";
-          import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
-          import { CCC_SHIFT_VIEW_RENDER_SETTINGS, createSpherePoints } from "../src/cccShiftView";
-          import type { CccSessionPlan } from "../src/cccTypes";
-
-          function pulseBlocks(plan: CccSessionPlan) {
-            return plan.blocks.filter((block) => block.shiftViewBefore);
-          }
-
-          function expectOnlyFirstContactSwaps(plan: CccSessionPlan, expectedCount: number) {
-            const pulses = pulseBlocks(plan);
-            expect(pulses).toHaveLength(expectedCount);
-            for (const block of pulses) {
-              expect(block.practice).toBe(false);
-              expect(block.diagnostic).toBe(true);
-              expect(block.sourceWrapperId).not.toBeNull();
-              expect(block.wrappers).toHaveLength(1);
-              expect(block.wrappers[0]).not.toBe(block.sourceWrapperId);
-              expect(["carrier_transfer", "wm_carrier_transfer"]).toContain(block.transitionKind);
-              expect(block.phase).not.toContain("delayed");
-              expect(block.phase).not.toContain("mix");
-            }
-          }
-
-          describe("CCC Shift the View protocol", () => {
-            it("uses a fixed sparse, slow, soft-blue 30-second display", () => {
-              expect(CCC_SHIFT_VIEW.durationMs).toBe(30_000);
-              expect(CCC_SHIFT_VIEW.scoreAffecting).toBe(false);
-              expect(CCC_SHIFT_VIEW_RENDER_SETTINGS).toMatchObject({
-                dotCount: 96,
-                dotRadiusPx: 2.2,
-                rotationHz: 0.06,
-                dotColour: "rgba(39, 100, 183, 0.80)",
-                backgroundColour: "#f7f9fb",
-              });
-              expect(createSpherePoints()).toHaveLength(96);
-            });
-
-            it("appears only immediately before genuine first-contact wrapper swaps", () => {
-              expectOnlyFirstContactSwaps(createP0AttentionCarrierTransferPlan({ sessionId: "p0-pulse", seed: "p0-pulse" }), 1);
-              expectOnlyFirstContactSwaps(createProgrammeSessionPlan({
-                sessionId: "p1a-pulse", seed: "p1a-pulse", programmeRunId: "programme", programmeSessionNumber: 2,
-                kind: "p1a_consolidation", regimePair: ["clear_sprint", "deep_check"], wmLevel: 1,
-              }), 1);
-              expectOnlyFirstContactSwaps(createProgrammeSessionPlan({
-                sessionId: "p1b-pulse", seed: "p1b-pulse", programmeRunId: "programme", programmeSessionNumber: 3,
-                kind: "p1b_wm_bridge", regimePair: ["clear_sprint", "deep_check"], wmLevel: 1,
-                wmPairLevels: [1, 1], wmWrapperStage: "flow_first_contact",
-              }), 1);
-              expectOnlyFirstContactSwaps(createProgrammeSessionPlan({
-                sessionId: "delayed-no-pulse", seed: "delayed-no-pulse", programmeRunId: "programme", programmeSessionNumber: 4,
-                kind: "p1a_delayed_recheck", regimePair: ["clear_sprint", "deep_check"], wmLevel: 1,
-              }), 0);
-              expectOnlyFirstContactSwaps(createProgrammeSessionPlan({
-                sessionId: "integration-no-pulse", seed: "integration-no-pulse", programmeRunId: "programme", programmeSessionNumber: 5,
-                kind: "p1c_operator_integration", regimePair: ["clear_sprint", "deep_check"], wmLevel: 2,
-              }), 0);
-            });
-
-            it("instructs active whole-sphere grouping and a Space response for every reversal", () => {
-              const source = readFileSync(new URL("../src/main.ts", import.meta.url), "utf8");
-              expect(source).toContain("Actively group the dots into one rotating sphere.");
-              expect(source).toContain("two flat sheets");
-              expect(source).toContain("Count only whole-object reversals");
-              expect(source).toContain('event.code === "Space"');
-              expect(source).toContain('recordShiftReversal("keyboard")');
-              expect(source).toContain('reversalCount: shiftReversalCount');
-            });
-          });
-          ''')
-          PY
+          rm -f apps/cognitive-control-coach/public/ccc-shift-view-v2.js
+          rm -f .github/workflows/patch-ccc-shift-view.yml
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
@@ -397,25 +32,22 @@ jobs:
           cache-dependency-path: apps/cognitive-control-coach/package-lock.json
 
       - name: Install dependencies
+        working-directory: apps/cognitive-control-coach
         run: npm ci
 
       - name: Run complete test suite
+        working-directory: apps/cognitive-control-coach
         run: npm test
 
       - name: Build production bundle
+        working-directory: apps/cognitive-control-coach
         run: npm run build
 
-      - name: Commit validated patch
-        working-directory: .
-        shell: bash
+      - name: Commit cleaned validated source
         run: |
           set -euo pipefail
           git config user.name "Mark Ashton Smith"
           git config user.email "50680966+MarkAshtonSmith@users.noreply.github.com"
-          git add apps/cognitive-control-coach
-          if git diff --cached --quiet; then
-            echo "No patch changes to commit."
-          else
-            git commit -m "[shift-view-patched] Align sphere pulse with wrapper transfer"
-            git push origin HEAD:fix/ccc-shift-view-protocol-20260813
-          fi
+          git add -A
+          git commit -m "Clean temporary Shift the View release files"
+          git push origin HEAD:fix/ccc-shift-view-protocol-20260813
