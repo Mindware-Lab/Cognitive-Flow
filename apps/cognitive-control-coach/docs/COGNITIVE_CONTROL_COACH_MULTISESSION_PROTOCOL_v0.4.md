@@ -1,9 +1,9 @@
-# Cognitive Control Coach Multi-Session Protocol v0.4
+# Cognitive Control Coach Multi-Session Protocol v0.6
 
 Status: implementation contract for the public early-access programme
-Date: 12 August 2026
-Protocol version: `ccc-multisession-transfer-v0.4`
-Configuration version: `ccc-programme-p1-v0.4`
+Date: 13 August 2026
+Protocol version: `ccc-multisession-transfer-v0.6`
+Configuration version: `ccc-programme-p1-v0.6`
 Canonical route: `/cognitive-control-coach/`
 
 ## 1. Purpose and claims boundary
@@ -44,11 +44,14 @@ The programme tests performance across its trained arrow and optic-flow formats.
 
 - Four latent relations: In, Out, Clockwise and Anticlockwise.
 - Five-item majority evidence at `5:0`, `4:1` or `3:2` clarity.
-- 1-back followed by 2-back.
+- Adaptive 1-back to 5-back level, preserved across sessions and devices when signed in.
 - Forced Match/Different response; no voluntary abstention button.
 - The first `n` items after each environment reset fill the memory buffer and are retained in telemetry but excluded from scores and gates.
-- Evidence onset follows a fixed 5,000-ms cadence. Faster responses do not bring the next memory item forward.
-- At 2-back, 25% of feasible Different observations use a wrong-lag lure.
+- Each session has four blocks in A–B–A–B order. Each block contains 20 scored comparisons plus the first `n` buffer items.
+- Before every block, the player chooses a fixed presentation time from 350 to 3,500 ms. The pattern is then masked for 350 ms before the separate response period.
+- For easy pattern environments, the 20 scored comparisons contain 12 `5:0`, six `4:1` and two `3:2` patterns. Hard environments reverse the clear and close counts: two, six and twelve.
+- Ten scored comparisons are Match and ten are Different. Above 1-back, 25% of feasible Different observations use a wrong-lag lure.
+- Points drain during the chosen presentation time. Response latency after the mask is recorded but does not reduce the reward.
 
 ## 3. Four decision environments
 
@@ -109,25 +112,21 @@ Passing sets `attention_portable`. Three unsuccessful valid delayed checks after
 
 ### P1b — Relational WM and carrier recovery
 
-Each session uses:
+Each session uses two contrasting decision environments selected from the four environments. It runs:
 
 ```text
-Attention in relative arrows
-→ relational WM in the same arrow format
-→ protected WM first contact in flow
-→ flow WM recovery
-→ return to arrow WM
-→ mixed arrow/flow WM
+environment A at the saved n-back level
+→ environment B at the same level
+→ adapt the level by at most one step
+→ environment A at the adjusted level
+→ environment B at the same adjusted level
 ```
 
-The operator and carrier never change at the same boundary. The first passing arrow-WM session advances subsequent sessions from 1-back to 2-back. P1c opens only after:
+After each A/B pair, the level increases when balanced accuracy is at least 85%, omissions are no more than 10%, and both miss and false-alarm rates are no more than 20%. It decreases when balanced accuracy is below 70%; otherwise it holds. The level is bounded to 1–5.
 
-- five passing arrow-WM stability blocks in total;
-- at least four passing flow-recovery blocks;
-- at least four passing return blocks;
-- at least four passing mixed-format WM blocks.
+The level reached at the end of the session is saved in programme state. The next session, including a later day or restored signed-in session, starts at that saved level.
 
-Each criterion block requires at least 12 scored observations, at least 75% accuracy and no more than 10% omissions.
+The horizontal format sequence remains evidence-gated: arrow stabilisation → first motion contact → motion recovery → arrow return → mixed formats. A format swap happens only after recent pair-level capacity has flattened at one n-back level with acceptable accuracy, misses, false alarms and omissions; it is not triggered by completing a fixed number of trials alone.
 
 ### P1c — Return to Now and bidirectional integration
 
@@ -146,17 +145,17 @@ Successive P1c sessions alternate arrow and flow carriers. A final delayed re-en
 
 ## 5. Minimum, typical and supported paths
 
-Under consistently passing performance, the earliest route is:
+The route contains these minimum fixed components plus the performance-dependent P1b stage:
 
 | Stage | Minimum sessions |
 | --- | ---: |
 | P0 | 1 |
 | P1a consolidation + delayed confirmation | 4 additional |
-| P1b 1-/2-back stability and WM format recovery | 5 |
+| P1b adaptive n-back stability and WM format recovery | Performance-dependent |
 | P1c bidirectional integration + final delayed re-entry | 5 |
-| **Earliest complete path** | **15** |
+| **Complete path** | **Performance-dependent** |
 
-The planning range remains 15–25 sessions. Twenty sessions is the central pre-pilot planning case. These are programme-design values, not empirical learning-time norms; telemetry must estimate observed session and gate distributions.
+P1b duration is intentionally performance-dependent because the format changes follow a stable learning curve rather than a fixed session count. Telemetry must estimate observed session and gate distributions.
 
 ## 6. Status semantics
 
@@ -177,11 +176,12 @@ The congratulations achievement screen is permitted only when the stored program
 Every block reports plain-language, separable readings:
 
 - accuracy by clarity;
-- median decision time by the two environments;
+- median viewing time by environment;
 - points retained;
 - omissions;
 - provisional signal rate where the protected anchor exists;
-- relational-memory accuracy for scored Match/Different observations;
+- relational-memory balanced accuracy, misses, false alarms and wrong-lag errors;
+- the current and next n-back level after each A/B pair;
 - the current evidence gate and what remains missing.
 
 Workflow prompts are transfer intentions, not transfer outcomes. Users are told to judge real-world benefit in the real task.
@@ -191,6 +191,8 @@ Workflow prompts are transfer intentions, not transfer outcomes. Users are told 
 The programme state stores:
 
 - programme run and session identifiers;
+- the attained n-back level, within-session pending level and WM format stage;
+- pair-level WM learning-curve history;
 - stage and session kind;
 - environment exposure counts and pair history;
 - protected delayed not-before and target-window timestamps;

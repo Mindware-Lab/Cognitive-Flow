@@ -7,6 +7,7 @@ import {
   CCC_LEARNING_CURVE,
   CCC_PROTOCOL_VERSION,
   CCC_RATIO_MAJORITY_COUNTS,
+  CCC_RELATIONAL_WM,
   CCC_REGIMES,
   CCC_TRIAL_TIMING,
   CCC_WM_RESPONSE_LABELS,
@@ -19,6 +20,7 @@ import type {
   CccAttentionTrialDefinition,
   CccAttentionTrialPurpose,
   CccEstimand,
+  CccNBackLevel,
   CccOperator,
   CccProgrammePhase,
   CccProgrammeSessionKind,
@@ -30,6 +32,7 @@ import type {
   CccStimulusRelation,
   CccTransitionKind,
   CccWrapperId,
+  CccWmWrapperStage,
 } from "./cccTypes";
 
 type ProgrammePlanInput = {
@@ -39,7 +42,9 @@ type ProgrammePlanInput = {
   programmeSessionNumber: number;
   kind: Exclude<CccProgrammeSessionKind, "p0_foundation">;
   regimePair: readonly [CccRegimeId, CccRegimeId];
-  wmLevel: 1 | 2;
+  wmLevel: CccNBackLevel;
+  wmPairLevels?: readonly [CccNBackLevel, CccNBackLevel];
+  wmWrapperStage?: CccWmWrapperStage;
   delayedRecheckNotBefore?: string | null;
   includeFirstContact?: boolean;
 };
@@ -60,15 +65,32 @@ type ProgrammeBlockSpec = {
   diagnostic: boolean;
   shiftViewBefore: boolean;
   strictCarrierTransferBoundary: boolean;
-  wmNLevel: 1 | 2 | null;
+  wmNLevel: CccNBackLevel | null;
+  wmPairIndex?: 1 | 2 | null;
+  wmPairPosition?: "A" | "B" | null;
+  regimeId?: CccRegimeId;
 };
 
 const EASY_RATIO_QUOTA: readonly CccRatio[] = ["5:0", "5:0", "5:0", "4:1", "4:1", "3:2"];
 const HARD_RATIO_QUOTA: readonly CccRatio[] = ["5:0", "4:1", "4:1", "3:2", "3:2", "3:2"];
+const WM_EASY_RATIO_QUOTA: readonly CccRatio[] = [
+  ...Array<CccRatio>(12).fill("5:0"),
+  ...Array<CccRatio>(6).fill("4:1"),
+  ...Array<CccRatio>(2).fill("3:2"),
+];
+const WM_HARD_RATIO_QUOTA: readonly CccRatio[] = [
+  ...Array<CccRatio>(2).fill("5:0"),
+  ...Array<CccRatio>(6).fill("4:1"),
+  ...Array<CccRatio>(12).fill("3:2"),
+];
 const WM_RELATIONS: readonly CccStimulusRelation[] = ["in", "out", "cw", "ccw"];
 
 function ratiosFor(regimeId: CccRegimeId, random: () => number): CccRatio[] {
   return shuffle(random, [...(CCC_REGIMES[regimeId].ratioPriors["5:0"] > 0.5 ? EASY_RATIO_QUOTA : HARD_RATIO_QUOTA)]);
+}
+
+function wmRatiosFor(regimeId: CccRegimeId, random: () => number): CccRatio[] {
+  return shuffle(random, [...(CCC_REGIMES[regimeId].ratioPriors["5:0"] > 0.5 ? WM_EASY_RATIO_QUOTA : WM_HARD_RATIO_QUOTA)]);
 }
 
 function balancedAttentionTargets(wrapperId: CccWrapperId, random: () => number): CccAttentionAnswer[] {
@@ -126,7 +148,7 @@ function createTrial(input: {
   seed: string;
   diagnostic: boolean;
   assistedFirstContact: boolean;
-  wmNLevel?: 1 | 2 | null;
+  wmNLevel?: CccNBackLevel | null;
   wmIsMatch?: boolean | null;
   wmBuffer?: boolean;
   wmLureType?: "none" | "wrong_lag" | null;
@@ -275,29 +297,32 @@ function addWmBlock(
   const level = spec.wmNLevel || 1;
   const random = mulberry32(hashSeed(`${seed}:${spec.id}:wm:${level}`));
   const blockStart = trials.length;
-  for (const [regimeIndex, regimeId] of plan.regimePair.entries()) {
-    const scoredCount = CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle;
-    const total = scoredCount + level;
-    const ratioQuota = ratiosFor(regimeId, random);
-    const wrappers = spec.wrapperId === "mixed_rel"
-      ? shuffle(random, Array.from({ length: total }, (_, index) => index % 2 ? "flow_rel" : "arrow_rel") as CccWrapperId[])
-      : Array<CccWrapperId>(total).fill(spec.wrappers[0]);
-    const relations: CccStimulusRelation[] = [];
-    const matchSlots = new Set(shuffle(random, Array.from({ length: scoredCount }, (_, index) => index + level)).slice(0, scoredCount / 2));
-    for (let slot = 0; slot < total; slot += 1) {
-      const isBuffer = slot < level;
-      const isMatch = !isBuffer && matchSlots.has(slot);
-      const wrongLagFeasible = level === 2 && slot >= 2 && !isMatch;
-      const useWrongLag = wrongLagFeasible && random() < 0.25 && relations[slot - 1] !== relations[slot - level];
-      const relation = isMatch
-        ? relations[slot - level]
-        : useWrongLag
-          ? relations[slot - 1]
-          : nextDifferentRelation(random, slot >= level ? [relations[slot - level]] : []);
-      relations.push(relation);
-      const ratio = isBuffer ? "5:0" : ratioQuota[slot - level];
-      const trialIndex = trials.length + 1;
-      trials.push(createTrial({
+  const regimeId = spec.regimeId || plan.regimePair[0];
+  const scoredCount = CCC_RELATIONAL_WM.scoredTrialsPerBlock;
+  const total = scoredCount + level;
+  const ratioQuota = wmRatiosFor(regimeId, random);
+  const wrappers = spec.wrapperId === "mixed_rel"
+    ? shuffle(random, Array.from({ length: total }, (_, index) => index % 2 ? "flow_rel" : "arrow_rel") as CccWrapperId[])
+    : Array<CccWrapperId>(total).fill(spec.wrappers[0]);
+  const relations: CccStimulusRelation[] = [];
+  const matchSlots = new Set(shuffle(random, Array.from({ length: scoredCount }, (_, index) => index + level)).slice(0, scoredCount / 2));
+  for (let slot = 0; slot < total; slot += 1) {
+    const isBuffer = slot < level;
+    const isMatch = !isBuffer && matchSlots.has(slot);
+    const wrongLagFeasible = level > 1 && slot >= level && !isMatch;
+    const candidateWrongLag = wrongLagFeasible ? Math.max(0, slot - level + 1) : -1;
+    const useWrongLag = wrongLagFeasible
+      && random() < CCC_RELATIONAL_WM.wrongLagLureRateOfFeasibleDifferent
+      && relations[candidateWrongLag] !== relations[slot - level];
+    const relation = isMatch
+      ? relations[slot - level]
+      : useWrongLag
+        ? relations[candidateWrongLag]
+        : nextDifferentRelation(random, slot >= level ? [relations[slot - level]] : []);
+    relations.push(relation);
+    const ratio = isBuffer ? "5:0" : ratioQuota[slot - level];
+    const trialIndex = trials.length + 1;
+    trials.push(createTrial({
         id: `${spec.id}-trial-${String(trialIndex).padStart(3, "0")}`,
         sessionId: plan.sessionId,
         blockId: spec.id,
@@ -314,21 +339,20 @@ function addWmBlock(
         transitionKind: spec.transitionKind,
         strictCarrierTransferBoundary: spec.strictCarrierTransferBoundary,
         regimeId,
-        microcycleIndex: regimeIndex + 1,
+        microcycleIndex: spec.wmPairIndex || 1,
         balancedSlotIndex: isBuffer ? 0 : slot - level + 1,
         ratio,
         targetClass: relation,
         correctResponse: isMatch ? "match" : "different",
         random,
-        seed: `${seed}:${spec.id}:${regimeId}:${slot + 1}`,
+        seed: `${seed}:${spec.id}:${regimeId}:${level}:${slot + 1}`,
         diagnostic: spec.diagnostic,
         assistedFirstContact: spec.diagnostic,
         wmNLevel: level,
         wmIsMatch: isBuffer ? null : isMatch,
         wmBuffer: isBuffer,
         wmLureType: useWrongLag ? "wrong_lag" : "none",
-      }));
-    }
+    }));
   }
   blocks.push({
     id: spec.id,
@@ -347,12 +371,15 @@ function addWmBlock(
     strictCarrierTransferBoundary: spec.strictCarrierTransferBoundary,
     regimePair: plan.regimePair,
     microcycleCount: 1,
-    validTrialCount: CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle * plan.regimePair.length,
+    validTrialCount: scoredCount,
     practice: false,
     diagnostic: spec.diagnostic,
     shiftViewBefore: spec.shiftViewBefore,
     wmNLevel: level,
     learningCurveGate: null,
+    wmPairIndex: spec.wmPairIndex || null,
+    wmPairPosition: spec.wmPairPosition || null,
+    selectedExposureMs: null,
   });
 }
 
@@ -374,18 +401,48 @@ function p1aSpecs(kind: ProgrammePlanInput["kind"], includeFirstContact = true):
   return includeFirstContact ? specs : specs.filter((spec) => spec.phase !== "p1a_flow_first_contact");
 }
 
-function p1bSpecs(level: 1 | 2): ProgrammeBlockSpec[] {
-  return [
-    { id: "p1b-attention-bridge", stepId: "p1b_attention_bridge", label: "Find the current relation", stage: "P1b", operator: "attention", phase: "p1b_attention_bridge", estimand: "policy", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "baseline_stabilization", purpose: "training", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-    { id: "p1b-wm-arrow-stabilise", stepId: "p1b_wm_arrow_rel_intro", label: `Hold the relation · ${level}-back`, stage: "P1b", operator: "relational_wm", phase: "p1b_wm_arrow_stabilisation", estimand: "relational_wm", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "wm_introduction", purpose: "wm_training", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: level },
-    { id: "p1b-wm-flow-first-contact", stepId: "p1b_wm_flow_rel_transfer", label: "First memory check in motion", stage: "P1b", operator: "relational_wm", phase: "p1b_wm_flow_first_contact", estimand: "relational_wm", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "wm_carrier_transfer", purpose: "wm_carrier_probe", diagnostic: true, shiftViewBefore: true, strictCarrierTransferBoundary: true, wmNLevel: level },
-    { id: "p1b-wm-flow-recovery", stepId: "p1b_wm_flow_recovery", label: "Recover the held relation", stage: "P1b", operator: "relational_wm", phase: "p1b_wm_flow_recovery", estimand: "relational_wm", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "flow_rel", transitionKind: "baseline_stabilization", purpose: "wm_recovery", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: level },
-    { id: "p1b-wm-arrow-return", stepId: "p1b_wm_arrow_return", label: "Return with the relation", stage: "P1b", operator: "relational_wm", phase: "p1b_wm_arrow_return", estimand: "relational_wm", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "flow_rel", transitionKind: "wm_carrier_transfer", purpose: "wm_return", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: level },
-    { id: "p1b-wm-relative-mix", stepId: "p1b_wm_relative_mix", label: "Hold across arrows and motion", stage: "P1b", operator: "relational_wm", phase: "p1b_wm_relative_mix", estimand: "relational_wm", wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"], sourceWrapperId: null, transitionKind: "operator_integration", purpose: "wm_mix", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: level },
-  ];
+function p1bSpecs(
+  levels: readonly [CccNBackLevel, CccNBackLevel],
+  stage: CccWmWrapperStage,
+  pair: readonly [CccRegimeId, CccRegimeId],
+): ProgrammeBlockSpec[] {
+  const settings = stage === "arrow_stabilisation"
+    ? { wrapperId: "arrow_rel" as const, wrappers: ["arrow_rel"] as const, phase: "p1b_wm_arrow_stabilisation" as const, purpose: "wm_training" as const, source: "arrow_rel" as const }
+    : stage === "arrow_return"
+      ? { wrapperId: "arrow_rel" as const, wrappers: ["arrow_rel"] as const, phase: "p1b_wm_arrow_return" as const, purpose: "wm_return" as const, source: "flow_rel" as const }
+      : stage === "mixed"
+        ? { wrapperId: "mixed_rel" as const, wrappers: ["arrow_rel", "flow_rel"] as const, phase: "p1b_wm_relative_mix" as const, purpose: "wm_mix" as const, source: null }
+        : { wrapperId: "flow_rel" as const, wrappers: ["flow_rel"] as const, phase: "p1b_wm_flow_recovery" as const, purpose: "wm_recovery" as const, source: "flow_rel" as const };
+  return ([1, 2, 3, 4] as const).map((blockNumber) => {
+    const pairIndex = blockNumber <= 2 ? 1 as const : 2 as const;
+    const pairPosition = blockNumber % 2 ? "A" as const : "B" as const;
+    const level = levels[pairIndex - 1];
+    const firstContact = stage === "flow_first_contact" && blockNumber === 1;
+    return {
+      id: `p1b-wm-${stage}-${pairIndex}-${pairPosition.toLowerCase()}`,
+      stepId: firstContact ? "p1b_wm_flow_rel_transfer" : stage === "arrow_stabilisation" ? "p1b_wm_arrow_rel_intro" : stage === "arrow_return" ? "p1b_wm_arrow_return" : stage === "mixed" ? "p1b_wm_relative_mix" : "p1b_wm_flow_recovery",
+      label: `${firstContact ? "First memory check in motion" : `Hold and compare · ${level}-back`} · ${pairPosition}`,
+      stage: "P1b",
+      operator: "relational_wm",
+      phase: firstContact ? "p1b_wm_flow_first_contact" : settings.phase,
+      estimand: "relational_wm",
+      wrapperId: settings.wrapperId,
+      wrappers: settings.wrappers,
+      sourceWrapperId: firstContact ? "arrow_rel" : settings.source,
+      transitionKind: firstContact ? "wm_carrier_transfer" : stage === "mixed" ? "operator_integration" : stage === "arrow_stabilisation" ? "wm_introduction" : "baseline_stabilization",
+      purpose: firstContact ? "wm_carrier_probe" : settings.purpose,
+      diagnostic: firstContact,
+      shiftViewBefore: firstContact,
+      strictCarrierTransferBoundary: firstContact,
+      wmNLevel: level,
+      wmPairIndex: pairIndex,
+      wmPairPosition: pairPosition,
+      regimeId: pairPosition === "A" ? pair[0] : pair[1],
+    };
+  });
 }
 
-function p1cSpecs(kind: ProgrammePlanInput["kind"], sessionNumber: number, level: 1 | 2): ProgrammeBlockSpec[] {
+function p1cSpecs(kind: ProgrammePlanInput["kind"], sessionNumber: number, level: CccNBackLevel): ProgrammeBlockSpec[] {
   const wrapper: CccWrapperId = sessionNumber % 2 === 0 ? "arrow_rel" : "flow_rel";
   const carrierLabel = wrapper === "arrow_rel" ? "arrows" : "motion";
   const delayed = kind === "p1c_delayed_integration";
@@ -400,7 +457,7 @@ function p1cSpecs(kind: ProgrammePlanInput["kind"], sessionNumber: number, level
 export function createProgrammeSessionPlan(input: ProgrammePlanInput): CccSessionPlan {
   const stage = input.kind.startsWith("p1a") ? "P1a" : input.kind.startsWith("p1b") ? "P1b" : "P1c";
   const sessionType = stage === "P1a" ? "portability_check" : stage === "P1b" ? "wm_bridge" : "return_to_now";
-  const specs = stage === "P1a" ? p1aSpecs(input.kind, input.includeFirstContact ?? true) : stage === "P1b" ? p1bSpecs(input.wmLevel) : p1cSpecs(input.kind, input.programmeSessionNumber, input.wmLevel);
+  const specs = stage === "P1a" ? p1aSpecs(input.kind, input.includeFirstContact ?? true) : stage === "P1b" ? p1bSpecs(input.wmPairLevels || [input.wmLevel, input.wmLevel], input.wmWrapperStage || "arrow_stabilisation", input.regimePair) : p1cSpecs(input.kind, input.programmeSessionNumber, input.wmLevel);
   const plan: CccSessionPlan = {
     planId: `${input.sessionId}:${input.kind}`,
     appId: CCC_APP_ID,

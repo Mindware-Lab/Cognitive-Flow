@@ -26,6 +26,7 @@ import {
 import { createProgrammeSessionPlan } from "./cccProgrammeGenerator";
 import { buildCccBlockFeedback, buildCccSessionMetrics } from "./cccFeedback";
 import { evaluateCccLearningCurve, isCccLearningCurveBoundary } from "./cccLearningCurve";
+import { evaluateCccWmPair } from "./cccWmProgress";
 import { buildCccStrategyFeedback, type CccRegimeStrategyFeedback } from "./cccStrategy";
 import {
   CCC_POPULATION_MIN_N,
@@ -57,6 +58,7 @@ import {
   applyCompletedSession,
   allRegimesBalanced,
   createInitialProgrammeState,
+  migrateCccProgrammeState,
   missingTransferEvidence,
   nextProgrammeAction,
   programmeProgressPercent,
@@ -119,8 +121,7 @@ const appRoot: HTMLDivElement = appElement;
 
 const APP_BASE = import.meta.env.BASE_URL || "/";
 let journey = loadCccJourney();
-let programme: CccProgrammeState = loadCccProgramme() || journey?.programme || createInitialProgrammeState();
-programme.evidence.attentionSourceLearningCurve ||= [];
+let programme: CccProgrammeState = migrateCccProgrammeState(loadCccProgramme() || journey?.programme || createInitialProgrammeState());
 if (journey) {
   journey.programme = programme;
   journey.plan.programmeRunId ||= programme.programmeRunId;
@@ -128,6 +129,11 @@ if (journey) {
   journey.plan.programmeSessionKind ||= "p0_foundation";
   journey.plan.delayedRecheckNotBefore ??= null;
   journey.plan.blocks.forEach((block) => { block.wmNLevel ??= null; });
+  journey.plan.blocks.forEach((block) => {
+    block.wmPairIndex ??= null;
+    block.wmPairPosition ??= null;
+    block.selectedExposureMs ??= null;
+  });
   journey.plan.blocks.forEach((block) => {
     block.learningCurveGate ??= block.phase === "arrow_rel_stabilisation" || block.phase === "p1a_arrow_stabilisation"
       ? "source_stabilisation"
@@ -466,7 +472,7 @@ function renderWelcome(): string {
         <div class="ccc-summary-grid ccc-programme-summary">
           <article><span>Sessions completed</span><strong>${programme.sessionNumber}</strong></article>
           <article><span>Current layer</span><strong>${stageLabel}</strong></article>
-          <article><span>Current progress</span><strong>${programme.transferStatus === "attention_portable" ? "Return check complete" : programme.transferStatus === "supported_unlock" ? "Next stages ready" : "Building"}</strong></article>
+          <article><span>${programme.currentStage === "P1b" || programme.currentStage === "P1c" ? "Saved memory level" : "Current progress"}</span><strong>${programme.currentStage === "P1b" || programme.currentStage === "P1c" ? `${programme.wmLevel}-back` : programme.transferStatus === "attention_portable" ? "Return check complete" : programme.transferStatus === "supported_unlock" ? "Next stages ready" : "Building"}</strong></article>
         </div>
         <p>${programmeComplete
           ? programme.status === "full_transfer"
@@ -608,7 +614,7 @@ function renderPhaseGuide(): string {
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
       ${journeyRail(journey.activeBlockIndex, journey.activeBlockIndex)}
       <span class="ccc-kicker">Before you begin</span>
-      <h1>${isSignal ? "Brief pattern. Mask. Best choice." : isWm ? `Hold and compare · ${block.wmNLevel === 1 ? "one step back" : "two steps back"}` : "Two work conditions, one pattern."}</h1>
+      <h1>${isSignal ? "Brief pattern. Mask. Best choice." : isWm ? `Hold and compare · ${block.wmNLevel}-back` : "Two work conditions, one pattern."}</h1>
       ${isSignal ? `
         <div class="ccc-instruction-grid">
           <article><strong>Changing view</strong><span>The display becomes shorter or harder as the task adjusts to your answers.</span></article>
@@ -617,12 +623,12 @@ function renderPhaseGuide(): string {
         </div>
         <p class="ccc-soft-note">Look at the whole group of arrows rather than following just one.</p>` : isWm ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Find</strong><span>Find the main In or Out pattern across the five items.</span></article>
-          <article><strong>Remember and compare</strong><span>Compare it with the pattern ${block.wmNLevel === 1 ? "one step" : "two steps"} earlier.</span></article>
+          <article><strong>Find</strong><span>Find the main direction pattern across the five items.</span></article>
+          <article><strong>Remember and compare</strong><span>Compare it with the pattern ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} earlier.</span></article>
           <article><strong>Choose</strong><span>Choose Match or Different before the next pattern.</span></article>
         </div>
         <div class="ccc-regime-grid">${regimeCards(block)}</div>
-        <p class="ccc-soft-note">The first ${block.wmNLevel === 1 ? "item gives" : "two items give"} you something to compare with and ${block.wmNLevel === 1 ? "is" : "are"} not scored. The payoff reminder will appear whenever the work condition changes.</p>` : `
+        <p class="ccc-soft-note">The first ${block.wmNLevel} ${block.wmNLevel === 1 ? "item gives" : "items give"} you something to compare with and ${block.wmNLevel === 1 ? "is" : "are"} not scored. Before each block, choose a viewing time that fits its payoffs.</p>` : `
         <div class="ccc-regime-grid">${regimeCards(block)}</div>
         ${block.diagnostic ? `<p class="ccc-soft-note">This is your first try with the new display. Keep using the same rule.</p>` : `<p class="ccc-soft-note"><strong>Your aim:</strong> adjust how much information you take in. Build more certainty when errors are costly or patterns are close; commit sooner when points are fading quickly.</p>`}`}
       <div class="ccc-actions">
@@ -638,10 +644,13 @@ function renderRegimeIntro(): string {
   const trial = pendingRegimeIntro;
   const copy = REGIME_COPY[trial.regimeId];
   const regime = CCC_REGIMES[trial.regimeId];
-  const conditionNumber = Math.max(1, (currentBlock()?.regimePair.indexOf(trial.regimeId) ?? 0) + 1);
+  const block = currentBlock();
+  const isWm = trial.operator === "relational_wm";
+  const selectedExposure = block?.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
+  const conditionNumber = isWm ? (journey.activeBlockIndex % 4) + 1 : Math.max(1, (currentBlock()?.regimePair.indexOf(trial.regimeId) ?? 0) + 1);
   return shell(`
     <section class="ccc-narrow-card ccc-regime-intro-card">
-      <div class="ccc-stage-line"><span>Work condition</span><span>${conditionNumber} of ${currentBlock()?.regimePair.length || 2}</span></div>
+      <div class="ccc-stage-line"><span>Work condition</span><span>${conditionNumber} of ${isWm ? 4 : currentBlock()?.regimePair.length || 2}</span></div>
       <span class="ccc-kicker">Payoffs have changed</span>
       <h1>${copy.title}</h1>
       <p>${copy.instruction}</p>
@@ -651,8 +660,14 @@ function renderRegimeIntro(): string {
         <article><span>Waiting cost</span><strong>−${regime.drainPointsPerSecond}/sec</strong><small>Cost of waiting for more certainty</small></article>
       </div>
       <aside class="ccc-strategy-principle"><span>Strategy for this condition</span><strong>${copy.strategy}</strong><p>Use the pattern and the payoffs together: neither fastest nor slowest is always best.</p></aside>
+      ${isWm ? `<section class="ccc-speed-choice">
+        <div><span>Choose your viewing time</span><strong id="ccc-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
+        <input id="ccc-wm-speed-slider" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Pattern viewing time" />
+        <div class="ccc-speed-labels"><span>Faster presentation</span><span>More time to check</span></div>
+        <p>The pattern will be shown for this long on every item in this block. You will then respond after it is covered.</p>
+      </section>` : ""}
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="continue-regime">I understand — continue</button>
+        <button class="ccc-button ccc-button-primary" data-action="continue-regime">${isWm ? "Use this viewing time" : "I understand — continue"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>
@@ -731,11 +746,11 @@ function renderTask(): string {
   const isSignal = trial.estimand === "signal_capacity";
   const isWm = trial.operator === "relational_wm";
   const wrapperLabel = trial.operator === "relational_wm"
-    ? `${trial.wrapperId === "arrow_rel" ? "In / Out arrows" : "Expand / Contract motion"} · ${trial.wmNLevel === 1 ? "one step back" : "two steps back"}`
+    ? `${trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns"} · ${trial.wmNLevel}-back`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
       : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
         : "Expand / Contract motion";
-  const responseStage = isSignal ? taskStage === "response" : taskStage === "evidence";
+  const responseStage = isSignal || isWm ? taskStage === "response" : taskStage === "evidence";
   const controlsDisabled = trial.wmBuffer || !responseStage || !responseEnabled || responseLocked;
   const feedbackPoints = feedbackResult?.scoring.pointsRealised ?? 0;
   const feedbackState = feedbackResult?.scoring.isCorrect
@@ -753,25 +768,27 @@ function renderTask(): string {
         ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
         : "No response"
       : feedbackResult?.scoring.responseClass === "answer"
-        ? `${feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"} · ${formatPoints(feedbackPoints)}`
+        ? isWm
+          ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
+          : `${feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"} · ${formatPoints(feedbackPoints)}`
         : "No response · 0";
   const signalFeedbackMarkup = `<div class="ccc-signal-result ${feedbackState}" role="status" aria-live="polite"><span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span><strong>${feedbackOutcome}</strong></div>`;
   const pot = regime.correctPot;
-  const taskTitle = isSignal ? "Pattern check" : isWm ? `Hold and compare · ${trial.wmNLevel === 1 ? "one step back" : "two steps back"}` : isPractice ? "Practice" : regimeCopy.title;
+  const taskTitle = isSignal ? "Pattern check" : isWm ? `Hold and compare · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
   const taskCue = taskStage === "fixation" ? "Get ready"
     : taskStage === "interval" ? "Next pattern"
       : taskStage === "feedback" ? isSignal || isPractice ? "Result" : feedbackMessage
         : taskStage === "mask" ? "Pattern covered"
           : taskStage === "response" ? "Make your best choice"
           : isSignal ? "Hold the majority direction"
-            : isWm ? trial.wmBuffer ? "Take in this relation" : `Does this match ${trial.wmNLevel === 1 ? "one step" : "two steps"} back?`
+            : isWm ? trial.wmBuffer ? "Take in this relation" : `Does this match ${trial.wmNLevel} steps back?`
               : regimeCopy.cue;
   const stimulus = taskStage === "fixation"
     ? `<span class="ccc-fixation" aria-label="Get ready">+</span>`
     : taskStage === "interval"
       ? `<span class="ccc-interval-dot" aria-hidden="true"></span>`
       : taskStage === "mask"
-        ? maskStimulus(trial)
+        ? trial.carrier === "arrow" ? maskStimulus(trial) : `<span class="ccc-fixation" aria-label="Pattern covered">+</span>`
         : taskStage === "response"
           ? `<span class="ccc-fixation" aria-label="Choose now">+</span>`
           : stimulusFor(trial);
@@ -801,15 +818,15 @@ function renderTask(): string {
           : `<div class="ccc-value-panel ccc-result-panel ${feedbackState}" role="status" aria-live="polite">
             <span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span>
             <div><span>This choice</span><strong>${feedbackOutcome}</strong></div>
-            <small>${feedbackMessage}</small>
+            <small>${isWm ? "The points effect is summarised after the block." : feedbackMessage}</small>
           </div>`}` : `
         ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>The mask clears before the response buttons become active.</small></div>`
           : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>Unscored</strong></div><small>Make a Left or Right choice on every pattern.</small></div>`
-          : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Get ready to compare</span><strong>Remember this pattern</strong></div><small>This first ${trial.wmNLevel === 1 ? "item" : "set"} is not scored.</small></div>`
+          : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Get ready to compare</span><strong>Remember this pattern</strong></div><small>The first ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "item is" : "items are"} not scored.</small></div>`
           : `<div class="ccc-value-panel">
           <div><span>Available if correct</span><strong id="ccc-live-pot">${Math.round(pot)}</strong></div>
           <div class="ccc-pot-track"><span id="ccc-pot-bar" style="width:100%"></span></div>
-          <small>Correct: keep what remains · Wrong: ${regime.errorLoss} points lost · No response: no points</small>
+          <small>${isWm ? `Chosen view: ${((block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs) / 1000).toFixed(2)} s · ` : ""}Correct: keep what remains · Wrong: ${regime.errorLoss} points lost · No response: no points</small>
         </div>`}`}
       <div class="ccc-response-row" aria-label="${isWm ? "Choose Match or Different" : "Choose the majority relation"}">
         ${responseButtons}
@@ -874,6 +891,8 @@ function miniTrend(values: readonly number[], label: string, format: (value: num
 }
 
 function renderBetweenBlockTrends(): string {
+  const block = currentBlock();
+  const isWm = block?.operator === "relational_wm";
   const feedback = blockHistoryBeforeCurrent().map((results) => buildCccBlockFeedback(results));
   const accuracy = feedback.map((item) => item.accuracy === null ? null : item.accuracy * 100).filter((value): value is number => value !== null);
   const decisionTime = feedback.map((item) => item.medianDecisionMs).filter((value): value is number => value !== null);
@@ -881,7 +900,7 @@ function renderBetweenBlockTrends(): string {
     <div class="ccc-section-heading"><span>Across this session</span><strong>See how your pattern is changing</strong></div>
     <div class="ccc-mini-trend-grid">
       ${miniTrend(accuracy, "Accuracy", (value) => `${Math.round(value)}%`)}
-      ${miniTrend(decisionTime.map((value) => value / 1000), "Decision time", formatTrendTime)}
+      ${miniTrend(decisionTime.map((value) => value / 1000), isWm ? "Chosen viewing time" : "Decision time", formatTrendTime)}
     </div>
   </section>`;
 }
@@ -955,6 +974,24 @@ function renderBlockComplete(): string {
   const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
   const isPractice = taskMode === "practice";
   const isSignal = block.estimand === "signal_capacity";
+  const isWm = block.operator === "relational_wm";
+  const wmPairDecision = isWm && block.wmPairPosition === "B" && block.wmPairIndex
+    ? evaluateCccWmPair(
+        journey.plan.blocks
+          .filter((candidate) => candidate.operator === "relational_wm" && candidate.wmPairIndex === block.wmPairIndex)
+          .flatMap((candidate) => journey!.blockResults[candidate.id] || []),
+        block.wmNLevel || programme.wmLevel,
+      )
+    : null;
+  const wmLevelMessage = wmPairDecision
+    ? wmPairDecision.nextLevel > wmPairDecision.currentLevel
+      ? `Your accuracy held across both conditions, so the next pair moves to ${wmPairDecision.nextLevel}-back.`
+      : wmPairDecision.nextLevel < wmPairDecision.currentLevel
+        ? `This pair was not yet steady enough, so the next pair returns to ${wmPairDecision.nextLevel}-back to rebuild accuracy.`
+        : wmPairDecision.direction === "increase"
+          ? `You met the step-up target and will stay at the current maximum of ${wmPairDecision.currentLevel}-back.`
+          : `The next pair will hold at ${wmPairDecision.currentLevel}-back while you refine accuracy, viewing time and points.`
+    : "";
   const copy = block.phase === "practice" ? {
     title: "You know the task.",
     body: "Next comes a quick pattern check, followed by In and Out practice.",
@@ -980,11 +1017,12 @@ function renderBlockComplete(): string {
       <p>${copy.body}</p>
       ${isPractice ? "" : `
         <div class="ccc-summary-grid">
-          <article><span>${isSignal ? "Patterns correct" : "Best-choice accuracy"}</span><strong>${formatPercent(feedback.accuracy)}</strong></article>
-          <article><span>${isSignal ? "Typical answer time" : "Typical decision time"}</span><strong>${formatTime(feedback.medianDecisionMs)}</strong></article>
+          <article><span>${isSignal ? "Patterns correct" : isWm ? "Balanced accuracy" : "Best-choice accuracy"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong></article>
+          <article><span>${isSignal ? "Typical answer time" : isWm ? "Chosen viewing time" : "Typical decision time"}</span><strong>${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}</strong></article>
           <article><span>${isSignal ? "Patterns completed" : "Points kept"}</span><strong>${isSignal ? feedback.observationCount : `${feedback.pointsKeptPercent}%`}</strong></article>
         </div>`}
-      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "The viewing time changed as you answered." : "Read accuracy, time and points together."}</strong> ${isSignal ? "Use this result as a simple guide for the stages ahead." : "If time ended before you answered, that pattern remains part of your result."}</p>`}
+      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "The viewing time changed as you answered." : "Read accuracy, time and points together."}</strong> ${isSignal ? "Use this result as a simple guide for the stages ahead." : isWm ? `Misses ${formatPercent(feedback.wmMissRate)} · false alarms ${formatPercent(feedback.wmFalseAlarmRate)}${feedback.wmLureFalseAlarmRate === null ? "" : ` · recent-pattern traps ${formatPercent(feedback.wmLureFalseAlarmRate)}`}.` : "If time ended before you answered, that pattern remains part of your result."}</p>`}
+      ${wmLevelMessage ? `<p class="ccc-learning-status"><strong>Memory level:</strong> ${wmLevelMessage}</p>` : ""}
       ${isPractice ? "" : renderBetweenBlockTrends()}
       ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>Ready for a format change.</strong> This change is happening because your recent performance flattened above the target level—not because a fixed trial quota ended.</p>` : ""}
       ${learningCurve.status === "exposure_ceiling" ? `<p class="ccc-learning-status"><strong>Practice limit reached.</strong> The new format will wait until your recent performance is stable enough.</p>` : ""}
@@ -1048,18 +1086,19 @@ function renderBlockReconnect(): string {
   const learningCurve = evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve);
   const exposureStopped = learningCurve.status === "exposure_ceiling";
   const isLast = exposureStopped || journey.activeBlockIndex === journey.plan.blocks.length - 1;
+  const isWm = block.operator === "relational_wm";
   return shell(`
     <section class="ccc-narrow-card ccc-block-reconnect-card">
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} complete</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
-      <span class="ccc-kicker">From exercise to workflow</span>
-      <h1>Reconnect before you move on.</h1>
+      <span class="ccc-kicker">${isWm ? "Use the feedback" : "From exercise to workflow"}</span>
+      <h1>${isWm ? "Adjust your policy for the next block." : "Reconnect before you move on."}</h1>
       <aside class="ccc-workflow-bridge">
         <span>${WORKFLOW_CHOICES[journey.workflowChoice].label}</span>
         <strong>${workflowBridge(block.phase, journey.workflowChoice)}</strong>
       </aside>
-      <p class="ccc-soft-note">Try this idea in your real task and notice whether it helps.</p>
+      <p class="ccc-soft-note">${isWm ? "The next block keeps the memory rule comparable while the payoffs change. Choose its viewing time deliberately." : "Try this idea in your real task and notice whether it helps."}</p>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${exposureStopped ? "Finish today’s practice" : isLast ? "See your journey review" : "Continue to the next stage"}</button>
+        <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${exposureStopped ? "Finish today’s practice" : isLast ? "See your journey review" : isWm ? "Continue to the next block" : "Continue to the next stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>`, "ccc-block-reconnect-view ccc-viewport-view");
@@ -1105,8 +1144,8 @@ function renderComplete(): string {
       ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1), null)}
       <div class="ccc-summary-grid">
         <article><span>${hasSignal ? "Pattern accuracy" : "Attention accuracy"}</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
-        <article><span>${hasWm ? "Hold-and-compare accuracy" : "Change in checking time"}</span><strong>${hasWm ? formatPercent(wmFeedback.accuracy) : policyFeedback.timingShiftMs === null ? "More practice needed" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
-        <article><span>Programme progress</span><strong>${programmeProgressPercent(programme)}%</strong></article>
+        <article><span>${hasWm ? "Balanced hold-and-compare accuracy" : "Change in checking time"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : policyFeedback.timingShiftMs === null ? "More practice needed" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
+        <article><span>${hasWm ? "Saved memory level" : "Programme progress"}</span><strong>${hasWm ? `${programme.wmLevel}-back` : `${programmeProgressPercent(programme)}%`}</strong></article>
       </div>
       ${renderSessionScoreStrip(sessionMetrics)}
       ${renderStrategyTakeaway(allResults)}
@@ -1386,6 +1425,9 @@ function createNewJourney(): void {
   if (next.type !== "session") return;
   const sessionId = crypto.randomUUID();
   const regimePair = selectBalancedRegimePair(programme, `${programme.programmeRunId}:${programme.sessionNumber + 1}:${sessionId}`);
+  const wmPairLevels = next.kind === "p1b_wm_bridge"
+    ? [programme.wmLevel, programme.wmPendingPairLevel || programme.wmLevel] as const
+    : undefined;
   const plan = next.kind === "p0_foundation"
     ? createP0AttentionCarrierTransferPlan({
         sessionId,
@@ -1402,6 +1444,8 @@ function createNewJourney(): void {
         kind: next.kind,
         regimePair,
         wmLevel: programme.wmLevel,
+        wmPairLevels,
+        wmWrapperStage: programme.wmWrapperStage,
         delayedRecheckNotBefore: next.kind === "p1a_delayed_recheck" || next.kind === "p1c_delayed_integration" ? programme.delayedRecheckDueAt : null,
         includeFirstContact: !programme.evidence.carrierFirstContactObserved,
       });
@@ -1428,6 +1472,7 @@ function createNewJourney(): void {
     updatedAt: now,
     completedAt: null,
   };
+  if (next.kind === "p1b_wm_bridge") programme.wmPendingPairLevel = wmPairLevels?.[1] || programme.wmLevel;
   taskMode = journey.practiceComplete ? "guided" : "practice";
   recordEvent("journey_started", {
     workflowChoice: selectedWorkflow,
@@ -1436,6 +1481,9 @@ function createNewJourney(): void {
     programmeSessionKind: plan.programmeSessionKind,
     regimePair,
     allocationRule: "least-exposed-pair-without-immediate-repeat",
+    wmLevelAtStart: programme.wmLevel,
+    wmPairLevels: wmPairLevels || null,
+    wmWrapperStage: programme.wmWrapperStage,
   }, null);
   saveJourney();
 }
@@ -1551,7 +1599,9 @@ function beginTrial(): void {
   signalStimulusFrames = null;
   signalRefreshRate = null;
   const previous = currentResults().at(-1)?.trial;
-  const regimeIntroKey = `${trial.blockId}:${trial.microcycleIndex}:${trial.regimeId}`;
+  const regimeIntroKey = trial.operator === "relational_wm"
+    ? trial.blockId
+    : `${trial.blockId}:${trial.microcycleIndex}:${trial.regimeId}`;
   if (taskMode === "guided"
     && trial.presentationMode === "self_paced_value"
     && lastIntroducedRegimeKey !== regimeIntroKey) {
@@ -1584,6 +1634,10 @@ function beginTrial(): void {
       startSignalExposure(trial);
       return;
     }
+    if (trial.operator === "relational_wm") {
+      startWmExposure(trial);
+      return;
+    }
     taskStage = "evidence";
     evidenceStartedAt = performance.now();
     render();
@@ -1596,8 +1650,38 @@ function beginTrial(): void {
     }, CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs));
     taskTimers.push(window.setTimeout(() => {
       completeTrial(null, "deadline");
-    }, trial.operator === "relational_wm" ? CCC_RELATIONAL_WM.responseDeadlineMs : CCC_TRIAL_TIMING.maxResponseWindowMs));
+    }, CCC_TRIAL_TIMING.maxResponseWindowMs));
   }, CCC_TRIAL_TIMING.fixationCueMs));
+}
+
+function startWmExposure(trial: CccAttentionTrialDefinition): void {
+  const block = currentBlock();
+  const exposureMs = block?.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
+  trial.exposureMsRequested = exposureMs;
+  taskStage = "evidence";
+  evidenceStartedAt = performance.now();
+  responseEnabled = false;
+  render();
+  startPotDisplay(trial);
+  taskTimers.push(window.setTimeout(() => {
+    if (responseLocked || view !== "task") return;
+    taskStage = "mask";
+    responseEnabled = false;
+    render();
+    taskTimers.push(window.setTimeout(() => {
+      if (responseLocked || view !== "task") return;
+      if (trial.wmBuffer) {
+        completeTrial(null, "system");
+        return;
+      }
+      taskStage = "response";
+      evidenceStartedAt = performance.now();
+      responseEnabled = true;
+      render();
+      enableResponseControls();
+      taskTimers.push(window.setTimeout(() => completeTrial(null, "deadline"), CCC_RELATIONAL_WM.responseDeadlineMs));
+    }, CCC_RELATIONAL_WM.maskMs));
+  }, exposureMs));
 }
 
 function enableResponseControls(): void {
@@ -1649,9 +1733,7 @@ function feedbackFor(result: CccRecordedTrial): string {
     ? "Time ended — this practice item will return."
     : "Time ended — counted as an unresolved pattern.";
   if (result.trial.estimand === "signal_capacity") return result.scoring.isCorrect ? "Correct." : "Incorrect.";
-  return result.scoring.isCorrect
-    ? taskMode === "practice" ? "Correct." : `You kept ${Math.round(result.scoring.pointsRealised)} points after viewing.`
-    : taskMode === "practice" ? "Incorrect." : `The ${result.trial.regimeId === "clean_precision" || result.trial.regimeId === "deep_check" ? "larger" : "wrong-choice"} cost applies here.`;
+  return result.scoring.isCorrect ? "Correct." : "Incorrect.";
 }
 
 function completeTrial(
@@ -1668,7 +1750,11 @@ function completeTrial(
   const responseTimeMs = evidenceStartedAt > 0 ? Math.max(0, Math.round(performance.now() - evidenceStartedAt)) : null;
   clearTaskTiming();
   const scoring = scoreCccAttentionTrial({ trial, response, responseTimeMs, invalidated, invalidReason });
-  const exposureMsActual = trial.estimand === "signal_capacity" ? signalExposureMsActual : null;
+  const exposureMsActual = trial.estimand === "signal_capacity"
+    ? signalExposureMsActual
+    : trial.operator === "relational_wm"
+      ? trial.exposureMsRequested
+      : null;
   const timingQuality = trial.estimand === "signal_capacity" && trial.exposureMsRequested && exposureMsActual
     ? classifySignalTiming(trial.exposureMsRequested, exposureMsActual)
     : "not_applicable";
@@ -1737,13 +1823,7 @@ function completeTrial(
     }
     taskStage = "interval";
     render();
-    const fixedCadenceRemainder = trial.operator === "relational_wm"
-      ? Math.max(CCC_TRIAL_TIMING.interTrialIntervalMs, CCC_RELATIONAL_WM.onsetToOnsetCadenceMs
-          - (responseTimeMs ?? CCC_RELATIONAL_WM.responseDeadlineMs)
-          - CCC_TRIAL_TIMING.outcomeFeedbackMs
-          - CCC_TRIAL_TIMING.fixationCueMs)
-      : CCC_TRIAL_TIMING.interTrialIntervalMs;
-    taskTimers.push(window.setTimeout(beginTrial, fixedCadenceRemainder));
+    taskTimers.push(window.setTimeout(beginTrial, CCC_TRIAL_TIMING.interTrialIntervalMs));
   }, CCC_TRIAL_TIMING.outcomeFeedbackMs));
 }
 
@@ -1773,6 +1853,45 @@ function finishCurrentBlock(): void {
   const results = [...currentResults()];
   if (taskMode === "practice") journey.practiceComplete = true;
   const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
+  let wmPairDecision = null as ReturnType<typeof evaluateCccWmPair> | null;
+  if (block.operator === "relational_wm" && block.wmPairPosition === "B" && block.wmPairIndex) {
+    const pairBlocks = journey.plan.blocks.filter((candidate) => candidate.operator === "relational_wm"
+      && candidate.wmPairIndex === block.wmPairIndex);
+    const pairResults = pairBlocks.flatMap((candidate) => journey!.blockResults[candidate.id] || []);
+    wmPairDecision = evaluateCccWmPair(pairResults, block.wmNLevel || programme.wmLevel);
+    if (block.wmPairIndex === 1) {
+      programme.wmPendingPairLevel = wmPairDecision.nextLevel;
+      const secondPairBlocks = journey.plan.blocks.filter((candidate) => candidate.operator === "relational_wm"
+        && candidate.wmPairIndex === 2);
+      const regenerated = createProgrammeSessionPlan({
+        sessionId: journey.plan.sessionId,
+        seed: journey.plan.sessionId,
+        programmeRunId: programme.programmeRunId,
+        programmeSessionNumber: journey.plan.programmeSessionNumber,
+        kind: "p1b_wm_bridge",
+        regimePair: journey.plan.regimePair,
+        wmLevel: pairBlocks[0]?.wmNLevel || programme.wmLevel,
+        wmPairLevels: [pairBlocks[0]?.wmNLevel || programme.wmLevel, wmPairDecision.nextLevel],
+        wmWrapperStage: programme.wmWrapperStage,
+      });
+      const secondPairIds = new Set(secondPairBlocks.map((candidate) => candidate.id));
+      const regeneratedBlocks = new Map(regenerated.blocks.map((candidate) => [candidate.id, candidate]));
+      for (const candidate of secondPairBlocks) {
+        const replacement = regeneratedBlocks.get(candidate.id);
+        if (replacement) Object.assign(candidate, replacement);
+        journey.blockQueues[candidate.id] = regenerated.trials.filter((trial) => trial.blockId === candidate.id);
+      }
+      journey.plan.trials = [
+        ...journey.plan.trials.filter((trial) => !secondPairIds.has(trial.blockId)),
+        ...regenerated.trials.filter((trial) => secondPairIds.has(trial.blockId)),
+      ].sort((left, right) => left.trialIndex - right.trialIndex);
+      saveCccProgramme(programme);
+    }
+    recordEvent("wm_pair_level_decision", {
+      pairIndex: block.wmPairIndex,
+      ...wmPairDecision,
+    }, block.id);
+  }
   if (learningCurve.shouldEndBlock && block.learningCurveGate === "source_stabilisation") {
     block.validTrialCount = results.filter((result) => result.scoring.countsTowardQuota).length;
   }
@@ -1788,6 +1907,8 @@ function finishCurrentBlock(): void {
     learningCurveSlope: learningCurve.performanceSlope,
     learningCurveGain: learningCurve.performanceGain,
     learningCurveChecks: learningCurve.checks,
+    wmPairDecision,
+    selectedExposureMs: block.selectedExposureMs,
   }, block.id);
   saveJourney();
   const pending = submitCurrentBlock(block, results);
@@ -1973,7 +2094,9 @@ appRoot.addEventListener("click", (event) => {
   const response = button.dataset.response as CccResponseChoice | undefined;
   if (response) {
     const trial = activeTrial();
-    const responseStage = trial?.estimand === "signal_capacity" ? taskStage === "response" : taskStage === "evidence";
+    const responseStage = trial?.estimand === "signal_capacity" || trial?.operator === "relational_wm"
+      ? taskStage === "response"
+      : taskStage === "evidence";
     if (view !== "task" || !responseStage || !responseEnabled || responseLocked) return;
     const inputMode: CccInputMode = event instanceof PointerEvent && event.pointerType === "touch" ? "touch" : "pointer";
     completeTrial(response, inputMode);
@@ -2008,6 +2131,21 @@ appRoot.addEventListener("click", (event) => {
     if (journey && block?.shiftViewBefore && !journey.shiftViewCompleted) setView("shift_view");
     else startTask("guided");
   } else if (action === "continue-regime") {
+    const block = currentBlock();
+    if (block?.operator === "relational_wm") {
+      const slider = document.querySelector<HTMLInputElement>("#ccc-wm-speed-slider");
+      const selected = Number(slider?.value || CCC_RELATIONAL_WM.defaultPresentationMs);
+      block.selectedExposureMs = Math.max(CCC_RELATIONAL_WM.minimumPresentationMs, Math.min(CCC_RELATIONAL_WM.maximumPresentationMs, selected));
+      for (const trial of journey?.blockQueues[block.id] || []) trial.exposureMsRequested = block.selectedExposureMs;
+      recordEvent("wm_presentation_time_selected", {
+        exposureMs: block.selectedExposureMs,
+        regimeId: pendingRegimeIntro?.regimeId || null,
+        wmNLevel: block.wmNLevel,
+        pairIndex: block.wmPairIndex,
+        pairPosition: block.wmPairPosition,
+      }, block.id);
+      saveJourney();
+    }
     pendingRegimeIntro = null;
     setView("task");
     beginTrial();
@@ -2097,9 +2235,18 @@ appRoot.addEventListener("click", (event) => {
   }
 });
 
+appRoot.addEventListener("input", (event) => {
+  const slider = (event.target as HTMLElement).closest<HTMLInputElement>("#ccc-wm-speed-slider");
+  if (!slider) return;
+  const output = document.querySelector<HTMLElement>("#ccc-wm-speed-value");
+  if (output) output.textContent = `${(Number(slider.value) / 1000).toFixed(2)} seconds`;
+});
+
 window.addEventListener("keydown", (event) => {
   const trial = activeTrial();
-  const responseStage = trial?.estimand === "signal_capacity" ? taskStage === "response" : taskStage === "evidence";
+  const responseStage = trial?.estimand === "signal_capacity" || trial?.operator === "relational_wm"
+    ? taskStage === "response"
+    : taskStage === "evidence";
   if (view !== "task" || !responseStage || !responseEnabled || responseLocked || !trial) return;
   const response = event.key === "ArrowLeft" ? trial.answerOptions[0]
     : event.key === "ArrowRight" ? trial.answerOptions[1]
@@ -2134,7 +2281,7 @@ async function hydrateCloudProgress(user: AuthUser): Promise<void> {
     if (remote && [2, 3].includes(Number(remote.storageVersion)) && remote.plan?.appId === "cognitive_control_coach"
       && (!journey || Date.parse(remote.updatedAt) > Date.parse(journey.updatedAt))) {
       journey = remote;
-      programme = remote.programme || programme;
+      programme = migrateCccProgrammeState(remote.programme || programme);
       journey.storageVersion = 3;
       journey.programme = programme;
       selectedWorkflow = remote.workflowChoice;

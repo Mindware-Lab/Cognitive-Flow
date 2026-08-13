@@ -40,35 +40,40 @@ describe("CCC multi-session plan generator", () => {
     expect(plan.delayedRecheckNotBefore).toBe("2026-08-13T12:00:00.000Z");
   });
 
-  it("builds P1b with Attention first, fixed-operator carrier changes and balanced WM decisions", () => {
+  it("builds four A-B-A-B memory blocks with 20 scored decisions plus the current n", () => {
     const plan = createProgrammeSessionPlan({
       ...base,
       sessionId: "wm-one",
       seed: "wm-one",
       programmeSessionNumber: 3,
       kind: "p1b_wm_bridge",
+      wmPairLevels: [2, 3],
     });
     expect(plan.blocks.map((block) => block.operator)).toEqual([
-      "attention",
-      "relational_wm",
       "relational_wm",
       "relational_wm",
       "relational_wm",
       "relational_wm",
     ]);
-    for (let index = 1; index < plan.blocks.length; index += 1) {
-      const previous = plan.blocks[index - 1];
-      const current = plan.blocks[index];
-      if (previous.operator !== current.operator) expect(previous.wrappers[0]).toBe(current.wrappers[0]);
-    }
-    for (const block of plan.blocks.filter((item) => item.operator === "relational_wm")) {
+    expect(plan.blocks.map((block) => [block.wmPairIndex, block.wmPairPosition, block.regimePair.indexOf(plan.trials.find((trial) => trial.blockId === block.id)!.regimeId)])).toEqual([
+      [1, "A", 0],
+      [1, "B", 1],
+      [2, "A", 0],
+      [2, "B", 1],
+    ]);
+    expect(plan.blocks.map((block) => block.wmNLevel)).toEqual([2, 2, 3, 3]);
+    for (const block of plan.blocks) {
       const trials = plan.trials.filter((trial) => trial.blockId === block.id);
-      expect(trials.filter((trial) => trial.wmBuffer)).toHaveLength(2);
-      expect(trials.filter((trial) => !trial.wmBuffer)).toHaveLength(12);
-      for (const regime of plan.regimePair) {
-        const scored = trials.filter((trial) => trial.regimeId === regime && !trial.wmBuffer);
-        expect(scored.filter((trial) => trial.correctResponse === "match")).toHaveLength(3);
-        expect(scored.filter((trial) => trial.correctResponse === "different")).toHaveLength(3);
+      const scored = trials.filter((trial) => !trial.wmBuffer);
+      expect(trials.filter((trial) => trial.wmBuffer)).toHaveLength(block.wmNLevel || 0);
+      expect(scored).toHaveLength(20);
+      expect(scored.filter((trial) => trial.correctResponse === "match")).toHaveLength(10);
+      expect(scored.filter((trial) => trial.correctResponse === "different")).toHaveLength(10);
+      const expectedRatios = scored[0].regimeId === "clear_sprint"
+        ? { "5:0": 12, "4:1": 6, "3:2": 2 }
+        : { "5:0": 2, "4:1": 6, "3:2": 12 };
+      for (const ratio of ["5:0", "4:1", "3:2"] as const) {
+        expect(scored.filter((trial) => trial.ratio === ratio)).toHaveLength(expectedRatios[ratio]);
       }
     }
   });

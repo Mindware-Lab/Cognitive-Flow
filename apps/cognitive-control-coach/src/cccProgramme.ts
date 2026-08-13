@@ -2,9 +2,11 @@ import { CCC_DELAYED_RECHECK, CCC_REGIME_PAIRS } from "./cccConfig";
 import { hashSeed } from "./random";
 import { buildCccSessionMetrics } from "./cccFeedback";
 import { learningCurvePointsForResults } from "./cccLearningCurve";
+import { cccWmCurveIsStable, evaluateCccWmPair, wmHistoryPoint } from "./cccWmProgress";
 import type { CccSavedJourney } from "./cccStorage";
 import type {
   CccAttentionBlockPlan,
+  CccNBackLevel,
   CccProgrammeSessionKind,
   CccProgrammeState,
   CccRecordedTrial,
@@ -15,8 +17,8 @@ export const CCC_PROGRAMME_VERSION = 1 as const;
 export const CCC_PROGRAMME_GATE_VERSION = "ccc-programme-gates-v0.4";
 export const CCC_DELAY_MS = CCC_DELAYED_RECHECK.minimumReentryHours * 60 * 60 * 1000;
 export const CCC_MIN_ATTENTION_STABILITY_SESSIONS = 4;
-export const CCC_MIN_WM_STABILITY_PASSES = 5;
-export const CCC_MIN_WM_TRANSFER_PASSES = 4;
+export const CCC_MIN_WM_STABILITY_PASSES = 1;
+export const CCC_MIN_WM_TRANSFER_PASSES = 1;
 export const CCC_MIN_INTEGRATION_PASSES = 4;
 
 const REGIME_IDS: readonly CccRegimeId[] = [
@@ -42,6 +44,8 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
     sessionNumber: 0,
     attentionSessionCount: 0,
     wmLevel: 1,
+    wmWrapperStage: "arrow_stabilisation",
+    wmPendingPairLevel: null,
     delayedRecheckDueAt: null,
     delayedRecheckWindowEndsAt: null,
     regimeExposure: {
@@ -70,6 +74,7 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
       finalDelayedPasses: 0,
       failedFinalDelayedChecks: 0,
       attentionSourceLearningCurve: [],
+      wmLearningCurve: [],
     },
     sessions: [],
     proofScores: [],
@@ -77,6 +82,27 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
     updatedAt: timestamp,
     completedAt: null,
   };
+}
+
+export function migrateCccProgrammeState(programme: CccProgrammeState): CccProgrammeState {
+  const legacy = programme as CccProgrammeState & {
+    wmLevel?: number;
+    wmWrapperStage?: CccProgrammeState["wmWrapperStage"];
+    wmPendingPairLevel?: number | null;
+  };
+  const boundedLevel = (value: number | null | undefined, fallback: CccNBackLevel): CccNBackLevel => {
+    if (!Number.isFinite(value)) return fallback;
+    return Math.max(1, Math.min(5, Math.round(Number(value)))) as CccNBackLevel;
+  };
+  programme.wmLevel = boundedLevel(legacy.wmLevel, 1);
+  programme.wmWrapperStage ||= "arrow_stabilisation";
+  programme.wmPendingPairLevel = legacy.wmPendingPairLevel === null || legacy.wmPendingPairLevel === undefined
+    ? null
+    : boundedLevel(legacy.wmPendingPairLevel, programme.wmLevel);
+  programme.evidence.attentionSourceLearningCurve ||= [];
+  programme.evidence.wmLearningCurve ||= [];
+  programme.proofScores ||= [];
+  return programme;
 }
 
 export function nextProgrammeAction(programme: CccProgrammeState, now = new Date()): CccNextProgrammeAction {
@@ -196,10 +222,9 @@ export function applyCompletedSession(
   if (!journey.completedAt || current.sessions.some((session) => session.sessionId === journey.plan.sessionId)) {
     return { programme: current, gateDecisions: [] };
   }
-  const programme = structuredClone(current);
+  const programme = migrateCccProgrammeState(structuredClone(current));
   const decisions: string[] = [];
   const evidence = programme.evidence;
-  evidence.attentionSourceLearningCurve ||= [];
   const completedAt = new Date(journey.completedAt);
 
   programme.sessionNumber += 1;
@@ -262,12 +287,52 @@ export function applyCompletedSession(
     decisions.push("You are still building consistency. The next session will revisit the areas that need more practice.");
   }
 
-  if (passedPhase(journey, ["p1b_wm_arrow_stabilisation"], 12)) evidence.wmStabilityPasses += 1;
-  if (passedPhase(journey, ["p1b_wm_flow_recovery"], 12)) evidence.wmRecoveryPasses += 1;
-  if (passedPhase(journey, ["p1b_wm_arrow_return"], 12)) evidence.wmReturnPasses += 1;
-  if (passedPhase(journey, ["p1b_wm_relative_mix"], 12)) evidence.wmMixedPasses += 1;
-  if (evidence.wmStabilityPasses >= 1) programme.wmLevel = 2;
   if (journey.plan.stage === "P1b") {
+    const wmBlocks = journey.plan.blocks.filter((block) => block.operator === "relational_wm");
+    const pairDecisions = ([1, 2] as const).map((pairIndex) => {
+      const blocks = wmBlocks.filter((block) => block.wmPairIndex === pairIndex);
+      const results = blocks.flatMap((block) => blockResults(journey, block));
+      const level = blocks[0]?.wmNLevel || programme.wmLevel;
+      return evaluateCccWmPair(results, level);
+    });
+    const stageAtStart = programme.wmWrapperStage;
+    pairDecisions.forEach((decision, index) => evidence.wmLearningCurve.push(wmHistoryPoint(
+      journey.plan.sessionId,
+      stageAtStart,
+      (index + 1) as 1 | 2,
+      decision,
+    )));
+    programme.wmLevel = pairDecisions.at(-1)?.nextLevel || programme.wmLevel;
+    programme.wmPendingPairLevel = null;
+    const stageHistory = evidence.wmLearningCurve.filter((point) => point.wrapperStage === stageAtStart);
+    const stable = cccWmCurveIsStable(stageHistory);
+    if (stageAtStart === "flow_first_contact") {
+      programme.wmWrapperStage = "flow_recovery";
+      decisions.push("Your first motion-format check is recorded. The next session will build recovery in that format.");
+    } else if (stable) {
+      if (stageAtStart === "arrow_stabilisation") {
+        evidence.wmStabilityPasses += 1;
+        programme.wmWrapperStage = "flow_first_contact";
+        decisions.push("Your memory level is steady. Next time you will use the same level with a new display.");
+      } else if (stageAtStart === "flow_recovery") {
+        evidence.wmRecoveryPasses += 1;
+        programme.wmWrapperStage = "arrow_return";
+        decisions.push("Your memory performance has recovered in motion. Next you will return to arrows.");
+      } else if (stageAtStart === "arrow_return") {
+        evidence.wmReturnPasses += 1;
+        programme.wmWrapperStage = "mixed";
+        decisions.push("Your memory level held on return. Next you will mix arrows and motion.");
+      } else {
+        evidence.wmMixedPasses += 1;
+        decisions.push("Your memory level is steady across both displays.");
+      }
+    } else {
+      decisions.push(pairDecisions.at(-1)?.direction === "increase"
+        ? `Your next session will continue at ${programme.wmLevel}-back.`
+        : pairDecisions.at(-1)?.direction === "decrease"
+          ? `Your next session will restart at ${programme.wmLevel}-back so you can rebuild accuracy.`
+          : `Your next session will preserve ${programme.wmLevel}-back.`);
+    }
     const wmReady = evidence.wmStabilityPasses >= CCC_MIN_WM_STABILITY_PASSES
       && evidence.wmRecoveryPasses >= CCC_MIN_WM_TRANSFER_PASSES
       && evidence.wmReturnPasses >= CCC_MIN_WM_TRANSFER_PASSES

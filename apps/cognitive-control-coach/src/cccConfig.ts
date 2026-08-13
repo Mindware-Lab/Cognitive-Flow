@@ -12,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.5";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.5";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.6";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.6";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -134,18 +134,30 @@ export const CCC_P0_BLOCK_MICROCYCLES = {
 } as const;
 
 export const CCC_RELATIONAL_WM: CccRelationalWmConfig = {
-  onsetToOnsetCadenceMs: 5000,
+  scoredTrialsPerBlock: 20,
+  blocksPerSession: 4,
+  minimumPresentationMs: 350,
+  maximumPresentationMs: 3500,
+  presentationStepMs: 50,
+  defaultPresentationMs: 1200,
+  maskMs: 350,
   responseDeadlineMs: 4000,
   initialNBack: 1,
-  launchProgression: [1, 2],
+  minimumNBack: 1,
+  maximumNBack: 5,
   matchFrequency: 0.5,
   differentFrequency: 0.5,
   wrongLagLureRateOfFeasibleDifferent: 0.25,
   resetBufferOnRegimeTransition: true,
   excludeFirstNItemsFromScoring: true,
-  advancementAnsweredAccuracy: 0.75,
+  advancementAnsweredAccuracy: 0.85,
+  maintenanceAnsweredAccuracy: 0.7,
+  maximumMissRateForAdvance: 0.2,
+  maximumFalseAlarmRateForAdvance: 0.2,
   advancementOmissionCeiling: 0.1,
-  advancementBalancedCycles: 2,
+  learningCurveMinimumPairs: 4,
+  learningCurveRecentPairs: 3,
+  learningCurveMaximumAbsoluteSlope: 0.035,
 };
 
 export const CCC_DELAYED_RECHECK: CccDelayedRecheckConfig = {
@@ -193,8 +205,11 @@ export function validateCccPilotConfig(): string[] {
     if (String(pair[0]) === String(pair[1])) issues.push("A session regime pair must contain two distinct regimes.");
     if (!CCC_REGIMES[pair[0]] || !CCC_REGIMES[pair[1]]) issues.push("A session regime pair references an unknown regime.");
   }
-  if (CCC_RELATIONAL_WM.onsetToOnsetCadenceMs <= CCC_RELATIONAL_WM.responseDeadlineMs) {
-    issues.push("WM cadence must leave room after the response deadline before the next item.");
+  if (CCC_RELATIONAL_WM.minimumPresentationMs >= CCC_RELATIONAL_WM.maximumPresentationMs
+    || CCC_RELATIONAL_WM.maskMs <= 0
+    || CCC_RELATIONAL_WM.scoredTrialsPerBlock < 20
+    || CCC_RELATIONAL_WM.blocksPerSession < 4) {
+    issues.push("WM blocks require a valid presentation range, mask, and at least four 20-trial blocks.");
   }
   if (Math.abs(CCC_RELATIONAL_WM.matchFrequency + CCC_RELATIONAL_WM.differentFrequency - 1) > 0.000001) {
     issues.push("WM match and different frequencies must sum to 1.");

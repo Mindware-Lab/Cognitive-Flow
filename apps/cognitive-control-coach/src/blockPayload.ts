@@ -54,6 +54,9 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
       diagnostic: block.diagnostic,
       operator: block.operator,
       wmNLevel: block.wmNLevel,
+      wmPairIndex: block.wmPairIndex || null,
+      wmPairPosition: block.wmPairPosition || null,
+      selectedExposureMs: block.selectedExposureMs || null,
       plannedValidTrialCount: block.validTrialCount,
     },
     trials: input.results.map((result) => {
@@ -101,6 +104,7 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
         responseClass: scoring.responseClass,
         correct: scoring.isCorrect,
         responseTimeMs: scoring.responseTimeMs,
+        valueTimeMs: scoring.valueTimeMs,
         rewardRemaining: scoring.rewardRemaining,
         pointsRealised: scoring.pointsRealised,
         normalisedValue: scoring.normalizedValue,

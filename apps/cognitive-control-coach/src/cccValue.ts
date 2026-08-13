@@ -23,7 +23,8 @@ export function classifyCccAttentionResponse(input: CccAttentionResponseInput): 
       ? CCC_RELATIONAL_WM.responseDeadlineMs
       : CCC_TRIAL_TIMING.maxResponseWindowMs;
   if (input.invalidated) return "invalid";
-  if (!isSignal && responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs) return "invalid";
+  if (!isSignal && input.trial.operator !== "relational_wm"
+    && responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs) return "invalid";
   if (responseTimeMs === null || responseTimeMs > deadlineMs) return "omission";
   if (!input.response) return "omission";
   return "answer";
@@ -39,12 +40,16 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
       : CCC_TRIAL_TIMING.maxResponseWindowMs;
   const regime = CCC_REGIMES[input.trial.regimeId];
   const responseClass = classifyCccAttentionResponse(input);
-  const answeredBeforeMinimumExposure = !isSignal && responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs;
+  const answeredBeforeMinimumExposure = !isSignal && input.trial.operator !== "relational_wm"
+    && responseTimeMs !== null && responseTimeMs < CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs;
   const deadlineExceeded = responseTimeMs !== null && responseTimeMs > deadlineMs;
   const response = input.response as CccResponseChoice | null | undefined;
   const isCorrect = responseClass === "answer" && response === input.trial.correctResponse;
   const isValueTrial = input.trial.presentationMode === "self_paced_value" && !input.trial.practice && !input.trial.wmBuffer;
-  const rewardRemaining = isValueTrial ? rewardRemainingForResponse(input.trial.regimeId, responseTimeMs) : 0;
+  const valueTimeMs = input.trial.operator === "relational_wm" && input.trial.exposureMsRequested !== null
+    ? input.trial.exposureMsRequested
+    : responseTimeMs;
+  const rewardRemaining = isValueTrial ? rewardRemainingForResponse(input.trial.regimeId, valueTimeMs) : 0;
   const pointsRealised = !isValueTrial
     ? 0
     : isCorrect
@@ -80,6 +85,7 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
     answeredBeforeMinimumExposure,
     deadlineExceeded,
     responseTimeMs,
+    valueTimeMs,
     rewardRemaining,
     pointsRealised,
     normalizedValue: denominator > 0 ? pointsRealised / denominator : 0,

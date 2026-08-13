@@ -1223,6 +1223,33 @@ p {
   line-height: 1.48;
 }
 
+.ccc-speed-choice {
+  margin-top: 1rem;
+  padding: 1rem 1.1rem;
+  border: 1px solid rgba(34, 197, 238, 0.35);
+  border-radius: 16px;
+  background: rgba(14, 165, 233, 0.08);
+}
+
+.ccc-speed-choice > div:first-child,
+.ccc-speed-labels {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.ccc-speed-choice input {
+  width: 100%;
+  margin: 1rem 0 0.35rem;
+  accent-color: var(--iqm-blue-500, #168de2);
+}
+
+.ccc-speed-choice p,
+.ccc-speed-labels {
+  color: var(--iqm-text-muted, #53647b);
+  font-size: 0.85rem;
+}
+
 .ccc-strategy-principle strong {
   display: block;
   margin: 4px 0;

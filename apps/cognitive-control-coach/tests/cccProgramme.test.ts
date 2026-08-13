@@ -71,7 +71,7 @@ describe("CCC evidence-gated programme", () => {
     expect(new Set(state.pairHistory).size).toBeGreaterThanOrEqual(4);
   });
 
-  it("requires delayed Attention evidence, two WM levels and two-carrier re-entry before full transfer", () => {
+  it("requires delayed attention evidence, a stable WM learning curve and two-carrier re-entry before full transfer", () => {
     let programme = createInitialProgrammeState(new Date("2026-08-12T08:00:00.000Z"), "route");
     const pair = selectBalancedRegimePair(programme, "p0");
     const p0Plan = createP0AttentionCarrierTransferPlan({
@@ -131,7 +131,11 @@ describe("CCC evidence-gated programme", () => {
     expect(programme.transferStatus).toBe("attention_portable");
     expect(programme.currentStage).toBe("P1b");
 
-    for (const sessionNumber of [6, 7, 8, 9, 10]) {
+    let sessionNumber = 6;
+    const savedLevels: number[] = [];
+    while (programme.currentStage === "P1b" && sessionNumber < 25) {
+      const savedLevelAtStart = programme.wmLevel;
+      savedLevels.push(savedLevelAtStart);
       const wmPlan = createProgrammeSessionPlan({
         sessionId: `wm-${sessionNumber}`,
         seed: `wm-${sessionNumber}`,
@@ -140,32 +144,37 @@ describe("CCC evidence-gated programme", () => {
         kind: "p1b_wm_bridge",
         regimePair: selectBalancedRegimePair(programme, `wm-${sessionNumber}`),
         wmLevel: programme.wmLevel,
+        wmWrapperStage: programme.wmWrapperStage,
       });
-      expect(wmPlan.blocks.find((block) => block.phase === "p1b_wm_arrow_stabilisation")?.wmNLevel).toBe(sessionNumber === 6 ? 1 : 2);
+      expect(wmPlan.blocks[0]?.wmNLevel).toBe(savedLevelAtStart);
       programme = applyCompletedSession(programme, completedJourney(
         wmPlan,
         programme,
         `2026-08-${10 + sessionNumber}T08:00:00.000Z`,
         `2026-08-${10 + sessionNumber}T08:15:00.000Z`,
       )).programme;
+      sessionNumber += 1;
     }
     expect(programme.currentStage).toBe("P1c");
+    expect(savedLevels[0]).toBe(1);
+    expect(savedLevels).toContain(5);
 
-    for (const sessionNumber of [11, 12, 13, 14]) {
+    for (let integrationIndex = 0; integrationIndex < 4; integrationIndex += 1) {
+      const integrationSessionNumber = sessionNumber + integrationIndex;
       const integrationPlan = createProgrammeSessionPlan({
-        sessionId: `integration-${sessionNumber}`,
-        seed: `integration-${sessionNumber}`,
+        sessionId: `integration-${integrationSessionNumber}`,
+        seed: `integration-${integrationSessionNumber}`,
         programmeRunId: programme.programmeRunId,
-        programmeSessionNumber: sessionNumber,
+        programmeSessionNumber: integrationSessionNumber,
         kind: "p1c_operator_integration",
-        regimePair: selectBalancedRegimePair(programme, `integration-${sessionNumber}`),
+        regimePair: selectBalancedRegimePair(programme, `integration-${integrationSessionNumber}`),
         wmLevel: programme.wmLevel,
       });
       programme = applyCompletedSession(programme, completedJourney(
         integrationPlan,
         programme,
-        `2026-08-${10 + sessionNumber}T08:00:00.000Z`,
-        `2026-08-${10 + sessionNumber}T08:15:00.000Z`,
+        new Date(Date.UTC(2026, 8, integrationSessionNumber, 8, 0)).toISOString(),
+        new Date(Date.UTC(2026, 8, integrationSessionNumber, 8, 15)).toISOString(),
       )).programme;
     }
     expect(programme.currentStage).toBe("P1c");
@@ -175,7 +184,7 @@ describe("CCC evidence-gated programme", () => {
       sessionId: "final-delayed",
       seed: "final-delayed",
       programmeRunId: programme.programmeRunId,
-      programmeSessionNumber: 15,
+      programmeSessionNumber: programme.sessionNumber + 1,
       kind: "p1c_delayed_integration",
       regimePair: selectBalancedRegimePair(programme, "final-delayed"),
       wmLevel: programme.wmLevel,
@@ -190,7 +199,7 @@ describe("CCC evidence-gated programme", () => {
     )).programme;
     expect(programme.currentStage).toBe("complete");
     expect(programme.status).toBe("full_transfer");
-    expect(programme.sessionNumber).toBe(15);
+    expect(programme.sessionNumber).toBe(finalPlan.programmeSessionNumber);
     expect(allRegimesBalanced(programme)).toBe(true);
     expect(programme.evidence.integrationCarriers.sort()).toEqual(["arrow", "flow"]);
   });

@@ -50,12 +50,20 @@ describe("CCC pilot configuration", () => {
 
   it("captures relational WM and delayed-unlock parameters for later P1 stages", () => {
     expect(CCC_RELATIONAL_WM).toMatchObject({
-      onsetToOnsetCadenceMs: 5000,
+      scoredTrialsPerBlock: 20,
+      blocksPerSession: 4,
+      minimumPresentationMs: 350,
+      maximumPresentationMs: 3500,
+      defaultPresentationMs: 1200,
+      maskMs: 350,
       responseDeadlineMs: 4000,
       initialNBack: 1,
+      maximumNBack: 5,
       matchFrequency: 0.5,
       differentFrequency: 0.5,
       wrongLagLureRateOfFeasibleDifferent: 0.25,
+      advancementAnsweredAccuracy: 0.85,
+      maintenanceAnsweredAccuracy: 0.7,
     });
     expect(CCC_DELAYED_RECHECK).toMatchObject({
       minimumReentryHours: 18,

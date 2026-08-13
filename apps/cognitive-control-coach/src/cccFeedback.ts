@@ -32,6 +32,10 @@ export interface CccBlockFeedback {
   timingShiftMs: number | null;
   attentionControlBps: number | null;
   signalTimingQuality: "good" | "mixed" | "poor" | "insufficient";
+  wmBalancedAccuracy: number | null;
+  wmMissRate: number | null;
+  wmFalseAlarmRate: number | null;
+  wmLureFalseAlarmRate: number | null;
 }
 
 function median(values: readonly number[]): number | null {
@@ -52,8 +56,8 @@ function accuracy(results: readonly CccRecordedTrial[]): number | null {
 
 function medianDecisionMs(results: readonly CccRecordedTrial[]): number | null {
   return median(results
-    .filter((result) => result.scoring.responseClass === "answer" && result.scoring.responseTimeMs !== null)
-    .map((result) => Number(result.scoring.responseTimeMs)));
+    .filter((result) => result.scoring.responseClass === "answer" && result.scoring.valueTimeMs !== null)
+    .map((result) => Number(result.scoring.valueTimeMs)));
 }
 
 function pointsKeptPercent(results: readonly CccRecordedTrial[]): number {
@@ -136,6 +140,12 @@ export function buildCccBlockFeedback(results: readonly CccRecordedTrial[]): Ccc
   const quickTimes = niches.filter((niche) => !isCarefulNiche(niche.regimeId) && niche.medianDecisionMs !== null).map((niche) => Number(niche.medianDecisionMs));
   const carefulMedian = median(carefulTimes);
   const quickMedian = median(quickTimes);
+  const wm = observations.filter((result) => result.trial.operator === "relational_wm" && !result.trial.wmBuffer);
+  const wmMatches = wm.filter((result) => result.trial.wmIsMatch === true);
+  const wmDifferent = wm.filter((result) => result.trial.wmIsMatch === false);
+  const wmLures = wm.filter((result) => result.trial.wmLureType === "wrong_lag");
+  const wmHitRate = wmMatches.length ? wmMatches.filter((result) => result.scoring.isCorrect).length / wmMatches.length : null;
+  const wmCorrectRejectionRate = wmDifferent.length ? wmDifferent.filter((result) => result.scoring.isCorrect).length / wmDifferent.length : null;
 
   return {
     observationCount: observations.length,
@@ -149,6 +159,10 @@ export function buildCccBlockFeedback(results: readonly CccRecordedTrial[]): Ccc
     timingShiftMs: carefulMedian !== null && quickMedian !== null ? Math.round(carefulMedian - quickMedian) : null,
     attentionControlBps: estimateAttentionControlBps(results),
     signalTimingQuality: signalTimingQuality(results),
+    wmBalancedAccuracy: wmHitRate === null || wmCorrectRejectionRate === null ? null : (wmHitRate + wmCorrectRejectionRate) / 2,
+    wmMissRate: wmMatches.length ? wmMatches.filter((result) => !result.scoring.isCorrect).length / wmMatches.length : null,
+    wmFalseAlarmRate: wmDifferent.length ? wmDifferent.filter((result) => result.response === "match").length / wmDifferent.length : null,
+    wmLureFalseAlarmRate: wmLures.length ? wmLures.filter((result) => result.response === "match").length / wmLures.length : null,
   };
 }
 

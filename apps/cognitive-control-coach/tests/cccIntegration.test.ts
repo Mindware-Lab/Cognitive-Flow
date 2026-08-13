@@ -125,8 +125,8 @@ describe("CCC playable integration", () => {
 
   it("shows explicit correct or incorrect outcomes for every answered practice item", () => {
     expect(mainSource).toContain('feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"');
-    expect(mainSource).toContain('taskMode === "practice" ? "Incorrect."');
-    expect(mainSource).not.toContain('taskMode === "practice" ? "Not quite."');
+    expect(mainSource).toContain('return result.scoring.isCorrect ? "Correct." : "Incorrect."');
+    expect(mainSource).not.toContain('"Not quite."');
   });
 
   it("keeps stage numbering continuous and lays every journey rail out responsively", () => {

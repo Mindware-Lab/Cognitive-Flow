@@ -28,7 +28,7 @@ describe("CCC session-duration planning model", () => {
     expect(CCC_SESSION_DURATION_LABEL).toBe("Usually 10–15 minutes · up to about 20");
   });
 
-  it("uses the fixed five-second item cadence for relational-memory sessions", () => {
+  it("models the chosen viewing period, mask and response period for relational-memory sessions", () => {
     const wmPlan = createProgrammeSessionPlan({
       sessionId: "duration-wm",
       seed: "duration-wm",
@@ -42,6 +42,7 @@ describe("CCC session-duration planning model", () => {
     const estimate = estimateCccSessionDuration(wmPlan, "typical");
     expect(wmItems).toBeGreaterThan(0);
     expect(guidedManualScreenCount(wmPlan)).toBe(wmPlan.blocks.length * 5 + 2);
-    expect(estimate.automatedTaskMs).toBeGreaterThanOrEqual(wmItems * 5000);
+    expect(estimate.automatedTaskMs).toBeGreaterThanOrEqual(wmItems * 3000);
+    expect(estimate.automatedTaskMs).toBeLessThan(wmItems * 5000);
   });
 });

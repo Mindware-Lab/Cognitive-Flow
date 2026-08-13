@@ -7,6 +7,8 @@ export type CccReferenceFrame = "absolute" | "relative";
 export type CccWrapperId = "arrow_abs" | "flow_abs" | "arrow_rel" | "flow_rel";
 export type CccRatio = "5:0" | "4:1" | "3:2";
 export type CccRegimeId = "clear_sprint" | "calculated_risk" | "clean_precision" | "deep_check";
+export type CccNBackLevel = 1 | 2 | 3 | 4 | 5;
+export type CccWmWrapperStage = "arrow_stabilisation" | "flow_first_contact" | "flow_recovery" | "arrow_return" | "mixed";
 export type CccAttentionAnswer = "left" | "right" | "in" | "out";
 export type CccWmAnswer = "match" | "different";
 export type CccResponseChoice = CccAttentionAnswer | CccWmAnswer;
@@ -96,6 +98,21 @@ export interface CccProgrammeEvidence {
   finalDelayedPasses: number;
   failedFinalDelayedChecks: number;
   attentionSourceLearningCurve: CccLearningCurveHistoryPoint[];
+  wmLearningCurve: CccWmLearningCurveHistoryPoint[];
+}
+
+export interface CccWmLearningCurveHistoryPoint {
+  sessionId: string;
+  wrapperStage: CccWmWrapperStage;
+  pairIndex: 1 | 2;
+  nLevel: CccNBackLevel;
+  observationCount: number;
+  balancedAccuracy: number;
+  omissionRate: number;
+  missRate: number;
+  falseAlarmRate: number;
+  lureFalseAlarmRate: number | null;
+  capacityIndex: number;
 }
 
 export interface CccLearningCurveHistoryPoint {
@@ -141,7 +158,9 @@ export interface CccProgrammeState {
   transferStatus: CccTransferStatus;
   sessionNumber: number;
   attentionSessionCount: number;
-  wmLevel: 1 | 2;
+  wmLevel: CccNBackLevel;
+  wmWrapperStage: CccWmWrapperStage;
+  wmPendingPairLevel: CccNBackLevel | null;
   delayedRecheckDueAt: string | null;
   delayedRecheckWindowEndsAt: string | null;
   regimeExposure: Record<CccRegimeId, number>;
@@ -193,18 +212,30 @@ export interface CccRegimeConfig {
 }
 
 export interface CccRelationalWmConfig {
-  onsetToOnsetCadenceMs: number;
+  scoredTrialsPerBlock: number;
+  blocksPerSession: 4;
+  minimumPresentationMs: number;
+  maximumPresentationMs: number;
+  presentationStepMs: number;
+  defaultPresentationMs: number;
+  maskMs: number;
   responseDeadlineMs: number;
   initialNBack: 1;
-  launchProgression: readonly [1, 2];
+  minimumNBack: 1;
+  maximumNBack: 5;
   matchFrequency: number;
   differentFrequency: number;
   wrongLagLureRateOfFeasibleDifferent: number;
   resetBufferOnRegimeTransition: boolean;
   excludeFirstNItemsFromScoring: boolean;
   advancementAnsweredAccuracy: number;
+  maintenanceAnsweredAccuracy: number;
+  maximumMissRateForAdvance: number;
+  maximumFalseAlarmRateForAdvance: number;
   advancementOmissionCeiling: number;
-  advancementBalancedCycles: number;
+  learningCurveMinimumPairs: number;
+  learningCurveRecentPairs: number;
+  learningCurveMaximumAbsoluteSlope: number;
 }
 
 export interface CccDelayedRecheckConfig {
@@ -258,8 +289,11 @@ export interface CccAttentionBlockPlan {
   practice: boolean;
   diagnostic: boolean;
   shiftViewBefore: boolean;
-  wmNLevel: 1 | 2 | null;
+  wmNLevel: CccNBackLevel | null;
   learningCurveGate?: "source_stabilisation" | null;
+  wmPairIndex?: 1 | 2 | null;
+  wmPairPosition?: "A" | "B" | null;
+  selectedExposureMs?: number | null;
 }
 
 export interface CccAttentionTrialDefinition {
@@ -298,7 +332,7 @@ export interface CccAttentionTrialDefinition {
   assistedFirstContact: boolean;
   exposureMsRequested: number | null;
   signalStaircaseLevel: number | null;
-  wmNLevel: 1 | 2 | null;
+  wmNLevel: CccNBackLevel | null;
   wmIsMatch: boolean | null;
   wmBuffer: boolean;
   wmLureType: "none" | "wrong_lag" | null;
@@ -342,6 +376,7 @@ export interface CccAttentionTrialScoring {
   answeredBeforeMinimumExposure: boolean;
   deadlineExceeded: boolean;
   responseTimeMs: number | null;
+  valueTimeMs: number | null;
   rewardRemaining: number;
   pointsRealised: number;
   normalizedValue: number;

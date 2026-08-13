@@ -11,7 +11,7 @@ Legacy routes stay operational during development and early validation:
 
 ## Product Contract
 
-- `docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` — current scientific and runtime contract
+- `docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` — current v0.6 scientific and runtime contract (filename retained for links)
 - `docs/COGNITIVE_CONTROL_COACH_DUAL_ESTIMAND_PROTOCOL_v0.3.md` — retained P0 design history
 - `docs/PRODUCT_IMPLEMENTATION_SPEC_v0.2.md`
 - Source app folder: `IQ-Coach/apps/cognitive-control-coach`
@@ -35,12 +35,13 @@ The complete evidence-gated P0/P1a/P1b/P1c programme is implemented in:
 - `src/cccTypes.ts`
 - `src/cccProgramme.ts`
 - `src/cccProgrammeGenerator.ts`
+- `src/cccWmProgress.ts`
 
 The playable runtime uses forced choice throughout, a frame-counted masked signal anchor, relative In/Out arrows, contraction/expansion optic flow, two niches per session and separate block feedback for signal, policy and trained-format portability. New CCC backend work uses the shared coach schema migration under `supabase/migrations/`.
 
-The implemented 124-choice journey is planned as an approximately 10–15 minute session. The versioned assumption model in `src/cccDuration.ts` estimates 8.2 minutes for a fast path, 11.6 minutes for the central scenario and 16.6 minutes for a deliberate path. These are pre-pilot planning values; observed duration telemetry must replace them.
+P1b memory sessions use four A–B–A–B blocks, each with 20 scored comparisons plus `n` buffer items. The user chooses a presentation time before each block, and the task adapts by at most one n-back level after each A/B pair. The level is saved between days and restored from cloud progress when the user is signed in.
 
-The programme is gate-based. Its earliest consistently passing route is 15 sessions; 20 sessions remains the central pre-pilot planning case and 15–25 sessions the planning range. Programme completion is not synonymous with full transfer: repeated protected carrier change, recovery, return, mixed stability, relational-WM recovery, bidirectional re-entry and two fresh delayed checks are required. A supported unlock never awards `attention_portable` or `full_transfer`.
+The programme is gate-based and its total length is performance-dependent. Programme completion is not synonymous with full transfer: repeated protected carrier change, recovery, return, mixed stability, relational-WM recovery, bidirectional re-entry and two fresh delayed checks are required. A supported unlock never awards `attention_portable` or `full_transfer`.
 
 Each session uses two of four decision environments. The scheduler balances all six possible pairs across the programme, avoids an immediate pair repeat where possible and counterbalances within-session order. Full Transfer additionally requires all four environments to be represented with cumulative exposure balanced to within one session. When that final gate passes, the app opens a dedicated congratulations achievement screen; supported completion never receives it.
 
