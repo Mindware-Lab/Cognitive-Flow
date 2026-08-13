@@ -39,7 +39,8 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain('recordEvent("learning_curve_evaluated"');
     expect(mainSource).toContain('recordEvent("wrapper_change_deferred"');
     expect(mainSource).toContain('reason: "learning_curve_not_stabilised_before_session_cap"');
-    expect(mainSource).toContain("your recent performance flattened above the target level");
+    expect(mainSource).toContain("New display next.");
+    expect(mainSource).toContain("Your recent results were steady.");
   });
 
   it("reuses the original Attention Coach arrow proportions and location-matched diamond masks", () => {
@@ -93,8 +94,7 @@ describe("CCC playable integration", () => {
       expect(visibleCopy.toLowerCase()).not.toContain(technicalTerm);
     }
     expect(visibleCopy).toContain("AI-assisted work");
-    expect(visibleCopy).toContain("workflow");
-    expect(visibleCopy).toContain("The most useful check");
+    expect(visibleCopy).toContain("Notice whether this helps");
     for (const removedCopy of [
       "MFT-M-derived anchor",
       "literature-standard MFT-M-R assessment",
@@ -102,6 +102,15 @@ describe("CCC playable integration", () => {
       "frame-timed forced choices",
       "Full Transfer!",
       "trained-format gates",
+      "No points or niches",
+      "the check learns",
+      "task adjusts to your answers",
+      "Pool enough evidence",
+      "Balanced accuracy",
+      "false alarms",
+      "Adjust your policy",
+      "performance flattened above the target level",
+      "Population scale",
     ]) {
       expect(mainSource).not.toContain(removedCopy);
     }
@@ -186,16 +195,15 @@ describe("CCC playable integration", () => {
   });
 
   it("makes stage, session and G Track feedback accessible in the UX", () => {
-    expect(mainSource).toContain("Across this session");
-    expect(mainSource).toContain("Your session feedback");
-    expect(mainSource).toContain("Payoffs have changed");
-    expect(mainSource).toContain("Match certainty and viewing time to the payoffs");
-    expect(mainSource).toContain("neither fastest nor slowest is always best");
+    expect(mainSource).toContain("Your results so far");
+    expect(mainSource).toContain("Your session");
+    expect(mainSource).toContain("Points for this block");
+    expect(mainSource).toContain("Adjust your viewing time to the points");
     expect(mainSource).toContain("Strategy takeaway");
-    expect(mainSource).toContain("Training feedback you can return to");
+    expect(mainSource).toContain("See how your results change");
     expect(mainSource).toContain("G Track check-ins");
     expect(mainSource).toContain("Personal progress");
-    expect(mainSource).toContain("Population comparison");
+    expect(mainSource).toContain("Other users");
     expect(mainSource).toContain("loadCccGTrackScores");
   });
 });

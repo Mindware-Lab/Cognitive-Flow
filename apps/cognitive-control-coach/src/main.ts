@@ -39,7 +39,6 @@ import { evaluateCccLearningCurve, isCccLearningCurveBoundary } from "./cccLearn
 import { evaluateCccWmPair } from "./cccWmProgress";
 import { buildCccStrategyFeedback, type CccRegimeStrategyFeedback } from "./cccStrategy";
 import {
-  CCC_POPULATION_MIN_N,
   displayTrainingScore,
   firstValidBaseline,
   populationModeAvailable,
@@ -367,7 +366,7 @@ function setView(next: View): void {
 function progressTabs(active: "overview" | "progress"): string {
   if (journey && !journey.completedAt) return "";
   return `<nav class="ccc-app-tabs" aria-label="Cognitive Control Coach sections">
-    <button data-action="return-home" class="${active === "overview" ? "is-active" : ""}" aria-current="${active === "overview" ? "page" : "false"}">Overview</button>
+      <button data-action="return-home" class="${active === "overview" ? "is-active" : ""}" aria-current="${active === "overview" ? "page" : "false"}">Home</button>
     <button data-action="show-progress" class="${active === "progress" ? "is-active" : ""}" aria-current="${active === "progress" ? "page" : "false"}">Progress</button>
   </nav>`;
 }
@@ -400,33 +399,33 @@ function header(): string {
 
 function shell(content: string, className = ""): string {
   const tabs = view === "welcome" ? progressTabs("overview") : view === "progress" ? progressTabs("progress") : "";
-  return `<main class="ccc-app ${className}">${header()}${tabs}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>For training and practice, not diagnosis</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
+  return `<main class="ccc-app ${className}">${header()}${tabs}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>Training and practice only</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
 }
 
 const JOURNEY_LABELS: Partial<Record<CccProgrammePhase, string>> = {
-  signal_anchor: "Signal",
-  arrow_rel_stabilisation: "Relate",
+  signal_anchor: "Direction",
+  arrow_rel_stabilisation: "In / Out",
   flow_rel_first_contact: "Change",
-  flow_rel_recovery: "Recover",
+  flow_rel_recovery: "Practise",
   arrow_rel_return: "Return",
   relative_mix: "Switch",
-  p1a_arrow_stabilisation: "Stabilise",
+  p1a_arrow_stabilisation: "Arrows",
   p1a_flow_first_contact: "Change",
-  p1a_flow_recovery: "Recover",
+  p1a_flow_recovery: "Practise",
   p1a_arrow_return: "Return",
-  p1a_relative_mix: "Mix",
-  p1a_delayed_recheck: "Re-check",
-  p1b_attention_bridge: "Read",
-  p1b_wm_arrow_stabilisation: "Hold",
+  p1a_relative_mix: "Switch",
+  p1a_delayed_recheck: "Return",
+  p1b_attention_bridge: "In / Out",
+  p1b_wm_arrow_stabilisation: "Memory",
   p1b_wm_flow_first_contact: "Change",
-  p1b_wm_flow_recovery: "Recover",
+  p1b_wm_flow_recovery: "Practise",
   p1b_wm_arrow_return: "Return",
-  p1b_wm_relative_mix: "Mix",
-  p1c_attention_entry: "Read",
-  p1c_delayed_reentry: "Re-check",
-  p1c_wm_hold: "Hold",
-  p1c_attention_reentry: "Re-enter",
-  p1c_operator_mix: "Switch",
+  p1b_wm_relative_mix: "Switch",
+  p1c_attention_entry: "In / Out",
+  p1c_delayed_reentry: "Return",
+  p1c_wm_hold: "Memory",
+  p1c_attention_reentry: "In / Out",
+  p1c_operator_mix: "Memory",
 };
 
 function journeyRail(completedBeforeIndex: number, currentIndex: number | null = null): string {
@@ -491,7 +490,7 @@ function renderWelcome(): string {
         <div class="ccc-card-heading"><div><span class="ccc-kicker">Your current journey</span><h2>Pick up where you left off.</h2></div><strong class="ccc-progress-number">${completion}%</strong></div>
         ${journeyRail(journey!.activeBlockIndex, journey!.activeBlockIndex)}
         <div class="ccc-progress-track" role="progressbar" aria-label="Journey progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}"><span style="width:${completion}%"></span></div>
-        <p>Your selected context is <strong>${WORKFLOW_CHOICES[journey!.workflowChoice].label.toLowerCase()}</strong>. Your place is saved on this device.</p>
+        <p>Your chosen task is <strong>${WORKFLOW_CHOICES[journey!.workflowChoice].label.toLowerCase()}</strong>. Your place is saved.</p>
         ${mainAction}
       </section>` : programme.sessions.length ? `
       <section class="ccc-resume-card ccc-programme-card">
@@ -499,7 +498,7 @@ function renderWelcome(): string {
         <div class="ccc-progress-track" role="progressbar" aria-label="Programme completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${programmeProgressPercent(programme)}"><span style="width:${programmeProgressPercent(programme)}%"></span></div>
         <div class="ccc-summary-grid ccc-programme-summary">
           <article><span>Sessions completed</span><strong>${programme.sessionNumber}</strong></article>
-          <article><span>Current layer</span><strong>${stageLabel}</strong></article>
+          <article><span>Current stage</span><strong>${stageLabel}</strong></article>
           <article><span>${programme.currentStage === "P1b" || programme.currentStage === "P1c" ? "Saved memory level" : "Current progress"}</span><strong>${programme.currentStage === "P1b" || programme.currentStage === "P1c" ? `${programme.wmLevel}-back` : programme.transferStatus === "attention_portable" ? "Return check complete" : programme.transferStatus === "supported_unlock" ? "Next stages ready" : "Building"}</strong></article>
         </div>
         <p>${programmeComplete
@@ -515,7 +514,7 @@ function renderWelcome(): string {
       </section>` : `
     <section class="ccc-hero">
       <div class="ccc-hero-copy">
-        <span class="ccc-kicker">Focus practice for real tasks</span>
+        <span class="ccc-kicker">Focus practice</span>
         <h1>Focus, hold and update <em>what matters.</em></h1>
         <p class="ccc-lead">Practise staying with the goal when distractions or a changing format pull your attention elsewhere.</p>
         <div class="ccc-hero-facts" aria-label="Journey overview">
@@ -539,9 +538,9 @@ function renderWelcome(): string {
 function renderWorkflow(): string {
   return shell(`
     <section class="ccc-section ccc-workflow-picker">
-      <span class="ccc-kicker">Connect to what matters</span>
-      <h1>Where is your workflow under strain?</h1>
-      <p>Choose the closest broad context. This changes only the prompts that help you reconnect.</p>
+      <span class="ccc-kicker">Choose a real task</span>
+      <h1>Where do you want stronger focus?</h1>
+      <p>Choose where you want to use these skills.</p>
       <div class="ccc-workflow-grid">${workflowCards()}</div>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="begin-journey">Start with a short practice</button>
@@ -555,15 +554,15 @@ function renderPracticeIntro(): string {
   if (!journey) return renderWelcome();
   return shell(`
     <section class="ccc-narrow-card">
-      <div class="ccc-stage-line"><span>Before the journey</span><span>About one minute</span></div>
-      <span class="ccc-kicker">A short, unscored practice</span>
+      <div class="ccc-stage-line"><span>Practice</span><span>About one minute</span></div>
+      <span class="ccc-kicker">Start with a few examples</span>
       <h1>Find the direction followed by most arrows.</h1>
-      <p>Look at all five arrows. Choose <strong>Left</strong> or <strong>Right</strong> for the direction followed by the majority.</p>
+      <p>Look at all five arrows. Choose <strong>Left</strong> or <strong>Right</strong>.</p>
       <div class="ccc-example-card" aria-label="Example: four arrows point right and one points left, so the answer is right">
         <span aria-hidden="true">→</span><span aria-hidden="true">→</span><span class="is-odd" aria-hidden="true">←</span><span aria-hidden="true">→</span><span aria-hidden="true">→</span><strong>Most point right</strong>
       </div>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="show-practice-guide">See how choices work</button>
+        <button class="ccc-button ccc-button-primary" data-action="show-practice-guide">Continue</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Back</button>
       </div>
     </section>
@@ -574,15 +573,13 @@ function renderPracticeGuide(): string {
   if (!journey) return renderWelcome();
   return shell(`
     <section class="ccc-narrow-card">
-      <div class="ccc-stage-line"><span>Before the journey</span><span>Practice is not scored</span></div>
-      <span class="ccc-kicker">Making your choice</span>
-      <h1>Look. Weigh. Choose.</h1>
+      <div class="ccc-stage-line"><span>Practice</span><span>Left or Right</span></div>
+      <span class="ccc-kicker">How to choose</span>
+      <h1>Watch. Remember. Choose.</h1>
       <div class="ccc-instruction-grid">
-        <article><strong>Look first</strong><span>The buttons appear after a brief viewing moment.</span></article>
-        <article><strong>Choose every time</strong><span>Use Left or Right in practice. If you are unsure, make your best choice.</span></article>
-        <article><strong>Points come later</strong><span>The guided stages add different costs and time pressure; practice stays unscored.</span></article>
+        <article><strong>Watch the arrows</strong><span>Find the direction followed by most.</span></article>
+        <article><strong>Choose after the mask</strong><span>Left or Right—even if unsure.</span></article>
       </div>
-      <p class="ccc-soft-note">The practice is brief. It helps you learn the controls and does not count towards your journey.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-practice">Begin practice</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-practice-intro">Back</button>
@@ -617,15 +614,14 @@ function renderWmPracticeIntro(): string {
   const level = journey.wmPracticeLevel;
   return shell(`
     <section class="ccc-narrow-card">
-      <div class="ccc-stage-line"><span>Learn ${level}-back</span><span>Short and unscored</span></div>
-      <span class="ccc-kicker">A few practice trials first</span>
+      <div class="ccc-stage-line"><span>Learn ${level}-back</span><span>Four examples</span></div>
+      <span class="ccc-kicker">Practise first</span>
       <h1>Compare each pattern with ${level === 1 ? "the one just before it" : `the one ${level} steps earlier`}.</h1>
-      <p>The first ${level} ${level === 1 ? "pattern starts" : "patterns start"} your memory sequence. Then choose <strong>Match</strong> when the main In or Out direction is the same, or <strong>Different</strong> when it has changed.</p>
+      <p>Choose <strong>Match</strong> when the main direction is the same, or <strong>Different</strong> when it has changed.</p>
       ${wmPracticeExample(level)}
       <div class="ccc-instruction-grid">
-        <article><strong>Clear patterns</strong><span>Practice uses the easiest 5:0 arrow patterns.</span></article>
-        <article><strong>No points</strong><span>Only Correct or Incorrect feedback is shown.</span></article>
-        <article><strong>Ready check</strong><span>Get at least ${CCC_WM_PRACTICE_PASS_CORRECT} of 4 right to continue.</span></article>
+        <article><strong>Compare</strong><span>Look exactly ${level} ${level === 1 ? "step" : "steps"} back.</span></article>
+        <article><strong>Continue</strong><span>Get ${CCC_WM_PRACTICE_PASS_CORRECT} of 4 correct.</span></article>
       </div>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-wm-practice">Begin ${level}-back practice</button>
@@ -647,7 +643,7 @@ function renderWmPracticeResult(): string {
   const passed = correct >= CCC_WM_PRACTICE_PASS_CORRECT;
   return shell(`
     <section class="ccc-narrow-card">
-      <div class="ccc-stage-line"><span>${level}-back practice</span><span>Unscored</span></div>
+      <div class="ccc-stage-line"><span>${level}-back practice</span><span>${correct} of 4 correct</span></div>
       <span class="ccc-kicker">${passed ? "Ready to continue" : "One more short try"}</span>
       <h1>${passed ? `You have the ${level}-back rule.` : "Let’s make the comparison clearer."}</h1>
       <p>You answered <strong>${correct} of 4</strong> practice comparisons correctly.</p>
@@ -658,18 +654,6 @@ function renderWmPracticeResult(): string {
       </div>
     </section>
   `, "ccc-review-view ccc-wm-practice-view ccc-viewport-view");
-}
-
-function payoffLine(regimeId: CccAttentionTrialDefinition["regimeId"]): string {
-  const regime = CCC_REGIMES[regimeId];
-  return `Correct: up to ${regime.correctPot} points · Wrong: −${regime.errorLoss} · Points fade by ${regime.drainPointsPerSecond} per second`;
-}
-
-function regimeCards(block: CccAttentionBlockPlan): string {
-  return block.regimePair.map((regimeId) => {
-    const copy = REGIME_COPY[regimeId];
-    return `<article class="ccc-regime-card"><span>${copy.title}</span><strong>${copy.cue}</strong><small>${copy.instruction}</small><em>${payoffLine(regimeId)}</em><p>${copy.strategy}</p></article>`;
-  }).join("");
 }
 
 function renderPhaseIntro(): string {
@@ -686,12 +670,8 @@ function renderPhaseIntro(): string {
       <span class="ccc-kicker">${copy.eyebrow}</span>
       <h1>${copy.title}</h1>
       <p>${copy.body}</p>
-      <aside class="ccc-workflow-bridge">
-        <span>Bridge to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</span>
-        <strong>${PHASE_COPY[block.phase].bridge}</strong>
-      </aside>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="show-phase-guide">See how this stage works</button>
+        <button class="ccc-button ccc-button-primary" data-action="show-phase-guide">Continue</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>
@@ -712,23 +692,22 @@ function renderPhaseGuide(): string {
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
       ${journeyRail(journey.activeBlockIndex, journey.activeBlockIndex)}
       <span class="ccc-kicker">Before you begin</span>
-      <h1>${isSignal ? "Brief pattern. Mask. Best choice." : isWm ? `Hold and compare · ${block.wmNLevel}-back` : "Two work conditions, one pattern."}</h1>
+      <h1>${isSignal ? "Watch. Remember. Choose." : isWm ? `Compare ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Find the main direction."}</h1>
       ${isSignal ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Changing view</strong><span>The display becomes shorter or harder as the task adjusts to your answers.</span></article>
-          <article><strong>Always choose</strong><span>Respond Left or Right after the mask, even when you are unsure.</span></article>
-          <article><strong>No points yet</strong><span>Focus only on getting the direction right.</span></article>
+          <article><strong>Watch the arrows</strong><span>Find the direction followed by most.</span></article>
+          <article><strong>Choose after the mask</strong><span>Left or Right—even if unsure.</span></article>
         </div>
-        <p class="ccc-soft-note">Look at the whole group of arrows rather than following just one.</p>` : isWm ? `
+        ` : isWm ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Find</strong><span>Find the main direction pattern across the five items.</span></article>
-          <article><strong>Remember and compare</strong><span>Compare it with the pattern ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} earlier.</span></article>
-          <article><strong>Choose</strong><span>Choose Match or Different before the next pattern.</span></article>
+          <article><strong>Remember</strong><span>Keep each main direction in mind.</span></article>
+          <article><strong>Compare</strong><span>Choose Match or Different.</span></article>
         </div>
-        <div class="ccc-regime-grid">${regimeCards(block)}</div>
-        <p class="ccc-soft-note">The first ${block.wmNLevel} ${block.wmNLevel === 1 ? "item gives" : "items give"} you something to compare with and ${block.wmNLevel === 1 ? "is" : "are"} not scored. Before each block, choose a viewing time that fits its payoffs.</p>` : `
-        <div class="ccc-regime-grid">${regimeCards(block)}</div>
-        ${block.diagnostic ? `<p class="ccc-soft-note">This is your first try with the new display. Keep using the same rule.</p>` : `<p class="ccc-soft-note"><strong>Your aim:</strong> adjust how much information you take in. Build more certainty when errors are costly or patterns are close; commit sooner when points are fading quickly.</p>`}`}
+        <p class="ccc-soft-note">The first ${block.wmNLevel} ${block.wmNLevel === 1 ? "pattern starts" : "patterns start"} the sequence.</p>` : `
+        <div class="ccc-instruction-grid">
+          <article><strong>Find the majority</strong><span>Choose In or Out.</span></article>
+          <article><strong>Use the points</strong><span>Check longer when mistakes cost more; choose sooner when points fade fast.</span></article>
+        </div>`}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-phase">${block.shiftViewBefore && !journey.shiftViewCompleted ? "Start the changeover" : "Begin this stage"}</button>
         ${canPractiseAgain ? `<button class="ccc-button ccc-button-secondary" data-action="practise-wm-again">Practise ${block.wmNLevel}-back again</button>` : ""}
@@ -750,20 +729,20 @@ function renderRegimeIntro(): string {
   return shell(`
     <section class="ccc-narrow-card ccc-regime-intro-card">
       <div class="ccc-stage-line"><span>Work condition</span><span>${conditionNumber} of ${isWm ? 4 : currentBlock()?.regimePair.length || 2}</span></div>
-      <span class="ccc-kicker">Payoffs have changed</span>
+      <span class="ccc-kicker">Points for this block</span>
       <h1>${copy.title}</h1>
       <p>${copy.instruction}</p>
       <div class="ccc-payoff-grid" aria-label="${copy.title} payoffs">
-        <article><span>Correct choice</span><strong>Up to ${regime.correctPot}</strong><small>Points reduce while you keep viewing</small></article>
-        <article><span>Wrong choice</span><strong>−${regime.errorLoss}</strong><small>Cost of choosing before the pattern is clear enough</small></article>
-        <article><span>Waiting cost</span><strong>−${regime.drainPointsPerSecond}/sec</strong><small>Cost of waiting for more certainty</small></article>
+        <article><span>Correct</span><strong>Up to ${regime.correctPot}</strong><small>Choose sooner to keep more</small></article>
+        <article><span>Wrong</span><strong>−${regime.errorLoss}</strong><small>Cost of a mistake</small></article>
+        <article><span>Waiting</span><strong>−${regime.drainPointsPerSecond}/sec</strong><small>Points fade while viewing</small></article>
       </div>
-      <aside class="ccc-strategy-principle"><span>Strategy for this condition</span><strong>${copy.strategy}</strong><p>Use the pattern and the payoffs together: neither fastest nor slowest is always best.</p></aside>
+      <aside class="ccc-strategy-principle"><span>Your strategy</span><strong>${copy.strategy}</strong></aside>
       ${isWm ? `<section class="ccc-speed-choice">
         <div><span>Choose your viewing time</span><strong id="ccc-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
         <input id="ccc-wm-speed-slider" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Pattern viewing time" />
         <div class="ccc-speed-labels"><span>Faster presentation</span><span>More time to check</span></div>
-        <p>The pattern will be shown for this long on every item in this block. You will then respond after it is covered.</p>
+        <p>This viewing time applies to every pattern in the block.</p>
       </section>` : ""}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="continue-regime">${isWm ? "Use this viewing time" : "I understand — continue"}</button>
@@ -851,7 +830,7 @@ function renderTask(): string {
     ? `${trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns"} · ${trial.wmNLevel}-back`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
       : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
-        : "In / Out motion";
+        : "In / Out moving dots";
   const responseStage = isSignal || isWm ? taskStage === "response" : taskStage === "evidence";
   const controlsDisabled = trial.wmBuffer || !responseStage || !responseEnabled || responseLocked;
   const feedbackPoints = feedbackResult?.scoring.pointsRealised ?? 0;
@@ -867,7 +846,7 @@ function renderTask(): string {
     ? currentResults().filter((result) => !result.trial.wmBuffer && result.scoring.responseClass === "answer").length
     : 0;
   const feedbackOutcome = feedbackResult?.trial.wmBuffer
-    ? "Pattern remembered"
+    ? "Keep this pattern in mind"
     : isPractice
     ? feedbackResult?.scoring.responseClass === "answer"
       ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
@@ -880,7 +859,7 @@ function renderTask(): string {
         ? isWm
           ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
           : `${feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"} · ${formatPoints(feedbackPoints)}`
-        : "No response · 0";
+        : "No response";
   const signalFeedbackMarkup = `<div class="ccc-signal-result ${feedbackState}" role="status" aria-live="polite"><span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span><strong>${feedbackOutcome}</strong></div>`;
   const pot = regime.correctPot;
   const taskTitle = isSignal ? "Pattern check" : isWm ? `${isWmPractice ? "Practice" : "Hold and compare"} · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
@@ -890,7 +869,7 @@ function renderTask(): string {
         : taskStage === "mask" ? "Pattern covered"
           : taskStage === "response" ? "Make your best choice"
           : isSignal ? "Hold the majority direction"
-            : isWm ? trial.wmBuffer ? "Take in this relation" : `Does this match ${trial.wmNLevel} steps back?`
+            : isWm ? trial.wmBuffer ? "Remember this pattern" : `Does this match ${trial.wmNLevel} steps back?`
               : regimeCopy.cue;
   const stimulus = taskStage === "fixation"
     ? `<span class="ccc-fixation" aria-label="Get ready">+</span>`
@@ -923,21 +902,21 @@ function renderTask(): string {
       </div>
       ${taskStage === "feedback" ? `
         ${isSignal || isPractice
-          ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>${isWmPractice ? `${trial.wmNLevel}-back practice` : "Pattern check"}</span><strong>${isWmPractice ? "Compare, then choose" : "Watch, then choose"}</strong></div><small>${isWmPractice ? `Practice comparison ${Math.min(4, practiceComparisonCount)} of 4` : "Correct or incorrect feedback appears in the same task frame."}</small></div>`
+          ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>${isWmPractice ? `${trial.wmNLevel}-back practice` : "Pattern check"}</span><strong>${isWmPractice ? "Compare, then choose" : "Watch, then choose"}</strong></div><small>${isWmPractice ? `Practice ${Math.min(4, practiceComparisonCount)} of 4` : ""}</small></div>`
           : `<div class="ccc-value-panel ccc-result-panel ${feedbackState}" role="status" aria-live="polite">
             <span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span>
             <div><span>This choice</span><strong>${feedbackOutcome}</strong></div>
-            <small>${isWm ? "The points effect is summarised after the block." : feedbackMessage}</small>
+            <small>${isWm ? "" : feedbackMessage}</small>
           </div>`}` : `
-        ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>The mask clears before the response buttons become active.</small></div>`
-          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>Unscored</strong></div><small>${isWmPractice ? trial.wmBuffer ? "Remember this pattern. No choice is needed yet." : "Choose Match or Different." : "Make a Left or Right choice on every pattern."}</small></div>`
-          : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Get ready to compare</span><strong>Remember this pattern</strong></div><small>The first ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "item is" : "items are"} not scored.</small></div>`
+        ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>Choose when the buttons appear.</small></div>`
+          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>${isWmPractice ? trial.wmBuffer ? "Remember this pattern" : "Match or Different" : "Left or Right"}</strong></div><small></small></div>`
+          : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Start the sequence</span><strong>Remember this pattern</strong></div><small>The first ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "pattern starts" : "patterns start"} the sequence.</small></div>`
           : `<div class="ccc-value-panel">
           <div><span>Available if correct</span><strong id="ccc-live-pot">${Math.round(pot)}</strong></div>
           <div class="ccc-pot-track"><span id="ccc-pot-bar" style="width:100%"></span></div>
-          <small>${isWm ? `Chosen view: ${((block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs) / 1000).toFixed(2)} s · ` : ""}Correct: keep what remains · Wrong: ${regime.errorLoss} points lost · No response: no points</small>
+          <small>${isWm ? `Viewing time ${((block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs) / 1000).toFixed(2)} s · ` : ""}Wrong choice −${regime.errorLoss}</small>
         </div>`}`}
-      <div class="ccc-response-row ${trial.wmBuffer ? "is-hidden" : ""}" aria-label="${isWm ? "Choose Match or Different" : "Choose the majority relation"}" ${trial.wmBuffer ? "aria-hidden=\"true\"" : ""}>
+      <div class="ccc-response-row ${trial.wmBuffer ? "is-hidden" : ""}" aria-label="${isWm ? "Choose Match or Different" : "Choose the main direction"}" ${trial.wmBuffer ? "aria-hidden=\"true\"" : ""}>
         ${responseButtons}
       </div>
       <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? taskStage === "response" ? "Choose Left or Right—even if you are unsure." : taskStage === "mask" ? "Keep your first impression in mind." : "Take in the pattern before the mask." : trial.wmBuffer ? "Remember this pattern; you will compare it with a later one." : isWm ? responseEnabled ? `Choose Match or Different by comparing with ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "step" : "steps"} back.` : "Find the current pattern first." : responseEnabled ? "Look at the whole pattern, then make your best choice." : "Look at the whole pattern first."}</p>
@@ -950,7 +929,7 @@ function renderPaused(): string {
     <section class="ccc-narrow-card">
       <span class="ccc-kicker">Training paused</span>
       <h1>Your place is saved.</h1>
-      <p>If the window lost focus, that item has been set aside and will return later. It will not count against your progress.</p>
+      <p>Continue when you are ready.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="resume-task">Continue</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Leave for now</button>
@@ -1006,7 +985,7 @@ function renderBetweenBlockTrends(): string {
   const accuracy = feedback.map((item) => item.accuracy === null ? null : item.accuracy * 100).filter((value): value is number => value !== null);
   const decisionTime = feedback.map((item) => item.medianDecisionMs).filter((value): value is number => value !== null);
   return `<section class="ccc-between-block-trends" aria-label="Progress across this session">
-    <div class="ccc-section-heading"><span>Across this session</span><strong>See how your pattern is changing</strong></div>
+    <div class="ccc-section-heading"><span>This session</span><strong>Your results so far</strong></div>
     <div class="ccc-mini-trend-grid">
       ${miniTrend(accuracy, "Accuracy", (value) => `${Math.round(value)}%`)}
       ${miniTrend(decisionTime.map((value) => value / 1000), isWm ? "Chosen viewing time" : "Decision time", formatTrendTime)}
@@ -1028,8 +1007,8 @@ function renderStrategyCard(item: CccRegimeStrategyFeedback): string {
   const timing = item.observedMedianMs === null
     ? `${item.observationCount} choices recorded`
     : item.estimatedBestMs === null
-      ? `Typical viewing time ${(item.observedMedianMs / 1000).toFixed(2)} s`
-      : `Typical ${(item.observedMedianMs / 1000).toFixed(2)} s · useful target around ${(item.estimatedBestMs / 1000).toFixed(2)} s`;
+      ? `You used ${(item.observedMedianMs / 1000).toFixed(2)} s`
+      : `You used ${(item.observedMedianMs / 1000).toFixed(2)} s · try about ${(item.estimatedBestMs / 1000).toFixed(2)} s`;
   return `<article class="ccc-strategy-card is-${item.direction}">
     <span>${REGIME_COPY[item.regimeId].title}</span>
     <strong>${item.title}</strong>
@@ -1042,7 +1021,7 @@ function renderPolicyCoaching(block: CccAttentionBlockPlan): string {
   if (block.estimand === "signal_capacity") return "";
   const strategy = buildCccStrategyFeedback(strategyHistoryForCurrentBlock(), block.regimePair, block.operator);
   return `<section class="ccc-policy-coaching">
-    <div class="ccc-section-heading"><span>Your strategy</span><strong>Match certainty and viewing time to the payoffs</strong></div>
+    <div class="ccc-section-heading"><span>Your strategy</span><strong>Adjust your viewing time to the points</strong></div>
     <div class="ccc-strategy-grid">${strategy.regimes.map(renderStrategyCard).join("")}</div>
     <p class="ccc-strategy-principle"><strong>Keep this principle:</strong> ${strategy.principle}</p>
   </section>`;
@@ -1094,12 +1073,12 @@ function renderBlockComplete(): string {
     : null;
   const wmLevelMessage = wmPairDecision
     ? wmPairDecision.nextLevel > wmPairDecision.currentLevel
-      ? `Your accuracy held across both conditions, so the next pair moves to ${wmPairDecision.nextLevel}-back.`
+      ? `Next: ${wmPairDecision.nextLevel}-back.`
       : wmPairDecision.nextLevel < wmPairDecision.currentLevel
-        ? `This pair was not yet steady enough, so the next pair returns to ${wmPairDecision.nextLevel}-back to rebuild accuracy.`
+        ? `Next: ${wmPairDecision.nextLevel}-back to rebuild accuracy.`
         : wmPairDecision.direction === "increase"
-          ? `You met the step-up target and will stay at the current maximum of ${wmPairDecision.currentLevel}-back.`
-          : `The next pair will hold at ${wmPairDecision.currentLevel}-back while you refine accuracy, viewing time and points.`
+          ? `You reached the current maximum of ${wmPairDecision.currentLevel}-back.`
+          : `Next: stay at ${wmPairDecision.currentLevel}-back.`
     : "";
   const copy = block.phase === "practice" ? {
     title: "You know the task.",
@@ -1108,15 +1087,15 @@ function renderBlockComplete(): string {
     title: "Your pattern check is complete.",
     body: "Next you will practise with points, time pressure and changing formats.",
   } : block.diagnostic ? {
-    title: "Your first look is recorded.",
-    body: "Next you will have more practice with this new display.",
+    title: "First try complete.",
+    body: "Next: more practice with this display.",
   } : {
-    title: learningCurve.status === "stabilised" ? "Your performance has settled." : "Stage complete.",
+    title: learningCurve.status === "stabilised" ? "Your recent results were steady." : "Stage complete.",
     body: learningCurve.status === "stabilised"
-      ? "Your recent results stayed strong and changed very little. The same skill is now ready to be tested in a new format."
+      ? "A new display is ready."
       : learningCurve.status === "exposure_ceiling"
-        ? "You reached today’s practice limit before your results had fully settled. Your next session will continue with the familiar format."
-        : "You completed both parts of this stage while keeping the same goal.",
+        ? "Today’s practice is complete. Continue next time."
+        : "You completed both parts of this stage.",
   };
   return shell(`
     <section class="ccc-narrow-card">
@@ -1126,15 +1105,15 @@ function renderBlockComplete(): string {
       <p>${copy.body}</p>
       ${isPractice ? "" : `
         <div class="ccc-summary-grid">
-          <article><span>${isSignal ? "Patterns correct" : isWm ? "Balanced accuracy" : "Best-choice accuracy"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong></article>
+          <article><span>${isSignal ? "Patterns correct" : isWm ? "Memory accuracy" : "Accuracy"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong></article>
           <article><span>${isSignal ? "Typical answer time" : isWm ? "Chosen viewing time" : "Typical decision time"}</span><strong>${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}</strong></article>
           <article><span>${isSignal ? "Patterns completed" : "Points kept"}</span><strong>${isSignal ? feedback.observationCount : `${feedback.pointsKeptPercent}%`}</strong></article>
         </div>`}
-      ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "The viewing time changed as you answered." : "Read accuracy, time and points together."}</strong> ${isSignal ? "Use this result as a simple guide for the stages ahead." : isWm ? `Misses ${formatPercent(feedback.wmMissRate)} · false alarms ${formatPercent(feedback.wmFalseAlarmRate)}${feedback.wmLureFalseAlarmRate === null ? "" : ` · recent-pattern traps ${formatPercent(feedback.wmLureFalseAlarmRate)}`}.` : "If time ended before you answered, that pattern remains part of your result."}</p>`}
+      ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>Read accuracy, time and points together.</strong> ${isWm ? `Compare with exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Choose sooner only when the main direction is clear enough."}</p>`}
       ${wmLevelMessage ? `<p class="ccc-learning-status"><strong>Memory level:</strong> ${wmLevelMessage}</p>` : ""}
       ${isPractice ? "" : renderBetweenBlockTrends()}
-      ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>Ready for a format change.</strong> This change is happening because your recent performance flattened above the target level—not because a fixed trial quota ended.</p>` : ""}
-      ${learningCurve.status === "exposure_ceiling" ? `<p class="ccc-learning-status"><strong>Practice limit reached.</strong> The new format will wait until your recent performance is stable enough.</p>` : ""}
+      ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>New display next.</strong> Your recent results were steady.</p>` : ""}
+      ${learningCurve.status === "exposure_ceiling" ? `<p class="ccc-learning-status"><strong>Continue next time.</strong> Today’s practice is complete.</p>` : ""}
       ${isPractice ? `<aside class="ccc-workflow-bridge"><span>Next</span><strong>${WORKFLOW_CHOICES[journey.workflowChoice].example}</strong></aside>` : ""}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="${isPractice ? "continue-after-block" : "show-block-insights"}">${isPractice ? "Continue" : "See what changed"}</button>
@@ -1164,22 +1143,22 @@ function renderBlockInsights(): string {
     "teal",
   )).join("");
   const shift = feedback.timingShiftMs === null
-    ? "More matched trials are needed before comparing the two conditions."
+    ? "Keep practising to compare the two conditions."
     : Math.abs(feedback.timingShiftMs) < 100
       ? "You used a similar viewing time in both conditions."
       : feedback.timingShiftMs > 0
-        ? `You looked ${Math.abs(feedback.timingShiftMs)} ms longer when mistakes cost more.`
-        : `You looked ${Math.abs(feedback.timingShiftMs)} ms less when mistakes cost more.`;
+        ? `You looked ${(Math.abs(feedback.timingShiftMs) / 1000).toFixed(2)} s longer when mistakes cost more.`
+        : `You looked ${(Math.abs(feedback.timingShiftMs) / 1000).toFixed(2)} s less when mistakes cost more.`;
   return shell(`
     <section class="ccc-narrow-card ccc-insights-card">
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} feedback</span><span>${feedback.observationCount} patterns</span></div>
-      <span class="ccc-kicker">${isSignal ? "Spot the pattern" : "Take in enough, then commit"}</span>
-      <h1>${isSignal ? "How clarity affected the signal check" : "How your decisions changed with the conditions"}</h1>
+      <span class="ccc-kicker">${isSignal ? "Clear and close patterns" : "Look, then choose"}</span>
+      <h1>${isSignal ? "Where the pattern was easier to see" : "How your choices changed"}</h1>
       <div class="ccc-chart-grid ${isSignal ? "is-single" : ""}">
         <section><h2>Accuracy by clarity</h2>${clarityBars}</section>
         ${isSignal ? "" : `<section><h2>Viewing time by condition</h2>${nicheBars}</section>`}
       </div>
-      <p class="ccc-insight-callout"><strong>${isSignal ? "What to notice:" : "Your timing response:"}</strong> ${isSignal ? "Compare the clear and close patterns to see when the majority direction was easiest or hardest to spot." : `${shift} In your own workflow, notice whether you give harder or more important decisions enough checking time.`}</p>
+      <p class="ccc-insight-callout"><strong>${isSignal ? "Notice:" : "What changed:"}</strong> ${isSignal ? "Compare clear and close patterns." : shift}</p>
       ${renderPolicyCoaching(block)}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-block-reconnect">Connect this to your workflow</button>
@@ -1199,13 +1178,13 @@ function renderBlockReconnect(): string {
   return shell(`
     <section class="ccc-narrow-card ccc-block-reconnect-card">
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} complete</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
-      <span class="ccc-kicker">${isWm ? "Use the feedback" : "From exercise to workflow"}</span>
-      <h1>${isWm ? "Adjust your policy for the next block." : "Reconnect before you move on."}</h1>
+      <span class="ccc-kicker">${isWm ? "Next block" : "Your chosen task"}</span>
+      <h1>${isWm ? "Choose your next strategy." : "Reconnect before you move on."}</h1>
       <aside class="ccc-workflow-bridge">
         <span>${WORKFLOW_CHOICES[journey.workflowChoice].label}</span>
         <strong>${workflowBridge(block.phase, journey.workflowChoice)}</strong>
       </aside>
-      <p class="ccc-soft-note">${isWm ? "The next block keeps the memory rule comparable while the payoffs change. Choose its viewing time deliberately." : "Try this idea in your real task and notice whether it helps."}</p>
+      <p class="ccc-soft-note">${isWm ? "The rule stays the same, but the points change. Choose a viewing time for the new conditions." : "Try this in your real task and notice whether it helps."}</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${exposureStopped ? "Finish today’s practice" : isLast ? "See your journey review" : isWm ? "Continue to the next block" : "Continue to the next stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
@@ -1224,11 +1203,10 @@ function renderShiftView(): string {
       <canvas id="ccc-sphere" class="ccc-sphere" role="img" aria-label="A rotating dotted sphere that may appear to reverse"></canvas>
       <div id="ccc-shift-controls" class="ccc-shift-controls">
         ${shiftStaticMode
-          ? `<p class="ccc-soft-note">Quiet visual reset selected. The timing stays the same.</p>`
+          ? `<p class="ccc-soft-note">Still image selected.</p>`
           : `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see the ball</button><button class="ccc-button ccc-button-quiet" data-action="shift-not-yet">Not yet</button>`}
       </div>
       <button class="ccc-text-button" data-action="shift-toggle-motion">${shiftStaticMode ? "Use the moving version" : "Use a still reset"}</button>
-      <p class="ccc-soft-note">There is no score. This short changeover does not affect your points or progress.</p>
     </section>
   `, "ccc-shift-view ccc-viewport-view");
 }
@@ -1253,15 +1231,15 @@ function renderComplete(): string {
       ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1), null)}
       <div class="ccc-summary-grid">
         <article><span>${hasSignal ? "Pattern accuracy" : "Attention accuracy"}</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
-        <article><span>${hasWm ? "Balanced hold-and-compare accuracy" : "Change in checking time"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : policyFeedback.timingShiftMs === null ? "More practice needed" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
+        <article><span>${hasWm ? "Memory accuracy" : "Viewing-time shift"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : policyFeedback.timingShiftMs === null ? "Building" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${(Math.abs(policyFeedback.timingShiftMs) / 1000).toFixed(2)} s`}</strong></article>
         <article><span>${hasWm ? "Saved memory level" : "Programme progress"}</span><strong>${hasWm ? `${programme.wmLevel}-back` : `${programmeProgressPercent(programme)}%`}</strong></article>
       </div>
       ${renderSessionScoreStrip(sessionMetrics)}
       ${renderStrategyTakeaway(allResults)}
-      <p class="ccc-metric-note"><strong>${programme.status === "full_transfer" ? "Every stage is complete." : "Your programme will adapt to your progress."}</strong> ${programme.status === "full_transfer" ? "You can now review your achievement." : next.type === "wait" ? "Take a break and return when the next check opens." : programme.transferStatus === "supported_unlock" ? "The next set of stages is ready." : "The next session will revisit the skills that need more practice."}</p>
+      <p class="ccc-metric-note"><strong>${programme.status === "full_transfer" ? "Every stage is complete." : "Your next step is ready."}</strong> ${programme.status === "full_transfer" ? "Review your achievement." : next.type === "wait" ? "Take a break and return when the next session opens." : programme.transferStatus === "supported_unlock" ? "Continue when you are ready." : "The next session will practise the skills that need more work."}</p>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Reconnect to ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</button>
-        <button class="ccc-button ccc-button-quiet" data-action="return-home">Programme overview</button>
+        <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Use this in ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</button>
+        <button class="ccc-button ccc-button-quiet" data-action="return-home">Return home</button>
       </div>
     </section>`, "ccc-complete-view ccc-viewport-view");
 }
@@ -1275,10 +1253,10 @@ const TRAINING_METRICS: Array<{
   rawValue?: boolean;
 }> = [
   { key: "accuracy", label: "Attention accuracy", detail: "Choosing the main pattern correctly", populationKey: "session.attention_accuracy" },
-  { key: "decisionTime", label: "Viewing time", detail: "How long you typically took in the pattern—not a faster-is-better score", populationKey: "session.decision_time_ms", rawValue: true },
-  { key: "pointsKept", label: "Decision efficiency", detail: "Balancing accuracy, time and cost", populationKey: "session.points_kept" },
-  { key: "closePatterns", label: "Close-pattern accuracy", detail: "Staying accurate when the pattern is less clear", populationKey: "session.close_pattern_accuracy" },
-  { key: "workingMemory", label: "Hold-and-compare", detail: "Keeping and comparing the recent pattern", populationKey: "session.wm_accuracy" },
+  { key: "decisionTime", label: "Viewing time", detail: "How long you looked before choosing", populationKey: "session.decision_time_ms", rawValue: true },
+  { key: "pointsKept", label: "Points balance", detail: "Accuracy and time together", populationKey: "session.points_kept" },
+  { key: "closePatterns", label: "Close-pattern accuracy", detail: "Accuracy when the majority was harder to see", populationKey: "session.close_pattern_accuracy" },
+  { key: "workingMemory", label: "Memory accuracy", detail: "Comparing with an earlier pattern", populationKey: "session.wm_accuracy" },
 ];
 
 function latestSessionMetrics() {
@@ -1318,7 +1296,7 @@ function scoreStatus(score: number | null): string {
   if (score === null) return "Building";
   if (score >= 110) return "Strong";
   if (score >= 100) return "Developing";
-  if (score >= 90) return "Watch";
+  if (score >= 90) return "Keep building";
   return "Needs practice";
 }
 
@@ -1338,7 +1316,7 @@ function trainingMetricCard(metric: typeof TRAINING_METRICS[number]): string {
     <div><span>${metric.label}</span><strong>${metricDisplay(metric, score)}</strong></div>
     <p>${metric.detail}</p>
     ${points ? `<svg viewBox="0 0 260 68" role="img" aria-label="${metric.label} session trend"><line x1="0" x2="260" y1="58" y2="58"></line><polyline points="${points}"></polyline></svg>` : ""}
-    <small>${metric.rawValue ? "Interpret with accuracy and points" : `${scoreStatus(score)} · ${comparisonMode === "personal" ? "First valid session = 100" : "Population scale"}`}</small>
+    <small>${metric.rawValue ? "Read with accuracy and points" : `${scoreStatus(score)} · ${comparisonMode === "personal" ? "Starting score = 100" : "Compared with other users"}`}</small>
   </article>`;
 }
 
@@ -1370,15 +1348,14 @@ function proofCard(domain: CccProofDomain, label: string): string {
 
 function renderComparisonSelector(): string {
   const available = populationModeAvailable(populationScores);
-  const largestNorm = Math.max(0, ...Object.values(populationScores).map((score) => score.normN || 0));
   return `<section class="ccc-comparison-panel">
-    <div><span class="ccc-kicker">Score view</span><h2>Choose how to read your scores</h2></div>
+    <div><span class="ccc-kicker">Score view</span><h2>Compare with your start or with other users</h2></div>
     <div class="ccc-comparison-options">
       <button data-action="select-personal-mode" class="${comparisonMode === "personal" ? "is-selected" : ""}" aria-pressed="${comparisonMode === "personal"}">
-        <strong>Personal progress</strong><span>Your first valid result is 100.</span><em>${comparisonMode === "personal" ? "Selected" : "Choose"}</em>
+        <strong>Personal progress</strong><span>Your starting result is 100.</span><em>${comparisonMode === "personal" ? "Selected" : "Choose"}</em>
       </button>
       <button data-action="select-population-mode" class="${comparisonMode === "population" ? "is-selected" : ""}" aria-pressed="${comparisonMode === "population"}" ${available ? "" : "disabled"}>
-        <strong>Population comparison</strong><span>${available ? "Compare with other app users." : `Available when at least ${CCC_POPULATION_MIN_N} results have built the comparison sample.`}</span><em>${available ? comparisonMode === "population" ? "Selected" : "Choose" : largestNorm ? `${largestNorm} of ${CCC_POPULATION_MIN_N}` : "Building"}</em>
+        <strong>Other users</strong><span>${available ? "Compare with other app users." : "Available after enough people have used the app."}</span><em>${available ? comparisonMode === "population" ? "Selected" : "Choose" : "Coming later"}</em>
       </button>
     </div>
   </section>`;
@@ -1401,7 +1378,7 @@ function renderSessionScoreStrip(metrics: ReturnType<typeof buildCccSessionMetri
     .slice(0, 4);
   if (!items.length) return "";
   return `<section class="ccc-session-score-strip">
-    <div class="ccc-section-heading"><span>Your session feedback</span><strong>Personal scores start at 100 · viewing time is shown in seconds</strong></div>
+    <div class="ccc-section-heading"><span>Your session</span><strong>Starting scores use 100</strong></div>
     <div>${items.map((metric) => `<article><span>${metric.label}</span><strong>${metricDisplay(metric, personalSessionScore(metrics, metric.key))}</strong></article>`).join("")}</div>
     <button class="ccc-text-button" data-action="show-progress">Open Progress</button>
   </section>`;
@@ -1412,21 +1389,21 @@ function renderProgress(): string {
   const latest = latestSessionMetrics();
   return shell(`<section class="ccc-progress-screen">
     <div class="ccc-progress-hero">
-      <div><span class="ccc-kicker">Your progress</span><h1>Training feedback you can return to.</h1><p>Review each completed session, see change from your starting point, and keep G Track check-ins alongside training.</p></div>
+      <div><span class="ccc-kicker">Your progress</span><h1>See how your results change.</h1><p>Review your sessions and G Track check-ins.</p></div>
       <div class="ccc-progress-hero-stat"><span>Sessions with feedback</span><strong>${sessionsWithMetrics.length}</strong><small>Programme ${programmeProgressPercent(programme)}% complete</small></div>
     </div>
     ${renderComparisonSelector()}
     ${progressMessage ? `<p class="ccc-progress-message">${escapeHtml(progressMessage)}</p>` : ""}
     <section class="ccc-progress-section">
-      <div class="ccc-section-heading"><span>Session feedback</span><strong>${latest ? "Your latest pattern and session trend" : "Complete a session to start your trend"}</strong></div>
+      <div class="ccc-section-heading"><span>Session results</span><strong>${latest ? "Latest results and trends" : "Complete a session to start"}</strong></div>
       <div class="ccc-progress-metric-grid">${TRAINING_METRICS.map(trainingMetricCard).join("")}</div>
       ${sessionsWithMetrics.length ? `<div class="ccc-session-history">${[...sessionsWithMetrics].reverse().slice(0, 8).map((session) => `<article><span>Session ${session.sessionNumber}</span><strong>${session.metrics?.attentionAccuracy !== null && session.metrics?.attentionAccuracy !== undefined ? `${Math.round(session.metrics.attentionAccuracy * 100)}% attention` : session.metrics?.signalAccuracy !== null && session.metrics?.signalAccuracy !== undefined ? `${Math.round(session.metrics.signalAccuracy * 100)}% pattern` : "Session recorded"}</strong><small>${session.completedAt.slice(0, 10)} · ${session.metrics?.observationCount || 0} patterns</small></article>`).join("")}</div>` : ""}
       ${journey?.completedAt ? renderStrategyTakeaway(Object.values(journey.blockResults).flat(), true) : ""}
     </section>
     <section class="ccc-progress-section ccc-proof-section">
-      <div class="ccc-section-heading"><span>G Track check-ins</span><strong>Imported test scores across the training period</strong></div>
+      <div class="ccc-section-heading"><span>G Track check-ins</span><strong>Imported test scores</strong></div>
       <div class="ccc-proof-grid">${proofCard("attention", "Attention Control")}${proofCard("working_memory", "Working Memory")}${proofCard("reasoning", "Matrix Reasoning")}</div>
-      <p class="ccc-soft-note">G Track results stay separate from daily training feedback. They provide a wider check-in before, during or after the programme.</p>
+      <p class="ccc-soft-note">G Track results are shown separately from training sessions.</p>
     </section>
   </section>`, "ccc-progress-view");
 }
@@ -1459,8 +1436,8 @@ function renderFullTransfer(): string {
       </div>
       <p class="ccc-achievement-boundary"><strong>This badge marks your progress in the app.</strong> The most useful next step is to try the skills in the work, study or everyday task you chose.</p>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Take the win back to your workflow</button>
-        <button class="ccc-button ccc-button-quiet" data-action="return-home">Programme overview</button>
+        <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Use this in your task</button>
+        <button class="ccc-button ccc-button-quiet" data-action="return-home">Return home</button>
       </div>
     </section>`, "ccc-full-transfer-view ccc-viewport-view");
 }
@@ -1470,7 +1447,7 @@ function renderCompleteReconnect(): string {
   const reconnect = reconnectAction(journey.workflowChoice);
   return shell(`
     <section class="ccc-complete-card ccc-reconnect-view">
-      <span class="ccc-kicker">From exercise to workflow</span>
+      <span class="ccc-kicker">Use it in your task</span>
       <h1>Take one move back to the task.</h1>
       <p class="ccc-reconnect-lead">Use this prompt, then judge the result in the real task itself.</p>
       <aside class="ccc-reconnect-card">
@@ -2207,7 +2184,7 @@ function updateShiftControls(): void {
   const instruction = document.querySelector<HTMLElement>("#ccc-shift-instruction");
   if (!controls || !instruction) return;
   if (shiftStaticMode) {
-    controls.innerHTML = `<p class="ccc-soft-note">Quiet visual reset selected. The timing stays the same.</p>`;
+    controls.innerHTML = `<p class="ccc-soft-note">Still image selected.</p>`;
     instruction.textContent = "Let your eyes rest on the whole pattern.";
     return;
   }
@@ -2374,13 +2351,13 @@ appRoot.addEventListener("click", (event) => {
   } else if (action === "select-personal-mode") {
     comparisonMode = "personal";
     saveCccComparisonMode(comparisonMode);
-    progressMessage = "Showing change from your own first valid result, set to 100.";
+    progressMessage = "Showing change from your starting score of 100.";
     render();
   } else if (action === "select-population-mode") {
     if (populationModeAvailable(populationScores)) {
       comparisonMode = "population";
       saveCccComparisonMode(comparisonMode);
-      progressMessage = "Showing population comparison scores.";
+      progressMessage = "Comparing your scores with other users.";
       render();
     }
   } else if (action === "pause-session") {

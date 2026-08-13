@@ -1027,7 +1027,7 @@ p {
 }
 
 .ccc-instruction-grid {
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   margin: 25px 0;
 }
 
@@ -2410,12 +2410,53 @@ p {
   }
 
   .ccc-control-strip,
-  .ccc-instruction-grid,
   .ccc-regime-grid,
   .ccc-summary-grid,
-  .ccc-payoff-grid,
   .ccc-strategy-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ccc-instruction-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+    margin: 14px 0;
+  }
+
+  .ccc-instruction-grid article {
+    gap: 4px;
+    padding: 12px;
+  }
+
+  .ccc-payoff-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 6px;
+    margin: 14px 0;
+  }
+
+  .ccc-payoff-grid article {
+    min-width: 0;
+    gap: 3px;
+    padding: 10px 7px;
+    text-align: center;
+  }
+
+  .ccc-payoff-grid span {
+    font-size: 0.61rem;
+    letter-spacing: 0.04em;
+  }
+
+  .ccc-payoff-grid strong {
+    font-size: 1.02rem;
+    overflow-wrap: anywhere;
+  }
+
+  .ccc-payoff-grid small {
+    display: none;
+  }
+
+  .ccc-strategy-principle {
+    padding: 11px 12px;
+    line-height: 1.35;
   }
 
   .ccc-control-panel .ccc-control-strip {
@@ -2783,6 +2824,19 @@ p {
 
   .ccc-viewport-view .ccc-actions {
     gap: 8px;
+  }
+
+  .ccc-instruction-grid {
+    margin: 10px 0;
+  }
+
+  .ccc-instruction-grid strong {
+    font-size: 0.82rem;
+  }
+
+  .ccc-instruction-grid span {
+    font-size: 0.78rem;
+    line-height: 1.28;
   }
 }
 

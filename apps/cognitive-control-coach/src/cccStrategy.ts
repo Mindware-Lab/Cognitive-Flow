@@ -131,11 +131,11 @@ function learningGuidance(regimeId: CccRegimeId): Pick<CccRegimeStrategyFeedback
   const regime = CCC_REGIMES[regimeId];
   if (regime.errorLoss >= 40) return {
     title: "Build enough certainty",
-    guidance: "A wrong choice is costly here. Give close patterns more viewing time, but choose once extra looking is no longer making the majority clearer.",
+    guidance: "Mistakes cost more here. Give close patterns more time, then choose once the majority is clear enough.",
   };
   return {
     title: "Protect the fading points",
-    guidance: "Points disappear quickly here. Pool enough evidence to see the majority, then commit rather than waiting for complete certainty.",
+    guidance: "Points fade quickly here. Find the majority, then choose without waiting to feel completely certain.",
   };
 }
 
@@ -162,7 +162,7 @@ function strategyForRegime(
       expectedGainPerTrial: null,
       direction: "speed_up",
       title: "Commit before time runs out",
-      guidance: "Several patterns ended without a choice. Aim for enough certainty to identify the majority, then make your best choice before the deadline.",
+      guidance: "Several patterns ended without a choice. Find the majority, then choose before time runs out.",
     };
   }
   if (!model || answered.length < MIN_REGIME_ANSWERS || observedMedianMs === null) {
@@ -191,7 +191,7 @@ function strategyForRegime(
       expectedGainPerTrial: gain,
       direction: "well_balanced",
       title: "Your timing is well matched",
-      guidance: "Your current balance of certainty, time and points is close to the best estimate from this session. Keep adjusting a little for clearer and closer patterns.",
+      guidance: "Your accuracy, viewing time and points worked well together. Keep adjusting for clearer and closer patterns.",
     };
   }
   if (gap > 0) {
@@ -204,7 +204,7 @@ function strategyForRegime(
       expectedGainPerTrial: gain,
       direction: "speed_up",
       title: "Commit a little sooner",
-      guidance: "Extra viewing is currently costing more points than the added certainty is returning. On similar patterns, choose once the majority is clear enough.",
+      guidance: "Extra viewing is costing more points than it saves. Choose once the majority is clear enough.",
     };
   }
   return {
@@ -216,7 +216,7 @@ function strategyForRegime(
     expectedGainPerTrial: gain,
       direction: "slow_down",
       title: "Take in a little more information",
-      guidance: "A little more viewing is likely to prevent enough costly errors to improve your points. On similar patterns, wait until the majority is clearer before choosing.",
+      guidance: "A little more viewing may prevent costly mistakes. Wait until the majority is clearer before choosing.",
   };
 }
 
@@ -235,6 +235,6 @@ export function buildCccStrategyFeedback(
     modelReady: model !== null,
     answeredCount: eligible.filter((result) => result.scoring.responseClass === "answer").length,
     regimes: regimeIds.map((regimeId) => strategyForRegime(regimeId, eligible, model, operator)),
-    principle: "Use more viewing time when errors are costly or the pattern is close. When points are fading quickly, choose as soon as the majority is clear enough—not when certainty feels perfect.",
+    principle: "Look longer when mistakes cost more or the pattern is close. When points fade quickly, choose as soon as the majority is clear enough.",
   };
 }

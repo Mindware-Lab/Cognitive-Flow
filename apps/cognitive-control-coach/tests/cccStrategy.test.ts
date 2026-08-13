@@ -43,8 +43,8 @@ describe("CCC strategic policy coaching", () => {
     ], ["clear_sprint", "deep_check"], "attention");
     expect(feedback.modelReady).toBe(false);
     expect(feedback.regimes.map((item) => item.direction)).toEqual(["keep_learning", "keep_learning"]);
-    expect(feedback.principle).toContain("errors are costly");
-    expect(feedback.principle).toContain("points are fading quickly");
+    expect(feedback.principle).toContain("mistakes cost more");
+    expect(feedback.principle).toContain("points fade quickly");
     expect(feedback.principle).not.toContain("evidence");
   });
 

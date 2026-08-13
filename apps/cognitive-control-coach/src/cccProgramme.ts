@@ -272,25 +272,25 @@ export function applyCompletedSession(
       programme.currentStage = "P1b";
       programme.delayedRecheckDueAt = null;
       programme.delayedRecheckWindowEndsAt = null;
-      decisions.push("Your return check went well. The next set of hold-and-compare stages is ready.");
+      decisions.push("Your return went well. The memory stages are ready.");
     } else {
       evidence.failedDelayedChecks += 1;
       programme.delayedRecheckDueAt = null;
       programme.delayedRecheckWindowEndsAt = null;
-      decisions.push("This return check was harder. Your next session will keep working on the same skill.");
+      decisions.push("This return was harder. Next time, keep practising the same skill.");
       if (supportedUnlockReady(programme)) {
         programme.transferStatus = "supported_unlock";
         programme.currentStage = "P1b";
-        decisions.push("The next set of stages is now ready.");
+        decisions.push("The next stages are ready.");
       }
     }
   } else if ((journey.plan.stage === "P0" || journey.plan.stage === "P1a") && immediateAttentionEvidenceReady(programme)) {
     programme.currentStage = "P1a";
     scheduleDelayed(programme, completedAt);
-    decisions.push("You completed this set. A return check is now scheduled after some time away.");
+    decisions.push("This set is complete. Return after a break.");
   } else if (journey.plan.stage === "P0" || journey.plan.stage === "P1a") {
     programme.currentStage = "P1a";
-    decisions.push("You are still building consistency. The next session will revisit the areas that need more practice.");
+    decisions.push("Next time, keep practising the skills that need more work.");
   }
 
   if (journey.plan.stage === "P1b") {
@@ -314,30 +314,30 @@ export function applyCompletedSession(
     const stable = cccWmCurveIsStable(stageHistory);
     if (stageAtStart === "flow_first_contact") {
       programme.wmWrapperStage = "flow_recovery";
-      decisions.push("Your first motion-format check is recorded. The next session will build recovery in that format.");
+      decisions.push("Next: keep practising with moving dots.");
     } else if (stable) {
       if (stageAtStart === "arrow_stabilisation") {
         evidence.wmStabilityPasses += 1;
         programme.wmWrapperStage = "flow_first_contact";
-        decisions.push("Your memory level is steady. Next time you will use the same level with a new display.");
+        decisions.push("Next: use the same memory level with moving dots.");
       } else if (stageAtStart === "flow_recovery") {
         evidence.wmRecoveryPasses += 1;
         programme.wmWrapperStage = "arrow_return";
-        decisions.push("Your memory performance has recovered in motion. Next you will return to arrows.");
+        decisions.push("Next: return to arrows.");
       } else if (stageAtStart === "arrow_return") {
         evidence.wmReturnPasses += 1;
         programme.wmWrapperStage = "mixed";
-        decisions.push("Your memory level held on return. Next you will mix arrows and motion.");
+        decisions.push("Next: switch between arrows and moving dots.");
       } else {
         evidence.wmMixedPasses += 1;
-        decisions.push("Your memory level is steady across both displays.");
+        decisions.push("Your memory level was steady across both displays.");
       }
     } else {
       decisions.push(pairDecisions.at(-1)?.direction === "increase"
-        ? `Your next session will continue at ${programme.wmLevel}-back.`
-        : pairDecisions.at(-1)?.direction === "decrease"
-          ? `Your next session will restart at ${programme.wmLevel}-back so you can rebuild accuracy.`
-          : `Your next session will preserve ${programme.wmLevel}-back.`);
+          ? `Next: continue at ${programme.wmLevel}-back.`
+          : pairDecisions.at(-1)?.direction === "decrease"
+          ? `Next: use ${programme.wmLevel}-back to rebuild accuracy.`
+          : `Next: stay at ${programme.wmLevel}-back.`);
     }
     const wmReady = evidence.wmStabilityPasses >= CCC_MIN_WM_STABILITY_PASSES
       && evidence.wmRecoveryPasses >= CCC_MIN_WM_TRANSFER_PASSES
@@ -345,8 +345,8 @@ export function applyCompletedSession(
       && evidence.wmMixedPasses >= CCC_MIN_WM_TRANSFER_PASSES;
     programme.currentStage = wmReady ? "P1c" : "P1b";
     decisions.push(wmReady
-      ? "You held and compared the patterns consistently. The final set of stages is ready."
-      : "You are still building consistency with holding and comparing patterns.");
+      ? "The final stages are ready."
+      : "Next time, keep practising Match or Different.");
   }
 
   if (passedPhase(journey, ["p1c_attention_reentry"], 12)) evidence.returnToNowPasses += 1;
@@ -377,21 +377,21 @@ export function applyCompletedSession(
         programme.delayedRecheckWindowEndsAt = null;
         programme.status = programme.transferStatus === "attention_portable" ? "full_transfer" : "supported_completion";
         decisions.push(programme.status === "full_transfer"
-          ? "You completed every stage, including returning after time away and switching in both directions."
+          ? "You completed every stage."
           : "You completed the programme.");
       } else {
         evidence.failedFinalDelayedChecks += 1;
         programme.currentStage = "P1c";
         scheduleDelayed(programme, completedAt);
-        decisions.push("This return check was harder. Another check has been scheduled after some time away.");
+        decisions.push("This return was harder. Try again after a break.");
       }
     } else if (integrationReady) {
       programme.currentStage = "P1c";
       scheduleDelayed(programme, completedAt);
-      decisions.push("You switched smoothly between finding and holding the pattern. A final return check is now scheduled.");
+      decisions.push("The final return is ready after a break.");
     } else {
       programme.currentStage = "P1c";
-      decisions.push("You are still building consistency when switching between finding and holding the pattern.");
+      decisions.push("Next time, keep practising the switch between In or Out and Match or Different.");
     }
   }
 
