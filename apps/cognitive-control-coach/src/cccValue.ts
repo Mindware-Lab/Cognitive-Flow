@@ -62,7 +62,9 @@ export function scoreCccAttentionTrial(input: CccAttentionResponseInput): CccAtt
   const isCorrect = scoredWmTrial
     ? input.trial.wmIsMatch === true
       ? responseClass === "answer" && response === "match"
-      : responseClass === "answer" && (!response || response === "different")
+      : input.trial.wmIsMatch === false
+        ? responseClass === "answer" && (!response || response === "different")
+        : responseClass === "answer" && response === input.trial.correctResponse
     : responseClass === "answer" && response === input.trial.correctResponse;
   const wmMiss = scoredWmTrial && input.trial.wmIsMatch === true && !isCorrect;
   const isValueTrial = input.trial.presentationMode === "self_paced_value" && !input.trial.practice && !input.trial.wmBuffer;
