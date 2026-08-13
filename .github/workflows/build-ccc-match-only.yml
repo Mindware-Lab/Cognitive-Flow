@@ -1,0 +1,48 @@
+name: Build CCC Match-only release
+
+on:
+  push:
+    branches:
+      - build/ccc-wm-match-only-20260813
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      VITE_SUPABASE_URL: https://ybnneksunfueetkmjohc.supabase.co
+      VITE_SUPABASE_ANON_KEY: sb_publishable_LMxY2t33aWsQOWgeLKBBLw_1SC3BLTX
+    defaults:
+      run:
+        working-directory: apps/cognitive-control-coach
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/cognitive-control-coach/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build production bundle
+        run: npm run build
+
+      - name: Upload production dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: cognitive-control-coach-dist
+          path: apps/cognitive-control-coach/dist
+          if-no-files-found: error
+          retention-days: 2
