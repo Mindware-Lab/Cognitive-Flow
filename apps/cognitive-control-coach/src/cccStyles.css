@@ -254,6 +254,12 @@ a:focus-visible {
   padding-bottom: 20px;
 }
 
+.ccc-current-session-progress {
+  width: min(1040px, 100%);
+  margin: 0 auto;
+  padding-bottom: 20px;
+}
+
 .ccc-progress-hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 210px;
@@ -280,6 +286,97 @@ a:focus-visible {
 .ccc-progress-hero-stat span,
 .ccc-progress-hero-stat small { display: block; color: rgba(255, 255, 255, 0.68); font-size: 0.72rem; }
 .ccc-progress-hero-stat strong { display: block; margin: 4px 0; color: #fff; font-size: 2.3rem; }
+
+.ccc-progress-segments {
+  width: fit-content;
+  display: flex;
+  gap: 4px;
+  margin: 0 auto 14px;
+  padding: 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--canvas-alt);
+}
+
+.ccc-progress-segments button {
+  min-height: 40px;
+  padding: 0 18px;
+  border: 0;
+  border-radius: 999px;
+  color: var(--muted);
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.ccc-progress-segments button.is-active {
+  color: #fff;
+  background: var(--navy);
+  box-shadow: 0 5px 12px rgba(7, 24, 39, 0.14);
+}
+
+.ccc-session-progress-hero { margin-bottom: 12px; }
+
+.ccc-session-route .ccc-journey-rail { margin: 4px 0 14px; }
+
+.ccc-live-session-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.ccc-live-session-grid article {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--canvas-alt);
+}
+
+.ccc-live-session-grid span,
+.ccc-live-session-grid small {
+  display: block;
+  color: var(--muted);
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+.ccc-live-session-grid span { color: var(--navy); font-size: 0.75rem; font-weight: 800; }
+.ccc-live-session-grid strong { display: block; margin: 5px 0; color: var(--blue-700); font-size: 1.55rem; }
+
+.ccc-session-strategy {
+  border-left: 4px solid var(--lime);
+  background: linear-gradient(90deg, rgba(204, 255, 102, 0.09), #fff 36%);
+}
+
+.ccc-session-strategy h2 { margin: 0 0 5px; color: var(--navy); font-size: 1.15rem; }
+.ccc-session-strategy p { margin: 0; color: var(--ink); font-size: 0.82rem; line-height: 1.5; }
+.ccc-session-strategy small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+
+.ccc-active-session-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+  padding: 12px 16px;
+  border: 1px solid rgba(34, 170, 255, 0.22);
+  border-radius: 14px;
+  background: rgba(34, 170, 255, 0.06);
+}
+
+.ccc-active-session-banner span,
+.ccc-active-session-banner strong { display: block; }
+.ccc-active-session-banner span { color: var(--muted); font-size: 0.68rem; font-weight: 700; }
+.ccc-active-session-banner strong { margin-top: 2px; color: var(--navy); font-size: 0.88rem; }
+
+.ccc-progress-return {
+  display: flex;
+  justify-content: center;
+  padding: 2px 0 8px;
+}
+
+.ccc-empty-session-progress h2 { margin: 0; color: var(--navy); font-size: 1.1rem; }
 
 .ccc-comparison-panel,
 .ccc-progress-section {
@@ -347,6 +444,7 @@ a:focus-visible {
   .ccc-progress-hero-stat { display: none; }
   .ccc-progress-metric-grid,
   .ccc-proof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .ccc-live-session-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -354,11 +452,16 @@ a:focus-visible {
   .ccc-comparison-options,
   .ccc-mini-trend-grid,
   .ccc-progress-metric-grid,
-  .ccc-proof-grid { grid-template-columns: 1fr; }
+  .ccc-proof-grid,
+  .ccc-live-session-grid { grid-template-columns: 1fr; }
   .ccc-progress-hero,
   .ccc-comparison-panel,
   .ccc-progress-section { padding: 14px; }
   .ccc-progress-screen { padding-bottom: 10px; }
+  .ccc-current-session-progress { padding-bottom: 10px; }
+  .ccc-progress-segments { width: 100%; }
+  .ccc-progress-segments button { flex: 1; padding: 0 8px; }
+  .ccc-active-session-banner { align-items: flex-start; flex-direction: column; }
 }
 
 .ccc-brand {
@@ -478,6 +581,10 @@ a:focus-visible {
 
 .ccc-viewport-view {
   grid-template-rows: auto minmax(0, 1fr);
+}
+
+.ccc-has-tabs.ccc-viewport-view {
+  grid-template-rows: auto auto minmax(0, 1fr);
 }
 
 .ccc-viewport-view .ccc-main {

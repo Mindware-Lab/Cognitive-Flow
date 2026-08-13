@@ -173,6 +173,22 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("overflow-y: auto");
   });
 
+  it("keeps progress available at safe session boundaries and returns without advancing", () => {
+    expect(mainSource).toContain('type ProgressPanel = "session" | "history"');
+    expect(mainSource).toContain('currentView !== "task"');
+    expect(mainSource).toContain('currentView !== "shift_view"');
+    expect(mainSource).toContain('data-action="show-session-progress"');
+    expect(mainSource).toContain('data-action="show-history-progress"');
+    expect(mainSource).toContain('data-action="return-session"');
+    expect(mainSource).toContain("Your session so far");
+    expect(mainSource).toContain("Results so far");
+    expect(mainSource).toContain("Current strategy");
+    expect(mainSource).toContain("Review your results without losing your place.");
+    expect(appStyles).toContain(".ccc-progress-segments");
+    expect(appStyles).toContain(".ccc-live-session-grid");
+    expect(appStyles).toContain(".ccc-has-tabs.ccc-viewport-view");
+  });
+
   it("reserves the congratulations achievement screen for the completed programme state", () => {
     expect(mainSource).toContain('programme.status !== "full_transfer"');
     expect(mainSource).toContain("Congratulations — Programme Complete!");

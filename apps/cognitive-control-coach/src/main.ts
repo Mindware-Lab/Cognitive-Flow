@@ -137,6 +137,7 @@ type View =
   | "data";
 type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval";
 type TaskMode = "practice" | "wm_practice" | "guided";
+type ProgressPanel = "session" | "history";
 
 const appElement = document.querySelector<HTMLDivElement>("#app");
 if (!appElement) throw new Error("Missing #app root.");
@@ -194,6 +195,8 @@ let selectedWorkflow: WorkflowChoice = journey?.workflowChoice || "focused_work"
 let dataModeSeen = loadDataModeSeen();
 let view: View = dataModeSeen ? "welcome" : isSupabaseConfigured ? "auth" : "data";
 let dataReturnView: View = "welcome";
+let progressReturnView: View = "welcome";
+let progressPanel: ProgressPanel = journey && !journey.completedAt ? "session" : "history";
 let taskMode: TaskMode = journey?.wmPracticeLevel ? "wm_practice" : journey?.practiceComplete ? "guided" : "practice";
 let taskStage: TaskStage = "fixation";
 let evidenceStartedAt = 0;
@@ -395,11 +398,20 @@ function setView(next: View): void {
   render();
 }
 
+function progressNavigationAvailable(currentView: View = view): boolean {
+  return currentView !== "auth"
+    && currentView !== "data"
+    && currentView !== "task"
+    && currentView !== "shift_view";
+}
+
 function progressTabs(active: "overview" | "progress"): string {
-  if (journey && !journey.completedAt) return "";
+  const activeJourney = Boolean(journey && !journey.completedAt);
+  const returnAction = activeJourney ? "return-session" : "return-home";
+  const progressDefault: ProgressPanel = activeJourney ? "session" : "history";
   return `<nav class="ccc-app-tabs" aria-label="Cognitive Control Coach sections">
-      <button data-action="return-home" class="${active === "overview" ? "is-active" : ""}" aria-current="${active === "overview" ? "page" : "false"}">Home</button>
-    <button data-action="show-progress" class="${active === "progress" ? "is-active" : ""}" aria-current="${active === "progress" ? "page" : "false"}">Progress</button>
+    <button data-action="${active === "progress" ? returnAction : "session-current"}" class="${active === "overview" ? "is-active" : ""}" aria-current="${active === "overview" ? "page" : "false"}">${activeJourney ? "Session" : "Home"}</button>
+    <button data-action="show-progress" data-progress-panel="${progressDefault}" class="${active === "progress" ? "is-active" : ""}" aria-current="${active === "progress" ? "page" : "false"}">Progress</button>
   </nav>`;
 }
 
@@ -429,8 +441,9 @@ function header(): string {
 }
 
 function shell(content: string, className = ""): string {
-  const tabs = view === "welcome" ? progressTabs("overview") : view === "progress" ? progressTabs("progress") : "";
-  return `<main class="ccc-app ${className}">${header()}${tabs}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>Training and practice only</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
+  const tabs = progressNavigationAvailable() ? progressTabs(view === "progress" ? "progress" : "overview") : "";
+  const tabClass = tabs ? "ccc-has-tabs" : "";
+  return `<main class="ccc-app ${tabClass} ${className}">${header()}${tabs}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>Training and practice only</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
 }
 
 const JOURNEY_LABELS: Partial<Record<CccProgrammePhase, string>> = {
@@ -1417,14 +1430,124 @@ function renderSessionScoreStrip(metrics: ReturnType<typeof buildCccSessionMetri
   </section>`;
 }
 
-function renderProgress(): string {
+function progressPanelNavigation(): string {
+  const hasSession = Boolean(journey);
+  return `<nav class="ccc-progress-segments" aria-label="Progress view">
+    ${hasSession ? `<button data-action="show-session-progress" class="${progressPanel === "session" ? "is-active" : ""}" aria-pressed="${progressPanel === "session"}">This session</button>` : ""}
+    <button data-action="show-history-progress" class="${progressPanel === "history" ? "is-active" : ""}" aria-pressed="${progressPanel === "history"}">Across sessions</button>
+  </nav>`;
+}
+
+function currentSessionResults(): CccRecordedTrial[] {
+  return journey ? Object.values(journey.blockResults).flat() : [];
+}
+
+function sessionStageCounts(): { complete: number; total: number } {
+  if (!journey) return { complete: 0, total: 0 };
+  const stages = journey.plan.blocks
+    .map((block, index) => ({ block, index }))
+    .filter(({ block }) => block.phase !== "practice");
+  const complete = stages.filter(({ block, index }) => {
+    if (index < journey!.activeBlockIndex) return true;
+    if (index > journey!.activeBlockIndex) return false;
+    const results = journey!.blockResults[block.id] || [];
+    const counted = results.filter((result) => result.scoring.countsTowardQuota).length;
+    return counted >= block.validTrialCount || Boolean(journey!.completedAt);
+  }).length;
+  return { complete, total: stages.length };
+}
+
+function sessionMetricTile(label: string, value: string, detail: string): string {
+  return `<article><span>${escapeHtml(label)}</span><strong>${escapeHtml(value)}</strong><small>${escapeHtml(detail)}</small></article>`;
+}
+
+function progressReturnLabel(): string {
+  if (journey?.completedAt) return "Return to session review";
+  if (progressReturnView === "block_complete" || progressReturnView === "block_insights" || progressReturnView === "block_reconnect") return "Return to block feedback";
+  if (progressReturnView === "paused") return "Return to paused session";
+  if (progressReturnView === "wm_practice_result") return "Return to practice feedback";
+  if (progressReturnView === "welcome") return "Resume session";
+  return "Return to session";
+}
+
+function progressReturnTarget(): View {
+  if (journey?.completedAt) return "complete";
+  return progressReturnView === "progress" || progressReturnView === "data" || progressReturnView === "auth"
+    ? "welcome"
+    : progressReturnView;
+}
+
+function renderCurrentSessionProgress(): string {
+  if (!journey) return `<section class="ccc-progress-section ccc-empty-session-progress">
+    <div class="ccc-section-heading"><span>This session</span><strong>Not started</strong></div>
+    <h2>Start a session to see progress here.</h2>
+  </section>`;
+  const results = currentSessionResults();
+  const metrics = buildCccSessionMetrics(results);
+  const stages = sessionStageCounts();
+  const current = journey.plan.blocks[journey.activeBlockIndex] || null;
+  const currentComplete = Boolean(current && (
+    journey.completedAt
+    || ["block_complete", "block_insights", "block_reconnect"].includes(progressReturnView)
+    || (journey.blockResults[current.id] || []).filter((result) => result.scoring.countsTowardQuota).length >= current.validTrialCount
+  ));
+  const stageLabel = current ? JOURNEY_LABELS[current.phase] || current.label : "Review";
+  const completion = Math.round(journeyCompletionRatio(journey) * 100);
+  const blockFeedback = buildCccBlockFeedback(results.filter((result) => !result.trial.wmBuffer));
+  const relevantAccuracy = metrics.wmAccuracy ?? metrics.attentionAccuracy ?? metrics.signalAccuracy;
+  const hasPolicyResults = metrics.pointsKeptPercent !== null;
+  const operatorResults = current
+    ? journey.plan.blocks
+        .slice(0, journey.activeBlockIndex + 1)
+        .filter((block) => block.operator === current.operator)
+        .flatMap((block) => journey!.blockResults[block.id] || [])
+    : [];
+  const strategy = current && current.estimand !== "signal_capacity"
+    ? buildCccStrategyFeedback(operatorResults, current.regimePair, current.operator)
+    : null;
+  const strategyLead = strategy?.regimes.find((item) => item.direction === "slow_down" || item.direction === "speed_up")
+    || strategy?.regimes.find((item) => item.direction === "well_balanced")
+    || strategy?.regimes[0];
+  return `<section class="ccc-current-session-progress">
+    <div class="ccc-progress-hero ccc-session-progress-hero">
+      <div><span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber}</span><h1>${journey.completedAt ? "Your session review" : "Your session so far"}</h1><p>${journey.completedAt ? "Review the completed blocks and your next useful strategy." : `You are at ${stageLabel}. Review your results without losing your place.`}</p></div>
+      <div class="ccc-progress-hero-stat"><span>Session complete</span><strong>${completion}%</strong><small>${stages.complete} of ${stages.total} stages complete</small></div>
+    </div>
+    ${progressPanelNavigation()}
+    <section class="ccc-progress-section ccc-session-route">
+      <div class="ccc-section-heading"><span>Session route</span><strong>${journey.completedAt ? "Complete" : `${stageLabel} is current`}</strong></div>
+      ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + (journey.completedAt || currentComplete ? 1 : 0)), journey.completedAt || currentComplete ? null : journey.activeBlockIndex)}
+      <div class="ccc-progress-track" role="progressbar" aria-label="Session completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}"><span style="width:${completion}%"></span></div>
+    </section>
+    <section class="ccc-progress-section">
+      <div class="ccc-section-heading"><span>Results so far</span><strong>${blockFeedback.observationCount ? `${blockFeedback.observationCount} patterns` : "Your first results will appear here"}</strong></div>
+      <div class="ccc-live-session-grid">
+        ${sessionMetricTile(metrics.wmAccuracy !== null ? "Memory accuracy" : "Accuracy", formatPercent(relevantAccuracy), metrics.wmAccuracy !== null ? `${programme.wmLevel}-back is saved across sessions` : "Correct choices")}
+        ${sessionMetricTile("Viewing time", formatTime(metrics.medianDecisionMs), "Read with accuracy and points")}
+        ${sessionMetricTile("Points kept", hasPolicyResults ? `${metrics.pointsKeptPercent}%` : "—", hasPolicyResults ? "Accuracy and speed together" : "Starts when points are used")}
+        ${sessionMetricTile("Close patterns", formatPercent(metrics.closePatternAccuracy), "Accuracy when the majority was hardest to see")}
+      </div>
+    </section>
+    <section class="ccc-progress-section ccc-session-strategy">
+      <div class="ccc-section-heading"><span>Current strategy</span><strong>${strategyLead ? REGIME_COPY[strategyLead.regimeId].title : "Notice the pattern first"}</strong></div>
+      <h2>${escapeHtml(strategyLead?.title || "Build a clear first impression")}</h2>
+      <p>${escapeHtml(strategyLead?.guidance || "Watch the whole pattern and make your best choice when the main direction is clear enough.")}</p>
+      ${strategy ? `<small>${escapeHtml(strategy.principle)}</small>` : ""}
+    </section>
+    <div class="ccc-progress-return"><button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button></div>
+  </section>`;
+}
+
+function renderProgressHistory(): string {
   const sessionsWithMetrics = programme.sessions.filter((session) => session.metrics);
   const latest = latestSessionMetrics();
-  return shell(`<section class="ccc-progress-screen">
+  return `<section class="ccc-progress-screen">
     <div class="ccc-progress-hero">
       <div><span class="ccc-kicker">Your progress</span><h1>See how your results change.</h1><p>Review your sessions and G Track check-ins.</p></div>
       <div class="ccc-progress-hero-stat"><span>Sessions with feedback</span><strong>${sessionsWithMetrics.length}</strong><small>Programme ${programmeProgressPercent(programme)}% complete</small></div>
     </div>
+    ${progressPanelNavigation()}
+    ${journey && !journey.completedAt ? `<section class="ccc-active-session-banner"><div><span>Session ${journey.plan.programmeSessionNumber} in progress</span><strong>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</strong></div><button class="ccc-text-button" data-action="show-session-progress">View this session</button></section>` : ""}
     ${renderComparisonSelector()}
     ${progressMessage ? `<p class="ccc-progress-message">${escapeHtml(progressMessage)}</p>` : ""}
     <section class="ccc-progress-section">
@@ -1438,7 +1561,12 @@ function renderProgress(): string {
       <div class="ccc-proof-grid">${proofCard("attention", "Attention Control")}${proofCard("working_memory", "Working Memory")}${proofCard("reasoning", "Matrix Reasoning")}</div>
       <p class="ccc-soft-note">G Track results are shown separately from training sessions.</p>
     </section>
-  </section>`, "ccc-progress-view");
+    ${journey && !journey.completedAt ? `<div class="ccc-progress-return"><button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button></div>` : ""}
+  </section>`;
+}
+
+function renderProgress(): string {
+  return shell(progressPanel === "session" && journey ? renderCurrentSessionProgress() : renderProgressHistory(), "ccc-progress-view");
 }
 
 function renderFullTransfer(): string {
@@ -2525,8 +2653,22 @@ appRoot.addEventListener("click", (event) => {
     setView("full_transfer");
   } else if (action === "show-progress") {
     progressMessage = "";
+    progressReturnView = view === "progress" ? progressReturnView : view;
+    progressPanel = (button.dataset.progressPanel as ProgressPanel | undefined)
+      || (journey && !journey.completedAt ? "session" : "history");
     setView("progress");
     if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
+  } else if (action === "show-session-progress") {
+    progressPanel = "session";
+    render();
+  } else if (action === "show-history-progress") {
+    progressPanel = "history";
+    render();
+    if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
+  } else if (action === "return-session") {
+    setView(progressReturnTarget());
+  } else if (action === "session-current") {
+    // The highlighted tab represents the screen already being viewed.
   } else if (action === "select-personal-mode") {
     if (dataMode === "cloud_benchmark") setDataMode("cloud_personal");
     else {
