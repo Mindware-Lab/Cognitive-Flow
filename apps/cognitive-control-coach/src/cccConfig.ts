@@ -12,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.7";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.7";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.8";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.8";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -117,9 +117,12 @@ export const CCC_WRAPPER_RESPONSE_LABELS: Record<CccWrapperId, CccResponseLabels
   },
 };
 
+// Relational WM uses one overt response: press Match for a target and withhold
+// on every non-match. "different" remains an internal legacy response value so
+// earlier stored trials can still be interpreted safely.
 export const CCC_WM_RESPONSE_LABELS: CccResponseLabels = {
-  answerOptions: ["match", "different"],
-  labels: { match: "Match", different: "Different" },
+  answerOptions: ["match"],
+  labels: { match: "Match" },
 };
 
 export const CCC_P0_PRACTICE_VALID_TRIALS = 4;
@@ -214,7 +217,10 @@ export function validateCccPilotConfig(): string[] {
     issues.push("WM blocks require a valid presentation range, mask, and at least four 20-trial blocks.");
   }
   if (Math.abs(CCC_RELATIONAL_WM.matchFrequency + CCC_RELATIONAL_WM.differentFrequency - 1) > 0.000001) {
-    issues.push("WM match and different frequencies must sum to 1.");
+    issues.push("WM match and non-match frequencies must sum to 1.");
+  }
+  if (CCC_WM_RESPONSE_LABELS.answerOptions.length !== 1 || CCC_WM_RESPONSE_LABELS.answerOptions[0] !== "match") {
+    issues.push("WM must expose Match as its only overt response.");
   }
   if (CCC_DELAYED_RECHECK.minimumReentryHours > CCC_DELAYED_RECHECK.targetReentryWindowHours[0]) {
     issues.push("Delayed re-entry minimum cannot exceed the target lower bound.");
