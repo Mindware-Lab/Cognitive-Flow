@@ -30,13 +30,18 @@ describe("CCC Shift the View protocol", () => {
     expect(CCC_SHIFT_VIEW.durationMs).toBe(30_000);
     expect(CCC_SHIFT_VIEW.scoreAffecting).toBe(false);
     expect(CCC_SHIFT_VIEW_RENDER_SETTINGS).toMatchObject({
-      dotCount: 96,
+      dotCount: 120,
       dotRadiusPx: 2.2,
-      rotationHz: 0.06,
-      dotColour: "rgba(39, 100, 183, 0.80)",
+      rotationPeriodMs: 7000,
+      dotLifeMs: 640,
+      dotColours: [
+        "rgba(39, 100, 183, 0.82)",
+        "rgba(102, 204, 51, 0.84)",
+        "rgba(204, 255, 102, 0.96)",
+      ],
       backgroundColour: "#f7f9fb",
     });
-    expect(createSpherePoints()).toHaveLength(96);
+    expect(createSpherePoints()).toHaveLength(120);
   });
 
   it("appears only immediately before genuine first-contact wrapper swaps", () => {

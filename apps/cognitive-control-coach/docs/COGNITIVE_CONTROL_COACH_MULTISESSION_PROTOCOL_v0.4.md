@@ -1,9 +1,9 @@
-# Cognitive Control Coach Multi-Session Protocol v0.7
+# Cognitive Control Coach Multi-Session Protocol v0.8
 
 Status: implementation contract for the public early-access programme
 Date: 13 August 2026
-Protocol version: `ccc-multisession-transfer-v0.7`
-Configuration version: `ccc-programme-p1-v0.7`
+Protocol version: `ccc-multisession-transfer-v0.8`
+Configuration version: `ccc-programme-p1-v0.8`
 Canonical route: `/cognitive-control-coach/`
 
 ## 1. Purpose and claims boundary
@@ -20,7 +20,7 @@ At each layer the task separates three functional questions:
 
 1. **Extract:** was the current majority relation resolved?
 2. **Accumulate:** was the relevant relation maintained or compared with enough evidence?
-3. **Commit:** was a forced choice made within the deadline under the current value environment?
+3. **Commit:** was the required choice made—or appropriately withheld—within the deadline under the current value environment?
 
 The programme tests performance across its trained arrow and optic-flow formats. `full_transfer` means that the complete **trained-format** evidence contract below passed. It is not evidence of far transfer to work, study, general intelligence, clinical function or everyday behaviour.
 
@@ -46,13 +46,22 @@ The programme tests performance across its trained arrow and optic-flow formats.
 - Motion patches are clipping apertures only. Flecks translate along vectors defined relative to the single centre of the full stimulus field; individual patches do not expand, contract or rotate around their own centres.
 - Five-item majority evidence at `5:0`, `4:1` or `3:2` clarity.
 - Adaptive 1-back to 5-back level, preserved across sessions and devices when signed in.
-- Forced Match/Different response; no voluntary abstention button.
+- Match-only response rule: press **Match** when the current majority relation matches the relation `n` steps back; otherwise withhold the response.
 - The first `n` items after each environment reset fill the memory buffer and are retained in telemetry but excluded from scores and gates.
 - Each session has four blocks in A–B–A–B order. Each block contains 20 scored comparisons plus the first `n` buffer items.
 - Before every block, the player chooses a fixed presentation time from 350 to 3,500 ms. The pattern is then masked for 350 ms before the separate response period.
 - For easy pattern environments, the 20 scored comparisons contain 12 `5:0`, six `4:1` and two `3:2` patterns. Hard environments reverse the clear and close counts: two, six and twelve.
-- Ten scored comparisons are Match and ten are Different. Above 1-back, 25% of feasible Different observations use a wrong-lag lure.
+- Ten scored comparisons are matches and ten are non-matches. A Match press on a non-match is a false alarm; withholding on a match is a miss; withholding on a non-match is a correct rejection. Above 1-back, 25% of feasible non-matches use a wrong-lag lure.
 - Points drain during the chosen presentation time. Response latency after the mask is recorded but does not reduce the reward.
+
+### 2.4 Shift the View transition pulse
+
+- Fixed 30-second, score-neutral transition immediately after the source-wrapper feedback and before the first preview of a genuinely new target wrapper.
+- Used only for protected first contact with a carrier swap. It is not used for practice, ordinary recovery, return blocks, mixed blocks, held-out checks or delayed re-checks.
+- The display uses 120 dots, a 7.0-second full rotation, a 640 ms dot lifetime and the locked blue/green/lime palette on the pale app background.
+- The user is told to actively group the dots into one coherent rotating sphere. Seeing two flat sheets or independent layers does not count as forming the target object.
+- Once one sphere is seen, the user presses **Space** or the touch button for every reversal of the whole sphere as a single object. Independent changes in sheets, layers or dot groups are not counted.
+- No reversal count, score or interpretation is shown. Formation time, whole-sphere reversal events, input mode, wrapper IDs and render settings remain in telemetry only.
 
 ## 3. Four decision environments
 

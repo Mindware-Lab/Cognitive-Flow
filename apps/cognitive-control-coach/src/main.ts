@@ -2380,8 +2380,9 @@ function mountShiftView(): void {
     sourceWrapperId: block?.sourceWrapperId || null,
     targetWrapperId: block?.wrappers.length === 1 ? block.wrappers[0] : null,
     dotCount: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotCount,
-    rotationHz: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationHz,
-    dotColour: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColour,
+    rotationPeriodMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationPeriodMs,
+    dotLifeMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotLifeMs,
+    dotColours: [...CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColours],
   });
   const update = () => {
     if (!journey) return;
