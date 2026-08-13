@@ -26,6 +26,11 @@ describe("CCC P0 dual-estimand generator", () => {
       validTrialCount: 24,
     });
     expect(plan.blocks[1]).toMatchObject({ wrapperId: "arrow_rel", estimand: "policy" });
+    expect(plan.blocks[1]).toMatchObject({
+      learningCurveGate: "source_stabilisation",
+      microcycleCount: 10,
+      validTrialCount: 120,
+    });
     expect(plan.blocks[2]).toMatchObject({
       wrapperId: "flow_rel",
       sourceWrapperId: "arrow_rel",
@@ -33,6 +38,7 @@ describe("CCC P0 dual-estimand generator", () => {
       strictCarrierTransferBoundary: true,
       diagnostic: true,
       shiftViewBefore: true,
+      learningCurveGate: null,
     });
     expect(plan.blocks[5]).toMatchObject({ wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"] });
     const relative = plan.trials.filter((trial) => trial.referenceFrame === "relative");

@@ -4,6 +4,7 @@ import {
   answersForWrapper,
   CCC_APP_ID,
   CCC_CONFIG_VERSION,
+  CCC_LEARNING_CURVE,
   CCC_PROTOCOL_VERSION,
   CCC_RATIO_MAJORITY_COUNTS,
   CCC_REGIMES,
@@ -190,42 +191,47 @@ function addAttentionBlock(
 ): void {
   const random = mulberry32(hashSeed(`${seed}:${spec.id}`));
   const blockStart = trials.length;
-  for (const [regimeIndex, regimeId] of plan.regimePair.entries()) {
-    const ratios = ratiosFor(regimeId, random);
-    const wrappers = wrappersFor(spec, random);
-    const targets = balancedAttentionTargets(wrappers[0], random);
-    for (let slot = 0; slot < CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle; slot += 1) {
-      const wrapperId = wrappers[slot];
-      const options = answersForWrapper(wrapperId);
-      const target = options.includes(targets[slot]) ? targets[slot] : options[slot % 2];
-      const trialIndex = trials.length + 1;
-      trials.push(createTrial({
-        id: `${spec.id}-trial-${String(trialIndex).padStart(3, "0")}`,
-        sessionId: plan.sessionId,
-        blockId: spec.id,
-        trialIndex,
-        blockTrialIndex: trials.length - blockStart + 1,
-        stage: spec.stage,
-        stepId: spec.stepId,
-        phase: spec.phase,
-        operator: "attention",
-        estimand: spec.estimand,
-        purpose: spec.purpose,
-        wrapperId,
-        sourceWrapperId: spec.sourceWrapperId,
-        transitionKind: spec.transitionKind,
-        strictCarrierTransferBoundary: spec.strictCarrierTransferBoundary,
-        regimeId,
-        microcycleIndex: regimeIndex + 1,
-        balancedSlotIndex: slot + 1,
-        ratio: ratios[slot],
-        targetClass: target,
-        correctResponse: target,
-        random,
-        seed: `${seed}:${spec.id}:${regimeId}:${slot + 1}`,
-        diagnostic: spec.diagnostic,
-        assistedFirstContact: spec.diagnostic,
-      }));
+  const learningCurveCycles = spec.phase === "p1a_arrow_stabilisation"
+    ? CCC_LEARNING_CURVE.maximumBalancedMicrocycles
+    : 1;
+  for (let microcycleIndex = 1; microcycleIndex <= learningCurveCycles; microcycleIndex += 1) {
+    for (const regimeId of plan.regimePair) {
+      const ratios = ratiosFor(regimeId, random);
+      const wrappers = wrappersFor(spec, random);
+      const targets = balancedAttentionTargets(wrappers[0], random);
+      for (let slot = 0; slot < CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle; slot += 1) {
+        const wrapperId = wrappers[slot];
+        const options = answersForWrapper(wrapperId);
+        const target = options.includes(targets[slot]) ? targets[slot] : options[slot % 2];
+        const trialIndex = trials.length + 1;
+        trials.push(createTrial({
+          id: `${spec.id}-trial-${String(trialIndex).padStart(3, "0")}`,
+          sessionId: plan.sessionId,
+          blockId: spec.id,
+          trialIndex,
+          blockTrialIndex: trials.length - blockStart + 1,
+          stage: spec.stage,
+          stepId: spec.stepId,
+          phase: spec.phase,
+          operator: "attention",
+          estimand: spec.estimand,
+          purpose: spec.purpose,
+          wrapperId,
+          sourceWrapperId: spec.sourceWrapperId,
+          transitionKind: spec.transitionKind,
+          strictCarrierTransferBoundary: spec.strictCarrierTransferBoundary,
+          regimeId,
+          microcycleIndex,
+          balancedSlotIndex: slot + 1,
+          ratio: ratios[slot],
+          targetClass: target,
+          correctResponse: target,
+          random,
+          seed: `${seed}:${spec.id}:${microcycleIndex}:${regimeId}:${slot + 1}`,
+          diagnostic: spec.diagnostic,
+          assistedFirstContact: spec.diagnostic,
+        }));
+      }
     }
   }
   blocks.push({
@@ -244,12 +250,13 @@ function addAttentionBlock(
     transitionKind: spec.transitionKind,
     strictCarrierTransferBoundary: spec.strictCarrierTransferBoundary,
     regimePair: plan.regimePair,
-    microcycleCount: 1,
+    microcycleCount: learningCurveCycles,
     validTrialCount: trials.length - blockStart,
     practice: false,
     diagnostic: spec.diagnostic,
     shiftViewBefore: spec.shiftViewBefore,
     wmNLevel: null,
+    learningCurveGate: spec.phase === "p1a_arrow_stabilisation" ? "source_stabilisation" : null,
   });
 }
 
@@ -345,6 +352,7 @@ function addWmBlock(
     diagnostic: spec.diagnostic,
     shiftViewBefore: spec.shiftViewBefore,
     wmNLevel: level,
+    learningCurveGate: null,
   });
 }
 

@@ -25,6 +25,7 @@ import {
 } from "./cccGenerator";
 import { createProgrammeSessionPlan } from "./cccProgrammeGenerator";
 import { buildCccBlockFeedback, buildCccSessionMetrics } from "./cccFeedback";
+import { evaluateCccLearningCurve, isCccLearningCurveBoundary } from "./cccLearningCurve";
 import { buildCccStrategyFeedback, type CccRegimeStrategyFeedback } from "./cccStrategy";
 import {
   CCC_POPULATION_MIN_N,
@@ -119,6 +120,7 @@ const appRoot: HTMLDivElement = appElement;
 const APP_BASE = import.meta.env.BASE_URL || "/";
 let journey = loadCccJourney();
 let programme: CccProgrammeState = loadCccProgramme() || journey?.programme || createInitialProgrammeState();
+programme.evidence.attentionSourceLearningCurve ||= [];
 if (journey) {
   journey.programme = programme;
   journey.plan.programmeRunId ||= programme.programmeRunId;
@@ -126,6 +128,11 @@ if (journey) {
   journey.plan.programmeSessionKind ||= "p0_foundation";
   journey.plan.delayedRecheckNotBefore ??= null;
   journey.plan.blocks.forEach((block) => { block.wmNLevel ??= null; });
+  journey.plan.blocks.forEach((block) => {
+    block.learningCurveGate ??= block.phase === "arrow_rel_stabilisation" || block.phase === "p1a_arrow_stabilisation"
+      ? "source_stabilisation"
+      : null;
+  });
   journey.plan.trials.forEach((trial) => {
     trial.wmNLevel ??= null;
     trial.wmIsMatch ??= null;
@@ -265,6 +272,9 @@ function blockIsComplete(block = currentBlock()): boolean {
   if (!journey || !block) return false;
   const queue = taskMode === "practice" ? journey.practiceQueue : journey.blockQueues[block.id] || [];
   const results = taskMode === "practice" ? journey.practiceResults : journey.blockResults[block.id] || [];
+  if (taskMode === "guided" && block.learningCurveGate === "source_stabilisation") {
+    return evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve).shouldEndBlock;
+  }
   return results.length >= queue.length
     && results.filter((result) => result.scoring.countsTowardQuota).length >= block.validTrialCount;
 }
@@ -942,6 +952,7 @@ function renderBlockComplete(): string {
   if (!block) return renderComplete();
   const results = currentResults();
   const feedback = buildCccBlockFeedback(results);
+  const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
   const isPractice = taskMode === "practice";
   const isSignal = block.estimand === "signal_capacity";
   const copy = block.phase === "practice" ? {
@@ -954,8 +965,12 @@ function renderBlockComplete(): string {
     title: "Your first look is recorded.",
     body: "Next you will have more practice with this new display.",
   } : {
-    title: "Stage complete.",
-    body: "You completed both parts of this stage while keeping the same goal.",
+    title: learningCurve.status === "stabilised" ? "Your performance has settled." : "Stage complete.",
+    body: learningCurve.status === "stabilised"
+      ? "Your recent results stayed strong and changed very little. The same skill is now ready to be tested in a new format."
+      : learningCurve.status === "exposure_ceiling"
+        ? "You reached today’s practice limit before your results had fully settled. Your next session will continue with the familiar format."
+        : "You completed both parts of this stage while keeping the same goal.",
   };
   return shell(`
     <section class="ccc-narrow-card">
@@ -971,6 +986,8 @@ function renderBlockComplete(): string {
         </div>`}
       ${isPractice ? "" : `<p class="ccc-metric-note"><strong>${isSignal ? "The viewing time changed as you answered." : "Read accuracy, time and points together."}</strong> ${isSignal ? "Use this result as a simple guide for the stages ahead." : "If time ended before you answered, that pattern remains part of your result."}</p>`}
       ${isPractice ? "" : renderBetweenBlockTrends()}
+      ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>Ready for a format change.</strong> This change is happening because your recent performance flattened above the target level—not because a fixed trial quota ended.</p>` : ""}
+      ${learningCurve.status === "exposure_ceiling" ? `<p class="ccc-learning-status"><strong>Practice limit reached.</strong> The new format will wait until your recent performance is stable enough.</p>` : ""}
       ${isPractice ? `<aside class="ccc-workflow-bridge"><span>Next</span><strong>${WORKFLOW_CHOICES[journey.workflowChoice].example}</strong></aside>` : ""}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="${isPractice ? "continue-after-block" : "show-block-insights"}">${isPractice ? "Continue" : "See what changed"}</button>
@@ -1028,7 +1045,9 @@ function renderBlockReconnect(): string {
   if (!journey) return renderWelcome();
   const block = currentBlock();
   if (!block || block.phase === "practice") return renderWelcome();
-  const isLast = journey.activeBlockIndex === journey.plan.blocks.length - 1;
+  const learningCurve = evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve);
+  const exposureStopped = learningCurve.status === "exposure_ceiling";
+  const isLast = exposureStopped || journey.activeBlockIndex === journey.plan.blocks.length - 1;
   return shell(`
     <section class="ccc-narrow-card ccc-block-reconnect-card">
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} complete</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
@@ -1040,7 +1059,7 @@ function renderBlockReconnect(): string {
       </aside>
       <p class="ccc-soft-note">Try this idea in your real task and notice whether it helps.</p>
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${isLast ? "See your journey review" : "Continue to the next stage"}</button>
+        <button class="ccc-button ccc-button-primary" data-action="continue-after-block">${exposureStopped ? "Finish today’s practice" : isLast ? "See your journey review" : "Continue to the next stage"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>`, "ccc-block-reconnect-view ccc-viewport-view");
@@ -1083,7 +1102,7 @@ function renderComplete(): string {
       <span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber} complete</span>
       <h1>This session is complete.</h1>
       <p>${sessionSummary?.gateDecisions.at(-1) || "Your progress has been saved."}</p>
-      ${journeyRail(journey.plan.blocks.length, null)}
+      ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1), null)}
       <div class="ccc-summary-grid">
         <article><span>${hasSignal ? "Pattern accuracy" : "Attention accuracy"}</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
         <article><span>${hasWm ? "Hold-and-compare accuracy" : "Change in checking time"}</span><strong>${hasWm ? formatPercent(wmFeedback.accuracy) : policyFeedback.timingShiftMs === null ? "More practice needed" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${Math.abs(policyFeedback.timingShiftMs)} ms`}</strong></article>
@@ -1697,7 +1716,22 @@ function completeTrial(
       setView("paused");
       return;
     }
-    if (blockIsComplete()) {
+    const activeBlock = currentBlock();
+    if (activeBlock && isCccLearningCurveBoundary(activeBlock, currentResults())) {
+      const decision = evaluateCccLearningCurve(activeBlock, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve);
+      recordEvent("learning_curve_evaluated", {
+        status: decision.status,
+        completedMicrocycles: decision.completedMicrocycles,
+        completedTrials: decision.completedTrials,
+        recentAccuracy: decision.recentAccuracy,
+        recentOmissionRate: decision.recentOmissionRate,
+        performanceSlope: decision.performanceSlope,
+        performanceGain: decision.performanceGain,
+        recentRange: decision.recentRange,
+        checks: decision.checks,
+      }, activeBlock.id);
+    }
+    if (blockIsComplete(activeBlock)) {
       finishCurrentBlock();
       return;
     }
@@ -1738,6 +1772,10 @@ function finishCurrentBlock(): void {
   if (!block) return;
   const results = [...currentResults()];
   if (taskMode === "practice") journey.practiceComplete = true;
+  const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
+  if (learningCurve.shouldEndBlock && block.learningCurveGate === "source_stabilisation") {
+    block.validTrialCount = results.filter((result) => result.scoring.countsTowardQuota).length;
+  }
   recordEvent("block_completed", {
     phase: block.phase,
     observationCount: results.filter((result) => result.scoring.countsTowardQuota).length,
@@ -1745,6 +1783,11 @@ function finishCurrentBlock(): void {
     plannedValidTrialCount: block.validTrialCount,
     diagnostic: block.diagnostic,
     practice: block.practice,
+    learningCurveStatus: learningCurve.status,
+    learningCurveMicrocycles: learningCurve.completedMicrocycles,
+    learningCurveSlope: learningCurve.performanceSlope,
+    learningCurveGain: learningCurve.performanceGain,
+    learningCurveChecks: learningCurve.checks,
   }, block.id);
   saveJourney();
   const pending = submitCurrentBlock(block, results);
@@ -1795,7 +1838,7 @@ async function finaliseJourney(): Promise<void> {
         summary: {
           workflowChoice: journey.workflowChoice,
           totalPoints: totalJourneyPoints(),
-          completedBlocks: journey.plan.blocks.length,
+          completedBlocks: Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1),
           shiftViewCompleted: journey.shiftViewCompleted,
           programmeRunId: programme.programmeRunId,
           programmeSessionNumber: programme.sessionNumber,
@@ -1819,6 +1862,16 @@ function continueAfterBlock(): void {
   if (taskMode === "practice") {
     taskMode = "guided";
     setView("phase_intro");
+    return;
+  }
+  const block = currentBlock();
+  if (block && evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve).status === "exposure_ceiling") {
+    recordEvent("wrapper_change_deferred", {
+      reason: "learning_curve_not_stabilised_before_session_cap",
+      phase: block.phase,
+      nextWrapper: journey.plan.blocks[journey.activeBlockIndex + 1]?.wrapperId || null,
+    }, block.id);
+    void finaliseJourney().finally(() => setView("complete"));
     return;
   }
   if (journey.activeBlockIndex >= journey.plan.blocks.length - 1) {

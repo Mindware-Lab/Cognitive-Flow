@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   CCC_DELAYED_RECHECK,
+  CCC_LEARNING_CURVE,
   CCC_REGIMES,
   CCC_RELATIONAL_WM,
   CCC_SHIFT_VIEW,
@@ -18,6 +19,13 @@ describe("CCC pilot configuration", () => {
     expect(CCC_TRIAL_TIMING.signalMaskMs).toBe(500);
     expect(CCC_TRIAL_TIMING.signalResponseDeadlineMs).toBe(2500);
     expect(CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle).toBe(6);
+    expect(CCC_LEARNING_CURVE).toMatchObject({
+      recentWindowMicrocycles: 4,
+      minimumBalancedMicrocycles: 7,
+      maximumBalancedMicrocycles: 10,
+      accuracyFloor: 0.75,
+      omissionCeiling: 0.1,
+    });
     expect(CCC_REGIMES.clear_sprint).toMatchObject({ correctPot: 50, errorLoss: 10, drainPointsPerSecond: 15 });
     expect(CCC_REGIMES.deep_check).toMatchObject({ correctPot: 10, errorLoss: 50, drainPointsPerSecond: 1.5 });
   });

@@ -418,6 +418,7 @@ export function createP0AttentionCarrierTransferPlan(input: CreateP0AttentionPla
       diagnostic: spec.diagnostic,
       shiftViewBefore: spec.shiftViewBefore,
       wmNLevel: null,
+      learningCurveGate: spec.phase === "arrow_rel_stabilisation" ? "source_stabilisation" : null,
     });
   });
 
@@ -495,6 +496,7 @@ export function createP0PracticeBlock(plan: CccSessionPlan): CccAttentionBlockPl
     diagnostic: false,
     shiftViewBefore: false,
     wmNLevel: null,
+    learningCurveGate: null,
   };
 }
 

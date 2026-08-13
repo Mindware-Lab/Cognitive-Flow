@@ -8,6 +8,23 @@ const base = {
 };
 
 describe("CCC multi-session plan generator", () => {
+  it("gates the familiar attention wrapper on a rolling learning curve before another transfer probe", () => {
+    const plan = createProgrammeSessionPlan({
+      ...base,
+      sessionId: "attention-stabilisation",
+      seed: "attention-stabilisation",
+      programmeSessionNumber: 2,
+      kind: "p1a_consolidation",
+    });
+    const source = plan.blocks.find((block) => block.phase === "p1a_arrow_stabilisation")!;
+    expect(source).toMatchObject({
+      learningCurveGate: "source_stabilisation",
+      microcycleCount: 10,
+      validTrialCount: 120,
+    });
+    expect(plan.blocks.find((block) => block.phase === "p1a_flow_first_contact")?.learningCurveGate).toBeNull();
+  });
+
   it("puts a protected delayed re-check before same-session recovery", () => {
     const plan = createProgrammeSessionPlan({
       ...base,

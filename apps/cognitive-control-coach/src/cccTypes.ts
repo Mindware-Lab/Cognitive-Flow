@@ -95,6 +95,17 @@ export interface CccProgrammeEvidence {
   integrationCarriers: CccCarrier[];
   finalDelayedPasses: number;
   failedFinalDelayedChecks: number;
+  attentionSourceLearningCurve: CccLearningCurveHistoryPoint[];
+}
+
+export interface CccLearningCurveHistoryPoint {
+  sessionId: string;
+  microcycleIndex: number;
+  observationCount: number;
+  accuracy: number;
+  omissionRate: number;
+  valueEfficiency: number;
+  performanceIndex: number;
 }
 
 export interface CccProgrammeSessionSummary {
@@ -158,7 +169,18 @@ export interface CccTrialTimingConfig {
   interTrialIntervalMs: number;
   omissionPoints: number;
   validTrialsPerRegimeMicrocycle: number;
-  minimumBalancedMicrocyclesBeforeFlattening: number;
+}
+
+export interface CccLearningCurveConfig {
+  recentWindowMicrocycles: number;
+  minimumBalancedMicrocycles: number;
+  maximumBalancedMicrocycles: number;
+  accuracyFloor: number;
+  omissionCeiling: number;
+  maximumAbsoluteSlope: number;
+  maximumRecentRange: number;
+  minimumLearningGain: number;
+  highPerformanceBypass: number;
 }
 
 export interface CccRegimeConfig {
@@ -237,6 +259,7 @@ export interface CccAttentionBlockPlan {
   diagnostic: boolean;
   shiftViewBefore: boolean;
   wmNLevel: 1 | 2 | null;
+  learningCurveGate?: "source_stabilisation" | null;
 }
 
 export interface CccAttentionTrialDefinition {

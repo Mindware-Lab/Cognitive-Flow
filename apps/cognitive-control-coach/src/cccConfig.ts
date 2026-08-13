@@ -1,6 +1,7 @@
 import type {
   CccAttentionAnswer,
   CccDelayedRecheckConfig,
+  CccLearningCurveConfig,
   CccRegimeConfig,
   CccRegimeId,
   CccRelationalWmConfig,
@@ -11,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.4";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.4";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.5";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.5";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -26,7 +27,25 @@ export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   interTrialIntervalMs: 250,
   omissionPoints: 0,
   validTrialsPerRegimeMicrocycle: 6,
-  minimumBalancedMicrocyclesBeforeFlattening: 3,
+};
+
+/**
+ * The source wrapper is challenged only after a credible local learning curve.
+ * Seven balanced microcycles provide 84 scored trials across the two regimes,
+ * just above the protocol's suggested 80-trial MVP floor. The final four
+ * microcycles form the recent stability window. Ten cycles cap a single
+ * session before the protected new-wrapper probe is shown.
+ */
+export const CCC_LEARNING_CURVE: CccLearningCurveConfig = {
+  recentWindowMicrocycles: 4,
+  minimumBalancedMicrocycles: 7,
+  maximumBalancedMicrocycles: 10,
+  accuracyFloor: 0.75,
+  omissionCeiling: 0.1,
+  maximumAbsoluteSlope: 0.02,
+  maximumRecentRange: 0.12,
+  minimumLearningGain: 0.03,
+  highPerformanceBypass: 0.88,
 };
 
 export const CCC_REGIMES: Record<CccRegimeId, CccRegimeConfig> = {
@@ -107,7 +126,7 @@ export const CCC_P0_PRACTICE_VALID_TRIALS = 4;
 export const CCC_SIGNAL_ANCHOR_VALID_TRIALS = 24;
 
 export const CCC_P0_BLOCK_MICROCYCLES = {
-  arrowRelStabilisation: 2,
+  arrowRelStabilisation: CCC_LEARNING_CURVE.maximumBalancedMicrocycles,
   flowFirstContact: 1,
   flowRecovery: 2,
   arrowReturn: 1,

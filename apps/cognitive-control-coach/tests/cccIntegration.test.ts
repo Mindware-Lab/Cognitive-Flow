@@ -17,6 +17,8 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("createCccReplacementTrial");
     expect(mainSource).toContain("createProgrammeSessionPlan");
     expect(mainSource).toContain("applyCompletedSession");
+    expect(mainSource).toContain("evaluateCccLearningCurve");
+    expect(mainSource).toContain("isCccLearningCurveBoundary");
     expect(mainSource).toContain("adaptSignalTrial");
     expect(mainSource).toContain("buildCccBlockFeedback");
     expect(mainSource).toContain("startAmbiguousSphere");
@@ -28,6 +30,15 @@ describe("CCC playable integration", () => {
     expect(mainSource).not.toContain("Not sure");
     expect(mainSource).toContain("Five moving dot fields expanding or contracting");
     expect(mainSource).toContain("maskStimulus");
+  });
+
+  it("changes attention wrappers near a stable learning plateau rather than at a fixed quota", () => {
+    expect(mainSource).toContain('learningCurve.status === "stabilised"');
+    expect(mainSource).toContain('learningCurve.status === "exposure_ceiling"');
+    expect(mainSource).toContain('recordEvent("learning_curve_evaluated"');
+    expect(mainSource).toContain('recordEvent("wrapper_change_deferred"');
+    expect(mainSource).toContain('reason: "learning_curve_not_stabilised_before_session_cap"');
+    expect(mainSource).toContain("your recent performance flattened above the target level");
   });
 
   it("reuses the original Attention Coach arrow proportions and location-matched diamond masks", () => {

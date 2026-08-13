@@ -66,7 +66,7 @@ export const CCC_DURATION_ASSUMPTIONS: Record<CccDurationScenarioId, CccDuration
   },
 };
 
-export const CCC_SESSION_DURATION_LABEL = "About 10–15 minutes";
+export const CCC_SESSION_DURATION_LABEL = "Usually 10–15 minutes · up to about 20";
 
 function trialSequenceMs(count: number, bodyMs: number): number {
   if (count <= 0) return 0;

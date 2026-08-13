@@ -1,6 +1,7 @@
 import { CCC_DELAYED_RECHECK, CCC_REGIME_PAIRS } from "./cccConfig";
 import { hashSeed } from "./random";
 import { buildCccSessionMetrics } from "./cccFeedback";
+import { learningCurvePointsForResults } from "./cccLearningCurve";
 import type { CccSavedJourney } from "./cccStorage";
 import type {
   CccAttentionBlockPlan,
@@ -68,6 +69,7 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
       integrationCarriers: [],
       finalDelayedPasses: 0,
       failedFinalDelayedChecks: 0,
+      attentionSourceLearningCurve: [],
     },
     sessions: [],
     proofScores: [],
@@ -197,6 +199,7 @@ export function applyCompletedSession(
   const programme = structuredClone(current);
   const decisions: string[] = [];
   const evidence = programme.evidence;
+  evidence.attentionSourceLearningCurve ||= [];
   const completedAt = new Date(journey.completedAt);
 
   programme.sessionNumber += 1;
@@ -205,6 +208,15 @@ export function applyCompletedSession(
   }
   for (const regime of journey.plan.regimePair) programme.regimeExposure[regime] += 1;
   programme.pairHistory.push(pairKey(journey.plan.regimePair));
+
+  const sourceCurveBlock = journey.plan.blocks.find((block) => block.learningCurveGate === "source_stabilisation");
+  if (sourceCurveBlock) {
+    const points = learningCurvePointsForResults(sourceCurveBlock, blockResults(journey, sourceCurveBlock));
+    evidence.attentionSourceLearningCurve.push(...points.map((point) => ({
+      ...point,
+      sessionId: journey.plan.sessionId,
+    })));
+  }
 
   const firstContact = blockForPhase(journey, ["flow_rel_first_contact", "p1a_flow_first_contact"]);
   if (firstContact) {
