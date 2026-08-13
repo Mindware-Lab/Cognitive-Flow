@@ -210,4 +210,24 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Other users");
     expect(mainSource).toContain("loadCccGTrackScores");
   });
+
+  it("offers Attention Coach-style data choices with cloud personal as the default", () => {
+    expect(mainSource).toContain('| "auth"');
+    expect(mainSource).toContain("loadDataModeSeen()");
+    expect(mainSource).toContain("verifyEmailSignInCode");
+    expect(mainSource).toContain("Email me a sign-in code");
+    expect(mainSource).toContain("Check your email for the code or sign-in link.");
+    expect(mainSource).toContain('view = user ? "data" : "auth"');
+    expect(mainSource).toContain("saveDataModeSeen()");
+    expect(mainSource).toContain('data-action="open-data"');
+    expect(mainSource).toContain(">Data</button>");
+    expect(mainSource).not.toContain("Save progress");
+    expect(mainSource).toContain('dataModeCard("cloud_personal", "Private sync", "Cloud personal"');
+    expect(mainSource).toContain("Your first valid score is 100.");
+    expect(mainSource).toContain('dataModeCard("cloud_benchmark", "Standardised sync", "Cloud standard scores"');
+    expect(mainSource).toContain('dataModeCard("local", "Local only", "On this device"');
+    expect(mainSource).toContain("function cloudSyncActive()");
+    expect(mainSource).toContain('dataMode !== "local"');
+    expect(mainSource).toContain('dataMode === "cloud_benchmark" ? loadStandardizedScores');
+  });
 });

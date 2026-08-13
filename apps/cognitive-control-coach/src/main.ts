@@ -64,6 +64,13 @@ import {
   type CccSavedJourney,
 } from "./cccStorage";
 import {
+  loadDataMode,
+  loadDataModeSeen,
+  saveDataMode,
+  saveDataModeSeen,
+  type DataMode,
+} from "./storage";
+import {
   applyCompletedSession,
   allRegimesBalanced,
   createInitialProgrammeState,
@@ -89,6 +96,8 @@ import type {
 import { scoreCccAttentionTrial } from "./cccValue";
 import {
   currentAuthUser,
+  deleteCoachData,
+  exportCoachData,
   finalizeCoachSession,
   isSupabaseConfigured,
   loadCccGTrackScores,
@@ -99,11 +108,13 @@ import {
   sendEmailSignInLink,
   signOutUser,
   submitCoachBlock,
+  verifyEmailSignInCode,
   type AuthUser,
   type StandardizedScoreRow,
 } from "./supabaseClient";
 
 type View =
+  | "auth"
   | "welcome"
   | "workflow"
   | "practice_intro"
@@ -123,7 +134,7 @@ type View =
   | "full_transfer"
   | "complete_reconnect"
   | "progress"
-  | "account";
+  | "data";
 type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval";
 type TaskMode = "practice" | "wm_practice" | "guided";
 
@@ -180,7 +191,9 @@ if (journey) {
   journey.wmPracticeLevel ??= null;
 }
 let selectedWorkflow: WorkflowChoice = journey?.workflowChoice || "focused_work";
-let view: View = "welcome";
+let dataModeSeen = loadDataModeSeen();
+let view: View = dataModeSeen ? "welcome" : isSupabaseConfigured ? "auth" : "data";
+let dataReturnView: View = "welcome";
 let taskMode: TaskMode = journey?.wmPracticeLevel ? "wm_practice" : journey?.practiceComplete ? "guided" : "practice";
 let taskStage: TaskStage = "fixation";
 let evidenceStartedAt = 0;
@@ -204,13 +217,29 @@ let shiftNotFormedRecorded = false;
 let shiftStaticMode = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let authUser: AuthUser | null = null;
 let accountMessage = "";
-let cloudStatus = isSupabaseConfigured ? "Cloud save is available after sign-in." : "Progress is saved on this device.";
+let signInEmail = "";
+let signInLinkSent = false;
+let signInBusy = false;
+let dataMode: DataMode = isSupabaseConfigured ? loadDataMode() : "local";
+let cloudStatus = isSupabaseConfigured
+  ? "Sign in to sync your progress across devices."
+  : "Progress is saved on this device.";
 let pendingCloudSaves: Promise<void>[] = [];
-let comparisonMode: CccComparisonMode = loadCccComparisonMode();
+let comparisonMode: CccComparisonMode = dataMode === "cloud_benchmark" ? loadCccComparisonMode() : "personal";
 let populationScores: Record<string, CccPopulationScore> = {};
 let progressMessage = "";
 let pendingRegimeIntro: CccAttentionTrialDefinition | null = null;
 let lastIntroducedRegimeKey = "";
+
+function cloudSyncActive(): boolean {
+  return isSupabaseConfigured && dataMode !== "local" && Boolean(authUser);
+}
+
+function dataModeLabel(mode: DataMode = dataMode): string {
+  if (mode === "local") return "On this device";
+  if (mode === "cloud_benchmark") return "Cloud standard scores";
+  return "Cloud personal";
+}
 
 function populationScoreMap(rows: StandardizedScoreRow[]): Record<string, CccPopulationScore> {
   const map: Record<string, CccPopulationScore> = {};
@@ -224,18 +253,21 @@ function populationScoreMap(rows: StandardizedScoreRow[]): Record<string, CccPop
 }
 
 async function hydrateProgressFeedback(): Promise<void> {
-  if (!authUser) {
+  if (!cloudSyncActive()) {
     populationScores = {};
     if (comparisonMode === "population") comparisonMode = "personal";
     return;
   }
   try {
     const [rows, proofScores] = await Promise.all([
-      loadStandardizedScores("cognitive_control_coach"),
+      dataMode === "cloud_benchmark" ? loadStandardizedScores("cognitive_control_coach") : Promise.resolve([]),
       loadCccGTrackScores(),
     ]);
     populationScores = populationScoreMap(rows);
-    if (comparisonMode === "population" && !populationModeAvailable(populationScores)) {
+    if (dataMode === "cloud_benchmark" && populationModeAvailable(populationScores)) {
+      comparisonMode = "population";
+      saveCccComparisonMode(comparisonMode);
+    } else if (comparisonMode === "population" && !populationModeAvailable(populationScores)) {
       comparisonMode = "personal";
       saveCccComparisonMode(comparisonMode);
     }
@@ -372,7 +404,6 @@ function progressTabs(active: "overview" | "progress"): string {
 }
 
 function header(): string {
-  const accountLabel = authUser?.email ? "Signed in" : "Save progress";
   const activeJourney = journey && !journey.completedAt;
   const sessionCompletion = journey && !journey.completedAt ? Math.round(journeyCompletionRatio(journey) * 100) : 0;
   const completion = programmeProgressPercent(programme);
@@ -392,7 +423,7 @@ function header(): string {
             <span>Session</span>
             <div class="ccc-header-progress-track" role="progressbar" aria-label="Session completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${sessionCompletion}"><i style="width:${sessionCompletion}%"></i></div>
           </div>` : `<span class="ccc-status-chip">Programme ${completion}%</span>`}
-        <button class="ccc-account-button" data-action="open-account">${accountLabel}</button>
+        <button class="ccc-account-button" data-action="open-data" title="${escapeHtml(dataModeLabel())}">Data</button>
       </div>
     </header>`;
 }
@@ -1348,14 +1379,16 @@ function proofCard(domain: CccProofDomain, label: string): string {
 
 function renderComparisonSelector(): string {
   const available = populationModeAvailable(populationScores);
+  const standardSelected = dataMode === "cloud_benchmark";
+  const personalSelected = !standardSelected;
   return `<section class="ccc-comparison-panel">
     <div><span class="ccc-kicker">Score view</span><h2>Compare with your start or with other users</h2></div>
     <div class="ccc-comparison-options">
-      <button data-action="select-personal-mode" class="${comparisonMode === "personal" ? "is-selected" : ""}" aria-pressed="${comparisonMode === "personal"}">
-        <strong>Personal progress</strong><span>Your starting result is 100.</span><em>${comparisonMode === "personal" ? "Selected" : "Choose"}</em>
+      <button data-action="select-personal-mode" class="${personalSelected ? "is-selected" : ""}" aria-pressed="${personalSelected}">
+        <strong>Personal progress</strong><span>Your starting result is 100.</span><em>${personalSelected ? "Selected" : "Choose"}</em>
       </button>
-      <button data-action="select-population-mode" class="${comparisonMode === "population" ? "is-selected" : ""}" aria-pressed="${comparisonMode === "population"}" ${available ? "" : "disabled"}>
-        <strong>Other users</strong><span>${available ? "Compare with other app users." : "Available after enough people have used the app."}</span><em>${available ? comparisonMode === "population" ? "Selected" : "Choose" : "Coming later"}</em>
+      <button data-action="select-population-mode" class="${standardSelected ? "is-selected" : ""}" aria-pressed="${standardSelected}" ${isSupabaseConfigured ? "" : "disabled"}>
+        <strong>Other users</strong><span>${available ? "Compare with other app users." : "Available after enough people have used the app."}</span><em>${standardSelected ? available ? "Selected" : "Waiting for comparison data" : isSupabaseConfigured ? "Choose" : "Unavailable"}</em>
       </button>
     </div>
   </section>`;
@@ -1463,28 +1496,64 @@ function renderCompleteReconnect(): string {
     </section>`, "ccc-reconnect-screen ccc-viewport-view");
 }
 
-function renderAccount(): string {
-  const content = !isSupabaseConfigured
-    ? `<p>This preview is running in local mode. Your place is saved only in this browser.</p>`
-    : authUser
-      ? `<p>Signed in as <strong>${escapeHtml(authUser.email || "IQ Mindware user")}</strong>.</p><p>${escapeHtml(cloudStatus)}</p><button class="ccc-button ccc-button-secondary" data-action="sign-out">Sign out</button>`
-      : `<p>Sign in to save completed stages across devices. You can continue without an account.</p>
-         <label class="ccc-field"><span>Email address</span><input id="ccc-account-email" type="email" autocomplete="email" placeholder="you@example.com" /></label>
-         <button class="ccc-button ccc-button-primary" data-action="send-sign-in">Email me a sign-in link</button>`;
+function dataModeCard(mode: DataMode, kicker: string, title: string, copy: string): string {
+  const selected = dataMode === mode;
+  return `<button class="ccc-data-mode-card is-${mode.replace("_", "-")} ${selected ? "is-selected" : ""}" data-action="select-data-mode" data-mode="${mode}" aria-pressed="${selected}">
+    <span>${kicker}</span><strong>${title}</strong><p>${copy}</p><em>${selected ? "Selected" : "Choose"}</em>
+  </button>`;
+}
+
+function renderAuth(): string {
+  const form = !isSupabaseConfigured
+    ? `<p>Cloud sign-in is unavailable in this build.</p><button class="ccc-button ccc-button-primary" data-action="continue-local-data">Review data options</button>`
+    : signInLinkSent
+      ? `<p>Enter the code from your email here, or use the link in the message.</p>
+         <label class="ccc-field"><span>Email address</span><input id="ccc-account-email" type="email" autocomplete="email" value="${escapeHtml(signInEmail)}" /></label>
+         <label class="ccc-field"><span>Sign-in code</span><input id="ccc-account-code" type="text" inputmode="numeric" autocomplete="one-time-code" placeholder="123456" /></label>
+         <div class="ccc-auth-actions"><button class="ccc-button ccc-button-primary" data-action="verify-sign-in" ${signInBusy ? "disabled" : ""}>${signInBusy ? "Checking…" : "Sign in"}</button><button class="ccc-button ccc-button-secondary" data-action="send-sign-in" ${signInBusy ? "disabled" : ""}>Send a new code</button></div>`
+      : `<p>Sign in to restore your progress and use the same account across IQ Mindware apps.</p>
+         <label class="ccc-field"><span>Email address</span><input id="ccc-account-email" type="email" autocomplete="email" value="${escapeHtml(signInEmail)}" placeholder="you@example.com" /></label>
+         <button class="ccc-button ccc-button-primary" data-action="send-sign-in" ${signInBusy ? "disabled" : ""}>${signInBusy ? "Sending…" : "Email me a sign-in code"}</button>`;
+  return shell(`<section class="ccc-auth-screen">
+    <span class="ccc-kicker">Sign in</span><h1>Continue with your IQ Mindware account.</h1>${form}
+    ${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}
+    <p class="ccc-account-links"><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></p>
+  </section>`, "ccc-auth-view ccc-viewport-view");
+}
+
+function renderData(): string {
+  const cloudSelected = dataMode !== "local";
+  const accountContent = !isSupabaseConfigured
+    ? `<p>Cloud sync is unavailable in this build. Progress stays in this browser.</p>`
+    : !cloudSelected
+      ? `<p>Cloud sync is off for this app.${authUser?.email ? ` You remain signed in as <strong>${escapeHtml(authUser.email)}</strong>.` : ""}</p>`
+      : authUser
+        ? `<p>Signed in as <strong>${escapeHtml(authUser.email || "IQ Mindware user")}</strong>. ${escapeHtml(cloudStatus)}</p>
+           <button class="ccc-button ccc-button-secondary" data-action="sign-out">Sign out</button>`
+        : `<p>Sign in to sync your progress across devices.</p>
+           <label class="ccc-field"><span>Email address</span><input id="ccc-account-email" type="email" autocomplete="email" placeholder="you@example.com" /></label>
+           <button class="ccc-button ccc-button-primary" data-action="send-sign-in">Email me a sign-in link</button>`;
   return shell(`
-    <section class="ccc-narrow-card">
-      <span class="ccc-kicker">Your progress</span>
-      <h1>Save in the way that suits you.</h1>
-      ${content}
-      ${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}
-      <p class="ccc-soft-note">The workflow choice is a broad category. The app does not ask you to enter confidential work, study or personal details.</p>
+    <section class="ccc-data-screen">
+      <div class="ccc-data-heading"><span class="ccc-kicker">Data</span><h1>Choose how your progress is stored.</h1><p>Cloud personal is the default.</p></div>
+      <div class="ccc-data-mode-grid">
+        ${dataModeCard("cloud_personal", "Private sync", "Cloud personal", "Sync across devices. Your first valid score is 100.")}
+        ${dataModeCard("cloud_benchmark", "Standardised sync", "Cloud standard scores", "Sync progress and compare with other users when enough results are available.")}
+        ${dataModeCard("local", "Local only", "On this device", "Keep progress in this browser. Cloud sync is off.")}
+      </div>
+      <section class="ccc-data-account"><strong>${escapeHtml(dataModeLabel())}</strong>${accountContent}${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}</section>
+      <div class="ccc-data-actions">
+        <button class="ccc-button ccc-button-secondary" data-action="export-data">Export data</button>
+        <button class="ccc-button ccc-button-quiet" data-action="delete-data">Remove data</button>
+        <button class="ccc-button ccc-button-primary" data-action="close-data">Done</button>
+      </div>
       <p class="ccc-account-links"><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></p>
-      <button class="ccc-button ccc-button-quiet" data-action="close-account">Back</button>
-    </section>`, "ccc-account-view ccc-viewport-view");
+    </section>`, "ccc-data-view ccc-viewport-view");
 }
 
 function render(): void {
-  const content = view === "welcome" ? renderWelcome()
+  const content = view === "auth" ? renderAuth()
+    : view === "welcome" ? renderWelcome()
     : view === "workflow" ? renderWorkflow()
       : view === "practice_intro" ? renderPracticeIntro()
         : view === "practice_guide" ? renderPracticeGuide()
@@ -1503,7 +1572,7 @@ function render(): void {
                           : view === "full_transfer" ? renderFullTransfer()
                           : view === "complete_reconnect" ? renderCompleteReconnect()
                             : view === "progress" ? renderProgress()
-                              : renderAccount();
+                              : renderData();
   appRoot.innerHTML = content;
   if (view === "shift_view") mountShiftView();
 }
@@ -1960,7 +2029,7 @@ function completeTrial(
 }
 
 async function submitCurrentBlock(block: CccAttentionBlockPlan, results: CccRecordedTrial[]): Promise<void> {
-  if (!journey || !authUser) return;
+  if (!journey || !cloudSyncActive()) return;
   try {
     const payload = buildCccBlockSubmissionPayload({
       plan: journey.plan,
@@ -1969,7 +2038,10 @@ async function submitCurrentBlock(block: CccAttentionBlockPlan, results: CccReco
       events: journey.events.filter((event) => event.blockId === block.id),
       workflowChoice: journey.workflowChoice,
     });
-    await submitCoachBlock(payload);
+    await submitCoachBlock({
+      ...payload,
+      dataMode,
+    });
     await saveCccRemoteProgress(journey as unknown as Record<string, unknown>);
     cloudStatus = "Your latest completed stage is saved.";
   } catch (error) {
@@ -2083,7 +2155,7 @@ async function finaliseJourney(): Promise<void> {
   saveCccProgramme(programme);
   saveJourney();
   const sessionMetrics = buildCccSessionMetrics(Object.values(journey.blockResults).flat());
-  if (authUser) {
+  if (cloudSyncActive()) {
     try {
       await finalizeCoachSession({
         clientSessionId: journey.plan.sessionId,
@@ -2100,6 +2172,7 @@ async function finaliseJourney(): Promise<void> {
             payload: event.payload,
           })),
         summary: {
+          dataMode,
           workflowChoice: journey.workflowChoice,
           totalPoints: totalJourneyPoints(),
           completedBlocks: Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1),
@@ -2221,11 +2294,117 @@ async function sendSignIn(): Promise<void> {
     render();
     return;
   }
+  signInEmail = email;
+  signInBusy = true;
+  accountMessage = "Sending your sign-in code…";
+  render();
   try {
     await sendEmailSignInLink(email);
-    accountMessage = "Check your email for the sign-in link.";
+    signInLinkSent = true;
+    accountMessage = "Check your email for the code or sign-in link.";
+    view = "auth";
   } catch (error) {
     accountMessage = error instanceof Error ? error.message : "The sign-in link could not be sent.";
+  }
+  signInBusy = false;
+  render();
+}
+
+async function verifySignIn(): Promise<void> {
+  const email = document.querySelector<HTMLInputElement>("#ccc-account-email")?.value.trim() || signInEmail;
+  const code = document.querySelector<HTMLInputElement>("#ccc-account-code")?.value.replace(/\s+/g, "") || "";
+  if (!email || !code) {
+    accountMessage = "Enter your email address and the code from the email.";
+    render();
+    return;
+  }
+  signInBusy = true;
+  accountMessage = "Checking your code…";
+  render();
+  try {
+    const user = await verifyEmailSignInCode(email, code);
+    authUser = user;
+    signInBusy = false;
+    accountMessage = "";
+    signInLinkSent = false;
+    if (user && dataMode !== "local") await hydrateCloudProgress(user);
+    dataReturnView = "welcome";
+    setView("data");
+  } catch (error) {
+    signInBusy = false;
+    accountMessage = error instanceof Error ? error.message : "The code could not be verified.";
+    render();
+  }
+}
+
+function downloadJson(filename: string, payload: unknown): void {
+  const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function setDataMode(nextMode: DataMode): void {
+  dataMode = isSupabaseConfigured ? nextMode : "local";
+  saveDataMode(dataMode);
+  populationScores = {};
+  comparisonMode = "personal";
+  saveCccComparisonMode(comparisonMode);
+  accountMessage = dataMode === "local"
+    ? "Progress will stay in this browser."
+    : dataMode === "cloud_benchmark"
+      ? "Standard scores will appear when enough results are available."
+      : "Your first valid score will be shown as 100.";
+  if (cloudSyncActive() && authUser) {
+    cloudStatus = `${dataModeLabel()} selected. Syncing your progress.`;
+    void hydrateCloudProgress(authUser).finally(render);
+    return;
+  }
+  cloudStatus = dataMode === "local"
+    ? "Cloud sync is off for this app."
+    : "Sign in to sync your progress across devices.";
+  render();
+}
+
+async function exportCurrentData(): Promise<void> {
+  try {
+    const date = new Date().toISOString().slice(0, 10);
+    if (cloudSyncActive()) {
+      downloadJson(`cognitive-control-coach-cloud-${date}.json`, await exportCoachData());
+      accountMessage = "Cloud data export created.";
+    } else {
+      downloadJson(`cognitive-control-coach-local-${date}.json`, {
+        exportedAt: new Date().toISOString(),
+        mode: "local",
+        journey,
+        programme,
+      });
+      accountMessage = "Local data export created.";
+    }
+  } catch (error) {
+    accountMessage = error instanceof Error ? error.message : "Data export failed.";
+  }
+  render();
+}
+
+async function deleteCurrentData(): Promise<void> {
+  const target = cloudSyncActive() ? "your cloud and browser data" : "the progress in this browser";
+  if (!window.confirm(`Permanently remove ${target}? This cannot be undone.`)) return;
+  try {
+    if (cloudSyncActive()) await deleteCoachData();
+    clearCccJourney();
+    clearCccProgramme();
+    journey = null;
+    programme = createInitialProgrammeState();
+    populationScores = {};
+    comparisonMode = "personal";
+    saveCccComparisonMode(comparisonMode);
+    accountMessage = "Your Cognitive Control Coach data has been removed.";
+  } catch (error) {
+    accountMessage = error instanceof Error ? error.message : "Data could not be removed.";
   }
   render();
 }
@@ -2292,7 +2471,7 @@ appRoot.addEventListener("click", (event) => {
       recordEvent("wm_practice_level_completed", { wmNLevel: level, correctCount: correct }, null);
       saveCccProgramme(programme);
       saveJourney();
-      if (authUser) {
+      if (cloudSyncActive()) {
         const pending = saveCccRemoteProgress(journey as unknown as Record<string, unknown>);
         pendingCloudSaves.push(pending);
         void pending.finally(() => {
@@ -2347,18 +2526,27 @@ appRoot.addEventListener("click", (event) => {
   } else if (action === "show-progress") {
     progressMessage = "";
     setView("progress");
-    if (authUser) void hydrateProgressFeedback().finally(render);
+    if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
   } else if (action === "select-personal-mode") {
-    comparisonMode = "personal";
-    saveCccComparisonMode(comparisonMode);
+    if (dataMode === "cloud_benchmark") setDataMode("cloud_personal");
+    else {
+      comparisonMode = "personal";
+      saveCccComparisonMode(comparisonMode);
+    }
     progressMessage = "Showing change from your starting score of 100.";
     render();
   } else if (action === "select-population-mode") {
-    if (populationModeAvailable(populationScores)) {
-      comparisonMode = "population";
-      saveCccComparisonMode(comparisonMode);
-      progressMessage = "Comparing your scores with other users.";
-      render();
+    if (isSupabaseConfigured) {
+      if (dataMode !== "cloud_benchmark") setDataMode("cloud_benchmark");
+      if (populationModeAvailable(populationScores)) {
+        comparisonMode = "population";
+        saveCccComparisonMode(comparisonMode);
+        progressMessage = "Comparing your scores with other users.";
+      } else {
+        progressMessage = "Standard scores will appear when enough results are available.";
+      }
+      if (!authUser) setView("data");
+      else render();
     }
   } else if (action === "pause-session") {
     recordEvent("pause", { taskStage });
@@ -2378,13 +2566,36 @@ appRoot.addEventListener("click", (event) => {
       programme = createInitialProgrammeState();
       setView("welcome");
     }
-  } else if (action === "open-account") {
+  } else if (action === "open-data") {
     accountMessage = "";
-    setView("account");
-  } else if (action === "close-account") {
-    setView("welcome");
+    if (!dataModeSeen && !authUser && isSupabaseConfigured) {
+      setView("auth");
+      return;
+    }
+    dataReturnView = view === "task" ? "paused" : view;
+    if (view === "task") recordEvent("pause", { taskStage, reason: "data_screen" });
+    setView("data");
+  } else if (action === "close-data") {
+    if (!dataModeSeen) {
+      dataModeSeen = true;
+      saveDataModeSeen();
+      dataReturnView = "welcome";
+    }
+    setView(dataReturnView === "data" ? "welcome" : dataReturnView);
+  } else if (action === "select-data-mode") {
+    setDataMode(button.dataset.mode as DataMode);
+  } else if (action === "export-data") {
+    void exportCurrentData();
+  } else if (action === "delete-data") {
+    void deleteCurrentData();
   } else if (action === "send-sign-in") {
     void sendSignIn();
+  } else if (action === "verify-sign-in") {
+    void verifySignIn();
+  } else if (action === "continue-local-data") {
+    dataMode = "local";
+    saveDataMode(dataMode);
+    setView("data");
   } else if (action === "sign-out") {
     void signOutUser().then(() => {
       authUser = null;
@@ -2493,21 +2704,29 @@ async function hydrateCloudProgress(user: AuthUser): Promise<void> {
 if (isSupabaseConfigured) {
   void currentAuthUser().then(async (user) => {
     authUser = user;
-    if (user) {
-      cloudStatus = "Signed in. Completed stages can be saved across devices.";
+    if (user && dataMode !== "local") {
+      cloudStatus = "Signed in. Progress sync is on.";
       await hydrateCloudProgress(user);
+    } else if (user) {
+      cloudStatus = "Signed in. Cloud sync is off for this app.";
     }
+    if (!dataModeSeen) view = user ? "data" : "auth";
     render();
   });
   onAuthChange((user) => {
     authUser = user;
-    if (user) {
-      cloudStatus = "Signed in. Completed stages can be saved across devices.";
+    if (user && dataMode !== "local") {
+      cloudStatus = "Signed in. Progress sync is on.";
+      if (!dataModeSeen) {
+        dataReturnView = "welcome";
+        view = "data";
+      }
       void hydrateCloudProgress(user).finally(render);
       return;
     }
     populationScores = {};
     if (comparisonMode === "population") comparisonMode = "personal";
+    if (!user && !dataModeSeen) view = "auth";
     render();
   });
 }

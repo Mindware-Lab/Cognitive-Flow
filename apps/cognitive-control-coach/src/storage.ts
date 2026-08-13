@@ -221,10 +221,8 @@ export function cloudSyncModeForDataMode(mode: DataMode): CloudSyncMode {
 
 export function loadDataMode(): DataMode {
   const saved = localStorage.getItem(`${PREFIX}:dataMode`);
-  const userChoice = localStorage.getItem(`${PREFIX}:dataModeUserChoice`);
-  if (saved === "cloud_personal" && userChoice === "cloud_personal") return "cloud_personal";
-  if (saved === "cloud_benchmark") return "cloud_benchmark";
-  return "cloud_benchmark";
+  if (saved === "local" || saved === "cloud_personal" || saved === "cloud_benchmark") return saved;
+  return "cloud_personal";
 }
 
 export function saveDataMode(mode: DataMode): void {

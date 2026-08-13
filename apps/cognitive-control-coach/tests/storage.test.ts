@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { DEFAULT_PROGRESS, newerProgress, progressForBrowserDevice } from "../src/storage";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEFAULT_PROGRESS, loadDataMode, newerProgress, progressForBrowserDevice, saveDataMode } from "../src/storage";
 import type { DeviceReadiness } from "../src/types";
 
 const readiness: DeviceReadiness = {
@@ -16,6 +16,18 @@ const readiness: DeviceReadiness = {
   checkedAt: "2026-07-04T00:00:00.000Z",
   browserDeviceId: "browser-a",
 };
+
+beforeEach(() => {
+  const values = new Map<string, string>();
+  vi.stubGlobal("localStorage", {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+    clear: () => values.clear(),
+  });
+});
+
+afterEach(() => vi.unstubAllGlobals());
 
 describe("progress browser-device readiness", () => {
   it("keeps readiness for the same browser device", () => {
@@ -79,5 +91,18 @@ describe("progress freshness", () => {
     const remote = { ...DEFAULT_PROGRESS, programmeCycle: 2, sessionNumber: 2 };
 
     expect(newerProgress(local, remote)).toBe(remote);
+  });
+});
+
+describe("data mode", () => {
+  it("defaults to cloud personal scoring", () => {
+    localStorage.clear();
+    expect(loadDataMode()).toBe("cloud_personal");
+  });
+
+  it("keeps an explicit local-storage choice", () => {
+    localStorage.clear();
+    saveDataMode("local");
+    expect(loadDataMode()).toBe("local");
   });
 });
