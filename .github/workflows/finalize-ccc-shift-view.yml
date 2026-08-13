@@ -25,54 +25,84 @@ jobs:
           python - <<'PY'
           from pathlib import Path
 
-          main_path = Path('apps/cognitive-control-coach/src/main.ts')
-          test_path = Path('apps/cognitive-control-coach/tests/cccShiftView.test.ts')
-          docs_path = Path('apps/cognitive-control-coach/docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md')
+          main_path = Path("apps/cognitive-control-coach/src/main.ts")
+          test_path = Path("apps/cognitive-control-coach/tests/cccShiftView.test.ts")
+          docs_path = Path("apps/cognitive-control-coach/docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md")
 
           main = main_path.read_text()
-          old = '''    dotCount: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotCount,
-              rotationHz: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationHz,
-              dotColour: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColour,'''
-          new = '''    dotCount: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotCount,
-              rotationPeriodMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationPeriodMs,
-              dotLifeMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotLifeMs,
-              dotColours: [...CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColours],'''
-          if old not in main:
-              if new not in main:
-                  raise SystemExit('Could not locate Shift the View renderer telemetry')
-          else:
-              main = main.replace(old, new, 1)
+          main = main.replace(
+              "rotationHz: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationHz,",
+              "rotationPeriodMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationPeriodMs,\n    dotLifeMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotLifeMs,",
+              1,
+          )
+          main = main.replace(
+              "dotColour: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColour,",
+              "dotColours: [...CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColours],",
+              1,
+          )
+          required_main = [
+              "rotationPeriodMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationPeriodMs",
+              "dotLifeMs: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotLifeMs",
+              "dotColours: [...CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColours]",
+          ]
+          if not all(value in main for value in required_main):
+              raise SystemExit("Shift the View telemetry was not updated")
           main_path.write_text(main)
 
           tests = test_path.read_text()
-          tests = tests.replace('dotCount: 96,', 'dotCount: 120,')
-          tests = tests.replace('rotationHz: 0.06,', 'rotationPeriodMs: 7000,\n      dotLifeMs: 640,')
-          tests = tests.replace('dotColour: "rgba(39, 100, 183, 0.80)",', 'dotColours: [\n        "rgba(39, 100, 183, 0.82)",\n        "rgba(102, 204, 51, 0.84)",\n        "rgba(204, 255, 102, 0.96)",\n      ],')
-          tests = tests.replace('expect(createSpherePoints()).toHaveLength(96);', 'expect(createSpherePoints()).toHaveLength(120);')
+          tests = tests.replace("dotCount: 96,", "dotCount: 120,")
+          tests = tests.replace(
+              "rotationHz: 0.06,",
+              "rotationPeriodMs: 7000,\n      dotLifeMs: 640,",
+          )
+          tests = tests.replace(
+              'dotColour: "rgba(39, 100, 183, 0.80)",',
+              "dotColours: [\n        \"rgba(39, 100, 183, 0.82)\",\n        \"rgba(102, 204, 51, 0.84)\",\n        \"rgba(204, 255, 102, 0.96)\",\n      ],",
+          )
+          tests = tests.replace(
+              "expect(createSpherePoints()).toHaveLength(96);",
+              "expect(createSpherePoints()).toHaveLength(120);",
+          )
+          required_tests = ["dotCount: 120", "rotationPeriodMs: 7000", "dotLifeMs: 640", "toHaveLength(120)"]
+          if not all(value in tests for value in required_tests):
+              raise SystemExit("Shift the View tests were not updated")
           test_path.write_text(tests)
 
           docs = docs_path.read_text()
-          docs = docs.replace('# Cognitive Control Coach Multi-Session Protocol v0.7', '# Cognitive Control Coach Multi-Session Protocol v0.8', 1)
-          docs = docs.replace('Protocol version: `ccc-multisession-transfer-v0.7`', 'Protocol version: `ccc-multisession-transfer-v0.8`', 1)
-          docs = docs.replace('Configuration version: `ccc-programme-p1-v0.7`', 'Configuration version: `ccc-programme-p1-v0.8`', 1)
-          docs = docs.replace('3. **Commit:** was a forced choice made within the deadline under the current value environment?', '3. **Commit:** was the required choice made—or appropriately withheld—within the deadline under the current value environment?', 1)
-          docs = docs.replace('- Forced Match/Different response; no voluntary abstention button.', '- Match-only response rule: press **Match** when the current majority relation matches the relation `n` steps back; otherwise withhold the response.', 1)
-          docs = docs.replace('- Ten scored comparisons are Match and ten are Different. Above 1-back, 25% of feasible Different observations use a wrong-lag lure.', '- Ten scored comparisons are matches and ten are non-matches. A Match press on a non-match is a false alarm; withholding on a match is a miss; withholding on a non-match is a correct rejection. Above 1-back, 25% of feasible non-matches use a wrong-lag lure.', 1)
-
-          marker = '## 3. Four decision environments'
-          section = '''### 2.4 Shift the View transition pulse
-
-- Fixed 30-second, score-neutral transition immediately after the source-wrapper feedback and before the first preview of a genuinely new target wrapper.
-- Used only for protected first contact with a carrier swap. It is not used for practice, ordinary recovery, return blocks, mixed blocks, held-out checks or delayed re-checks.
-- The display uses 120 dots, a 7.0-second full rotation, a 640 ms dot lifetime and the locked blue/green/lime palette on the pale app background.
-- The user is told to actively group the dots into one coherent rotating sphere. Seeing two flat sheets or independent layers does not count as forming the target object.
-- Once one sphere is seen, the user presses **Space** or the touch button for every reversal of the whole sphere as a single object. Independent changes in sheets, layers or dot groups are not counted.
-- No reversal count, score or interpretation is shown. Formation time, whole-sphere reversal events, input mode, wrapper IDs and render settings remain in telemetry only.
-
-'''
-          if section not in docs:
+          docs = docs.replace("# Cognitive Control Coach Multi-Session Protocol v0.7", "# Cognitive Control Coach Multi-Session Protocol v0.8", 1)
+          docs = docs.replace("Protocol version: `ccc-multisession-transfer-v0.7`", "Protocol version: `ccc-multisession-transfer-v0.8`", 1)
+          docs = docs.replace("Configuration version: `ccc-programme-p1-v0.7`", "Configuration version: `ccc-programme-p1-v0.8`", 1)
+          docs = docs.replace(
+              "3. **Commit:** was a forced choice made within the deadline under the current value environment?",
+              "3. **Commit:** was the required choice made—or appropriately withheld—within the deadline under the current value environment?",
+              1,
+          )
+          docs = docs.replace(
+              "- Forced Match/Different response; no voluntary abstention button.",
+              "- Match-only response rule: press **Match** when the current majority relation matches the relation `n` steps back; otherwise withhold the response.",
+              1,
+          )
+          docs = docs.replace(
+              "- Ten scored comparisons are Match and ten are Different. Above 1-back, 25% of feasible Different observations use a wrong-lag lure.",
+              "- Ten scored comparisons are matches and ten are non-matches. A Match press on a non-match is a false alarm; withholding on a match is a miss; withholding on a non-match is a correct rejection. Above 1-back, 25% of feasible non-matches use a wrong-lag lure.",
+              1,
+          )
+          marker = "## 3. Four decision environments"
+          section_lines = [
+              "### 2.4 Shift the View transition pulse",
+              "",
+              "- Fixed 30-second, score-neutral transition immediately after the source-wrapper feedback and before the first preview of a genuinely new target wrapper.",
+              "- Used only for protected first contact with a carrier swap. It is not used for practice, ordinary recovery, return blocks, mixed blocks, held-out checks or delayed re-checks.",
+              "- The display uses 120 dots, a 7.0-second full rotation, a 640 ms dot lifetime and the locked blue/green/lime palette on the pale app background.",
+              "- The user is told to actively group the dots into one coherent rotating sphere. Seeing two flat sheets or independent layers does not count as forming the target object.",
+              "- Once one sphere is seen, the user presses **Space** or the touch button for every reversal of the whole sphere as a single object. Independent changes in sheets, layers or dot groups are not counted.",
+              "- No reversal count, score or interpretation is shown. Formation time, whole-sphere reversal events, input mode, wrapper IDs and render settings remain in telemetry only.",
+              "",
+          ]
+          section = "\n".join(section_lines) + "\n"
+          if "### 2.4 Shift the View transition pulse" not in docs:
               if marker not in docs:
-                  raise SystemExit('Could not locate protocol insertion point')
+                  raise SystemExit("Could not locate protocol insertion point")
               docs = docs.replace(marker, section + marker, 1)
           docs_path.write_text(docs)
           PY
