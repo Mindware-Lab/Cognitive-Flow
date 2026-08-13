@@ -146,6 +146,10 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain("repeat(var(--ccc-journey-count, 1), minmax(0, 1fr))");
     expect(appStyles).toContain("@media (max-width: 560px)");
     expect(appStyles).toContain("li:nth-child(3):not(:last-child)::after");
+    expect(appStyles).toMatch(/li:nth-child\(4\)\s*\{[\s\S]*?grid-column: 3;[\s\S]*?grid-row: 2;/);
+    expect(appStyles).toMatch(/li:nth-child\(5\)\s*\{[\s\S]*?grid-column: 2;[\s\S]*?grid-row: 2;/);
+    expect(appStyles).toMatch(/li:nth-child\(6\)\s*\{[\s\S]*?grid-column: 1;[\s\S]*?grid-row: 2;/);
+    expect(appStyles).toContain("The second row proceeds from right to left.");
     expect(appStyles).not.toContain("grid-template-columns: repeat(5, minmax(0, 1fr))");
   });
 

@@ -2677,15 +2677,33 @@ p {
     row-gap: var(--ccc-rail-row-gap);
   }
 
-  /* Continue the rail from stage 3 to the next row as one deliberate path. */
+  /* Keep the numbered journey continuous: 1-2-3, then 4-5-6 right-to-left. */
+  .ccc-journey-rail li:nth-child(4) {
+    grid-column: 3;
+    grid-row: 2;
+  }
+
+  .ccc-journey-rail li:nth-child(5) {
+    grid-column: 2;
+    grid-row: 2;
+  }
+
+  .ccc-journey-rail li:nth-child(6) {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  /* Wrap stage 3 around the right edge and into stage 4 without crossing the row. */
   .ccc-journey-rail li:nth-child(3):not(:last-child)::after {
     top: 15px;
-    right: calc(50% - var(--ccc-rail-marker-half));
-    left: auto;
-    width: calc(200% + var(--ccc-rail-marker-half));
+    right: auto;
+    left: calc(50% + var(--ccc-rail-marker-half));
+    width: calc(50% - var(--ccc-rail-marker-half));
     height: calc(100% + var(--ccc-rail-row-gap));
+    border-top: 1px solid var(--line);
     border-right: 1px solid var(--line);
     border-bottom: 1px solid var(--line);
+    border-top-right-radius: 12px;
     border-bottom-right-radius: 12px;
     background: none;
   }
@@ -2693,6 +2711,19 @@ p {
   .ccc-journey-rail li.is-complete:nth-child(3):not(:last-child)::after {
     border-color: var(--lime-dark);
     background: none;
+  }
+
+  /* The second row proceeds from right to left. */
+  .ccc-journey-rail li:nth-child(4):not(:last-child)::after,
+  .ccc-journey-rail li:nth-child(5):not(:last-child)::after {
+    right: calc(50% + var(--ccc-rail-marker-half));
+    left: auto;
+    width: calc(100% - (2 * var(--ccc-rail-marker-half)));
+  }
+
+  .ccc-journey-rail li.is-complete:nth-child(4):not(:last-child)::after,
+  .ccc-journey-rail li.is-complete:nth-child(5):not(:last-child)::after {
+    background: linear-gradient(270deg, var(--lime-dark), var(--line));
   }
 }
 
@@ -2797,9 +2828,9 @@ p {
 
   .ccc-journey-rail li:nth-child(3):not(:last-child)::after {
     top: 13px;
-    right: calc(50% - var(--ccc-rail-marker-half));
-    left: auto;
-    width: calc(200% + var(--ccc-rail-marker-half));
+    right: auto;
+    left: calc(50% + var(--ccc-rail-marker-half));
+    width: calc(50% - var(--ccc-rail-marker-half));
   }
 
   .ccc-brand-lockup small {
