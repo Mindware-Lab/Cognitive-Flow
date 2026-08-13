@@ -50,7 +50,7 @@ import {
 } from "./cccProgress";
 import { CCC_SESSION_DURATION_LABEL } from "./cccDuration";
 import { classifySignalTiming, signalStaircaseStateAfterResults } from "./cccSignal";
-import { startAmbiguousSphere } from "./cccShiftView";
+import { CCC_SHIFT_VIEW_RENDER_SETTINGS, startAmbiguousSphere } from "./cccShiftView";
 import {
   clearCccJourney,
   clearCccProgramme,
@@ -217,6 +217,8 @@ let shiftTimer = 0;
 let shiftStartedAt = 0;
 let shiftConfirmedAt: number | null = null;
 let shiftNotFormedRecorded = false;
+let shiftReversalCount = 0;
+let shiftLastReversalAt = 0;
 let shiftStaticMode = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 let authUser: AuthUser | null = null;
 let accountMessage = "";
@@ -316,6 +318,14 @@ function currentBlock(): CccAttentionBlockPlan | null {
   if (taskMode === "wm_practice" && journey.wmPracticeLevel) return createWmPracticeBlock(journey.plan, journey.wmPracticeLevel);
   if (taskMode === "practice") return createP0PracticeBlock(journey.plan);
   return journey.plan.blocks[journey.activeBlockIndex] || null;
+}
+
+function shouldRunShiftView(block: CccAttentionBlockPlan | null = currentBlock()): boolean {
+  if (!journey || !block || !CCC_SHIFT_VIEW.enabled || journey.shiftViewCompleted) return false;
+  if (!block.shiftViewBefore || block.practice || !block.diagnostic) return false;
+  if (!block.sourceWrapperId || block.wrappers.length !== 1) return false;
+  if (block.wrappers[0] === block.sourceWrapperId) return false;
+  return block.transitionKind === "carrier_transfer" || block.transitionKind === "wm_carrier_transfer";
 }
 
 function currentQueue(): CccAttentionTrialDefinition[] {
@@ -1242,14 +1252,15 @@ function renderShiftView(): string {
       <div class="ccc-stage-line"><span>New pattern ahead</span><strong id="ccc-shift-countdown">0:30</strong></div>
       <div class="ccc-shift-progress" aria-hidden="true"><span id="ccc-shift-progress-bar"></span></div>
       <span class="ccc-kicker">Shift the View</span>
-      <h1>Let the dots form one moving ball.</h1>
-      <p id="ccc-shift-instruction">Watch the whole pattern rather than following one dot.</p>
-      <canvas id="ccc-sphere" class="ccc-sphere" role="img" aria-label="A rotating dotted sphere that may appear to reverse"></canvas>
+      <h1>Actively group the dots into one rotating sphere.</h1>
+      <p id="ccc-shift-instruction">Bring the dots together as one complete 3D ball. This may require actively grouping them rather than simply watching separate dots.</p>
+      <canvas id="ccc-sphere" class="ccc-sphere" role="img" aria-label="A sparse, slowly rotating field of soft-blue dots that can be actively grouped into one ambiguous sphere"></canvas>
       <div id="ccc-shift-controls" class="ccc-shift-controls">
         ${shiftStaticMode
           ? `<p class="ccc-soft-note">Still image selected.</p>`
-          : `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see the ball</button><button class="ccc-button ccc-button-quiet" data-action="shift-not-yet">Not yet</button>`}
+          : `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see one whole sphere</button><button class="ccc-button ccc-button-quiet" data-action="shift-not-yet">Not yet</button>`}
       </div>
+      <p class="ccc-shift-grouping-note"><strong>Actively group the dots.</strong> Some people first see two flat sheets. Keep bringing them together until they form one complete sphere.</p>
       <button class="ccc-text-button" data-action="shift-toggle-motion">${shiftStaticMode ? "Use the moving version" : "Use a still reset"}</button>
     </section>
   `, "ccc-shift-view ccc-viewport-view");
@@ -1832,6 +1843,7 @@ function resumeJourney(): void {
   }
   taskMode = "guided";
   if (blockIsComplete()) setView("block_complete");
+  else if (shouldRunShiftView()) setView("shift_view");
   else routeToCurrentBlockIntro();
 }
 
@@ -2345,21 +2357,31 @@ function continueAfterBlock(): void {
   }
   journey.activeBlockIndex += 1;
   saveJourney();
-  routeToCurrentBlockIntro();
+  if (shouldRunShiftView()) setView("shift_view");
+  else routeToCurrentBlockIntro();
 }
 
 function mountShiftView(): void {
   stopShiftView();
   const canvas = document.querySelector<HTMLCanvasElement>("#ccc-sphere");
-  if (!canvas || !journey) return;
+  const block = currentBlock();
+  if (!canvas || !journey || !shouldRunShiftView(block)) return;
   sphereStop = startAmbiguousSphere(canvas, { staticMode: shiftStaticMode });
   shiftStartedAt = performance.now();
   shiftConfirmedAt = null;
   shiftNotFormedRecorded = false;
+  shiftReversalCount = 0;
+  shiftLastReversalAt = 0;
   recordEvent("shift_view_started", {
     durationMs: CCC_SHIFT_VIEW.durationMs,
     reducedMotion: shiftStaticMode,
     scoreAffecting: false,
+    renderVersion: "ccc-shift-view-v2",
+    sourceWrapperId: block?.sourceWrapperId || null,
+    targetWrapperId: block?.wrappers.length === 1 ? block.wrappers[0] : null,
+    dotCount: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotCount,
+    rotationHz: CCC_SHIFT_VIEW_RENDER_SETTINGS.rotationHz,
+    dotColour: CCC_SHIFT_VIEW_RENDER_SETTINGS.dotColour,
   });
   const update = () => {
     if (!journey) return;
@@ -2383,32 +2405,58 @@ function mountShiftView(): void {
 function updateShiftControls(): void {
   const controls = document.querySelector<HTMLElement>("#ccc-shift-controls");
   const instruction = document.querySelector<HTMLElement>("#ccc-shift-instruction");
+  const note = document.querySelector<HTMLElement>(".ccc-shift-grouping-note");
   if (!controls || !instruction) return;
   if (shiftStaticMode) {
     controls.innerHTML = `<p class="ccc-soft-note">Still image selected.</p>`;
-    instruction.textContent = "Let your eyes rest on the whole pattern.";
+    instruction.textContent = "Let your eyes rest on the complete pattern for the full 30 seconds.";
+    if (note) note.innerHTML = `<strong>Reduced-motion version:</strong> rest your eyes on the complete pattern for the full interval.`;
     return;
   }
   if (shiftConfirmedAt !== null) {
-    controls.innerHTML = `<button class="ccc-button ccc-button-secondary" data-action="shift-reversal">The whole ball reversed</button>`;
-    instruction.textContent = "Keep watching the whole sphere. Tap only when the whole ball appears to reverse.";
+    controls.innerHTML = `<button class="ccc-button ccc-button-secondary ccc-reversal-button" data-action="shift-reversal"><span>The whole sphere reversed</span><kbd>Space</kbd></button>`;
+    instruction.textContent = "Keep the dots actively grouped as one object. Press Space every time the whole sphere appears to reverse its direction of rotation.";
+    if (note) note.innerHTML = `<strong>Count only whole-object reversals.</strong> Do not respond when separate sheets, layers or groups of dots seem to change independently.`;
     return;
   }
   if (shiftNotFormedRecorded) {
-    controls.innerHTML = `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see the ball now</button>`;
-    instruction.textContent = "Keep watching the whole pattern. If one ball forms, let us know.";
+    controls.innerHTML = `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see one whole sphere now</button>`;
+    instruction.textContent = "Keep actively bringing the separate dots or sheets together. Respond when they form one complete sphere.";
+    if (note) note.innerHTML = `<strong>Keep grouping.</strong> The target is one coherent rotating object, not two transparent sheets of dots.`;
   }
+}
+
+function recordShiftReversal(inputMode: "keyboard" | "pointer" | "touch"): void {
+  if (view !== "shift_view" || shiftStaticMode || shiftConfirmedAt === null) return;
+  const now = performance.now();
+  if (now - shiftLastReversalAt < 180) return;
+  shiftLastReversalAt = now;
+  shiftReversalCount += 1;
+  recordEvent("perceived_reversal", {
+    elapsedMs: Math.round(now - shiftStartedAt),
+    reversalIndex: shiftReversalCount,
+    inputMode,
+    wholeSphere: true,
+  });
+  const button = document.querySelector<HTMLElement>("[data-action='shift-reversal']");
+  button?.classList.add("is-key-pressed");
+  window.setTimeout(() => button?.classList.remove("is-key-pressed"), 150);
 }
 
 function completeShiftView(): void {
   if (!journey || journey.shiftViewCompleted) return;
+  const block = currentBlock();
   stopShiftView();
   journey.shiftViewCompleted = true;
   recordEvent("shift_view_completed", {
     durationMs: CCC_SHIFT_VIEW.durationMs,
     sphereConfirmed: shiftConfirmedAt !== null,
+    reversalCount: shiftReversalCount,
     reducedMotion: shiftStaticMode,
     scoreAffecting: false,
+    renderVersion: "ccc-shift-view-v2",
+    sourceWrapperId: block?.sourceWrapperId || null,
+    targetWrapperId: block?.wrappers.length === 1 ? block.wrappers[0] : null,
   });
   saveJourney();
   setView("phase_intro");
@@ -2620,7 +2668,7 @@ appRoot.addEventListener("click", (event) => {
     const level = currentWmLevel();
     if (journey?.wmPracticeLevel) setView("wm_practice_intro");
     else if (levelNeedsWmPractice(level)) beginWmPractice(level);
-    else if (journey && block?.shiftViewBefore && !journey.shiftViewCompleted) setView("shift_view");
+    else if (shouldRunShiftView(block)) setView("shift_view");
     else startTask("guided");
   } else if (action === "continue-regime") {
     const block = currentBlock();
@@ -2760,7 +2808,8 @@ appRoot.addEventListener("click", (event) => {
       updateShiftControls();
     }
   } else if (action === "shift-reversal") {
-    recordEvent("perceived_reversal", { elapsedMs: Math.round(performance.now() - shiftStartedAt) });
+    const inputMode = event instanceof PointerEvent && event.pointerType === "touch" ? "touch" : "pointer";
+    recordShiftReversal(inputMode);
   } else if (action === "shift-toggle-motion") {
     shiftStaticMode = !shiftStaticMode;
     recordEvent("shift_view_motion_changed", { reducedMotion: shiftStaticMode });
@@ -2781,6 +2830,13 @@ appRoot.addEventListener("input", (event) => {
 });
 
 window.addEventListener("keydown", (event) => {
+  if (view === "shift_view" && event.code === "Space") {
+    if (!event.repeat && shiftConfirmedAt !== null && !shiftStaticMode) {
+      event.preventDefault();
+      recordShiftReversal("keyboard");
+    }
+    return;
+  }
   const trial = activeTrial();
   const responseStage = trial?.estimand === "signal_capacity" || trial?.operator === "relational_wm"
     ? taskStage === "response"

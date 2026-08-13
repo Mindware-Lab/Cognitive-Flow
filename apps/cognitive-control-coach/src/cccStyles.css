@@ -3544,3 +3544,46 @@ p {
     animation-iteration-count: 1 !important;
   }
 }
+
+
+/* Shift the View v2: whole-object grouping and reversal key */
+.ccc-shift-grouping-note {
+  max-width: 42rem;
+  margin: 0.55rem auto 0;
+  padding: 0.72rem 0.9rem;
+  border: 1px solid rgba(39, 100, 183, 0.20);
+  border-radius: 12px;
+  color: #334b64;
+  background: rgba(39, 100, 183, 0.055);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: left;
+}
+
+.ccc-shift-grouping-note strong { color: #173c68; }
+
+.ccc-reversal-button { gap: 0.7rem; }
+.ccc-reversal-button kbd {
+  min-width: 4.4rem;
+  padding: 0.28rem 0.55rem;
+  border: 1px solid rgba(39, 100, 183, 0.30);
+  border-bottom-width: 2px;
+  border-radius: 7px;
+  color: #173c68;
+  background: #fff;
+  font-size: 0.72rem;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ccc-reversal-button.is-key-pressed {
+  transform: translateY(1px);
+  border-color: #2764b7;
+  background: rgba(39, 100, 183, 0.16);
+}
+
+@media (max-width: 600px) {
+  .ccc-shift-grouping-note { font-size: 0.76rem; }
+  .ccc-reversal-button { width: 100%; flex-wrap: wrap; }
+}
