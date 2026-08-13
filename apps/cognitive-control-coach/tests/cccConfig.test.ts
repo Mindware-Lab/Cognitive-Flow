@@ -30,10 +30,10 @@ describe("CCC pilot configuration", () => {
     expect(CCC_REGIMES.deep_check).toMatchObject({ correctPot: 10, errorLoss: 50, drainPointsPerSecond: 1.5 });
   });
 
-  it("keeps every MFT-M-derived wrapper forced choice and labels relative flow as contraction or expansion", () => {
+  it("keeps every MFT-M-derived wrapper forced choice on the same In/Out response axis", () => {
     expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_abs).toEqual({ answerOptions: ["left", "right"], labels: { left: "Left", right: "Right" } });
     expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_rel).toEqual({ answerOptions: ["in", "out"], labels: { in: "In", out: "Out" } });
-    expect(CCC_WRAPPER_RESPONSE_LABELS.flow_rel).toEqual({ answerOptions: ["in", "out"], labels: { in: "Contract", out: "Expand" } });
+    expect(CCC_WRAPPER_RESPONSE_LABELS.flow_rel).toEqual({ answerOptions: ["in", "out"], labels: { in: "In", out: "Out" } });
     expect(JSON.stringify(CCC_WRAPPER_RESPONSE_LABELS)).not.toContain("Not sure");
   });
 

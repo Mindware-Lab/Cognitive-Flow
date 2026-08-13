@@ -223,7 +223,7 @@ function blockSpecs(initialArrowMicrocycles: number): BlockSpec[] {
     {
       id: "p0-flow-rel-first-contact",
       stepId: "p0_flow_rel_first_contact",
-      label: "Meet expansion and contraction",
+      label: "Meet centre-directed motion",
       phase: "flow_rel_first_contact",
       estimand: "transfer",
       presentationMode: "self_paced_value",
@@ -241,7 +241,7 @@ function blockSpecs(initialArrowMicrocycles: number): BlockSpec[] {
     {
       id: "p0-flow-rel-recovery",
       stepId: "p0_flow_rel_recovery",
-      label: "Settle into expansion and contraction",
+      label: "Settle into centre-directed motion",
       phase: "flow_rel_recovery",
       estimand: "transfer",
       presentationMode: "self_paced_value",

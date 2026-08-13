@@ -1,6 +1,7 @@
 import type { WorkflowChoice } from "./cccCopy";
 import type {
   CccAttentionTrialDefinition,
+  CccNBackLevel,
   CccRecordedTrial,
   CccRuntimeEvent,
   CccProgrammeState,
@@ -33,6 +34,7 @@ export interface CccSavedJourney {
   practiceQueue: CccAttentionTrialDefinition[];
   practiceResults: CccRecordedTrial[];
   practiceComplete: boolean;
+  wmPracticeLevel: CccNBackLevel | null;
   shiftViewCompleted: boolean;
   events: CccRuntimeEvent[];
   startedAt: string;
@@ -47,7 +49,7 @@ export function loadCccJourney(storage: Pick<Storage, "getItem"> = window.localS
     const parsed = JSON.parse(raw) as Partial<CccSavedJourney>;
     if (![2, 3].includes(Number(parsed.storageVersion)) || !parsed.plan?.sessionId || !parsed.workflowChoice) return null;
     if (!Array.isArray(parsed.plan.blocks) || !Array.isArray(parsed.plan.trials)) return null;
-    return { ...parsed, storageVersion: 3 } as CccSavedJourney;
+    return { ...parsed, storageVersion: 3, wmPracticeLevel: parsed.wmPracticeLevel ?? null } as CccSavedJourney;
   } catch {
     return null;
   }

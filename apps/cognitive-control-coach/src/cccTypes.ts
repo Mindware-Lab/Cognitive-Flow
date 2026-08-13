@@ -161,6 +161,7 @@ export interface CccProgrammeState {
   wmLevel: CccNBackLevel;
   wmWrapperStage: CccWmWrapperStage;
   wmPendingPairLevel: CccNBackLevel | null;
+  wmPracticeCompletedLevels: CccNBackLevel[];
   delayedRecheckDueAt: string | null;
   delayedRecheckWindowEndsAt: string | null;
   regimeExposure: Record<CccRegimeId, number>;

@@ -11,7 +11,7 @@ Legacy routes stay operational during development and early validation:
 
 ## Product Contract
 
-- `docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` — current v0.6 scientific and runtime contract (filename retained for links)
+- `docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` — current v0.7 scientific and runtime contract (filename retained for links)
 - `docs/COGNITIVE_CONTROL_COACH_DUAL_ESTIMAND_PROTOCOL_v0.3.md` — retained P0 design history
 - `docs/PRODUCT_IMPLEMENTATION_SPEC_v0.2.md`
 - Source app folder: `IQ-Coach/apps/cognitive-control-coach`
@@ -37,9 +37,9 @@ The complete evidence-gated P0/P1a/P1b/P1c programme is implemented in:
 - `src/cccProgrammeGenerator.ts`
 - `src/cccWmProgress.ts`
 
-The playable runtime uses forced choice throughout, a frame-counted masked signal anchor, relative In/Out arrows, contraction/expansion optic flow, two niches per session and separate block feedback for signal, policy and trained-format portability. New CCC backend work uses the shared coach schema migration under `supabase/migrations/`.
+The playable runtime uses forced choice throughout, a frame-counted masked signal anchor, relative In/Out arrows, and circular patches of coherently translating flecks whose motion is defined relative to the single centre of the task field. It uses two niches per session and separate block feedback for signal, policy and trained-format portability. New CCC backend work uses the shared coach schema migration under `supabase/migrations/`.
 
-P1b memory sessions use four A–B–A–B blocks, each with 20 scored comparisons plus `n` buffer items. The user chooses a presentation time before each block, and the task adapts by at most one n-back level after each A/B pair. The level is saved between days and restored from cloud progress when the user is signed in.
+P1b memory sessions use four A–B–A–B blocks, each with 20 scored comparisons plus `n` buffer items. Before a level is used for the first time, the app gives a worked example and four easy, unscored comparisons; three correct responses are required, with a short retry otherwise. Practice completion is saved per n-back level, and users can voluntarily practise the current level again. The user chooses a presentation time before each scored block, and the task adapts by at most one n-back level after each A/B pair. The level and per-level practice record are saved between days and restored from cloud progress when the user is signed in.
 
 The programme is gate-based and its total length is performance-dependent. Programme completion is not synonymous with full transfer: repeated protected carrier change, recovery, return, mixed stability, relational-WM recovery, bidirectional re-entry and two fresh delayed checks are required. A supported unlock never awards `attention_portable` or `full_transfer`.
 

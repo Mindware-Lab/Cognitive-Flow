@@ -73,12 +73,12 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   flow_rel_first_contact: {
     eyebrow: "Train through change",
     title: "The same pattern is about to move",
-    body: "The arrows become moving dot fields. Choose whether most fields expand or contract.",
+    body: "The arrows become circular patches of moving flecks. Choose whether most patches move towards or away from the centre.",
     bridge: "A dashboard, document or AI output can change its presentation while the underlying decision still points towards or away from the goal.",
   },
   flow_rel_recovery: {
     eyebrow: "Find the pattern again",
-    title: "Settle into expansion and contraction",
+    title: "Settle into the moving pattern",
     body: "Keep finding the majority motion. Take the time you need, then make your best choice.",
     bridge: "When a tool or source changes, return to the main rule before reacting to its new appearance.",
   },
@@ -91,7 +91,7 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   relative_mix: {
     eyebrow: "Keep the rule across formats",
     title: "Switch without losing In and Out",
-    body: "Radial arrows and expanding or contracting motion will alternate. The display changes, but your In or Out choice stays the same.",
+    body: "Radial arrows and centre-directed motion will alternate. The display changes, but your In or Out choice stays the same.",
     bridge: "This resembles moving between sources, tools or views while keeping the same work or study goal active.",
   },
   p1a_arrow_stabilisation: {
@@ -103,7 +103,7 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   p1a_flow_first_contact: {
     eyebrow: "Meet a new format",
     title: "Try the moving pattern for the first time",
-    body: "The arrows become expanding and contracting motion. Keep using the same In or Out choice.",
+    body: "The arrows become patches of flecks moving towards or away from the centre. Keep using the same In or Out choice.",
     bridge: "A new tool or display can look unfamiliar even when the goal stays the same.",
   },
   p1a_flow_recovery: {

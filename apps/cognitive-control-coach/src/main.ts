@@ -3,6 +3,10 @@ import "./cccStyles.css";
 import { buildCccBlockSubmissionPayload } from "./blockPayload";
 import { arrowPolygonPoints, diamondPolygonPoints } from "./cccStimulusGeometry";
 import {
+  cccOpticFlowAperturesForTrial,
+  cccOpticFlowMaskAperturesForTrial,
+} from "./cccOpticFlow";
+import {
   PHASE_COPY,
   REGIME_COPY,
   WORKFLOW_CHOICES,
@@ -11,10 +15,12 @@ import {
   type WorkflowChoice,
 } from "./cccCopy";
 import {
+  CCC_CONFIG_VERSION,
   CCC_REGIMES,
   CCC_RELATIONAL_WM,
   CCC_SHIFT_VIEW,
   CCC_TRIAL_TIMING,
+  CCC_WM_PRACTICE_PASS_CORRECT,
 } from "./cccConfig";
 import {
   adaptSignalTrial,
@@ -23,7 +29,11 @@ import {
   createP0PracticeBlock,
   createP0PracticeTrials,
 } from "./cccGenerator";
-import { createProgrammeSessionPlan } from "./cccProgrammeGenerator";
+import {
+  createProgrammeSessionPlan,
+  createWmPracticeBlock,
+  createWmPracticeTrials,
+} from "./cccProgrammeGenerator";
 import { buildCccBlockFeedback, buildCccSessionMetrics } from "./cccFeedback";
 import { evaluateCccLearningCurve, isCccLearningCurveBoundary } from "./cccLearningCurve";
 import { evaluateCccWmPair } from "./cccWmProgress";
@@ -68,6 +78,7 @@ import type {
   CccAttentionBlockPlan,
   CccAttentionTrialDefinition,
   CccInputMode,
+  CccNBackLevel,
   CccProgrammePhase,
   CccProgrammeState,
   CccProofDomain,
@@ -98,6 +109,8 @@ type View =
   | "workflow"
   | "practice_intro"
   | "practice_guide"
+  | "wm_practice_intro"
+  | "wm_practice_result"
   | "phase_intro"
   | "phase_guide"
   | "regime_intro"
@@ -113,7 +126,7 @@ type View =
   | "progress"
   | "account";
 type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval";
-type TaskMode = "practice" | "guided";
+type TaskMode = "practice" | "wm_practice" | "guided";
 
 const appElement = document.querySelector<HTMLDivElement>("#app");
 if (!appElement) throw new Error("Missing #app root.");
@@ -121,6 +134,19 @@ const appRoot: HTMLDivElement = appElement;
 
 const APP_BASE = import.meta.env.BASE_URL || "/";
 let journey = loadCccJourney();
+function needsRelationalStimulusReset(saved: CccSavedJourney | null): boolean {
+  return Boolean(saved
+    && !saved.completedAt
+    && saved.plan.configVersion !== CCC_CONFIG_VERSION
+    && saved.plan.blocks.some((block) => block.operator === "relational_wm"));
+}
+
+if (needsRelationalStimulusReset(journey)) {
+  // Preserve the programme and saved n-back level, but do not resume an
+  // in-progress sequence generated with the retired four-relation stimulus set.
+  clearCccJourney();
+  journey = null;
+}
 let programme: CccProgrammeState = migrateCccProgrammeState(loadCccProgramme() || journey?.programme || createInitialProgrammeState());
 if (journey) {
   journey.programme = programme;
@@ -152,10 +178,11 @@ if (journey) {
     saveCccProgramme(programme);
     saveCccJourney(journey);
   }
+  journey.wmPracticeLevel ??= null;
 }
 let selectedWorkflow: WorkflowChoice = journey?.workflowChoice || "focused_work";
 let view: View = "welcome";
-let taskMode: TaskMode = journey?.practiceComplete ? "guided" : "practice";
+let taskMode: TaskMode = journey?.wmPracticeLevel ? "wm_practice" : journey?.practiceComplete ? "guided" : "practice";
 let taskStage: TaskStage = "fixation";
 let evidenceStartedAt = 0;
 let responseEnabled = false;
@@ -252,20 +279,21 @@ function currentViewportClass(): CccRecordedTrial["viewportClass"] {
 
 function currentBlock(): CccAttentionBlockPlan | null {
   if (!journey) return null;
+  if (taskMode === "wm_practice" && journey.wmPracticeLevel) return createWmPracticeBlock(journey.plan, journey.wmPracticeLevel);
   if (taskMode === "practice") return createP0PracticeBlock(journey.plan);
   return journey.plan.blocks[journey.activeBlockIndex] || null;
 }
 
 function currentQueue(): CccAttentionTrialDefinition[] {
   if (!journey) return [];
-  if (taskMode === "practice") return journey.practiceQueue;
+  if (taskMode === "practice" || taskMode === "wm_practice") return journey.practiceQueue;
   const block = currentBlock();
   return block ? journey.blockQueues[block.id] || [] : [];
 }
 
 function currentResults(): CccRecordedTrial[] {
   if (!journey) return [];
-  if (taskMode === "practice") return journey.practiceResults;
+  if (taskMode === "practice" || taskMode === "wm_practice") return journey.practiceResults;
   const block = currentBlock();
   return block ? journey.blockResults[block.id] || [] : [];
 }
@@ -276,8 +304,8 @@ function activeTrial(): CccAttentionTrialDefinition | null {
 
 function blockIsComplete(block = currentBlock()): boolean {
   if (!journey || !block) return false;
-  const queue = taskMode === "practice" ? journey.practiceQueue : journey.blockQueues[block.id] || [];
-  const results = taskMode === "practice" ? journey.practiceResults : journey.blockResults[block.id] || [];
+  const queue = taskMode === "practice" || taskMode === "wm_practice" ? journey.practiceQueue : journey.blockQueues[block.id] || [];
+  const results = taskMode === "practice" || taskMode === "wm_practice" ? journey.practiceResults : journey.blockResults[block.id] || [];
   if (taskMode === "guided" && block.learningCurveGate === "source_stabilisation") {
     return evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve).shouldEndBlock;
   }
@@ -563,6 +591,75 @@ function renderPracticeGuide(): string {
   `, "ccc-practice-view ccc-viewport-view");
 }
 
+function wmPracticeExample(level: CccNBackLevel): string {
+  if (level === 1) {
+    return `<div class="ccc-wm-worked-example" aria-label="One-back example">
+      <div><span>1</span><strong>In</strong><small>Remember this</small></div>
+      <i aria-hidden="true">→</i>
+      <div class="is-answer"><span>2</span><strong>In</strong><small>Same as 1 step back: Match</small></div>
+      <i aria-hidden="true">→</i>
+      <div class="is-answer"><span>3</span><strong>Out</strong><small>Different from 1 step back: Different</small></div>
+    </div>`;
+  }
+  const middleLabel = level === 2 ? "2" : `2–${level}`;
+  const middleCopy = level === 2 ? "Out" : `${level - 1} other patterns`;
+  return `<div class="ccc-wm-worked-example" aria-label="${level}-back example">
+    <div><span>1</span><strong>In</strong><small>Remember</small></div>
+    <i aria-hidden="true">→</i>
+    <div><span>${middleLabel}</span><strong>${middleCopy}</strong><small>Keep the sequence moving</small></div>
+    <i aria-hidden="true">→</i>
+    <div class="is-answer"><span>${level + 1}</span><strong>In</strong><small>Same as ${level} steps back: Match</small></div>
+  </div>`;
+}
+
+function renderWmPracticeIntro(): string {
+  if (!journey?.wmPracticeLevel) return renderPhaseIntro();
+  const level = journey.wmPracticeLevel;
+  return shell(`
+    <section class="ccc-narrow-card">
+      <div class="ccc-stage-line"><span>Learn ${level}-back</span><span>Short and unscored</span></div>
+      <span class="ccc-kicker">A few practice trials first</span>
+      <h1>Compare each pattern with ${level === 1 ? "the one just before it" : `the one ${level} steps earlier`}.</h1>
+      <p>The first ${level} ${level === 1 ? "pattern starts" : "patterns start"} your memory sequence. Then choose <strong>Match</strong> when the main In or Out direction is the same, or <strong>Different</strong> when it has changed.</p>
+      ${wmPracticeExample(level)}
+      <div class="ccc-instruction-grid">
+        <article><strong>Clear patterns</strong><span>Practice uses the easiest 5:0 arrow patterns.</span></article>
+        <article><strong>No points</strong><span>Only Correct or Incorrect feedback is shown.</span></article>
+        <article><strong>Ready check</strong><span>Get at least ${CCC_WM_PRACTICE_PASS_CORRECT} of 4 right to continue.</span></article>
+      </div>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="start-wm-practice">Begin ${level}-back practice</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
+      </div>
+    </section>
+  `, "ccc-practice-view ccc-wm-practice-view ccc-viewport-view");
+}
+
+function wmPracticeAnsweredResults(): CccRecordedTrial[] {
+  return journey?.practiceResults.filter((result) => !result.trial.wmBuffer && result.scoring.responseClass === "answer") || [];
+}
+
+function renderWmPracticeResult(): string {
+  if (!journey?.wmPracticeLevel) return renderPhaseIntro();
+  const level = journey.wmPracticeLevel;
+  const answered = wmPracticeAnsweredResults();
+  const correct = answered.filter((result) => result.scoring.isCorrect).length;
+  const passed = correct >= CCC_WM_PRACTICE_PASS_CORRECT;
+  return shell(`
+    <section class="ccc-narrow-card">
+      <div class="ccc-stage-line"><span>${level}-back practice</span><span>Unscored</span></div>
+      <span class="ccc-kicker">${passed ? "Ready to continue" : "One more short try"}</span>
+      <h1>${passed ? `You have the ${level}-back rule.` : "Let’s make the comparison clearer."}</h1>
+      <p>You answered <strong>${correct} of 4</strong> practice comparisons correctly.</p>
+      <aside class="ccc-workflow-bridge"><span>Remember</span><strong>Compare with exactly ${level} ${level === 1 ? "step" : "steps"} back—not simply the most recent pattern.</strong></aside>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="${passed ? "complete-wm-practice" : "retry-wm-practice"}">${passed ? "Continue to the first block" : "Try four more"}</button>
+        <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
+      </div>
+    </section>
+  `, "ccc-review-view ccc-wm-practice-view ccc-viewport-view");
+}
+
 function payoffLine(regimeId: CccAttentionTrialDefinition["regimeId"]): string {
   const regime = CCC_REGIMES[regimeId];
   return `Correct: up to ${regime.correctPot} points · Wrong: −${regime.errorLoss} · Points fade by ${regime.drainPointsPerSecond} per second`;
@@ -609,6 +706,7 @@ function renderPhaseGuide(): string {
   const stageNumber = journey.activeBlockIndex + 1;
   const isSignal = block.estimand === "signal_capacity";
   const isWm = block.operator === "relational_wm";
+  const canPractiseAgain = isWm && block.wmNLevel !== null;
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
@@ -633,6 +731,7 @@ function renderPhaseGuide(): string {
         ${block.diagnostic ? `<p class="ccc-soft-note">This is your first try with the new display. Keep using the same rule.</p>` : `<p class="ccc-soft-note"><strong>Your aim:</strong> adjust how much information you take in. Build more certainty when errors are costly or patterns are close; commit sooner when points are fading quickly.</p>`}`}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-phase">${block.shiftViewBefore && !journey.shiftViewCompleted ? "Start the changeover" : "Begin this stage"}</button>
+        ${canPractiseAgain ? `<button class="ccc-button ccc-button-secondary" data-action="practise-wm-again">Practise ${block.wmNLevel}-back again</button>` : ""}
         <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
       </div>
     </section>
@@ -686,36 +785,38 @@ function arrowStimulus(trial: CccAttentionTrialDefinition): string {
 }
 
 function flowStimulus(trial: CccAttentionTrialDefinition): string {
-  const definitions = trial.stimulusItems.map((item, index) => {
-    const x = item.position.x * 3.6;
-    const y = item.position.y * 3.6;
-    return `<clipPath id="flow-clip-${index}"><circle cx="0" cy="0" r="31" /></clipPath>`;
+  const clipRoot = `ccc-flow-${trial.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const apertures = cccOpticFlowAperturesForTrial(trial).map((aperture) => {
+    const clipId = `${clipRoot}-${aperture.index}`;
+    const dots = aperture.dots.map((dot) => `
+      <circle class="ccc-flow-dot" cx="${dot.x.toFixed(2)}" cy="${dot.y.toFixed(2)}" r="${dot.r.toFixed(2)}" opacity="${dot.opacity.toFixed(2)}">
+        <animate attributeName="cx" values="${dot.fromX.toFixed(2)};${dot.toX.toFixed(2)}" dur="${dot.durationMs}ms" begin="${dot.delayMs}ms" repeatCount="indefinite" />
+        <animate attributeName="cy" values="${dot.fromY.toFixed(2)};${dot.toY.toFixed(2)}" dur="${dot.durationMs}ms" begin="${dot.delayMs}ms" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.14;${dot.opacity.toFixed(2)};0.16" dur="${dot.durationMs}ms" begin="${dot.delayMs}ms" repeatCount="indefinite" />
+      </circle>`).join("");
+    return `<defs><clipPath id="${clipId}"><circle cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" /></clipPath></defs>
+      <circle class="ccc-flow-patch" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />
+      <g clip-path="url(#${clipId})" class="ccc-flow-points">${dots}</g>
+      <circle class="ccc-flow-ring" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />`;
   }).join("");
-  const apertures = trial.stimulusItems.map((item, index) => {
-    const x = item.position.x * 3.6;
-    const y = item.position.y * 3.6;
-    const dots = Array.from({ length: 9 }, (_, dotIndex) => {
-      const angle = dotIndex / 9 * Math.PI * 2 + (index % 3) * 0.22;
-      const inner = 5 + (dotIndex % 3) * 3.5;
-      const outer = 25 + (dotIndex % 3) * 2;
-      const rotational = item.relation === "cw" || item.relation === "ccw";
-      const expanding = item.relation === "out";
-      const radius = 10 + (dotIndex % 3) * 7;
-      const fromRadius = rotational ? radius : expanding ? inner : outer;
-      const toRadius = rotational ? radius : expanding ? outer : inner;
-      const turn = item.relation === "cw" ? 0.9 : item.relation === "ccw" ? -0.9 : 0;
-      const fromX = Math.cos(angle) * fromRadius;
-      const fromY = Math.sin(angle) * fromRadius;
-      const toX = Math.cos(angle + turn) * toRadius;
-      const toY = Math.sin(angle + turn) * toRadius;
-      return `<circle r="3.1"><animate attributeName="cx" values="${fromX};${toX}" dur="0.95s" begin="${-dotIndex * 0.08}s" repeatCount="indefinite" /><animate attributeName="cy" values="${fromY};${toY}" dur="0.95s" begin="${-dotIndex * 0.08}s" repeatCount="indefinite" /></circle>`;
+  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five circular patches of moving flecks travelling towards or away from the centre"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
+}
+
+function flowMaskStimulus(trial: CccAttentionTrialDefinition): string {
+  const clipRoot = `ccc-flow-mask-${trial.id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
+  const apertures = cccOpticFlowMaskAperturesForTrial(trial).map((aperture) => {
+    const clipId = `${clipRoot}-${aperture.index}`;
+    const dots = aperture.dots.map((dot) => {
+      const size = dot.r * 1.75;
+      const points = `${dot.x.toFixed(2)},${(dot.y - size).toFixed(2)} ${(dot.x + size).toFixed(2)},${dot.y.toFixed(2)} ${dot.x.toFixed(2)},${(dot.y + size).toFixed(2)} ${(dot.x - size).toFixed(2)},${dot.y.toFixed(2)}`;
+      return `<polygon class="ccc-flow-mask-dot" points="${points}" opacity="${dot.opacity.toFixed(2)}" />`;
     }).join("");
-    return `<g clip-path="url(#flow-clip-${index})" transform="translate(${x} ${y})"><rect x="-34" y="-34" width="68" height="68" rx="34" /><g class="ccc-flow-points">${dots}</g></g><circle class="ccc-flow-ring" cx="${x}" cy="${y}" r="31" />`;
+    return `<defs><clipPath id="${clipId}"><circle cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" /></clipPath></defs>
+      <circle class="ccc-flow-patch" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />
+      <g clip-path="url(#${clipId})" class="ccc-flow-mask-field">${dots}</g>
+      <circle class="ccc-flow-ring is-mask" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />`;
   }).join("");
-  const label = trial.operator === "relational_wm"
-    ? "Five moving dot fields showing a majority spatial relation"
-    : "Five moving dot fields expanding or contracting";
-  return `<svg class="ccc-stimulus-svg" viewBox="0 0 360 360" role="img" aria-label="${label}"><circle class="ccc-centre-marker" cx="180" cy="180" r="5" /><defs>${definitions}</defs>${apertures}</svg>`;
+  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five patterned masks covering the previous motion patches"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}</svg>`;
 }
 
 function stimulusFor(trial: CccAttentionTrialDefinition): string {
@@ -742,24 +843,32 @@ function renderTask(): string {
   if (!journey || !trial || !block) return renderWelcome();
   const regime = CCC_REGIMES[trial.regimeId];
   const regimeCopy = REGIME_COPY[trial.regimeId];
-  const isPractice = taskMode === "practice";
+  const isPractice = taskMode === "practice" || taskMode === "wm_practice";
+  const isWmPractice = taskMode === "wm_practice";
   const isSignal = trial.estimand === "signal_capacity";
   const isWm = trial.operator === "relational_wm";
   const wrapperLabel = trial.operator === "relational_wm"
     ? `${trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns"} · ${trial.wmNLevel}-back`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
       : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
-        : "Expand / Contract motion";
+        : "In / Out motion";
   const responseStage = isSignal || isWm ? taskStage === "response" : taskStage === "evidence";
   const controlsDisabled = trial.wmBuffer || !responseStage || !responseEnabled || responseLocked;
   const feedbackPoints = feedbackResult?.scoring.pointsRealised ?? 0;
-  const feedbackState = feedbackResult?.scoring.isCorrect
+  const feedbackState = feedbackResult?.trial.wmBuffer
+    ? "is-neutral"
+    : feedbackResult?.scoring.isCorrect
     ? "is-correct"
     : feedbackResult?.scoring.responseClass === "answer"
         ? "is-incorrect"
         : "is-neutral";
   const feedbackIcon = feedbackState === "is-correct" ? "✓" : feedbackState === "is-incorrect" ? "×" : "·";
-  const feedbackOutcome = isPractice
+  const practiceComparisonCount = isWmPractice
+    ? currentResults().filter((result) => !result.trial.wmBuffer && result.scoring.responseClass === "answer").length
+    : 0;
+  const feedbackOutcome = feedbackResult?.trial.wmBuffer
+    ? "Pattern remembered"
+    : isPractice
     ? feedbackResult?.scoring.responseClass === "answer"
       ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
       : feedbackResult?.scoring.responseClass === "omission" ? "No response" : "Paused"
@@ -774,10 +883,10 @@ function renderTask(): string {
         : "No response · 0";
   const signalFeedbackMarkup = `<div class="ccc-signal-result ${feedbackState}" role="status" aria-live="polite"><span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span><strong>${feedbackOutcome}</strong></div>`;
   const pot = regime.correctPot;
-  const taskTitle = isSignal ? "Pattern check" : isWm ? `Hold and compare · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
+  const taskTitle = isSignal ? "Pattern check" : isWm ? `${isWmPractice ? "Practice" : "Hold and compare"} · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
   const taskCue = taskStage === "fixation" ? "Get ready"
     : taskStage === "interval" ? "Next pattern"
-      : taskStage === "feedback" ? isSignal || isPractice ? "Result" : feedbackMessage
+    : taskStage === "feedback" ? isSignal || isPractice ? trial.wmBuffer ? "Remembered" : "Result" : feedbackMessage
         : taskStage === "mask" ? "Pattern covered"
           : taskStage === "response" ? "Make your best choice"
           : isSignal ? "Hold the majority direction"
@@ -788,7 +897,7 @@ function renderTask(): string {
     : taskStage === "interval"
       ? `<span class="ccc-interval-dot" aria-hidden="true"></span>`
       : taskStage === "mask"
-        ? trial.carrier === "arrow" ? maskStimulus(trial) : `<span class="ccc-fixation" aria-label="Pattern covered">+</span>`
+        ? trial.carrier === "arrow" ? maskStimulus(trial) : flowMaskStimulus(trial)
         : taskStage === "response"
           ? `<span class="ccc-fixation" aria-label="Choose now">+</span>`
           : stimulusFor(trial);
@@ -814,24 +923,24 @@ function renderTask(): string {
       </div>
       ${taskStage === "feedback" ? `
         ${isSignal || isPractice
-          ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>Correct or incorrect feedback appears in the same task frame.</small></div>`
+          ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>${isWmPractice ? `${trial.wmNLevel}-back practice` : "Pattern check"}</span><strong>${isWmPractice ? "Compare, then choose" : "Watch, then choose"}</strong></div><small>${isWmPractice ? `Practice comparison ${Math.min(4, practiceComparisonCount)} of 4` : "Correct or incorrect feedback appears in the same task frame."}</small></div>`
           : `<div class="ccc-value-panel ccc-result-panel ${feedbackState}" role="status" aria-live="polite">
             <span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span>
             <div><span>This choice</span><strong>${feedbackOutcome}</strong></div>
             <small>${isWm ? "The points effect is summarised after the block." : feedbackMessage}</small>
           </div>`}` : `
         ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>The mask clears before the response buttons become active.</small></div>`
-          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>Unscored</strong></div><small>Make a Left or Right choice on every pattern.</small></div>`
+          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>Unscored</strong></div><small>${isWmPractice ? trial.wmBuffer ? "Remember this pattern. No choice is needed yet." : "Choose Match or Different." : "Make a Left or Right choice on every pattern."}</small></div>`
           : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Get ready to compare</span><strong>Remember this pattern</strong></div><small>The first ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "item is" : "items are"} not scored.</small></div>`
           : `<div class="ccc-value-panel">
           <div><span>Available if correct</span><strong id="ccc-live-pot">${Math.round(pot)}</strong></div>
           <div class="ccc-pot-track"><span id="ccc-pot-bar" style="width:100%"></span></div>
           <small>${isWm ? `Chosen view: ${((block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs) / 1000).toFixed(2)} s · ` : ""}Correct: keep what remains · Wrong: ${regime.errorLoss} points lost · No response: no points</small>
         </div>`}`}
-      <div class="ccc-response-row" aria-label="${isWm ? "Choose Match or Different" : "Choose the majority relation"}">
+      <div class="ccc-response-row ${trial.wmBuffer ? "is-hidden" : ""}" aria-label="${isWm ? "Choose Match or Different" : "Choose the majority relation"}" ${trial.wmBuffer ? "aria-hidden=\"true\"" : ""}>
         ${responseButtons}
       </div>
-      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? taskStage === "response" ? "Choose Left or Right—even if you are unsure." : taskStage === "mask" ? "Keep your first impression in mind." : "Take in the pattern before the mask." : trial.wmBuffer ? "Remember this pattern; you will compare it with a later one." : isWm ? responseEnabled ? "Choose Match or Different before the next pattern." : "Find the current pattern first." : responseEnabled ? "Look at the whole pattern, then make your best choice." : "Look at the whole pattern first."}</p>
+      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? taskStage === "response" ? "Choose Left or Right—even if you are unsure." : taskStage === "mask" ? "Keep your first impression in mind." : "Take in the pattern before the mask." : trial.wmBuffer ? "Remember this pattern; you will compare it with a later one." : isWm ? responseEnabled ? `Choose Match or Different by comparing with ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "step" : "steps"} back.` : "Find the current pattern first." : responseEnabled ? "Look at the whole pattern, then make your best choice." : "Look at the whole pattern first."}</p>
     </section>
   `, "ccc-task-view");
 }
@@ -1402,6 +1511,8 @@ function render(): void {
     : view === "workflow" ? renderWorkflow()
       : view === "practice_intro" ? renderPracticeIntro()
         : view === "practice_guide" ? renderPracticeGuide()
+          : view === "wm_practice_intro" ? renderWmPracticeIntro()
+            : view === "wm_practice_result" ? renderWmPracticeResult()
           : view === "phase_intro" ? renderPhaseIntro()
             : view === "phase_guide" ? renderPhaseGuide()
               : view === "regime_intro" ? renderRegimeIntro()
@@ -1418,6 +1529,35 @@ function render(): void {
                               : renderAccount();
   appRoot.innerHTML = content;
   if (view === "shift_view") mountShiftView();
+}
+
+function currentWmLevel(): CccNBackLevel | null {
+  return currentBlock()?.operator === "relational_wm" ? currentBlock()?.wmNLevel || null : null;
+}
+
+function levelNeedsWmPractice(level: CccNBackLevel | null): level is CccNBackLevel {
+  return level !== null && !programme.wmPracticeCompletedLevels.includes(level);
+}
+
+function beginWmPractice(level: CccNBackLevel, attempt = 1): void {
+  if (!journey) return;
+  journey.wmPracticeLevel = level;
+  journey.practiceQueue = createWmPracticeTrials(journey.plan, level, attempt);
+  journey.practiceResults = [];
+  taskMode = "wm_practice";
+  saveJourney();
+  recordEvent("wm_practice_prepared", { wmNLevel: level, attempt }, null);
+  setView("wm_practice_intro");
+}
+
+function routeToCurrentBlockIntro(): void {
+  const level = currentWmLevel();
+  if (levelNeedsWmPractice(level)) {
+    beginWmPractice(level);
+    return;
+  }
+  taskMode = "guided";
+  setView("phase_intro");
 }
 
 function createNewJourney(): void {
@@ -1466,14 +1606,23 @@ function createNewJourney(): void {
     practiceQueue: next.kind === "p0_foundation" ? createP0PracticeTrials(plan) : [],
     practiceResults: [],
     practiceComplete: next.kind !== "p0_foundation",
+    wmPracticeLevel: null,
     shiftViewCompleted: false,
     events: [],
     startedAt: now,
     updatedAt: now,
     completedAt: null,
   };
-  if (next.kind === "p1b_wm_bridge") programme.wmPendingPairLevel = wmPairLevels?.[1] || programme.wmLevel;
-  taskMode = journey.practiceComplete ? "guided" : "practice";
+  if (next.kind === "p1b_wm_bridge") {
+    programme.wmPendingPairLevel = wmPairLevels?.[1] || programme.wmLevel;
+    const firstLevel = plan.blocks.find((block) => block.operator === "relational_wm")?.wmNLevel || null;
+    if (levelNeedsWmPractice(firstLevel)) {
+      journey.wmPracticeLevel = firstLevel;
+      journey.practiceQueue = createWmPracticeTrials(plan, firstLevel);
+      journey.practiceResults = [];
+    }
+  }
+  taskMode = journey.wmPracticeLevel ? "wm_practice" : journey.practiceComplete ? "guided" : "practice";
   recordEvent("journey_started", {
     workflowChoice: selectedWorkflow,
     programmeRunId: programme.programmeRunId,
@@ -1497,13 +1646,19 @@ function resumeJourney(): void {
     setView("welcome");
     return;
   }
+  if (journey.wmPracticeLevel) {
+    taskMode = "wm_practice";
+    setView(blockIsComplete(createWmPracticeBlock(journey.plan, journey.wmPracticeLevel)) ? "wm_practice_result" : "wm_practice_intro");
+    return;
+  }
   if (!journey.practiceComplete) {
     taskMode = "practice";
     setView(blockIsComplete(createP0PracticeBlock(journey.plan)) ? "block_complete" : "practice_intro");
     return;
   }
   taskMode = "guided";
-  setView(blockIsComplete() ? "block_complete" : "phase_intro");
+  if (blockIsComplete()) setView("block_complete");
+  else routeToCurrentBlockIntro();
 }
 
 function startTask(mode: TaskMode): void {
@@ -1722,7 +1877,7 @@ function appendReplacement(original: CccAttentionTrialDefinition): void {
   const rootId = original.replacementOfTrialId || original.id;
   const replacementCount = allTrials.filter((trial) => trial.replacementOfTrialId === rootId).length + 1;
   const replacement = createCccReplacementTrial(original, replacementCount, nextIndex);
-  if (taskMode === "practice") journey.practiceQueue.push(replacement);
+  if (taskMode === "practice" || taskMode === "wm_practice") journey.practiceQueue.push(replacement);
   else journey.blockQueues[original.blockId].push(replacement);
 }
 
@@ -1771,7 +1926,7 @@ function completeTrial(
     deviceRefreshRateEstimate: trial.estimand === "signal_capacity" ? signalRefreshRate : null,
     timingQuality,
   };
-  if (taskMode === "practice") journey.practiceResults.push(result);
+  if (taskMode === "practice" || taskMode === "wm_practice") journey.practiceResults.push(result);
   else journey.blockResults[trial.blockId].push(result);
   if (scoring.responseClass === "invalid") appendReplacement(trial);
   feedbackTrial = trial;
@@ -1895,6 +2050,17 @@ function finishCurrentBlock(): void {
   if (learningCurve.shouldEndBlock && block.learningCurveGate === "source_stabilisation") {
     block.validTrialCount = results.filter((result) => result.scoring.countsTowardQuota).length;
   }
+  if (taskMode === "wm_practice") {
+    recordEvent("wm_practice_attempt_completed", {
+      wmNLevel: journey.wmPracticeLevel,
+      correctCount: wmPracticeAnsweredResults().filter((result) => result.scoring.isCorrect).length,
+      comparisonCount: wmPracticeAnsweredResults().length,
+      passed: wmPracticeAnsweredResults().filter((result) => result.scoring.isCorrect).length >= CCC_WM_PRACTICE_PASS_CORRECT,
+    }, block.id);
+    saveJourney();
+    setView("wm_practice_result");
+    return;
+  }
   recordEvent("block_completed", {
     phase: block.phase,
     observationCount: results.filter((result) => result.scoring.countsTowardQuota).length,
@@ -2001,7 +2167,7 @@ function continueAfterBlock(): void {
   }
   journey.activeBlockIndex += 1;
   saveJourney();
-  setView("phase_intro");
+  routeToCurrentBlockIntro();
 }
 
 function mountShiftView(): void {
@@ -2110,10 +2276,12 @@ appRoot.addEventListener("click", (event) => {
     setView("workflow");
   } else if (action === "begin-journey") {
     createNewJourney();
-    setView(journey?.practiceComplete ? "phase_intro" : "practice_intro");
+    if (journey?.practiceComplete) routeToCurrentBlockIntro();
+    else setView("practice_intro");
   } else if (action === "begin-next-session") {
     createNewJourney();
-    setView(journey?.practiceComplete ? "phase_intro" : "practice_intro");
+    if (journey?.practiceComplete) routeToCurrentBlockIntro();
+    else setView("practice_intro");
   } else if (action === "continue-journey") {
     resumeJourney();
   } else if (action === "show-practice-guide") {
@@ -2122,13 +2290,53 @@ appRoot.addEventListener("click", (event) => {
     setView("practice_intro");
   } else if (action === "start-practice") {
     startTask("practice");
+  } else if (action === "start-wm-practice") {
+    startTask("wm_practice");
+  } else if (action === "retry-wm-practice") {
+    const level = journey?.wmPracticeLevel;
+    if (journey && level) {
+      const attempt = journey.events.filter((event) => event.eventType === "wm_practice_prepared" && event.payload.wmNLevel === level).length + 1;
+      journey.practiceQueue = createWmPracticeTrials(journey.plan, level, attempt);
+      journey.practiceResults = [];
+      saveJourney();
+      recordEvent("wm_practice_prepared", { wmNLevel: level, attempt }, null);
+      setView("wm_practice_intro");
+    }
+  } else if (action === "complete-wm-practice") {
+    const level = journey?.wmPracticeLevel;
+    const correct = wmPracticeAnsweredResults().filter((result) => result.scoring.isCorrect).length;
+    if (journey && level && correct >= CCC_WM_PRACTICE_PASS_CORRECT) {
+      if (!programme.wmPracticeCompletedLevels.includes(level)) programme.wmPracticeCompletedLevels.push(level);
+      programme.wmPracticeCompletedLevels.sort((left, right) => left - right);
+      journey.wmPracticeLevel = null;
+      journey.practiceQueue = [];
+      journey.practiceResults = [];
+      taskMode = "guided";
+      recordEvent("wm_practice_level_completed", { wmNLevel: level, correctCount: correct }, null);
+      saveCccProgramme(programme);
+      saveJourney();
+      if (authUser) {
+        const pending = saveCccRemoteProgress(journey as unknown as Record<string, unknown>);
+        pendingCloudSaves.push(pending);
+        void pending.finally(() => {
+          pendingCloudSaves = pendingCloudSaves.filter((candidate) => candidate !== pending);
+        });
+      }
+      setView("phase_intro");
+    }
+  } else if (action === "practise-wm-again") {
+    const level = currentWmLevel();
+    if (level) beginWmPractice(level);
   } else if (action === "show-phase-guide") {
     setView("phase_guide");
   } else if (action === "back-phase-intro") {
     setView("phase_intro");
   } else if (action === "start-phase") {
     const block = currentBlock();
-    if (journey && block?.shiftViewBefore && !journey.shiftViewCompleted) setView("shift_view");
+    const level = currentWmLevel();
+    if (journey?.wmPracticeLevel) setView("wm_practice_intro");
+    else if (levelNeedsWmPractice(level)) beginWmPractice(level);
+    else if (journey && block?.shiftViewBefore && !journey.shiftViewCompleted) setView("shift_view");
     else startTask("guided");
   } else if (action === "continue-regime") {
     const block = currentBlock();
@@ -2278,6 +2486,13 @@ window.addEventListener("beforeunload", saveJourney);
 async function hydrateCloudProgress(user: AuthUser): Promise<void> {
   try {
     const remote = await loadCccRemoteProgress() as unknown as CccSavedJourney | null;
+    if (needsRelationalStimulusReset(remote)) {
+      programme = migrateCccProgrammeState(remote?.programme || programme);
+      saveCccProgramme(programme);
+      cloudStatus = "Your saved level is ready. Start a fresh session with the corrected motion patterns.";
+      await hydrateProgressFeedback();
+      return;
+    }
     if (remote && [2, 3].includes(Number(remote.storageVersion)) && remote.plan?.appId === "cognitive_control_coach"
       && (!journey || Date.parse(remote.updatedAt) > Date.parse(journey.updatedAt))) {
       journey = remote;
@@ -2285,7 +2500,7 @@ async function hydrateCloudProgress(user: AuthUser): Promise<void> {
       journey.storageVersion = 3;
       journey.programme = programme;
       selectedWorkflow = remote.workflowChoice;
-      taskMode = remote.practiceComplete ? "guided" : "practice";
+      taskMode = remote.wmPracticeLevel ? "wm_practice" : remote.practiceComplete ? "guided" : "practice";
       saveJourney();
       cloudStatus = "Your latest saved journey is ready on this device.";
     } else if (journey) {

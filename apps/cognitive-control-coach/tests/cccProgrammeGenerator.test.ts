@@ -1,5 +1,10 @@
 import { describe, expect, it } from "vitest";
-import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
+import {
+  createProgrammeSessionPlan,
+  createWmPracticeBlock,
+  createWmPracticeTrials,
+} from "../src/cccProgrammeGenerator";
+import { scoreCccAttentionTrial } from "../src/cccValue";
 
 const base = {
   programmeRunId: "programme-test",
@@ -65,6 +70,9 @@ describe("CCC multi-session plan generator", () => {
     for (const block of plan.blocks) {
       const trials = plan.trials.filter((trial) => trial.blockId === block.id);
       const scored = trials.filter((trial) => !trial.wmBuffer);
+      expect(new Set(trials.map((trial) => trial.targetClass))).toEqual(new Set(["in", "out"]));
+      expect(trials.flatMap((trial) => trial.stimulusItems.map((item) => item.relation))).not.toContain("cw");
+      expect(trials.flatMap((trial) => trial.stimulusItems.map((item) => item.relation))).not.toContain("ccw");
       expect(trials.filter((trial) => trial.wmBuffer)).toHaveLength(block.wmNLevel || 0);
       expect(scored).toHaveLength(20);
       expect(scored.filter((trial) => trial.correctResponse === "match")).toHaveLength(10);
@@ -76,6 +84,28 @@ describe("CCC multi-session plan generator", () => {
         expect(scored.filter((trial) => trial.ratio === ratio)).toHaveLength(expectedRatios[ratio]);
       }
     }
+  });
+
+  it("builds deterministic, easy and unscored onboarding practice for each n-back level", () => {
+    for (const level of [1, 2] as const) {
+      const trials = createWmPracticeTrials({ sessionId: `practice-${level}`, regimePair: base.regimePair }, level);
+      const block = createWmPracticeBlock({ regimePair: base.regimePair }, level);
+      expect(trials).toHaveLength(level + 4);
+      expect(trials.filter((trial) => trial.wmBuffer)).toHaveLength(level);
+      expect(trials.filter((trial) => !trial.wmBuffer)).toHaveLength(4);
+      expect(trials.every((trial) => trial.practice && trial.ratio === "5:0" && trial.wrapperId === "arrow_rel")).toBe(true);
+      expect(trials.every((trial) => trial.exposureMsRequested === 1200)).toBe(true);
+      expect(new Set(trials.map((trial) => trial.targetClass))).toEqual(new Set(["in", "out"]));
+      expect(block).toMatchObject({ practice: true, validTrialCount: 4, wmNLevel: level, selectedExposureMs: 1200 });
+      const scoredPractice = trials.filter((trial) => !trial.wmBuffer).map((trial) => scoreCccAttentionTrial({
+        trial,
+        response: trial.correctResponse,
+        responseTimeMs: 500,
+      }));
+      expect(scoredPractice.every((score) => score.pointsRealised === 0 && score.validForProgression === false)).toBe(true);
+    }
+    expect(createWmPracticeTrials({ sessionId: "repeatable", regimePair: base.regimePair }, 2))
+      .toEqual(createWmPracticeTrials({ sessionId: "repeatable", regimePair: base.regimePair }, 2));
   });
 
   it("keeps one carrier fixed across P1c Attention to WM to Attention boundaries", () => {

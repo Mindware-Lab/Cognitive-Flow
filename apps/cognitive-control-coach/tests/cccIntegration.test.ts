@@ -28,7 +28,8 @@ describe("CCC playable integration", () => {
     expect(mainSource).not.toContain("Transferable cognitive skill reached");
     expect(mainSource).not.toContain('data-response="withhold"');
     expect(mainSource).not.toContain("Not sure");
-    expect(mainSource).toContain("Five moving dot fields expanding or contracting");
+    expect(mainSource).toContain("Five circular patches of moving flecks travelling towards or away from the centre");
+    expect(mainSource).toContain("cccOpticFlowAperturesForTrial");
     expect(mainSource).toContain("maskStimulus");
   });
 

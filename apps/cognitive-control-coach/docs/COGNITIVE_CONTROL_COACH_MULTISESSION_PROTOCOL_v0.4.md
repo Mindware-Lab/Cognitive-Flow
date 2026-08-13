@@ -1,9 +1,9 @@
-# Cognitive Control Coach Multi-Session Protocol v0.6
+# Cognitive Control Coach Multi-Session Protocol v0.7
 
 Status: implementation contract for the public early-access programme
 Date: 13 August 2026
-Protocol version: `ccc-multisession-transfer-v0.6`
-Configuration version: `ccc-programme-p1-v0.6`
+Protocol version: `ccc-multisession-transfer-v0.7`
+Configuration version: `ccc-programme-p1-v0.7`
 Canonical route: `/cognitive-control-coach/`
 
 ## 1. Purpose and claims boundary
@@ -36,13 +36,14 @@ The programme tests performance across its trained arrow and optic-flow formats.
 ### 2.2 Relative Attention policy task
 
 - Relative arrows: In/Out.
-- Relative optic flow: Contract/Expand.
+- Relative motion: In/Out, shown as circular patches of translating flecks moving towards or away from the one central fixation point.
 - Forced two-choice response after at least 350 ms and before 4,000 ms.
 - Deadline omissions are retained as unresolved observations.
 
 ### 2.3 Relational WM task
 
-- Four latent relations: In, Out, Clockwise and Anticlockwise.
+- Two latent relations: In and Out, matching the Attention task.
+- Motion patches are clipping apertures only. Flecks translate along vectors defined relative to the single centre of the full stimulus field; individual patches do not expand, contract or rotate around their own centres.
 - Five-item majority evidence at `5:0`, `4:1` or `3:2` clarity.
 - Adaptive 1-back to 5-back level, preserved across sessions and devices when signed in.
 - Forced Match/Different response; no voluntary abstention button.
@@ -111,6 +112,15 @@ The delayed re-check is scheduled only after four criterion sessions have suppli
 Passing sets `attention_portable`. Three unsuccessful valid delayed checks after at least five Attention sessions may set `supported_unlock`. Supported unlock permits P1b training but never sets `attention_portable` or `full_transfer`.
 
 ### P1b — Relational WM and carrier recovery
+
+Before the first scored use of each n-back level, a level-specific onboarding gate runs in familiar relative arrows:
+
+1. a plain-language rule and worked example;
+2. `n` unscored memory-loading patterns;
+3. four easy 5:0 practice comparisons with Correct/Incorrect feedback only;
+4. passage after at least three correct comparisons, otherwise another four-comparison attempt.
+
+Practice carries no points, does not contribute to progression or transfer evidence and uses the default comfortable presentation time. Completion is stored separately for each level across sessions and devices when signed in. A voluntary **Practise again** action remains available from the block guide without removing an existing completion record.
 
 Each session uses two contrasting decision environments selected from the four environments. It runs:
 
@@ -192,6 +202,7 @@ The programme state stores:
 
 - programme run and session identifiers;
 - the attained n-back level, within-session pending level and WM format stage;
+- the set of n-back levels whose onboarding practice has been completed;
 - pair-level WM learning-curve history;
 - stage and session kind;
 - environment exposure counts and pair history;

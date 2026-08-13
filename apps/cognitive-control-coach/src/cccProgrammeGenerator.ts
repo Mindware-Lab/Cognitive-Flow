@@ -10,6 +10,7 @@ import {
   CCC_RELATIONAL_WM,
   CCC_REGIMES,
   CCC_TRIAL_TIMING,
+  CCC_WM_PRACTICE_SCORED_TRIALS,
   CCC_WM_RESPONSE_LABELS,
   CCC_WRAPPER_RESPONSE_LABELS,
 } from "./cccConfig";
@@ -83,7 +84,9 @@ const WM_HARD_RATIO_QUOTA: readonly CccRatio[] = [
   ...Array<CccRatio>(6).fill("4:1"),
   ...Array<CccRatio>(12).fill("3:2"),
 ];
-const WM_RELATIONS: readonly CccStimulusRelation[] = ["in", "out", "cw", "ccw"];
+// Relational n-back uses the same binary In/Out relation as the Attention task.
+// Carrier changes alter how that relation is displayed, not the latent relation set.
+const WM_RELATIONS: readonly CccStimulusRelation[] = ["in", "out"];
 
 function ratiosFor(regimeId: CccRegimeId, random: () => number): CccRatio[] {
   return shuffle(random, [...(CCC_REGIMES[regimeId].ratioPriors["5:0"] > 0.5 ? EASY_RATIO_QUOTA : HARD_RATIO_QUOTA)]);
@@ -381,6 +384,93 @@ function addWmBlock(
     wmPairPosition: spec.wmPairPosition || null,
     selectedExposureMs: null,
   });
+}
+
+export function createWmPracticeTrials(
+  plan: Pick<CccSessionPlan, "sessionId" | "regimePair">,
+  level: CccNBackLevel,
+  attempt = 1,
+): CccAttentionTrialDefinition[] {
+  const blockId = `wm-practice-${level}-back`;
+  const random = mulberry32(hashSeed(`${plan.sessionId}:${blockId}:${attempt}`));
+  const relationPattern: CccStimulusRelation[] = Array.from({ length: level }, (_value, index) => index % 2 ? "out" : "in");
+  [true, false, true, false].forEach((match, comparisonIndex) => {
+    const relationToCompare = relationPattern[comparisonIndex];
+    relationPattern.push(match ? relationToCompare : relationToCompare === "in" ? "out" : "in");
+  });
+  return relationPattern.map((relation, slot) => {
+    const isBuffer = slot < level;
+    const previous = isBuffer ? null : relationPattern[slot - level];
+    const isMatch = !isBuffer && relation === previous;
+    return createTrial({
+      id: `${blockId}-attempt-${attempt}-trial-${slot + 1}`,
+      sessionId: plan.sessionId,
+      blockId,
+      trialIndex: -(1000 + attempt * 100 + slot),
+      blockTrialIndex: slot + 1,
+      stage: "P1b",
+      stepId: "p1b_wm_practice",
+      phase: "p1b_wm_arrow_stabilisation",
+      operator: "relational_wm",
+      estimand: "practice",
+      purpose: "practice",
+      wrapperId: "arrow_rel",
+      sourceWrapperId: "arrow_rel",
+      transitionKind: "wm_introduction",
+      strictCarrierTransferBoundary: false,
+      regimeId: plan.regimePair[0],
+      microcycleIndex: 0,
+      balancedSlotIndex: isBuffer ? 0 : slot - level + 1,
+      ratio: "5:0",
+      targetClass: relation,
+      correctResponse: isMatch ? "match" : "different",
+      random,
+      seed: `${plan.sessionId}:${blockId}:${attempt}:${slot + 1}`,
+      diagnostic: false,
+      assistedFirstContact: false,
+      wmNLevel: level,
+      wmIsMatch: isBuffer ? null : isMatch,
+      wmBuffer: isBuffer,
+      wmLureType: "none",
+    });
+  }).map((trial) => ({
+    ...trial,
+    practice: true,
+    exposureMsRequested: CCC_RELATIONAL_WM.defaultPresentationMs,
+  }));
+}
+
+export function createWmPracticeBlock(
+  plan: Pick<CccSessionPlan, "regimePair">,
+  level: CccNBackLevel,
+): CccAttentionBlockPlan {
+  return {
+    id: `wm-practice-${level}-back`,
+    index: 0,
+    stage: "P1b",
+    stepId: "p1b_wm_practice",
+    label: `Learn ${level}-back`,
+    operator: "relational_wm",
+    phase: "p1b_wm_arrow_stabilisation",
+    estimand: "practice",
+    presentationMode: "self_paced_value",
+    wrapperId: "arrow_rel",
+    wrappers: ["arrow_rel"],
+    sourceWrapperId: "arrow_rel",
+    transitionKind: "wm_introduction",
+    strictCarrierTransferBoundary: false,
+    regimePair: plan.regimePair,
+    microcycleCount: 0,
+    validTrialCount: CCC_WM_PRACTICE_SCORED_TRIALS,
+    practice: true,
+    diagnostic: false,
+    shiftViewBefore: false,
+    wmNLevel: level,
+    learningCurveGate: null,
+    wmPairIndex: null,
+    wmPairPosition: null,
+    selectedExposureMs: CCC_RELATIONAL_WM.defaultPresentationMs,
+  };
 }
 
 function p1aSpecs(kind: ProgrammePlanInput["kind"], includeFirstContact = true): ProgrammeBlockSpec[] {

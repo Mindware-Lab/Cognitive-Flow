@@ -46,6 +46,7 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
     wmLevel: 1,
     wmWrapperStage: "arrow_stabilisation",
     wmPendingPairLevel: null,
+    wmPracticeCompletedLevels: [],
     delayedRecheckDueAt: null,
     delayedRecheckWindowEndsAt: null,
     regimeExposure: {
@@ -89,6 +90,7 @@ export function migrateCccProgrammeState(programme: CccProgrammeState): CccProgr
     wmLevel?: number;
     wmWrapperStage?: CccProgrammeState["wmWrapperStage"];
     wmPendingPairLevel?: number | null;
+    wmPracticeCompletedLevels?: number[];
   };
   const boundedLevel = (value: number | null | undefined, fallback: CccNBackLevel): CccNBackLevel => {
     if (!Number.isFinite(value)) return fallback;
@@ -99,6 +101,10 @@ export function migrateCccProgrammeState(programme: CccProgrammeState): CccProgr
   programme.wmPendingPairLevel = legacy.wmPendingPairLevel === null || legacy.wmPendingPairLevel === undefined
     ? null
     : boundedLevel(legacy.wmPendingPairLevel, programme.wmLevel);
+  programme.wmPracticeCompletedLevels = [...new Set((legacy.wmPracticeCompletedLevels || [])
+    .filter((value) => Number.isFinite(value))
+    .map((value) => boundedLevel(value, 1)))]
+    .sort((left, right) => left - right);
   programme.evidence.attentionSourceLearningCurve ||= [];
   programme.evidence.wmLearningCurve ||= [];
   programme.proofScores ||= [];

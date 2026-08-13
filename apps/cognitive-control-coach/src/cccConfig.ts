@@ -12,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.6";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.6";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.7";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.7";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -113,7 +113,7 @@ export const CCC_WRAPPER_RESPONSE_LABELS: Record<CccWrapperId, CccResponseLabels
   },
   flow_rel: {
     answerOptions: ["in", "out"],
-    labels: { in: "Contract", out: "Expand" },
+    labels: { in: "In", out: "Out" },
   },
 };
 
@@ -123,6 +123,8 @@ export const CCC_WM_RESPONSE_LABELS: CccResponseLabels = {
 };
 
 export const CCC_P0_PRACTICE_VALID_TRIALS = 4;
+export const CCC_WM_PRACTICE_SCORED_TRIALS = 4;
+export const CCC_WM_PRACTICE_PASS_CORRECT = 3;
 export const CCC_SIGNAL_ANCHOR_VALID_TRIALS = 24;
 
 export const CCC_P0_BLOCK_MICROCYCLES = {

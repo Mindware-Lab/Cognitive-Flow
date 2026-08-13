@@ -74,12 +74,16 @@ describe("CCC n-back pair progression", () => {
   it("preserves and safely migrates the saved level used by the next session", () => {
     const programme = createInitialProgrammeState();
     programme.wmLevel = 4;
+    programme.wmPracticeCompletedLevels = [1, 2];
     let stored = "";
     saveCccProgramme(programme, { setItem: (_key, value) => { stored = value; } });
     const restored = migrateCccProgrammeState(loadCccProgramme({ getItem: () => stored })!);
     expect(restored.wmLevel).toBe(4);
+    expect(restored.wmPracticeCompletedLevels).toEqual([1, 2]);
     const legacy = JSON.parse(JSON.stringify(programme));
     legacy.wmLevel = 9;
     expect(migrateCccProgrammeState(legacy).wmLevel).toBe(5);
+    delete legacy.wmPracticeCompletedLevels;
+    expect(migrateCccProgrammeState(legacy).wmPracticeCompletedLevels).toEqual([]);
   });
 });

@@ -50,6 +50,7 @@ function completedJourney(
     practiceQueue: [],
     practiceResults: [],
     practiceComplete: true,
+    wmPracticeLevel: null,
     shiftViewCompleted: true,
     events: [],
     startedAt,
