@@ -171,10 +171,9 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Holding and comparing");
     expect(mainSource).toContain("Points earned");
     expect(mainSource).toContain("Decision balance");
-    expect(mainSource).toContain("Across today’s blocks");
-    expect(mainSource).toContain("See whether the pattern is changing");
     expect(mainSource).toContain("What to notice:");
     expect(mainSource).toContain("Try this next");
+    expect(mainSource).not.toContain("renderBetweenBlockTrends");
     expect(appStyles).toContain(".ccc-block-meaning");
   });
 
@@ -209,11 +208,18 @@ describe("CCC playable integration", () => {
     expect(appStyles).toMatch(/\.ccc-value-panel\s*\{[\s\S]*?position: relative;[\s\S]*?margin: 0;/);
     expect(mainSource).toContain("CCC_SESSION_DURATION_LABEL");
     expect(appStyles).toContain("@media (max-height: 519px)");
-    expect(appStyles).toContain("overflow-y: auto");
+    expect(mainSource).toContain('type ProgressHistoryPage = "overview" | "skills"');
+    expect(mainSource).toContain('type DataPanel = "options" | "manage"');
+    expect(mainSource).toContain('data-action="show-history-skills"');
+    expect(mainSource).toContain('data-action="show-history-overview"');
+    expect(mainSource).toContain('data-action="show-data-management"');
+    expect(mainSource).toContain('data-action="show-data-options"');
+    expect(appStyles).not.toMatch(/overflow-[xy]:\s*(auto|scroll)/);
+    expect(appStyles).not.toMatch(/overflow:\s*(auto|scroll)/);
   });
 
   it("keeps progress available at safe session boundaries and returns without advancing", () => {
-    expect(mainSource).toContain('type ProgressPanel = "session" | "history"');
+    expect(mainSource).toContain('type ProgressPanel = "session" | "history" | "proof"');
     expect(mainSource).toContain("function headerNavigation()");
     expect(mainSource).toContain('currentView !== "task"');
     expect(mainSource).toContain('currentView !== "shift_view"');
@@ -223,7 +229,7 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Your session so far");
     expect(mainSource).toContain("Results so far");
     expect(mainSource).toContain("Current strategy");
-    expect(mainSource).toContain("Review your results without losing your place.");
+    expect(mainSource).toContain("patterns completed");
     expect(appStyles).toContain(".ccc-progress-segments");
     expect(appStyles).toContain(".ccc-live-session-grid");
     expect(appStyles).toContain(".ccc-header-nav");
@@ -232,9 +238,10 @@ describe("CCC playable integration", () => {
   });
 
   it("keeps the welcome screen readable without oversized titles or clipped content", () => {
-    expect(appStyles).toMatch(/h1\s*\{[\s\S]*?font-size: clamp\(1\.9rem, min\(3\.6vw, 5\.2vh\), 3\.45rem\)/);
-    expect(appStyles).toMatch(/\.ccc-welcome \.ccc-main\s*\{[\s\S]*?overflow-y: auto;/);
-    expect(appStyles).toMatch(/\.ccc-workflow-picker h1,[\s\S]*?font-size: clamp\(1\.85rem, min\(3\.6vw, 5\.2vh\), 2\.9rem\)/);
+    expect(appStyles).toMatch(/h1\s*\{[\s\S]*?font-size: clamp\(1\.7rem, min\(3\.2vw, 4\.6vh\), 2\.8rem\)/);
+    expect(appStyles).toMatch(/\.ccc-welcome \.ccc-main\s*\{[\s\S]*?align-items: start;/);
+    expect(appStyles).toMatch(/\.ccc-workflow-picker h1,[\s\S]*?font-size: clamp\(1\.65rem, min\(3\.1vw, 4\.6vh\), 2\.35rem\)/);
+    expect(mainSource.match(/journeyRail\(/g)).toHaveLength(2);
   });
 
   it("reserves the congratulations achievement screen for the completed programme state", () => {
@@ -268,9 +275,9 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Points for this block");
     expect(mainSource).toContain("Match how long you look to the rewards and costs");
     expect(mainSource).toContain("Strategy takeaway");
-    expect(mainSource).toContain("See how your results change");
-    expect(mainSource).toContain("G Track check-ins");
-    expect(mainSource).toContain("My own starting point");
+    expect(mainSource).toContain("How your results change");
+    expect(mainSource).toContain("Independent cognitive check-ins");
+    expect(mainSource).toContain("Compared with your own starting point");
     expect(mainSource).toContain("Other app users’ average");
     expect(mainSource).toContain("loadCccGTrackScores");
   });
@@ -282,7 +289,7 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Holding and comparing");
     expect(mainSource).toContain("Decision balance");
     expect(mainSource).toContain('data-action="show-proof-progress"');
-    expect(mainSource).toContain("Your G Track scores.");
+    expect(mainSource).toContain("Your G Track scores");
     expect(mainSource).toContain("Compared with a reference group · average 100");
     expect(mainSource).toContain("100 is the reference-group average");
     expect(mainSource).not.toContain("Population-standardised");
@@ -300,9 +307,9 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain('data-action="open-data"');
     expect(mainSource).toContain(">Data</button>");
     expect(mainSource).not.toContain("Save progress");
-    expect(mainSource).toContain('dataModeCard("cloud_personal", "Cloud · personal baseline", "My progress across devices"');
-    expect(mainSource).toContain('dataModeCard("cloud_benchmark", "Cloud · standardised average", "Compare with other users"');
-    expect(mainSource).toContain('dataModeCard("local", "Device · personal baseline", "My progress on this device"');
+    expect(mainSource).toContain('dataModeCard("cloud_personal", "Cloud · own baseline", "My progress across devices"');
+    expect(mainSource).toContain('dataModeCard("cloud_benchmark", "Cloud · user average", "Compare with other users"');
+    expect(mainSource).toContain('dataModeCard("local", "Device · own baseline", "My progress on this device"');
     expect(mainSource).toContain("You with your own start · starting result 100");
     expect(mainSource).toContain("You with other app users · average 100");
     expect(mainSource).toContain("This browser only");

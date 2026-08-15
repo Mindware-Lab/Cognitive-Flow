@@ -124,18 +124,6 @@ a:focus-visible {
   backdrop-filter: blur(14px);
 }
 
-.ccc-between-block-trends {
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid var(--line);
-  border-radius: 16px;
-  background: var(--canvas-alt);
-}
-
-.ccc-review-view.ccc-viewport-view .ccc-main {
-  overflow-y: auto;
-}
-
 .ccc-section-heading {
   display: flex;
   align-items: baseline;
@@ -158,120 +146,58 @@ a:focus-visible {
   text-align: right;
 }
 
-.ccc-mini-trend-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
+.ccc-progress-view .ccc-main {
+  align-items: center;
+  padding: clamp(10px, 2vh, 20px) clamp(10px, 3vw, 28px);
 }
 
-.ccc-mini-trend {
-  min-width: 0;
-  padding: 9px 10px;
-  border: 1px solid rgba(24, 88, 144, 0.12);
-  border-radius: 12px;
-  background: #fff;
-}
-
-.ccc-mini-trend > div {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-}
-
-.ccc-mini-trend span,
-.ccc-mini-trend small {
-  color: var(--muted);
-  font-size: 0.65rem;
-  font-weight: 700;
-}
-
-.ccc-mini-trend strong { color: var(--navy); font-size: 0.9rem; }
-.ccc-mini-trend svg { width: 100%; height: 42px; overflow: visible; }
-.ccc-mini-trend line { stroke: var(--line); stroke-width: 1; }
-.ccc-mini-trend polyline { fill: none; stroke: var(--blue-700); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
-.ccc-mini-trend circle { fill: var(--blue); stroke: #fff; stroke-width: 2; }
-
-.ccc-session-score-strip {
-  margin: 12px 0;
-  padding: 12px;
-  border: 1px solid rgba(34, 170, 255, 0.22);
-  border-radius: 16px;
-  background: rgba(34, 170, 255, 0.06);
-}
-
-.ccc-session-score-strip > div:nth-child(2) {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  gap: 8px;
-}
-
-.ccc-session-score-strip article {
-  padding: 9px;
-  border-radius: 11px;
-  background: #fff;
-}
-
-.ccc-session-score-strip article span { display: block; color: var(--muted); font-size: 0.65rem; font-weight: 700; }
-.ccc-session-score-strip article strong { display: block; margin-top: 3px; color: var(--navy); font-size: 1.25rem; }
-.ccc-session-score-strip .ccc-text-button { margin-top: 8px; }
-
-.ccc-progress-view .ccc-main { overflow-y: auto; }
-.ccc-progress-view { grid-template-rows: auto minmax(0, 1fr) auto; }
-
-.ccc-progress-screen {
-  width: min(1040px, 100%);
-  margin: 0 auto;
-  padding-bottom: 20px;
-}
-
+.ccc-progress-screen,
 .ccc-current-session-progress {
   width: min(1040px, 100%);
   margin: 0 auto;
-  padding-bottom: 20px;
 }
 
 .ccc-progress-hero {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 210px;
-  gap: 20px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
   align-items: center;
-  margin-bottom: 14px;
-  padding: 20px 22px;
-  border-radius: 20px;
+  margin-bottom: 10px;
+  padding: 12px 16px;
+  border-radius: 16px;
   color: #fff;
   background: linear-gradient(135deg, var(--navy), var(--navy-soft));
 }
 
-.ccc-progress-hero h1 { margin: 4px 0 8px; color: #fff; font-size: clamp(1.55rem, 3.2vw, 2.3rem); line-height: 1.08; }
-.ccc-progress-hero p { margin: 0; color: rgba(255, 255, 255, 0.75); line-height: 1.5; }
+.ccc-progress-hero h1 { margin: 2px 0 0; color: #fff; font-size: clamp(1.35rem, 2.6vw, 1.85rem); line-height: 1.08; }
 .ccc-progress-hero .ccc-kicker { color: var(--blue); }
 
 .ccc-progress-hero-stat {
-  padding: 16px;
+  min-width: 172px;
+  padding: 9px 12px;
   border: 1px solid rgba(255, 255, 255, 0.14);
-  border-radius: 16px;
+  border-radius: 13px;
   background: rgba(255, 255, 255, 0.07);
 }
 
 .ccc-progress-hero-stat span,
 .ccc-progress-hero-stat small { display: block; color: rgba(255, 255, 255, 0.68); font-size: 0.72rem; }
-.ccc-progress-hero-stat strong { display: block; margin: 4px 0; color: #fff; font-size: 2.3rem; }
+.ccc-progress-hero-stat strong { display: block; margin: 1px 0; color: #fff; font-size: 1.65rem; }
 
 .ccc-progress-segments {
   width: fit-content;
   display: flex;
   gap: 4px;
-  margin: 0 auto 14px;
-  padding: 4px;
+  margin: 0 auto 10px;
+  padding: 3px;
   border: 1px solid var(--line);
   border-radius: 999px;
   background: var(--canvas-alt);
 }
 
 .ccc-progress-segments button {
-  min-height: 40px;
-  padding: 0 18px;
+  min-height: 36px;
+  padding: 0 15px;
   border: 0;
   border-radius: 999px;
   color: var(--muted);
@@ -286,19 +212,15 @@ a:focus-visible {
   box-shadow: 0 5px 12px rgba(7, 24, 39, 0.14);
 }
 
-.ccc-session-progress-hero { margin-bottom: 12px; }
-
-.ccc-session-route .ccc-journey-rail { margin: 4px 0 14px; }
-
 .ccc-live-session-grid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 10px;
+  gap: 8px;
 }
 
 .ccc-live-session-grid article {
   min-width: 0;
-  padding: 14px;
+  padding: 10px 11px;
   border: 1px solid var(--line);
   border-radius: 15px;
   background: var(--canvas-alt);
@@ -313,7 +235,7 @@ a:focus-visible {
 }
 
 .ccc-live-session-grid span { color: var(--navy); font-size: 0.75rem; font-weight: 800; }
-.ccc-live-session-grid strong { display: block; margin: 5px 0; color: var(--blue-700); font-size: 1.55rem; }
+.ccc-live-session-grid strong { display: block; margin: 3px 0; color: var(--blue-700); font-size: 1.3rem; }
 
 .ccc-session-strategy {
   border-left: 4px solid var(--lime);
@@ -322,24 +244,7 @@ a:focus-visible {
 
 .ccc-session-strategy h2 { margin: 0 0 5px; color: var(--navy); font-size: 1.15rem; }
 .ccc-session-strategy p { margin: 0; color: var(--ink); font-size: 0.82rem; line-height: 1.5; }
-.ccc-session-strategy small { display: block; margin-top: 8px; color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
-
-.ccc-active-session-banner {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 14px;
-  padding: 12px 16px;
-  border: 1px solid rgba(34, 170, 255, 0.22);
-  border-radius: 14px;
-  background: rgba(34, 170, 255, 0.06);
-}
-
-.ccc-active-session-banner span,
-.ccc-active-session-banner strong { display: block; }
-.ccc-active-session-banner span { color: var(--muted); font-size: 0.68rem; font-weight: 700; }
-.ccc-active-session-banner strong { margin-top: 2px; color: var(--navy); font-size: 0.88rem; }
+.ccc-session-strategy small { display: block; margin-top: 5px; color: var(--muted); font-size: 0.68rem; line-height: 1.35; }
 
 .ccc-progress-return {
   display: flex;
@@ -349,41 +254,36 @@ a:focus-visible {
 
 .ccc-empty-session-progress h2 { margin: 0; color: var(--navy); font-size: 1.1rem; }
 
-.ccc-comparison-panel,
 .ccc-progress-section {
-  margin-bottom: 14px;
-  padding: 18px;
+  margin-bottom: 10px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
-  border-radius: 20px;
+  border-radius: 16px;
   background: #fff;
 }
 
-.ccc-comparison-panel { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: center; }
-.ccc-comparison-panel h2 { margin: 3px 0 0; color: var(--navy); font-size: 1.2rem; }
-.ccc-comparison-panel > div:first-child > small { display: block; margin-top: 6px; color: var(--muted); font-size: 0.7rem; font-weight: 750; line-height: 1.4; }
-.ccc-comparison-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
-
-.ccc-comparison-options button {
-  position: relative;
-  min-height: 96px;
-  padding: 13px 82px 13px 14px;
+.ccc-comparison-context {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 10px;
+  padding: 9px 12px;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  color: var(--ink);
+  border-radius: 13px;
   background: var(--canvas-alt);
-  text-align: left;
 }
-
-.ccc-comparison-options button.is-selected { border-color: var(--blue); box-shadow: inset 0 0 0 1px var(--blue); background: rgba(34, 170, 255, 0.06); }
-.ccc-comparison-options button:disabled { cursor: not-allowed; opacity: 0.68; }
-.ccc-comparison-options strong { display: block; color: var(--navy); font-size: 0.85rem; }
-.ccc-comparison-options span { display: block; margin-top: 4px; color: var(--muted); font-size: 0.7rem; line-height: 1.35; }
-.ccc-comparison-options em { position: absolute; top: 12px; right: 12px; padding: 4px 7px; border-radius: 999px; color: var(--blue-700); background: rgba(34, 170, 255, 0.1); font-size: 0.62rem; font-style: normal; font-weight: 850; }
+.ccc-comparison-context span,
+.ccc-comparison-context strong,
+.ccc-comparison-context small { display: block; }
+.ccc-comparison-context span { color: var(--blue-700); font-size: 0.62rem; font-weight: 850; letter-spacing: 0.07em; text-transform: uppercase; }
+.ccc-comparison-context strong { margin: 2px 0; color: var(--navy); font-size: 0.82rem; }
+.ccc-comparison-context small { color: var(--muted); font-size: 0.66rem; }
 .ccc-progress-message { margin: -4px 0 14px; padding: 9px 12px; border-radius: 10px; color: var(--teal-text); background: rgba(31, 184, 166, 0.08); font-size: 0.76rem; font-weight: 700; }
 
 .ccc-session-trend-card {
-  margin-bottom: 12px;
-  padding: 15px 16px 12px;
+  margin-bottom: 8px;
+  padding: 10px 12px 8px;
   border: 1px solid rgba(24, 88, 144, 0.16);
   border-radius: 16px;
   background: #fff;
@@ -404,8 +304,8 @@ a:focus-visible {
 .ccc-session-trend-legend {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px 16px;
-  margin: 12px 0 4px;
+  gap: 6px 14px;
+  margin: 8px 0 2px;
 }
 
 .ccc-session-trend-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.7rem; font-weight: 750; }
@@ -414,7 +314,7 @@ a:focus-visible {
 .ccc-session-trend-legend .is-memory i { background: var(--teal); }
 .ccc-session-trend-legend strong { margin-left: 2px; color: var(--navy); font-size: 0.78rem; }
 
-.ccc-session-trend-chart { width: 100%; height: auto; max-height: 230px; overflow: visible; }
+.ccc-session-trend-chart { width: 100%; height: auto; max-height: 150px; overflow: visible; }
 .ccc-session-trend-chart .is-grid { stroke: var(--line); stroke-width: 1; }
 .ccc-session-trend-chart .is-baseline { stroke: rgba(24, 88, 144, 0.35); stroke-width: 1.5; stroke-dasharray: 5 5; }
 .ccc-session-trend-axis-line { stroke: var(--line-strong); stroke-width: 1.2; }
@@ -425,7 +325,7 @@ a:focus-visible {
 .ccc-session-trend-dot { fill: var(--blue-700); stroke: #fff; stroke-width: 2; }
 .ccc-session-trend-dot.is-points { fill: var(--control); }
 .ccc-session-trend-dot.is-memory { fill: var(--teal); }
-.ccc-session-trend-explainer { margin: 4px 0 0; color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+.ccc-session-trend-explainer { margin: 2px 0 0; color: var(--muted); font-size: 0.66rem; line-height: 1.35; }
 .ccc-standardised-waiting { border-color: rgba(111, 78, 215, 0.24); background: rgba(111, 78, 215, 0.045); }
 .ccc-standardised-waiting > p { margin: 12px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
 
@@ -449,19 +349,36 @@ a:focus-visible {
 .ccc-progress-metric-card polyline,
 .ccc-proof-card polyline { fill: none; stroke: var(--blue-700); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
 
-.ccc-session-history { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
-.ccc-session-history article { padding: 10px 12px; border-radius: 12px; background: var(--canvas-alt); }
-.ccc-session-history span,
-.ccc-session-history small { display: block; color: var(--muted); font-size: 0.65rem; }
-.ccc-session-history strong { display: block; margin: 3px 0; color: var(--navy); font-size: 0.82rem; }
 .ccc-proof-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .ccc-proof-card.is-working-memory { border-top: 3px solid var(--teal); }
 .ccc-proof-card.is-reasoning { border-top: 3px solid var(--control); }
 .ccc-proof-card.is-attention { border-top: 3px solid var(--blue); }
 
+.ccc-progress-compact-heading {
+  margin-bottom: 8px;
+  text-align: center;
+}
+
+.ccc-progress-compact-heading h1 {
+  margin: 0 0 3px;
+  color: var(--navy);
+  font-size: clamp(1.45rem, 3vw, 1.9rem);
+}
+
+.ccc-progress-compact-heading p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.ccc-page-actions,
+.ccc-inline-actions {
+  display: flex;
+  justify-content: center;
+  gap: 9px;
+}
+
 @media (max-width: 780px) {
-  .ccc-progress-hero,
-  .ccc-comparison-panel { grid-template-columns: 1fr; }
   .ccc-progress-hero-stat { display: none; }
   .ccc-progress-metric-grid,
   .ccc-proof-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -473,23 +390,27 @@ a:focus-visible {
     display: none;
   }
 
-  .ccc-comparison-options,
-  .ccc-mini-trend-grid,
   .ccc-progress-metric-grid,
   .ccc-proof-grid,
-  .ccc-live-session-grid { grid-template-columns: 1fr; }
+  .ccc-live-session-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .ccc-progress-hero,
-  .ccc-comparison-panel,
-  .ccc-progress-section { padding: 14px; }
-  .ccc-progress-screen { padding-bottom: 10px; }
-  .ccc-current-session-progress { padding-bottom: 10px; }
+  .ccc-progress-section { padding: 10px; }
   .ccc-progress-segments { width: 100%; }
-  .ccc-progress-segments button { flex: 1; padding: 0 8px; }
+  .ccc-progress-segments button { flex: 1; min-width: 0; padding: 0 5px; font-size: 0.66rem; }
+  .ccc-comparison-context { align-items: flex-start; }
+  .ccc-comparison-context .ccc-text-button { min-height: 34px; padding: 2px 4px; font-size: 0.68rem; }
   .ccc-session-trend-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
   .ccc-session-trend-heading small { max-width: none; text-align: left; }
   .ccc-session-trend-card { padding: 12px 10px 10px; }
   .ccc-session-trend-legend { gap: 7px 10px; }
-  .ccc-active-session-banner { align-items: flex-start; flex-direction: column; }
+  .ccc-progress-metric-card,
+  .ccc-proof-card { padding: 9px; }
+  .ccc-progress-metric-card p,
+  .ccc-proof-card p { min-height: 0; font-size: 0.64rem; }
+  .ccc-progress-metric-card small,
+  .ccc-proof-card small { display: none; }
+  .ccc-progress-metric-card svg,
+  .ccc-proof-card svg { height: 42px; }
 }
 
 .ccc-brand {
@@ -700,8 +621,6 @@ a:focus-visible {
 
 .ccc-welcome .ccc-main {
   align-items: start;
-  overflow-y: auto;
-  overscroll-behavior: contain;
 }
 
 .ccc-welcome .ccc-hero {
@@ -742,9 +661,9 @@ strong {
 }
 
 h1 {
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: var(--navy);
-  font-size: clamp(1.9rem, min(3.6vw, 5.2vh), 3.45rem);
+  font-size: clamp(1.7rem, min(3.2vw, 4.6vh), 2.8rem);
   font-weight: 760;
   line-height: 1.02;
   letter-spacing: -0.045em;
@@ -940,7 +859,7 @@ p {
 
 .ccc-progress-number {
   color: var(--blue-700);
-  font-size: clamp(2rem, 4vw, 3.3rem);
+  font-size: clamp(1.8rem, 3.4vw, 2.6rem);
   font-weight: 720;
   letter-spacing: -0.055em;
 }
@@ -1518,7 +1437,7 @@ p {
 .ccc-account-view h1,
 .ccc-pause-view h1 {
   margin-bottom: clamp(10px, 1.6vh, 16px);
-  font-size: clamp(1.85rem, min(3.6vw, 5.2vh), 2.9rem);
+  font-size: clamp(1.65rem, min(3.1vw, 4.6vh), 2.35rem);
   line-height: 1.06;
 }
 
@@ -1647,8 +1566,7 @@ p {
 }
 
 .ccc-data-view .ccc-main {
-  align-items: start;
-  overflow-y: auto;
+  align-items: center;
 }
 
 .ccc-auth-screen {
@@ -1685,7 +1603,7 @@ p {
 .ccc-data-screen {
   width: min(100%, 980px);
   margin: 0 auto;
-  padding: clamp(16px, 2.5vh, 28px);
+  padding: clamp(14px, 2vh, 22px);
   border: 1px solid var(--line);
   border-radius: 24px;
   background: #fff;
@@ -1694,7 +1612,7 @@ p {
 
 .ccc-data-heading h1 {
   margin: 0 0 7px;
-  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
+  font-size: clamp(1.45rem, 3vw, 1.95rem);
   line-height: 1.05;
 }
 
@@ -1706,14 +1624,14 @@ p {
 .ccc-data-mode-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 12px;
-  margin: clamp(14px, 2vh, 22px) 0;
+  gap: 10px;
+  margin: clamp(10px, 1.6vh, 16px) 0;
 }
 
 .ccc-data-mode-card {
   min-width: 0;
-  min-height: 158px;
-  padding: 16px;
+  min-height: 0;
+  padding: 12px;
   border: 1px solid var(--line);
   border-radius: 18px;
   text-align: left;
@@ -1733,7 +1651,7 @@ p {
 
 .ccc-data-mode-card > span {
   display: block;
-  margin-bottom: 7px;
+  margin-bottom: 4px;
   color: var(--blue-700);
   font-size: 0.67rem;
   font-weight: 850;
@@ -1746,24 +1664,17 @@ p {
   font-size: 1rem;
 }
 
-.ccc-data-mode-card p {
-  margin: 8px 0 10px;
-  color: var(--muted);
-  font-size: 0.78rem;
-  line-height: 1.4;
-}
-
 .ccc-data-mode-facts {
   display: grid;
-  gap: 6px;
-  margin: 0 0 12px;
+  gap: 4px;
+  margin: 8px 0;
 }
 
 .ccc-data-mode-facts div {
   display: grid;
   grid-template-columns: 76px minmax(0, 1fr);
   gap: 7px;
-  padding-top: 6px;
+  padding-top: 4px;
   border-top: 1px solid var(--line);
 }
 
@@ -1779,7 +1690,7 @@ p {
 
 .ccc-data-mode-card em {
   display: inline-flex;
-  padding: 5px 9px;
+  padding: 4px 8px;
   border-radius: 999px;
   color: var(--blue-700);
   background: #fff;
@@ -1789,7 +1700,7 @@ p {
 }
 
 .ccc-data-account {
-  padding: 14px 16px;
+  padding: 12px 14px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: #fff;
@@ -1819,11 +1730,26 @@ p {
   margin: 10px 0;
 }
 
+.ccc-data-current-choice {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: 12px;
+  background: var(--canvas-alt);
+}
+
+.ccc-data-current-choice span,
+.ccc-data-current-choice small { color: var(--muted); font-size: 0.68rem; font-weight: 750; }
+.ccc-data-current-choice strong { color: var(--navy); font-size: 0.84rem; }
+.ccc-data-option-message { margin: 7px 0 0; font-size: 0.72rem; }
+
 .ccc-data-actions {
   display: flex;
   flex-wrap: wrap;
   gap: 9px;
-  margin-top: 14px;
+  margin-top: 10px;
 }
 
 .ccc-data-actions .ccc-button-primary {
@@ -2469,7 +2395,7 @@ p {
   height: 100%;
   min-height: 0;
   display: grid;
-  grid-template-rows: auto auto auto auto auto minmax(120px, 1fr) auto auto auto;
+  grid-template-rows: auto auto auto auto auto minmax(120px, 1fr) auto auto;
   padding: clamp(14px, 2.4vh, 26px);
   text-align: center;
 }
@@ -2559,7 +2485,7 @@ p {
   max-width: 760px;
   margin: 0;
   color: var(--navy);
-  font-size: clamp(1.9rem, min(4vw, 5.4vh), 3rem);
+  font-size: clamp(1.7rem, min(3.4vw, 4.8vh), 2.4rem);
   line-height: 1.03;
   letter-spacing: -0.04em;
 }
@@ -2642,24 +2568,6 @@ p {
   color: #4e7000;
   font-size: clamp(1.15rem, 2.7vw, 1.6rem);
   letter-spacing: 0.045em;
-}
-
-.ccc-achievement-evidence {
-  width: 100%;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 7px;
-}
-
-.ccc-achievement-evidence span {
-  padding: 7px 10px;
-  border: 1px solid rgba(34, 170, 255, 0.2);
-  border-radius: 999px;
-  color: var(--blue-700);
-  background: rgba(34, 170, 255, 0.06);
-  font-size: 0.72rem;
-  font-weight: 800;
 }
 
 .ccc-achievement-boundary {
@@ -2767,10 +2675,6 @@ p {
     padding: 12px 14px;
   }
 
-  .ccc-data-mode-card p {
-    margin: 5px 0 9px;
-  }
-
   .ccc-data-actions .ccc-button {
     flex: 1 1 auto;
   }
@@ -2851,7 +2755,7 @@ p {
 
   .ccc-hero h1 {
     margin-bottom: 10px;
-    font-size: clamp(2rem, 8.8vw, 2.7rem);
+    font-size: clamp(1.75rem, 7.8vw, 2.3rem);
   }
 
   .ccc-lead {
@@ -3130,7 +3034,7 @@ p {
   }
 
   .ccc-workflow-picker h1 {
-    font-size: clamp(1.8rem, 8vw, 2.2rem);
+    font-size: clamp(1.65rem, 7.2vw, 2rem);
   }
 }
 
@@ -3214,15 +3118,6 @@ p {
     min-width: 0;
     padding: 6px 12px;
     border-radius: 13px;
-  }
-
-  .ccc-achievement-evidence {
-    gap: 4px;
-  }
-
-  .ccc-achievement-evidence span {
-    padding: 4px 6px;
-    font-size: 0.6rem;
   }
 
   .ccc-achievement-boundary {
@@ -3520,7 +3415,7 @@ p {
   }
 
   .ccc-shift-card {
-    grid-template-rows: auto auto auto auto auto minmax(90px, 1fr) auto auto auto;
+    grid-template-rows: auto auto auto auto auto minmax(90px, 1fr) auto auto;
     padding-top: 10px;
     padding-bottom: 10px;
   }
@@ -3710,28 +3605,17 @@ p {
   }
 }
 
-/* Very short CSS viewports commonly indicate browser zoom or landscape use.
-   Scrolling becomes the accessible fallback rather than clipping information. */
 @media (max-height: 519px) {
-  html,
-  body,
-  #app {
-    height: auto;
-    min-height: 100%;
-    overflow-x: hidden;
-    overflow-y: auto;
-  }
-
-  .ccc-app {
-    height: auto;
-    min-height: 100dvh;
-    overflow: visible;
-  }
-
-  .ccc-main,
-  .ccc-viewport-view .ccc-main {
-    overflow: visible;
-  }
+  .ccc-app { height: 100dvh; margin-block: 0; border-radius: 0; }
+  .ccc-header { min-height: 48px; }
+  .ccc-viewport-view .ccc-main { padding-block: 5px; }
+  .ccc-progress-hero { padding-block: 7px; }
+  .ccc-progress-hero-stat,
+  .ccc-footer { display: none; }
+  .ccc-progress-segments { margin-bottom: 6px; }
+  .ccc-progress-section,
+  .ccc-comparison-context { margin-bottom: 6px; }
+  .ccc-session-trend-chart { max-height: 100px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -3745,22 +3629,6 @@ p {
   }
 }
 
-
-/* Shift the View v2: whole-object grouping and reversal key */
-.ccc-shift-grouping-note {
-  max-width: 42rem;
-  margin: 0.55rem auto 0;
-  padding: 0.72rem 0.9rem;
-  border: 1px solid rgba(39, 100, 183, 0.20);
-  border-radius: 12px;
-  color: #334b64;
-  background: rgba(39, 100, 183, 0.055);
-  font-size: 0.82rem;
-  line-height: 1.5;
-  text-align: left;
-}
-
-.ccc-shift-grouping-note strong { color: #173c68; }
 
 .ccc-reversal-button { gap: 0.7rem; }
 .ccc-reversal-button kbd {
@@ -3784,6 +3652,5 @@ p {
 }
 
 @media (max-width: 600px) {
-  .ccc-shift-grouping-note { font-size: 0.76rem; }
   .ccc-reversal-button { width: 100%; flex-wrap: wrap; }
 }

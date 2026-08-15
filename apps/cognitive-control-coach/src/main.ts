@@ -71,7 +71,6 @@ import {
 } from "./storage";
 import {
   applyCompletedSession,
-  allRegimesBalanced,
   createInitialProgrammeState,
   migrateCccProgrammeState,
   missingTransferEvidence,
@@ -137,6 +136,8 @@ type View =
 type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval";
 type TaskMode = "practice" | "wm_practice" | "guided";
 type ProgressPanel = "session" | "history" | "proof";
+type ProgressHistoryPage = "overview" | "skills";
+type DataPanel = "options" | "manage";
 
 const appElement = document.querySelector<HTMLDivElement>("#app");
 if (!appElement) throw new Error("Missing #app root.");
@@ -196,6 +197,8 @@ let view: View = dataModeSeen ? "welcome" : isSupabaseConfigured ? "auth" : "dat
 let dataReturnView: View = "welcome";
 let progressReturnView: View = "welcome";
 let progressPanel: ProgressPanel = journey && !journey.completedAt ? "session" : "history";
+let progressHistoryPage: ProgressHistoryPage = "overview";
+let dataPanel: DataPanel = "options";
 let taskMode: TaskMode = journey?.wmPracticeLevel ? "wm_practice" : journey?.practiceComplete ? "guided" : "practice";
 let taskStage: TaskStage = "fixation";
 let evidenceStartedAt = 0;
@@ -538,7 +541,6 @@ function renderWelcome(): string {
   return shell(hasJourney ? `
       <section class="ccc-resume-card">
         <div class="ccc-card-heading"><div><span class="ccc-kicker">Your current journey</span><h2>Pick up where you left off.</h2></div><strong class="ccc-progress-number">${completion}%</strong></div>
-        ${journeyRail(journey!.activeBlockIndex, journey!.activeBlockIndex)}
         <div class="ccc-progress-track" role="progressbar" aria-label="Journey progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}"><span style="width:${completion}%"></span></div>
         <p>Your chosen task is <strong>${WORKFLOW_CHOICES[journey!.workflowChoice].label.toLowerCase()}</strong>. Your place is saved.</p>
         ${mainAction}
@@ -669,10 +671,6 @@ function renderWmPracticeIntro(): string {
       <h1>Compare each pattern with ${level === 1 ? "the one just before it" : `the one ${level} steps earlier`}.</h1>
       <p>Choose <strong>Match</strong> when the main direction is the same, or <strong>Different</strong> when it has changed.</p>
       ${wmPracticeExample(level)}
-      <div class="ccc-instruction-grid">
-        <article><strong>Compare</strong><span>Look exactly ${level} ${level === 1 ? "step" : "steps"} back.</span></article>
-        <article><strong>Continue</strong><span>Get ${CCC_WM_PRACTICE_PASS_CORRECT} of 4 correct.</span></article>
-      </div>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-wm-practice">Begin ${level}-back practice</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
@@ -740,7 +738,6 @@ function renderPhaseGuide(): string {
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
-      ${journeyRail(journey.activeBlockIndex, journey.activeBlockIndex)}
       <span class="ccc-kicker">Before you begin</span>
       <h1>${isSignal ? "Watch. Remember. Choose." : isWm ? `Compare ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Find the main direction."}</h1>
       ${isSignal ? `
@@ -792,7 +789,6 @@ function renderRegimeIntro(): string {
         <div><span>Choose your viewing time</span><strong id="ccc-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
         <input id="ccc-wm-speed-slider" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Pattern viewing time" />
         <div class="ccc-speed-labels"><span>Faster presentation</span><span>More time to check</span></div>
-        <p>This viewing time applies to every pattern in the block.</p>
       </section>` : ""}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="continue-regime">${isWm ? "Use this viewing time" : "I understand — continue"}</button>
@@ -987,10 +983,6 @@ function formatTime(value: number | null): string {
   return value === null ? "—" : `${(value / 1000).toFixed(1)} s`;
 }
 
-function formatTrendTime(value: number): string {
-  return `${value.toFixed(1)} s`;
-}
-
 function timingShiftMeaning(value: number | null): string {
   if (value === null) return "Still building";
   if (Math.abs(value) < 100) return "Used similar timing";
@@ -1000,52 +992,6 @@ function timingShiftMeaning(value: number | null): string {
 function metricBar(label: string, value: number | null, maximum: number, display: string, tone = "blue"): string {
   const percentage = value === null ? 0 : Math.max(0, Math.min(100, value / maximum * 100));
   return `<div class="ccc-metric-row"><div><span>${label}</span><strong>${display}</strong></div><div class="ccc-metric-bar is-${tone}" role="img" aria-label="${label}: ${display}"><i style="width:${percentage}%"></i></div></div>`;
-}
-
-function blockHistoryBeforeCurrent(): CccRecordedTrial[][] {
-  if (!journey) return [];
-  return journey.plan.blocks
-    .slice(0, journey.activeBlockIndex + 1)
-    .filter((block) => block.phase !== "practice")
-    .map((block) => journey!.blockResults[block.id] || [])
-    .filter((results) => results.some((result) => result.scoring.countsTowardQuota));
-}
-
-function miniTrend(values: readonly number[], label: string, format: (value: number) => string): string {
-  if (!values.length) return "";
-  const points = progressSparkline(values, 280, 66);
-  const latest = values.at(-1) ?? 0;
-  return `<section class="ccc-mini-trend">
-    <div><span>${escapeHtml(label)}</span><strong>${escapeHtml(format(latest))}</strong></div>
-    <svg viewBox="0 0 280 76" role="img" aria-label="${escapeHtml(label)} across completed stages">
-      <line x1="0" x2="280" y1="66" y2="66"></line>
-      <polyline points="${points}"></polyline>
-      ${points.split(" ").map((point) => { const [cx, cy] = point.split(","); return `<circle cx="${cx}" cy="${cy}" r="3.4"></circle>`; }).join("")}
-    </svg>
-    <small>${values.length === 1 ? "Your first stage sets the start of this session." : `${values.length} completed stages`}</small>
-  </section>`;
-}
-
-function renderBetweenBlockTrends(): string {
-  const block = currentBlock();
-  const isWm = block?.operator === "relational_wm";
-  const isSignal = block?.estimand === "signal_capacity";
-  const history = blockHistoryBeforeCurrent();
-  const feedback = history.map((results) => buildCccBlockFeedback(results));
-  const accuracy = feedback.map((item) => item.accuracy === null ? null : item.accuracy * 100).filter((value): value is number => value !== null);
-  const decisionTime = feedback.map((item) => item.medianDecisionMs).filter((value): value is number => value !== null);
-  const pointsKept = history
-    .filter((results) => results.some((result) => result.trial.presentationMode === "self_paced_value"))
-    .map((results) => buildCccBlockFeedback(results).pointsKeptPercent);
-  return `<section class="ccc-between-block-trends" aria-label="Progress across this session">
-    <div class="ccc-section-heading"><span>Across today’s blocks</span><strong>See whether the pattern is changing</strong></div>
-    <div class="ccc-mini-trend-grid">
-      ${miniTrend(accuracy, isWm ? "Holding and comparing" : "Finding the pattern", (value) => `${Math.round(value)}%`)}
-      ${isSignal
-        ? miniTrend(decisionTime.map((value) => value / 1000), "Time before choosing", formatTrendTime)
-        : miniTrend(pointsKept, "Decision balance", (value) => `${Math.round(value)}%`)}
-    </div>
-  </section>`;
 }
 
 function strategyHistoryForCurrentBlock(): CccRecordedTrial[] {
@@ -1175,10 +1121,9 @@ function renderBlockComplete(): string {
   };
   return shell(`
     <section class="ccc-narrow-card">
-      ${journeyRail(isPractice ? 0 : Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1), null)}
       <span class="ccc-kicker">${isPractice ? "Practice complete" : `Stage ${journey.activeBlockIndex + 1} complete`}</span>
       <h1>${copy.title}</h1>
-      <p>${copy.body}</p>
+      ${isPractice ? `<p>${copy.body}</p>` : ""}
       ${isPractice ? "" : `<aside class="ccc-block-meaning"><span>What this block shows</span><strong>${blockMeaning(feedback, isWm, isSignal)}</strong></aside>`}
       ${isPractice ? "" : `
         <div class="ccc-summary-grid ${isSignal ? "" : "ccc-points-summary"}">
@@ -1189,9 +1134,7 @@ function renderBlockComplete(): string {
             : `<article class="is-points-total"><span>Points earned</span><strong>${formatPointTotal(feedback.points)}</strong><small>This block’s total</small></article>
               <article><span>Decision balance</span><strong>${feedback.pointsKeptPercent}%</strong><small>Available points kept through accuracy and timely choices</small></article>`}
         </div>`}
-      ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>Time before choosing: ${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}.</strong> ${isWm ? `You compared each pattern with the one shown ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} earlier.` : "Use this with the accuracy and decision-balance results above."}</p>`}
       ${wmLevelMessage ? `<p class="ccc-learning-status"><strong>Memory level:</strong> ${wmLevelMessage}</p>` : ""}
-      ${isPractice ? "" : renderBetweenBlockTrends()}
       ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>New display next.</strong> Your recent results were steady.</p>` : ""}
       ${learningCurve.status === "exposure_ceiling" ? `<p class="ccc-learning-status"><strong>Continue next time.</strong> Today’s practice is complete.</p>` : ""}
       ${isPractice ? `<aside class="ccc-workflow-bridge"><span>Next</span><strong>${WORKFLOW_CHOICES[journey.workflowChoice].example}</strong></aside>` : ""}
@@ -1279,14 +1222,13 @@ function renderShiftView(): string {
       <div class="ccc-shift-progress" aria-hidden="true"><span id="ccc-shift-progress-bar"></span></div>
       <span class="ccc-kicker">Shift the View</span>
       <h1>Actively group the dots into one rotating sphere.</h1>
-      <p id="ccc-shift-instruction">Bring the dots together as one complete 3D ball. This may require actively grouping them rather than simply watching separate dots.</p>
+      <p id="ccc-shift-instruction">Bring the dots together as one complete 3D ball, rather than two flat sheets.</p>
       <canvas id="ccc-sphere" class="ccc-sphere" role="img" aria-label="A sparse, slowly rotating field of soft-blue dots that can be actively grouped into one ambiguous sphere"></canvas>
       <div id="ccc-shift-controls" class="ccc-shift-controls">
         ${shiftStaticMode
           ? `<p class="ccc-soft-note">Still image selected.</p>`
           : `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see one whole sphere</button><button class="ccc-button ccc-button-quiet" data-action="shift-not-yet">Not yet</button>`}
       </div>
-      <p class="ccc-shift-grouping-note"><strong>Actively group the dots.</strong> Some people first see two flat sheets. Keep bringing them together until they form one complete sphere.</p>
       <button class="ccc-text-button" data-action="shift-toggle-motion">${shiftStaticMode ? "Use the moving version" : "Use a still reset"}</button>
     </section>
   `, "ccc-shift-view ccc-viewport-view");
@@ -1295,7 +1237,6 @@ function renderShiftView(): string {
 function renderComplete(): string {
   if (!journey) return renderWelcome();
   const allResults = Object.values(journey.blockResults).flat();
-  const sessionMetrics = buildCccSessionMetrics(allResults);
   const signalFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.estimand === "signal_capacity"));
   const policyFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.estimand !== "signal_capacity" && !result.trial.wmBuffer));
   const attentionFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.operator === "attention" && result.trial.estimand !== "signal_capacity"));
@@ -1303,21 +1244,17 @@ function renderComplete(): string {
   const hasSignal = signalFeedback.observationCount > 0;
   const hasWm = wmFeedback.observationCount > 0;
   const sessionSummary = programme.sessions.find((session) => session.sessionId === journey?.plan.sessionId);
-  const next = nextProgrammeAction(programme);
   return shell(`
     <section class="ccc-complete-card">
       <span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber} complete</span>
       <h1>This session is complete.</h1>
-      <p>${sessionSummary?.gateDecisions.at(-1) || "Your progress has been saved."}</p>
-      ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1), null)}
+      <p>${sessionSummary?.gateDecisions.at(-1) || "Your progress is saved."}</p>
       <div class="ccc-summary-grid">
         <article><span>Finding the main pattern</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
         <article><span>${hasWm ? "Holding and comparing" : "Adjusting to different stakes"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : timingShiftMeaning(policyFeedback.timingShiftMs)}</strong></article>
         <article><span>${hasWm ? "Saved memory challenge" : "Programme progress"}</span><strong>${hasWm ? `${programme.wmLevel} ${programme.wmLevel === 1 ? "pattern" : "patterns"} back` : `${programmeProgressPercent(programme)}%`}</strong></article>
       </div>
-      ${renderSessionScoreStrip(sessionMetrics)}
       ${renderStrategyTakeaway(allResults)}
-      <p class="ccc-metric-note"><strong>${programme.status === "full_transfer" ? "Every stage is complete." : "Your next step is ready."}</strong> ${programme.status === "full_transfer" ? "Review your achievement." : next.type === "wait" ? "Take a break and return when the next session opens." : programme.transferStatus === "supported_unlock" ? "Continue when you are ready." : "The next session will practise the skills that need more work."}</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Use this in ${WORKFLOW_CHOICES[journey.workflowChoice].label.toLowerCase()}</button>
         <button class="ccc-button ccc-button-quiet" data-action="return-home">Return home</button>
@@ -1499,44 +1436,16 @@ function proofCard(domain: CccProofDomain, label: string): string {
   </article>`;
 }
 
-function renderComparisonSelector(): string {
+function renderComparisonContext(): string {
   const available = populationModeAvailable(populationScores);
   const standardSelected = dataMode === "cloud_benchmark";
-  const personalSelected = !standardSelected;
-  const personalStorage = dataMode === "local" ? "this device only" : "your private cloud account";
-  return `<section class="ccc-comparison-panel">
-    <div><span class="ccc-kicker">Feedback reference</span><h2>${standardSelected ? "Compared with other app users" : "Compared with your own starting point"}</h2><small>${standardSelected ? "Cloud data · other-user average = 100" : `Saved in ${personalStorage} · your first valid result = 100`}</small></div>
-    <div class="ccc-comparison-options">
-      <button data-action="select-personal-mode" class="${personalSelected ? "is-selected" : ""}" aria-pressed="${personalSelected}">
-        <strong>My own starting point</strong><span>Your first valid result is 100. Later scores show change from where you began.</span><em>${personalSelected ? dataMode === "local" ? "Local selected" : "Cloud selected" : "Choose personal cloud"}</em>
-      </button>
-      <button data-action="select-population-mode" class="${standardSelected ? "is-selected" : ""}" aria-pressed="${standardSelected}" ${isSupabaseConfigured ? "" : "disabled"}>
-        <strong>Other app users’ average</strong><span>The current average is 100. Your standard score shows where you sit around it.</span><em>${standardSelected ? available ? "Cloud selected" : "Selected · building average" : isSupabaseConfigured ? "Choose standardised cloud" : "Unavailable"}</em>
-      </button>
-    </div>
-  </section>`;
-}
-
-function personalSessionScore(metrics: ReturnType<typeof buildCccSessionMetrics>, key: CccProgressMetricKey): number | null {
-  const metric = TRAINING_METRICS.find((item) => item.key === key)!;
-  if (metric.rawValue) return sessionMetricValue(metrics, key);
-  return displayTrainingScore({
-    value: sessionMetricValue(metrics, key),
-    baseline: firstValidBaseline(programme.sessions, key),
-    mode: "personal",
-    lowerIsBetter: metric.lowerIsBetter,
-  });
-}
-
-function renderSessionScoreStrip(metrics: ReturnType<typeof buildCccSessionMetrics>): string {
-  const items = TRAINING_METRICS
-    .filter((metric) => sessionMetricValue(metrics, metric.key) !== null)
-    .slice(0, 4);
-  if (!items.length) return "";
-  return `<section class="ccc-session-score-strip">
-    <div class="ccc-section-heading"><span>Your session</span><strong>100 marks where you started</strong></div>
-    <div>${items.map((metric) => `<article><span>${metric.label}</span><strong>${metricDisplay(metric, personalSessionScore(metrics, metric.key))}</strong></article>`).join("")}</div>
-    <button class="ccc-text-button" data-action="show-progress">Open Progress</button>
+  const storage = dataMode === "local" ? "Saved in this browser" : "Saved to your cloud account";
+  const comparison = standardSelected
+    ? available ? "100 is the other-user average" : "The other-user average is still building"
+    : "100 is your own starting result";
+  return `<section class="ccc-comparison-context">
+    <div><span>How to read these scores</span><strong>${standardSelected ? "Compared with other app users" : "Compared with your own starting point"}</strong><small>${storage} · ${comparison}</small></div>
+    <button class="ccc-text-button" data-action="open-data">Change data option</button>
   </section>`;
 }
 
@@ -1597,11 +1506,6 @@ function renderCurrentSessionProgress(): string {
   const metrics = buildCccSessionMetrics(results);
   const stages = sessionStageCounts();
   const current = journey.plan.blocks[journey.activeBlockIndex] || null;
-  const currentComplete = Boolean(current && (
-    journey.completedAt
-    || ["block_complete", "block_insights", "block_reconnect"].includes(progressReturnView)
-    || (journey.blockResults[current.id] || []).filter((result) => result.scoring.countsTowardQuota).length >= current.validTrialCount
-  ));
   const stageLabel = current ? JOURNEY_LABELS[current.phase] || current.label : "Review";
   const completion = Math.round(journeyCompletionRatio(journey) * 100);
   const blockFeedback = buildCccBlockFeedback(results.filter((result) => !result.trial.wmBuffer));
@@ -1621,17 +1525,12 @@ function renderCurrentSessionProgress(): string {
     || strategy?.regimes[0];
   return `<section class="ccc-current-session-progress">
     <div class="ccc-progress-hero ccc-session-progress-hero">
-      <div><span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber}</span><h1>${journey.completedAt ? "Your session review" : "Your session so far"}</h1><p>${journey.completedAt ? "Review the completed blocks and your next useful strategy." : `You are at ${stageLabel}. Review your results without losing your place.`}</p></div>
+      <div><span class="ccc-kicker">Session ${journey.plan.programmeSessionNumber} · ${stageLabel}</span><h1>${journey.completedAt ? "Your session review" : "Your session so far"}</h1></div>
       <div class="ccc-progress-hero-stat"><span>Session complete</span><strong>${completion}%</strong><small>${stages.complete} of ${stages.total} stages complete</small></div>
     </div>
     ${progressPanelNavigation()}
-    <section class="ccc-progress-section ccc-session-route">
-      <div class="ccc-section-heading"><span>Session route</span><strong>${journey.completedAt ? "Complete" : `${stageLabel} is current`}</strong></div>
-      ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + (journey.completedAt || currentComplete ? 1 : 0)), journey.completedAt || currentComplete ? null : journey.activeBlockIndex)}
-      <div class="ccc-progress-track" role="progressbar" aria-label="Session completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${completion}"><span style="width:${completion}%"></span></div>
-    </section>
     <section class="ccc-progress-section">
-      <div class="ccc-section-heading"><span>Results so far</span><strong>${blockFeedback.observationCount ? `${blockFeedback.observationCount} patterns` : "Your first results will appear here"}</strong></div>
+      <div class="ccc-section-heading"><span>Results so far</span><strong>${blockFeedback.observationCount ? `${blockFeedback.observationCount} patterns completed` : "Your first results will appear here"}</strong></div>
       <div class="ccc-live-session-grid">
         ${sessionMetricTile(metrics.wmAccuracy !== null ? "Holding and comparing" : "Finding the main pattern", formatPercent(relevantAccuracy), metrics.wmAccuracy !== null ? `${programme.wmLevel} ${programme.wmLevel === 1 ? "pattern" : "patterns"} back is saved` : "How often you chose the main direction")}
         ${sessionMetricTile("Time before choosing", formatTime(metrics.medianDecisionMs), "How long you gathered information")}
@@ -1652,21 +1551,29 @@ function renderCurrentSessionProgress(): string {
 function renderProgressHistory(): string {
   const sessionsWithMetrics = programme.sessions.filter((session) => session.metrics);
   const latest = latestSessionMetrics();
+  if (progressHistoryPage === "skills") {
+    return `<section class="ccc-progress-screen ccc-progress-detail-screen">
+      <div class="ccc-progress-compact-heading"><span class="ccc-kicker">Across sessions</span><h1>Skill details</h1><p>Each card explains one part of cognitive control in everyday language.</p></div>
+      ${progressPanelNavigation()}
+      ${renderComparisonContext()}
+      <section class="ccc-progress-section ccc-skill-detail-section">
+        <div class="ccc-progress-metric-grid">${TRAINING_METRICS.map(trainingMetricCard).join("")}</div>
+      </section>
+      <div class="ccc-page-actions"><button class="ccc-button ccc-button-secondary" data-action="show-history-overview">Back to running graph</button>${journey && !journey.completedAt ? `<button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button>` : ""}</div>
+    </section>`;
+  }
   return `<section class="ccc-progress-screen">
     <div class="ccc-progress-hero">
-      <div><span class="ccc-kicker">Your progress</span><h1>${comparisonMode === "population" ? "See where your latest results sit." : "See how your results change."}</h1><p>${comparisonMode === "population" ? "Training scores are compared with other app users’ average." : "Training scores are compared with your own starting point."} G Track check-ins remain separate.</p></div>
+      <div><span class="ccc-kicker">Across sessions</span><h1>${comparisonMode === "population" ? "Your latest results" : "How your results change"}</h1></div>
       <div class="ccc-progress-hero-stat"><span>Sessions with feedback</span><strong>${sessionsWithMetrics.length}</strong><small>Programme ${programmeProgressPercent(programme)}% complete</small></div>
     </div>
     ${progressPanelNavigation()}
-    ${journey && !journey.completedAt ? `<section class="ccc-active-session-banner"><div><span>Session ${journey.plan.programmeSessionNumber} in progress</span><strong>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</strong></div><button class="ccc-text-button" data-action="show-session-progress">View this session</button></section>` : ""}
-    ${renderComparisonSelector()}
+    ${renderComparisonContext()}
     ${progressMessage ? `<p class="ccc-progress-message">${escapeHtml(progressMessage)}</p>` : ""}
     <section class="ccc-progress-section">
-      <div class="ccc-section-heading"><span>Skills across sessions</span><strong>${latest ? "Your latest pattern and running graph" : "Complete a session to start"}</strong></div>
+      <div class="ccc-section-heading"><span>Running graph</span><strong>${latest ? "Change across completed sessions" : "Complete a session to start"}</strong></div>
       ${renderSessionTrendChart()}
-      <div class="ccc-progress-metric-grid">${TRAINING_METRICS.map(trainingMetricCard).join("")}</div>
-      ${sessionsWithMetrics.length ? `<div class="ccc-session-history">${[...sessionsWithMetrics].reverse().slice(0, 8).map((session) => `<article><span>Session ${session.sessionNumber}</span><strong>${session.metrics?.attentionAccuracy !== null && session.metrics?.attentionAccuracy !== undefined ? `${Math.round(session.metrics.attentionAccuracy * 100)}% finding the pattern` : session.metrics?.signalAccuracy !== null && session.metrics?.signalAccuracy !== undefined ? `${Math.round(session.metrics.signalAccuracy * 100)}% finding the pattern` : "Session recorded"}</strong><small>${session.completedAt.slice(0, 10)} · ${session.metrics?.observationCount || 0} patterns</small></article>`).join("")}</div>` : ""}
-      ${journey?.completedAt ? renderStrategyTakeaway(Object.values(journey.blockResults).flat(), true) : ""}
+      <div class="ccc-inline-actions"><button class="ccc-button ccc-button-secondary" data-action="show-history-skills">View skill details</button></div>
     </section>
     ${journey && !journey.completedAt ? `<div class="ccc-progress-return"><button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button></div>` : ""}
   </section>`;
@@ -1676,7 +1583,7 @@ function renderGTrackProgress(): string {
   const imported = (programme.proofScores || []).length;
   return `<section class="ccc-progress-screen ccc-gtrack-progress-screen">
     <div class="ccc-progress-hero">
-      <div><span class="ccc-kicker">Independent cognitive check-ins</span><h1>Your G Track scores.</h1><p>Review your attention, working-memory and reasoning results through the cognitive skills they represent.</p></div>
+      <div><span class="ccc-kicker">Independent cognitive check-ins</span><h1>Your G Track scores</h1></div>
       <div class="ccc-progress-hero-stat"><span>Scores imported</span><strong>${imported}</strong><small>Kept separate from training performance</small></div>
     </div>
     ${progressPanelNavigation()}
@@ -1684,7 +1591,6 @@ function renderGTrackProgress(): string {
     <section class="ccc-progress-section ccc-proof-section">
       <div class="ccc-section-heading"><span>G Track cognitive skills</span><strong>Compared with a reference group · average 100</strong></div>
       <div class="ccc-proof-grid">${proofCard("attention", "Attention Control")}${proofCard("working_memory", "Working Memory")}${proofCard("reasoning", "Matrix Reasoning")}</div>
-      <p class="ccc-soft-note">These independent check-ins are kept separate from practice performance. Repeating G Track later shows whether change extends beyond the trained exercises.</p>
       <div class="ccc-actions"><a class="ccc-button ccc-button-primary" href="/g-track-test-battery/">Take a G Track check-in</a></div>
     </section>
     ${journey && !journey.completedAt ? `<div class="ccc-progress-return"><button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button></div>` : ""}
@@ -1697,12 +1603,11 @@ function renderProgress(): string {
     : progressPanel === "session" && journey
       ? renderCurrentSessionProgress()
       : renderProgressHistory();
-  return shell(content, "ccc-progress-view");
+  return shell(content, "ccc-progress-view ccc-viewport-view");
 }
 
 function renderFullTransfer(): string {
   if (programme.status !== "full_transfer") return renderWelcome();
-  const environmentProgress = allRegimesBalanced(programme) ? "All four work conditions" : "Four work conditions practised";
   return shell(`
     <section class="ccc-full-transfer-card" aria-labelledby="ccc-full-transfer-title">
       <div class="ccc-achievement-burst" aria-hidden="true">
@@ -1718,14 +1623,6 @@ function renderFullTransfer(): string {
       <h1 id="ccc-full-transfer-title">Congratulations — Programme Complete!</h1>
       <p class="ccc-achievement-lead">You completed the full challenge: finding, remembering and updating the main pattern as the display and task changed.</p>
       <div class="ccc-achievement-badge"><span>Adaptive Cognition</span><strong>PROGRAMME COMPLETE</strong><small>All stages finished</small></div>
-      <div class="ccc-achievement-evidence" aria-label="Skills completed">
-        <span>New displays</span>
-        <span>Return to familiar tasks</span>
-        <span>Switching formats</span>
-        <span>Returning after a break</span>
-        <span>Finding ↔ remembering</span>
-        <span>${environmentProgress}</span>
-      </div>
       <p class="ccc-achievement-boundary"><strong>This badge marks your progress in the app.</strong> The most useful next step is to try the skills in the work, study or everyday task you chose.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-complete-reconnect">Use this in your task</button>
@@ -1755,12 +1652,12 @@ function renderCompleteReconnect(): string {
     </section>`, "ccc-reconnect-screen ccc-viewport-view");
 }
 
-function dataModeCard(mode: DataMode, kicker: string, title: string, copy: string): string {
+function dataModeCard(mode: DataMode, kicker: string, title: string): string {
   const selected = dataMode === mode;
   const cloud = mode !== "local";
   const standardised = mode === "cloud_benchmark";
   return `<button class="ccc-data-mode-card is-${mode.replace("_", "-")} ${selected ? "is-selected" : ""}" data-action="select-data-mode" data-mode="${mode}" aria-pressed="${selected}">
-    <span>${kicker}</span><strong>${title}</strong><p>${copy}</p>
+    <span>${kicker}</span><strong>${title}</strong>
     <dl class="ccc-data-mode-facts">
       <div><dt>Stored</dt><dd>${cloud ? "Cloud · across devices" : "This browser only"}</dd></div>
       <div><dt>Feedback compares</dt><dd>${standardised ? "You with other app users · average 100" : "You with your own start · starting result 100"}</dd></div>
@@ -1800,21 +1697,33 @@ function renderData(): string {
         : `<p>Sign in to sync your progress across devices and use ${personalReference ? "your own starting point" : "the other-user average"} for feedback.</p>
            <label class="ccc-field"><span>Email address</span><input id="ccc-account-email" type="email" autocomplete="email" placeholder="you@example.com" /></label>
            <button class="ccc-button ccc-button-primary" data-action="send-sign-in">Email me a sign-in link</button>`;
+  if (dataPanel === "manage") {
+    return shell(`
+      <section class="ccc-data-screen ccc-data-manage-screen">
+        <div class="ccc-data-heading"><span class="ccc-kicker">Data account</span><h1>Manage saved data</h1></div>
+        <section class="ccc-data-account"><strong>${escapeHtml(dataModeLabel())}</strong><div class="ccc-data-current-reference"><span>Feedback reference</span><b>${personalReference ? "Your own starting result = 100" : "Other app users’ average = 100"}</b></div>${accountContent}${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}</section>
+        <div class="ccc-data-actions">
+          <button class="ccc-button ccc-button-secondary" data-action="export-data">Export data</button>
+          <button class="ccc-button ccc-button-quiet" data-action="delete-data">Remove data</button>
+          <button class="ccc-button ccc-button-primary" data-action="show-data-options">Back to options</button>
+        </div>
+        <p class="ccc-account-links"><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></p>
+      </section>`, "ccc-data-view ccc-viewport-view");
+  }
   return shell(`
     <section class="ccc-data-screen">
-      <div class="ccc-data-heading"><span class="ccc-kicker">Data and feedback</span><h1>Choose where data is stored—and what your scores mean.</h1><p>The two cloud options use different comparison points. Personal cloud is the default.</p></div>
+      <div class="ccc-data-heading"><span class="ccc-kicker">Data and feedback</span><h1>Choose how progress is stored and compared</h1></div>
       <div class="ccc-data-mode-grid">
-        ${dataModeCard("cloud_personal", "Cloud · personal baseline", "My progress across devices", "Track your own development with private cloud sync.")}
-        ${dataModeCard("cloud_benchmark", "Cloud · standardised average", "Compare with other users", "See where your latest result sits when the reference group is ready.")}
-        ${dataModeCard("local", "Device · personal baseline", "My progress on this device", "Track your own development without cloud sync.")}
+        ${dataModeCard("cloud_personal", "Cloud · own baseline", "My progress across devices")}
+        ${dataModeCard("cloud_benchmark", "Cloud · user average", "Compare with other users")}
+        ${dataModeCard("local", "Device · own baseline", "My progress on this device")}
       </div>
-      <section class="ccc-data-account"><strong>${escapeHtml(dataModeLabel())}</strong><div class="ccc-data-current-reference"><span>Current feedback reference</span><b>${personalReference ? "Your own starting result = 100" : "Other app users’ average = 100"}</b></div>${accountContent}${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}</section>
+      <section class="ccc-data-current-choice"><span>Selected</span><strong>${escapeHtml(dataModeLabel())}</strong><small>${personalReference ? "Your own starting result = 100" : "Other app users’ average = 100"}</small></section>
+      ${accountMessage ? `<p class="ccc-account-message ccc-data-option-message">${escapeHtml(accountMessage)}</p>` : ""}
       <div class="ccc-data-actions">
-        <button class="ccc-button ccc-button-secondary" data-action="export-data">Export data</button>
-        <button class="ccc-button ccc-button-quiet" data-action="delete-data">Remove data</button>
+        <button class="ccc-button ccc-button-secondary" data-action="show-data-management">${cloudSelected && !authUser ? "Sign in or manage data" : "Manage saved data"}</button>
         <button class="ccc-button ccc-button-primary" data-action="close-data">Done</button>
       </div>
-      <p class="ccc-account-links"><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></p>
     </section>`, "ccc-data-view ccc-viewport-view");
 }
 
@@ -2534,24 +2443,20 @@ function mountShiftView(): void {
 function updateShiftControls(): void {
   const controls = document.querySelector<HTMLElement>("#ccc-shift-controls");
   const instruction = document.querySelector<HTMLElement>("#ccc-shift-instruction");
-  const note = document.querySelector<HTMLElement>(".ccc-shift-grouping-note");
   if (!controls || !instruction) return;
   if (shiftStaticMode) {
     controls.innerHTML = `<p class="ccc-soft-note">Still image selected.</p>`;
     instruction.textContent = "Let your eyes rest on the complete pattern for the full 30 seconds.";
-    if (note) note.innerHTML = `<strong>Reduced-motion version:</strong> rest your eyes on the complete pattern for the full interval.`;
     return;
   }
   if (shiftConfirmedAt !== null) {
     controls.innerHTML = `<button class="ccc-button ccc-button-secondary ccc-reversal-button" data-action="shift-reversal"><span>The whole sphere reversed</span><kbd>Space</kbd></button>`;
-    instruction.textContent = "Keep the dots actively grouped as one object. Press Space every time the whole sphere appears to reverse its direction of rotation.";
-    if (note) note.innerHTML = `<strong>Count only whole-object reversals.</strong> Do not respond when separate sheets, layers or groups of dots seem to change independently.`;
+    instruction.textContent = "Count only whole-object reversals. Press Space every time the complete sphere appears to reverse.";
     return;
   }
   if (shiftNotFormedRecorded) {
     controls.innerHTML = `<button class="ccc-button ccc-button-secondary" data-action="shift-confirm">I see one whole sphere now</button>`;
     instruction.textContent = "Keep actively bringing the separate dots or sheets together. Respond when they form one complete sphere.";
-    if (note) note.innerHTML = `<strong>Keep grouping.</strong> The target is one coherent rotating object, not two transparent sheets of dots.`;
   }
 }
 
@@ -2833,6 +2738,7 @@ appRoot.addEventListener("click", (event) => {
     progressReturnView = view === "progress" ? progressReturnView : view;
     progressPanel = (button.dataset.progressPanel as ProgressPanel | undefined)
       || (journey && !journey.completedAt ? "session" : "history");
+    progressHistoryPage = "overview";
     setView("progress");
     if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
   } else if (action === "show-session-progress") {
@@ -2840,8 +2746,15 @@ appRoot.addEventListener("click", (event) => {
     render();
   } else if (action === "show-history-progress") {
     progressPanel = "history";
+    progressHistoryPage = "overview";
     render();
     if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
+  } else if (action === "show-history-skills") {
+    progressHistoryPage = "skills";
+    render();
+  } else if (action === "show-history-overview") {
+    progressHistoryPage = "overview";
+    render();
   } else if (action === "show-proof-progress") {
     progressPanel = "proof";
     render();
@@ -2891,6 +2804,7 @@ appRoot.addEventListener("click", (event) => {
     }
   } else if (action === "open-data") {
     accountMessage = "";
+    dataPanel = "options";
     if (!dataModeSeen && !authUser && isSupabaseConfigured) {
       setView("auth");
       return;
@@ -2907,6 +2821,12 @@ appRoot.addEventListener("click", (event) => {
     setView(dataReturnView === "data" ? "welcome" : dataReturnView);
   } else if (action === "select-data-mode") {
     setDataMode(button.dataset.mode as DataMode);
+  } else if (action === "show-data-management") {
+    dataPanel = "manage";
+    render();
+  } else if (action === "show-data-options") {
+    dataPanel = "options";
+    render();
   } else if (action === "export-data") {
     void exportCurrentData();
   } else if (action === "delete-data") {
