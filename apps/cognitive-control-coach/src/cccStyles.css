@@ -360,6 +360,7 @@ a:focus-visible {
 
 .ccc-comparison-panel { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 18px; align-items: center; }
 .ccc-comparison-panel h2 { margin: 3px 0 0; color: var(--navy); font-size: 1.2rem; }
+.ccc-comparison-panel > div:first-child > small { display: block; margin-top: 6px; color: var(--muted); font-size: 0.7rem; font-weight: 750; line-height: 1.4; }
 .ccc-comparison-options { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 
 .ccc-comparison-options button {
@@ -425,6 +426,8 @@ a:focus-visible {
 .ccc-session-trend-dot.is-points { fill: var(--control); }
 .ccc-session-trend-dot.is-memory { fill: var(--teal); }
 .ccc-session-trend-explainer { margin: 4px 0 0; color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+.ccc-standardised-waiting { border-color: rgba(111, 78, 215, 0.24); background: rgba(111, 78, 215, 0.045); }
+.ccc-standardised-waiting > p { margin: 12px 0 0; color: var(--muted); font-size: 0.76rem; line-height: 1.45; }
 
 .ccc-progress-metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .ccc-progress-metric-card,
@@ -1718,6 +1721,10 @@ p {
   background: var(--canvas-alt);
 }
 
+.ccc-data-mode-card.is-cloud-personal { border-top: 4px solid var(--blue); }
+.ccc-data-mode-card.is-cloud-benchmark { border-top: 4px solid #6f4ed7; background: rgba(111, 78, 215, 0.035); }
+.ccc-data-mode-card.is-local { border-top: 4px solid var(--teal); background: rgba(31, 184, 166, 0.035); }
+
 .ccc-data-mode-card:hover,
 .ccc-data-mode-card.is-selected {
   border-color: var(--blue);
@@ -1740,11 +1747,35 @@ p {
 }
 
 .ccc-data-mode-card p {
-  margin: 8px 0 13px;
+  margin: 8px 0 10px;
   color: var(--muted);
   font-size: 0.78rem;
   line-height: 1.4;
 }
+
+.ccc-data-mode-facts {
+  display: grid;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.ccc-data-mode-facts div {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr);
+  gap: 7px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+}
+
+.ccc-data-mode-facts dt,
+.ccc-data-mode-facts dd {
+  margin: 0;
+  font-size: 0.67rem;
+  line-height: 1.35;
+}
+
+.ccc-data-mode-facts dt { color: var(--muted); font-weight: 750; }
+.ccc-data-mode-facts dd { color: var(--navy); font-weight: 800; }
 
 .ccc-data-mode-card em {
   display: inline-flex;
@@ -1769,6 +1800,20 @@ p {
   display: block;
   margin: 0 0 8px;
 }
+
+.ccc-data-current-reference {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 0 0 10px;
+  padding: 9px 11px;
+  border-radius: 11px;
+  background: var(--canvas-alt);
+}
+
+.ccc-data-current-reference span { color: var(--muted); font-size: 0.68rem; font-weight: 750; }
+.ccc-data-current-reference b { color: var(--navy); font-size: 0.78rem; text-align: right; }
 
 .ccc-data-account .ccc-field {
   margin: 10px 0;
@@ -2355,6 +2400,33 @@ p {
   margin: 24px 0;
 }
 
+.ccc-block-meaning {
+  margin-top: 10px;
+  padding: 10px 13px;
+  border: 1px solid rgba(31, 184, 166, 0.24);
+  border-radius: 13px;
+  background: rgba(31, 184, 166, 0.07);
+}
+
+.ccc-block-meaning span {
+  display: block;
+  color: var(--teal-text);
+  font-size: 0.65rem;
+  font-weight: 850;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.ccc-block-meaning strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--navy);
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.ccc-review-view .ccc-block-meaning + .ccc-summary-grid { margin-top: 10px; }
+
 .ccc-summary-grid.ccc-points-summary {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
@@ -2376,6 +2448,12 @@ p {
   color: var(--navy);
   font-size: 1.55rem;
   letter-spacing: -0.04em;
+}
+
+.ccc-summary-grid article small {
+  color: var(--muted);
+  font-size: 0.64rem;
+  line-height: 1.35;
 }
 
 .ccc-summary-grid article.is-points-total {

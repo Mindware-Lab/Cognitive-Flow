@@ -56,7 +56,6 @@ import {
   clearCccProgramme,
   journeyCompletionRatio,
   loadCccJourney,
-  loadCccComparisonMode,
   loadCccProgramme,
   saveCccJourney,
   saveCccComparisonMode,
@@ -230,7 +229,7 @@ let cloudStatus = isSupabaseConfigured
   ? "Sign in to sync your progress across devices."
   : "Progress is saved on this device.";
 let pendingCloudSaves: Promise<void>[] = [];
-let comparisonMode: CccComparisonMode = dataMode === "cloud_benchmark" ? loadCccComparisonMode() : "personal";
+let comparisonMode: CccComparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
 let populationScores: Record<string, CccPopulationScore> = {};
 let progressMessage = "";
 let pendingRegimeIntro: CccAttentionTrialDefinition | null = null;
@@ -241,9 +240,9 @@ function cloudSyncActive(): boolean {
 }
 
 function dataModeLabel(mode: DataMode = dataMode): string {
-  if (mode === "local") return "On this device";
-  if (mode === "cloud_benchmark") return "Cloud standard scores";
-  return "Cloud personal";
+  if (mode === "local") return "Local personal progress";
+  if (mode === "cloud_benchmark") return "Standardised cloud comparison";
+  return "Personal cloud progress";
 }
 
 function populationScoreMap(rows: StandardizedScoreRow[]): Record<string, CccPopulationScore> {
@@ -260,7 +259,7 @@ function populationScoreMap(rows: StandardizedScoreRow[]): Record<string, CccPop
 async function hydrateProgressFeedback(): Promise<void> {
   if (!cloudSyncActive()) {
     populationScores = {};
-    if (comparisonMode === "population") comparisonMode = "personal";
+    comparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
     return;
   }
   try {
@@ -269,13 +268,8 @@ async function hydrateProgressFeedback(): Promise<void> {
       loadCccGTrackScores(),
     ]);
     populationScores = populationScoreMap(rows);
-    if (dataMode === "cloud_benchmark" && populationModeAvailable(populationScores)) {
-      comparisonMode = "population";
-      saveCccComparisonMode(comparisonMode);
-    } else if (comparisonMode === "population" && !populationModeAvailable(populationScores)) {
-      comparisonMode = "personal";
-      saveCccComparisonMode(comparisonMode);
-    }
+    comparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
+    saveCccComparisonMode(comparisonMode);
     if (proofScores.length) {
       const byId = new Map<string, CccProofScore>();
       [...(programme.proofScores || []), ...proofScores].forEach((score) => byId.set(score.id, score));
@@ -1044,12 +1038,12 @@ function renderBetweenBlockTrends(): string {
     .filter((results) => results.some((result) => result.trial.presentationMode === "self_paced_value"))
     .map((results) => buildCccBlockFeedback(results).pointsKeptPercent);
   return `<section class="ccc-between-block-trends" aria-label="Progress across this session">
-    <div class="ccc-section-heading"><span>This session</span><strong>Your results so far</strong></div>
+    <div class="ccc-section-heading"><span>Across today’s blocks</span><strong>See whether the pattern is changing</strong></div>
     <div class="ccc-mini-trend-grid">
-      ${miniTrend(accuracy, "Accuracy", (value) => `${Math.round(value)}%`)}
+      ${miniTrend(accuracy, isWm ? "Holding and comparing" : "Finding the pattern", (value) => `${Math.round(value)}%`)}
       ${isSignal
-        ? miniTrend(decisionTime.map((value) => value / 1000), isWm ? "Chosen viewing time" : "Decision time", formatTrendTime)
-        : miniTrend(pointsKept, "Points kept", (value) => `${Math.round(value)}%`)}
+        ? miniTrend(decisionTime.map((value) => value / 1000), "Time before choosing", formatTrendTime)
+        : miniTrend(pointsKept, "Decision balance", (value) => `${Math.round(value)}%`)}
     </div>
   </section>`;
 }
@@ -1082,7 +1076,7 @@ function renderPolicyCoaching(block: CccAttentionBlockPlan): string {
   if (block.estimand === "signal_capacity") return "";
   const strategy = buildCccStrategyFeedback(strategyHistoryForCurrentBlock(), block.regimePair, block.operator);
   return `<section class="ccc-policy-coaching">
-    <div class="ccc-section-heading"><span>Your strategy</span><strong>Adjust your viewing time to the points</strong></div>
+    <div class="ccc-section-heading"><span>Try this next</span><strong>Match how long you look to the rewards and costs</strong></div>
     <div class="ccc-strategy-grid">${strategy.regimes.map(renderStrategyCard).join("")}</div>
     <p class="ccc-strategy-principle"><strong>Keep this principle:</strong> ${strategy.principle}</p>
   </section>`;
@@ -1112,6 +1106,27 @@ function renderStrategyTakeaway(results: readonly CccRecordedTrial[], persistent
     <p>${lead?.guidance || strategy.principle}</p>
     ${lead ? `<small>${REGIME_COPY[lead.regimeId].title}</small>` : ""}
   </section>`;
+}
+
+function blockMeaning(feedback: ReturnType<typeof buildCccBlockFeedback>, isWm: boolean, isSignal: boolean): string {
+  const accuracy = isWm ? feedback.wmBalancedAccuracy : feedback.accuracy;
+  if (accuracy === null) return "This block has set a starting point. The next blocks will show whether the skill is becoming steadier.";
+  if (isSignal) {
+    if (accuracy >= 0.85) return "You found the main pattern reliably, including when the signal was less obvious.";
+    if (accuracy >= 0.7) return "You found the main pattern most of the time. The less obvious patterns offer the clearest room to improve.";
+    return "The main pattern was difficult to pick out. Take in the whole display before settling on a direction.";
+  }
+  const skill = isWm ? "held and compared the patterns" : "found the main pattern";
+  if (accuracy >= 0.8 && feedback.pointsKeptPercent < 50) {
+    return `You ${skill} accurately, but waiting used up many of the available points. Try committing a little sooner when the answer is clear.`;
+  }
+  if (accuracy < 0.7) {
+    return `This block was demanding: missed choices cost more points than waiting. Give the less obvious patterns enough time before choosing.`;
+  }
+  if (feedback.pointsKeptPercent >= 65) {
+    return `You ${skill} while keeping a good share of the available points — a useful balance of accuracy and timing.`;
+  }
+  return `You ${skill} in most trials. The next step is to adjust when you commit so that accuracy and timing work together.`;
 }
 
 function renderBlockComplete(): string {
@@ -1164,16 +1179,17 @@ function renderBlockComplete(): string {
       <span class="ccc-kicker">${isPractice ? "Practice complete" : `Stage ${journey.activeBlockIndex + 1} complete`}</span>
       <h1>${copy.title}</h1>
       <p>${copy.body}</p>
+      ${isPractice ? "" : `<aside class="ccc-block-meaning"><span>What this block shows</span><strong>${blockMeaning(feedback, isWm, isSignal)}</strong></aside>`}
       ${isPractice ? "" : `
         <div class="ccc-summary-grid ${isSignal ? "" : "ccc-points-summary"}">
-          <article><span>${isSignal ? "Patterns correct" : isWm ? "Memory accuracy" : "Accuracy"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong></article>
+          <article><span>${isWm ? "Holding and comparing" : "Finding the main pattern"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong><small>Correct choices</small></article>
           ${isSignal
-            ? `<article><span>Typical answer time</span><strong>${formatTime(feedback.medianDecisionMs)}</strong></article>
-              <article><span>Patterns completed</span><strong>${feedback.observationCount}</strong></article>`
-            : `<article class="is-points-total"><span>Block points</span><strong>${formatPointTotal(feedback.points)}</strong></article>
-              <article><span>Points kept</span><strong>${feedback.pointsKeptPercent}%</strong></article>`}
+            ? `<article><span>Time before choosing</span><strong>${formatTime(feedback.medianDecisionMs)}</strong><small>Typical response</small></article>
+              <article><span>Patterns completed</span><strong>${feedback.observationCount}</strong><small>Useful responses</small></article>`
+            : `<article class="is-points-total"><span>Points earned</span><strong>${formatPointTotal(feedback.points)}</strong><small>This block’s total</small></article>
+              <article><span>Decision balance</span><strong>${feedback.pointsKeptPercent}%</strong><small>Available points kept through accuracy and timely choices</small></article>`}
         </div>`}
-      ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>${isWm ? "Chosen viewing time" : "Typical decision time"}: ${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}.</strong> ${isWm ? `Compare with exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Read this together with accuracy and points."}</p>`}
+      ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>Time before choosing: ${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}.</strong> ${isWm ? `You compared each pattern with the one shown ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} earlier.` : "Use this with the accuracy and decision-balance results above."}</p>`}
       ${wmLevelMessage ? `<p class="ccc-learning-status"><strong>Memory level:</strong> ${wmLevelMessage}</p>` : ""}
       ${isPractice ? "" : renderBetweenBlockTrends()}
       ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>New display next.</strong> Your recent results were steady.</p>` : ""}
@@ -1216,13 +1232,13 @@ function renderBlockInsights(): string {
   return shell(`
     <section class="ccc-narrow-card ccc-insights-card">
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} feedback</span><span>${feedback.observationCount} patterns</span></div>
-      <span class="ccc-kicker">${isSignal ? "Clear and close patterns" : "Look, then choose"}</span>
-      <h1>${isSignal ? "Where the pattern was easier to see" : "How your choices changed"}</h1>
+      <span class="ccc-kicker">${isSignal ? "Clear and less obvious patterns" : "Look, then choose"}</span>
+      <h1>${isSignal ? "What made the pattern easier or harder" : "How the rewards and costs changed your choices"}</h1>
       <div class="ccc-chart-grid ${isSignal ? "is-single" : ""}">
-        <section><h2>Accuracy by clarity</h2>${clarityBars}</section>
-        ${isSignal ? "" : `<section><h2>Viewing time by condition</h2>${nicheBars}</section>`}
+        <section><h2>Finding the main pattern</h2>${clarityBars}</section>
+        ${isSignal ? "" : `<section><h2>Time before choosing</h2>${nicheBars}</section>`}
       </div>
-      <p class="ccc-insight-callout"><strong>${isSignal ? "Notice:" : "What changed:"}</strong> ${isSignal ? "Compare clear and close patterns." : shift}</p>
+      <p class="ccc-insight-callout"><strong>What to notice:</strong> ${isSignal ? "Compare how often you found the direction when it was clear with when it was less obvious." : shift}</p>
       ${renderPolicyCoaching(block)}
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="show-block-reconnect">Connect this to your workflow</button>
@@ -1360,9 +1376,9 @@ function scoreForSessionMetric(
 function scoreStatus(score: number | null): string {
   if (score === null) return "Building";
   if (comparisonMode === "population") {
-    if (score >= 110) return "Above the current user average";
-    if (score >= 90) return "Within the current user range";
-    return "Below the current user average";
+    if (score >= 110) return "Above other app users’ average";
+    if (score >= 90) return "Around other app users’ average";
+    return "Below other app users’ average";
   }
   if (score >= 110) return "Clear improvement from your start";
   if (score > 100) return "Improving from your start";
@@ -1386,7 +1402,11 @@ function trainingMetricCard(metric: typeof TRAINING_METRICS[number]): string {
     <div><span>${metric.label}</span><strong>${metricDisplay(metric, score)}</strong></div>
     <p>${metric.detail}</p>
     ${points ? `<svg viewBox="0 0 260 68" role="img" aria-label="${metric.label} session trend"><line x1="0" x2="260" y1="58" y2="58"></line><polyline points="${points}"></polyline></svg>` : ""}
-    <small>${metric.rawValue ? "Read this with accuracy and decision balance" : `${scoreStatus(score)} · ${comparisonMode === "personal" ? "100 is your starting point" : "Compared with other app users"}`}</small>
+    <small>${metric.rawValue
+      ? "Read this with accuracy and decision balance"
+      : comparisonMode === "population" && score === null
+        ? "Waiting for enough comparable user results · the other-user average will be 100"
+        : `${scoreStatus(score)} · ${comparisonMode === "personal" ? "your starting result is 100" : "the other-user average is 100"}`}</small>
   </article>`;
 }
 
@@ -1401,7 +1421,8 @@ const SESSION_TREND_SERIES: Array<{
 ];
 
 function renderSessionTrendChart(): string {
-  const sessions = programme.sessions.filter((session) => session.metrics).slice(-8);
+  const scoredSessions = programme.sessions.filter((session) => session.metrics);
+  const sessions = comparisonMode === "population" ? scoredSessions.slice(-1) : scoredSessions.slice(-8);
   if (!sessions.length) return "";
   const width = 720;
   const height = 220;
@@ -1417,7 +1438,7 @@ function renderSessionTrendChart(): string {
   const yFor = (value: number) => top + (130 - Math.max(70, Math.min(130, value))) / 60 * plotHeight;
   const series = SESSION_TREND_SERIES.map((item) => {
     const metric = TRAINING_METRICS.find((candidate) => candidate.key === item.key)!;
-    const values = sessions.map((session) => scoreForSessionMetric(session, metric, "personal"));
+    const values = sessions.map((session) => scoreForSessionMetric(session, metric, comparisonMode));
     const available = values
       .map((value, index) => value === null ? null : { value, index, x: xFor(index), y: yFor(value) })
       .filter((point): point is { value: number; index: number; x: number; y: number } => point !== null);
@@ -1428,21 +1449,29 @@ function renderSessionTrendChart(): string {
     <line class="${value === 100 ? "is-baseline" : "is-grid"}" x1="${left}" x2="${width - right}" y1="${yFor(value).toFixed(1)}" y2="${yFor(value).toFixed(1)}"></line>
     <text class="ccc-session-trend-axis" x="8" y="${(yFor(value) + 4).toFixed(1)}">${value}</text>
   `).join("");
-  const xLabels = sessions.map((session, index) => `<text class="ccc-session-trend-axis" x="${xFor(index).toFixed(1)}" y="${height - 8}" text-anchor="middle">S${session.sessionNumber}</text>`).join("");
+  const xLabels = sessions.map((session, index) => `<text class="ccc-session-trend-axis" x="${xFor(index).toFixed(1)}" y="${height - 8}" text-anchor="middle">${comparisonMode === "population" ? "Latest" : `S${session.sessionNumber}`}</text>`).join("");
+  const populationComparison = comparisonMode === "population";
+  if (populationComparison && !visibleSeries.length) return `<section class="ccc-session-trend-card ccc-standardised-waiting">
+    <div class="ccc-session-trend-heading">
+      <div><span>Standardised comparison</span><strong>Other-user comparison is being prepared</strong></div>
+      <small>The average will be 100 when enough comparable app results are available.</small>
+    </div>
+    <p>Your session data is synced, but no comparison score is shown until the reference group is large enough.</p>
+  </section>`;
   return `<section class="ccc-session-trend-card" aria-labelledby="ccc-session-trend-title">
     <div class="ccc-session-trend-heading">
-      <div><span>Running graph</span><strong id="ccc-session-trend-title">Performance across sessions</strong></div>
-      <small>100 marks where you started. A line above 100 shows improvement.</small>
+      <div><span>${populationComparison ? "Standardised comparison" : "Personal progress"}</span><strong id="ccc-session-trend-title">${populationComparison ? "Your latest result against other app users" : "Change across your sessions"}</strong></div>
+      <small>${populationComparison ? "100 marks the other-user average. Above 100 means above average." : "100 marks where you started. A line above 100 shows improvement."}</small>
     </div>
     <div class="ccc-session-trend-legend">${visibleSeries.map((item) => `<span class="${item.className}"><i></i>${item.label}<strong>${item.latest ?? "—"}</strong></span>`).join("")}</div>
-    <svg class="ccc-session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Finding the pattern, decision balance and holding-and-comparing performance across sessions">
+    <svg class="ccc-session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${populationComparison ? "Latest cognitive-control results compared with other app users" : "Finding the pattern, decision balance and holding-and-comparing performance across sessions"}">
       ${grid}
       ${visibleSeries.map((item) => `<path class="ccc-session-trend-line ${item.className}" d="${item.available.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ")}"></path>`).join("")}
       ${visibleSeries.map((item) => item.available.map((point) => `<circle class="ccc-session-trend-dot ${item.className}" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4"></circle>`).join("")).join("")}
       <line class="ccc-session-trend-axis-line" x1="${left}" x2="${width - right}" y1="${height - bottom}" y2="${height - bottom}"></line>
       ${xLabels}
     </svg>
-    <p class="ccc-session-trend-explainer">The graph separates finding relevant information, holding it across time and choosing efficiently enough for the current rewards and costs.</p>
+    <p class="ccc-session-trend-explainer">${populationComparison ? "Each point shows where your latest standardised skill score sits around the other-user average of 100." : "The graph separates finding relevant information, holding it across time and choosing efficiently enough for the current rewards and costs."}</p>
   </section>`;
 }
 
@@ -1474,14 +1503,15 @@ function renderComparisonSelector(): string {
   const available = populationModeAvailable(populationScores);
   const standardSelected = dataMode === "cloud_benchmark";
   const personalSelected = !standardSelected;
+  const personalStorage = dataMode === "local" ? "this device only" : "your private cloud account";
   return `<section class="ccc-comparison-panel">
-    <div><span class="ccc-kicker">How to read training progress</span><h2>Compare with your own start or with other users</h2></div>
+    <div><span class="ccc-kicker">Feedback reference</span><h2>${standardSelected ? "Compared with other app users" : "Compared with your own starting point"}</h2><small>${standardSelected ? "Cloud data · other-user average = 100" : `Saved in ${personalStorage} · your first valid result = 100`}</small></div>
     <div class="ccc-comparison-options">
       <button data-action="select-personal-mode" class="${personalSelected ? "is-selected" : ""}" aria-pressed="${personalSelected}">
-        <strong>My progress</strong><span>Your first result becomes 100, so later scores show change from where you started.</span><em>${personalSelected ? "Selected" : "Choose"}</em>
+        <strong>My own starting point</strong><span>Your first valid result is 100. Later scores show change from where you began.</span><em>${personalSelected ? dataMode === "local" ? "Local selected" : "Cloud selected" : "Choose personal cloud"}</em>
       </button>
       <button data-action="select-population-mode" class="${standardSelected ? "is-selected" : ""}" aria-pressed="${standardSelected}" ${isSupabaseConfigured ? "" : "disabled"}>
-        <strong>Other users</strong><span>${available ? "See how your result compares with other people using this app." : "Available after enough people have used the app."}</span><em>${standardSelected ? available ? "Selected" : "Waiting for comparison data" : isSupabaseConfigured ? "Choose" : "Unavailable"}</em>
+        <strong>Other app users’ average</strong><span>The current average is 100. Your standard score shows where you sit around it.</span><em>${standardSelected ? available ? "Cloud selected" : "Selected · building average" : isSupabaseConfigured ? "Choose standardised cloud" : "Unavailable"}</em>
       </button>
     </div>
   </section>`;
@@ -1624,7 +1654,7 @@ function renderProgressHistory(): string {
   const latest = latestSessionMetrics();
   return `<section class="ccc-progress-screen">
     <div class="ccc-progress-hero">
-      <div><span class="ccc-kicker">Your progress</span><h1>See how your results change.</h1><p>Review your sessions and G Track check-ins.</p></div>
+      <div><span class="ccc-kicker">Your progress</span><h1>${comparisonMode === "population" ? "See where your latest results sit." : "See how your results change."}</h1><p>${comparisonMode === "population" ? "Training scores are compared with other app users’ average." : "Training scores are compared with your own starting point."} G Track check-ins remain separate.</p></div>
       <div class="ccc-progress-hero-stat"><span>Sessions with feedback</span><strong>${sessionsWithMetrics.length}</strong><small>Programme ${programmeProgressPercent(programme)}% complete</small></div>
     </div>
     ${progressPanelNavigation()}
@@ -1727,8 +1757,15 @@ function renderCompleteReconnect(): string {
 
 function dataModeCard(mode: DataMode, kicker: string, title: string, copy: string): string {
   const selected = dataMode === mode;
+  const cloud = mode !== "local";
+  const standardised = mode === "cloud_benchmark";
   return `<button class="ccc-data-mode-card is-${mode.replace("_", "-")} ${selected ? "is-selected" : ""}" data-action="select-data-mode" data-mode="${mode}" aria-pressed="${selected}">
-    <span>${kicker}</span><strong>${title}</strong><p>${copy}</p><em>${selected ? "Selected" : "Choose"}</em>
+    <span>${kicker}</span><strong>${title}</strong><p>${copy}</p>
+    <dl class="ccc-data-mode-facts">
+      <div><dt>Stored</dt><dd>${cloud ? "Cloud · across devices" : "This browser only"}</dd></div>
+      <div><dt>Feedback compares</dt><dd>${standardised ? "You with other app users · average 100" : "You with your own start · starting result 100"}</dd></div>
+    </dl>
+    <em>${selected ? "Selected" : "Choose"}</em>
   </button>`;
 }
 
@@ -1752,25 +1789,26 @@ function renderAuth(): string {
 
 function renderData(): string {
   const cloudSelected = dataMode !== "local";
+  const personalReference = dataMode !== "cloud_benchmark";
   const accountContent = !isSupabaseConfigured
     ? `<p>Cloud sync is unavailable in this build. Progress stays in this browser.</p>`
     : !cloudSelected
-      ? `<p>Cloud sync is off for this app.${authUser?.email ? ` You remain signed in as <strong>${escapeHtml(authUser.email)}</strong>.` : ""}</p>`
+      ? `<p>Cloud sync is off for this app. Feedback still uses your own starting point.${authUser?.email ? ` You remain signed in as <strong>${escapeHtml(authUser.email)}</strong>.` : ""}</p>`
       : authUser
         ? `<p>Signed in as <strong>${escapeHtml(authUser.email || "IQ Mindware user")}</strong>. ${escapeHtml(cloudStatus)}</p>
            <button class="ccc-button ccc-button-secondary" data-action="sign-out">Sign out</button>`
-        : `<p>Sign in to sync your progress across devices.</p>
+        : `<p>Sign in to sync your progress across devices and use ${personalReference ? "your own starting point" : "the other-user average"} for feedback.</p>
            <label class="ccc-field"><span>Email address</span><input id="ccc-account-email" type="email" autocomplete="email" placeholder="you@example.com" /></label>
            <button class="ccc-button ccc-button-primary" data-action="send-sign-in">Email me a sign-in link</button>`;
   return shell(`
     <section class="ccc-data-screen">
-      <div class="ccc-data-heading"><span class="ccc-kicker">Data</span><h1>Choose how your progress is stored.</h1><p>Cloud personal is the default.</p></div>
+      <div class="ccc-data-heading"><span class="ccc-kicker">Data and feedback</span><h1>Choose where data is stored—and what your scores mean.</h1><p>The two cloud options use different comparison points. Personal cloud is the default.</p></div>
       <div class="ccc-data-mode-grid">
-        ${dataModeCard("cloud_personal", "Private sync", "Cloud personal", "Sync across devices. Your first valid score is 100.")}
-        ${dataModeCard("cloud_benchmark", "Standardised sync", "Cloud standard scores", "Sync progress and compare with other users when enough results are available.")}
-        ${dataModeCard("local", "Local only", "On this device", "Keep progress in this browser. Cloud sync is off.")}
+        ${dataModeCard("cloud_personal", "Cloud · personal baseline", "My progress across devices", "Track your own development with private cloud sync.")}
+        ${dataModeCard("cloud_benchmark", "Cloud · standardised average", "Compare with other users", "See where your latest result sits when the reference group is ready.")}
+        ${dataModeCard("local", "Device · personal baseline", "My progress on this device", "Track your own development without cloud sync.")}
       </div>
-      <section class="ccc-data-account"><strong>${escapeHtml(dataModeLabel())}</strong>${accountContent}${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}</section>
+      <section class="ccc-data-account"><strong>${escapeHtml(dataModeLabel())}</strong><div class="ccc-data-current-reference"><span>Current feedback reference</span><b>${personalReference ? "Your own starting result = 100" : "Other app users’ average = 100"}</b></div>${accountContent}${accountMessage ? `<p class="ccc-account-message">${escapeHtml(accountMessage)}</p>` : ""}</section>
       <div class="ccc-data-actions">
         <button class="ccc-button ccc-button-secondary" data-action="export-data">Export data</button>
         <button class="ccc-button ccc-button-quiet" data-action="delete-data">Remove data</button>
@@ -2618,13 +2656,13 @@ function setDataMode(nextMode: DataMode): void {
   dataMode = isSupabaseConfigured ? nextMode : "local";
   saveDataMode(dataMode);
   populationScores = {};
-  comparisonMode = "personal";
+  comparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
   saveCccComparisonMode(comparisonMode);
   accountMessage = dataMode === "local"
-    ? "Progress will stay in this browser."
+    ? "Progress will stay in this browser and be compared with your own starting point."
     : dataMode === "cloud_benchmark"
-      ? "Standard scores will appear when enough results are available."
-      : "Your first valid score will be shown as 100.";
+      ? "Feedback will use the other-user average of 100 when enough results are available."
+      : "Feedback will compare later results with your own starting result of 100.";
   if (cloudSyncActive() && authUser) {
     cloudStatus = `${dataModeLabel()} selected. Syncing your progress.`;
     void hydrateCloudProgress(authUser).finally(render);
@@ -2667,7 +2705,7 @@ async function deleteCurrentData(): Promise<void> {
     journey = null;
     programme = createInitialProgrammeState();
     populationScores = {};
-    comparisonMode = "personal";
+    comparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
     saveCccComparisonMode(comparisonMode);
     accountMessage = "Your Cognitive Control Coach data has been removed.";
   } catch (error) {
@@ -2823,12 +2861,12 @@ appRoot.addEventListener("click", (event) => {
   } else if (action === "select-population-mode") {
     if (isSupabaseConfigured) {
       if (dataMode !== "cloud_benchmark") setDataMode("cloud_benchmark");
+      comparisonMode = "population";
+      saveCccComparisonMode(comparisonMode);
       if (populationModeAvailable(populationScores)) {
-        comparisonMode = "population";
-        saveCccComparisonMode(comparisonMode);
-        progressMessage = "Comparing your scores with other users.";
+        progressMessage = "Showing your latest result around the other-user average of 100.";
       } else {
-        progressMessage = "Standard scores will appear when enough results are available.";
+        progressMessage = "Other-user scores will appear when the reference group is large enough; no personal-baseline score is substituted.";
       }
       if (!authUser) setView("data");
       else render();
@@ -2885,7 +2923,7 @@ appRoot.addEventListener("click", (event) => {
     void signOutUser().then(() => {
       authUser = null;
       populationScores = {};
-      comparisonMode = "personal";
+      comparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
       saveCccComparisonMode(comparisonMode);
       accountMessage = "Signed out. This browser still holds your local progress.";
       render();
@@ -3018,7 +3056,7 @@ if (isSupabaseConfigured) {
       return;
     }
     populationScores = {};
-    if (comparisonMode === "population") comparisonMode = "personal";
+    comparisonMode = dataMode === "cloud_benchmark" ? "population" : "personal";
     if (!user && !dataModeSeen) view = "auth";
     render();
   });

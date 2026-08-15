@@ -165,6 +165,19 @@ describe("CCC playable integration", () => {
     expect(appStyles).toContain(".ccc-summary-grid.ccc-points-summary");
   });
 
+  it("explains between-block results in plain language", () => {
+    expect(mainSource).toContain("What this block shows");
+    expect(mainSource).toContain("Finding the main pattern");
+    expect(mainSource).toContain("Holding and comparing");
+    expect(mainSource).toContain("Points earned");
+    expect(mainSource).toContain("Decision balance");
+    expect(mainSource).toContain("Across today’s blocks");
+    expect(mainSource).toContain("See whether the pattern is changing");
+    expect(mainSource).toContain("What to notice:");
+    expect(mainSource).toContain("Try this next");
+    expect(appStyles).toContain(".ccc-block-meaning");
+  });
+
   it("keeps stage numbering continuous and lays every journey rail out responsively", () => {
     expect(mainSource).toContain('.filter(({ block }) => block.phase !== "practice")');
     expect(mainSource).toContain("String(stageIndex + 1)");
@@ -250,20 +263,20 @@ describe("CCC playable integration", () => {
   });
 
   it("makes stage, session and G Track feedback accessible in the UX", () => {
-    expect(mainSource).toContain("Your results so far");
+    expect(mainSource).toContain("Results so far");
     expect(mainSource).toContain("Your session");
     expect(mainSource).toContain("Points for this block");
-    expect(mainSource).toContain("Adjust your viewing time to the points");
+    expect(mainSource).toContain("Match how long you look to the rewards and costs");
     expect(mainSource).toContain("Strategy takeaway");
     expect(mainSource).toContain("See how your results change");
     expect(mainSource).toContain("G Track check-ins");
-    expect(mainSource).toContain("My progress");
-    expect(mainSource).toContain("Other users");
+    expect(mainSource).toContain("My own starting point");
+    expect(mainSource).toContain("Other app users’ average");
     expect(mainSource).toContain("loadCccGTrackScores");
   });
 
   it("leads with plain-language graphs and gives G Track scores their own progress view", () => {
-    expect(mainSource).toContain("Performance across sessions");
+    expect(mainSource).toContain("Change across your sessions");
     expect(mainSource).toContain("100 marks where you started. A line above 100 shows improvement.");
     expect(mainSource).toContain("Finding the pattern");
     expect(mainSource).toContain("Holding and comparing");
@@ -287,12 +300,24 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain('data-action="open-data"');
     expect(mainSource).toContain(">Data</button>");
     expect(mainSource).not.toContain("Save progress");
-    expect(mainSource).toContain('dataModeCard("cloud_personal", "Private sync", "Cloud personal"');
-    expect(mainSource).toContain("Your first valid score is 100.");
-    expect(mainSource).toContain('dataModeCard("cloud_benchmark", "Standardised sync", "Cloud standard scores"');
-    expect(mainSource).toContain('dataModeCard("local", "Local only", "On this device"');
+    expect(mainSource).toContain('dataModeCard("cloud_personal", "Cloud · personal baseline", "My progress across devices"');
+    expect(mainSource).toContain('dataModeCard("cloud_benchmark", "Cloud · standardised average", "Compare with other users"');
+    expect(mainSource).toContain('dataModeCard("local", "Device · personal baseline", "My progress on this device"');
+    expect(mainSource).toContain("You with your own start · starting result 100");
+    expect(mainSource).toContain("You with other app users · average 100");
+    expect(mainSource).toContain("This browser only");
+    expect(mainSource).toContain("Cloud · across devices");
     expect(mainSource).toContain("function cloudSyncActive()");
     expect(mainSource).toContain('dataMode !== "local"');
     expect(mainSource).toContain('dataMode === "cloud_benchmark" ? loadStandardizedScores');
+  });
+
+  it("uses the selected data mode as the progress comparison reference", () => {
+    expect(mainSource).toContain('dataMode === "cloud_benchmark" ? "population" : "personal"');
+    expect(mainSource).toContain("your starting result is 100");
+    expect(mainSource).toContain("the other-user average is 100");
+    expect(mainSource).toContain("no personal-baseline score is substituted");
+    expect(mainSource).toContain("Other-user comparison is being prepared");
+    expect(mainSource).toContain("100 marks the other-user average. Above 100 means above average.");
   });
 });
