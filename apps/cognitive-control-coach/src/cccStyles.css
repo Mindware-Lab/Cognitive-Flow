@@ -122,37 +122,6 @@ a:focus-visible {
   backdrop-filter: blur(14px);
 }
 
-.ccc-app-tabs {
-  grid-row: 2;
-  min-height: 48px;
-  display: flex;
-  align-items: end;
-  gap: 8px;
-  padding: 0 24px;
-  border-bottom: 1px solid var(--line);
-  background: #fff;
-}
-
-.ccc-app-tabs + .ccc-main { grid-row: 3; }
-
-.ccc-app-tabs ~ .ccc-footer { grid-row: 4; }
-
-.ccc-app-tabs button {
-  min-height: 44px;
-  padding: 0 16px;
-  border: 0;
-  border-bottom: 3px solid transparent;
-  color: var(--muted);
-  background: transparent;
-  font-size: 0.8rem;
-  font-weight: 800;
-}
-
-.ccc-app-tabs button.is-active {
-  border-bottom-color: var(--blue);
-  color: var(--navy);
-}
-
 .ccc-between-block-trends {
   margin: 12px 0;
   padding: 12px;
@@ -246,7 +215,7 @@ a:focus-visible {
 .ccc-session-score-strip .ccc-text-button { margin-top: 8px; }
 
 .ccc-progress-view .ccc-main { overflow-y: auto; }
-.ccc-progress-view { grid-template-rows: auto auto minmax(0, 1fr) auto; }
+.ccc-progress-view { grid-template-rows: auto minmax(0, 1fr) auto; }
 
 .ccc-progress-screen {
   width: min(1040px, 100%);
@@ -272,7 +241,7 @@ a:focus-visible {
   background: linear-gradient(135deg, var(--navy), var(--navy-soft));
 }
 
-.ccc-progress-hero h1 { margin: 4px 0 8px; color: #fff; font-size: clamp(1.6rem, 4vw, 2.6rem); line-height: 1.05; }
+.ccc-progress-hero h1 { margin: 4px 0 8px; color: #fff; font-size: clamp(1.55rem, 3.2vw, 2.3rem); line-height: 1.08; }
 .ccc-progress-hero p { margin: 0; color: rgba(255, 255, 255, 0.75); line-height: 1.5; }
 .ccc-progress-hero .ccc-kicker { color: var(--blue); }
 
@@ -448,7 +417,10 @@ a:focus-visible {
 }
 
 @media (max-width: 560px) {
-  .ccc-app-tabs { padding: 0 12px; }
+  .ccc-brand-lockup {
+    display: none;
+  }
+
   .ccc-comparison-options,
   .ccc-mini-trend-grid,
   .ccc-progress-metric-grid,
@@ -505,9 +477,43 @@ a:focus-visible {
 }
 
 .ccc-header-actions {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 14px;
+}
+
+.ccc-header-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.055);
+}
+
+.ccc-header-nav button {
+  min-height: 36px;
+  padding: 0 13px;
+  border: 0;
+  border-radius: 999px;
+  color: rgba(255, 255, 255, 0.82);
+  background: transparent;
+  font-size: 0.76rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.ccc-header-nav button:hover {
+  color: #fff;
+  background: rgba(34, 170, 255, 0.12);
+}
+
+.ccc-header-nav button.is-active {
+  color: #fff;
+  background: rgba(34, 170, 255, 0.24);
+  box-shadow: inset 0 0 0 1px rgba(34, 170, 255, 0.38);
 }
 
 .ccc-status-chip,
@@ -583,10 +589,6 @@ a:focus-visible {
   grid-template-rows: auto minmax(0, 1fr);
 }
 
-.ccc-has-tabs.ccc-viewport-view {
-  grid-template-rows: auto auto minmax(0, 1fr);
-}
-
 .ccc-viewport-view .ccc-main {
   display: grid;
   align-items: center;
@@ -640,6 +642,17 @@ a:focus-visible {
   text-align: left;
 }
 
+.ccc-welcome .ccc-main {
+  align-items: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.ccc-welcome .ccc-hero {
+  width: 100%;
+  margin-block: auto;
+}
+
 .ccc-kicker {
   display: inline-flex;
   align-items: center;
@@ -675,10 +688,10 @@ strong {
 h1 {
   margin-bottom: 16px;
   color: var(--navy);
-  font-size: clamp(2.25rem, 5vw, 4.85rem);
+  font-size: clamp(1.9rem, min(3.6vw, 5.2vh), 3.45rem);
   font-weight: 760;
-  line-height: 0.98;
-  letter-spacing: -0.055em;
+  line-height: 1.02;
+  letter-spacing: -0.045em;
 }
 
 h1 em {
@@ -1449,8 +1462,8 @@ p {
 .ccc-account-view h1,
 .ccc-pause-view h1 {
   margin-bottom: clamp(10px, 1.6vh, 16px);
-  font-size: clamp(2rem, min(4.4vw, 6vh), 3.45rem);
-  line-height: 1.02;
+  font-size: clamp(1.85rem, min(3.6vw, 5.2vh), 2.9rem);
+  line-height: 1.06;
 }
 
 .ccc-workflow-picker > p,
@@ -1594,7 +1607,7 @@ p {
 
 .ccc-auth-screen h1 {
   margin: 0 0 10px;
-  font-size: clamp(1.9rem, 5vw, 3rem);
+  font-size: clamp(1.8rem, 4vw, 2.5rem);
   line-height: 1.04;
 }
 
@@ -1625,7 +1638,7 @@ p {
 
 .ccc-data-heading h1 {
   margin: 0 0 7px;
-  font-size: clamp(1.75rem, 4vw, 2.65rem);
+  font-size: clamp(1.7rem, 3.4vw, 2.3rem);
   line-height: 1.05;
 }
 
@@ -2397,9 +2410,9 @@ p {
   max-width: 760px;
   margin: 0;
   color: var(--navy);
-  font-size: clamp(2rem, min(5vw, 6vh), 3.7rem);
-  line-height: 0.98;
-  letter-spacing: -0.045em;
+  font-size: clamp(1.9rem, min(4vw, 5.4vh), 3rem);
+  line-height: 1.03;
+  letter-spacing: -0.04em;
 }
 
 .ccc-achievement-lead {
@@ -2639,7 +2652,23 @@ p {
 
   .ccc-header {
     min-height: 58px;
+    gap: 9px;
     padding: 8px 13px;
+  }
+
+  .ccc-header-actions {
+    gap: 6px;
+  }
+
+  .ccc-header-nav {
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .ccc-header-nav button {
+    min-height: 38px;
+    padding: 0 9px;
+    font-size: 0.7rem;
   }
 
   .ccc-brand .ccc-brand-mark {
@@ -2659,6 +2688,10 @@ p {
     display: none;
   }
 
+  .ccc-status-chip {
+    display: none;
+  }
+
   .ccc-main {
     padding: 16px 15px;
   }
@@ -2669,7 +2702,7 @@ p {
 
   .ccc-hero h1 {
     margin-bottom: 10px;
-    font-size: clamp(2.2rem, 10vw, 3.2rem);
+    font-size: clamp(2rem, 8.8vw, 2.7rem);
   }
 
   .ccc-lead {
@@ -3042,8 +3075,8 @@ p {
   }
 
   .ccc-account-button {
-    min-height: 44px;
-    padding: 0 10px;
+    min-height: 42px;
+    padding: 0 9px;
     font-size: 0.7rem;
   }
 
@@ -3052,7 +3085,7 @@ p {
   }
 
   h1 {
-    font-size: clamp(2rem, 10vw, 2.6rem);
+    font-size: clamp(1.8rem, 8.5vw, 2.25rem);
   }
 
   .ccc-section,
@@ -3337,12 +3370,22 @@ p {
 
   .ccc-shift-card h1 {
     margin-bottom: 7px;
-    font-size: clamp(1.8rem, 5vh, 2.6rem);
+    font-size: clamp(1.7rem, 4.5vh, 2.3rem);
   }
 
   .ccc-shift-card > p {
     margin-bottom: 6px;
     line-height: 1.4;
+  }
+}
+
+@media (max-width: 380px) {
+  .ccc-header {
+    padding-inline: 9px;
+  }
+
+  .ccc-header-nav button {
+    padding-inline: 8px;
   }
 }
 

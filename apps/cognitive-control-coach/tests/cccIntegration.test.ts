@@ -175,6 +175,7 @@ describe("CCC playable integration", () => {
 
   it("keeps progress available at safe session boundaries and returns without advancing", () => {
     expect(mainSource).toContain('type ProgressPanel = "session" | "history"');
+    expect(mainSource).toContain("function headerNavigation()");
     expect(mainSource).toContain('currentView !== "task"');
     expect(mainSource).toContain('currentView !== "shift_view"');
     expect(mainSource).toContain('data-action="show-session-progress"');
@@ -186,7 +187,15 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Review your results without losing your place.");
     expect(appStyles).toContain(".ccc-progress-segments");
     expect(appStyles).toContain(".ccc-live-session-grid");
-    expect(appStyles).toContain(".ccc-has-tabs.ccc-viewport-view");
+    expect(appStyles).toContain(".ccc-header-nav");
+    expect(appStyles).toContain(".ccc-header-nav button.is-active");
+    expect(appStyles).not.toContain(".ccc-app-tabs");
+  });
+
+  it("keeps the welcome screen readable without oversized titles or clipped content", () => {
+    expect(appStyles).toMatch(/h1\s*\{[\s\S]*?font-size: clamp\(1\.9rem, min\(3\.6vw, 5\.2vh\), 3\.45rem\)/);
+    expect(appStyles).toMatch(/\.ccc-welcome \.ccc-main\s*\{[\s\S]*?overflow-y: auto;/);
+    expect(appStyles).toMatch(/\.ccc-workflow-picker h1,[\s\S]*?font-size: clamp\(1\.85rem, min\(3\.6vw, 5\.2vh\), 2\.9rem\)/);
   });
 
   it("reserves the congratulations achievement screen for the completed programme state", () => {

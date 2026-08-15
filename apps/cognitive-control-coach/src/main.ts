@@ -415,13 +415,15 @@ function progressNavigationAvailable(currentView: View = view): boolean {
     && currentView !== "shift_view";
 }
 
-function progressTabs(active: "overview" | "progress"): string {
+function headerNavigation(): string {
+  if (!progressNavigationAvailable()) return "";
   const activeJourney = Boolean(journey && !journey.completedAt);
   const returnAction = activeJourney ? "return-session" : "return-home";
   const progressDefault: ProgressPanel = activeJourney ? "session" : "history";
-  return `<nav class="ccc-app-tabs" aria-label="Cognitive Control Coach sections">
-    <button data-action="${active === "progress" ? returnAction : "session-current"}" class="${active === "overview" ? "is-active" : ""}" aria-current="${active === "overview" ? "page" : "false"}">${activeJourney ? "Session" : "Home"}</button>
-    <button data-action="show-progress" data-progress-panel="${progressDefault}" class="${active === "progress" ? "is-active" : ""}" aria-current="${active === "progress" ? "page" : "false"}">Progress</button>
+  const progressActive = view === "progress";
+  return `<nav class="ccc-header-nav" aria-label="Cognitive Control Coach sections">
+    <button data-action="${progressActive ? returnAction : "session-current"}" class="${progressActive ? "" : "is-active"}" aria-current="${progressActive ? "false" : "page"}">${activeJourney ? "Session" : "Home"}</button>
+    <button data-action="show-progress" data-progress-panel="${progressDefault}" class="${progressActive ? "is-active" : ""}" aria-current="${progressActive ? "page" : "false"}">Progress</button>
   </nav>`;
 }
 
@@ -445,15 +447,14 @@ function header(): string {
             <span>Session</span>
             <div class="ccc-header-progress-track" role="progressbar" aria-label="Session completion" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${sessionCompletion}"><i style="width:${sessionCompletion}%"></i></div>
           </div>` : `<span class="ccc-status-chip">Programme ${completion}%</span>`}
+        ${headerNavigation()}
         <button class="ccc-account-button" data-action="open-data" title="${escapeHtml(dataModeLabel())}">Data</button>
       </div>
     </header>`;
 }
 
 function shell(content: string, className = ""): string {
-  const tabs = progressNavigationAvailable() ? progressTabs(view === "progress" ? "progress" : "overview") : "";
-  const tabClass = tabs ? "ccc-has-tabs" : "";
-  return `<main class="ccc-app ${tabClass} ${className}">${header()}${tabs}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>Training and practice only</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
+  return `<main class="ccc-app ${className}">${header()}<div class="ccc-main" id="ccc-content" tabindex="-1">${content}</div><footer class="ccc-footer"><span>IQ Mindware · practice for demanding work and study</span><span>Training and practice only</span><span><a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></span></footer></main>`;
 }
 
 const JOURNEY_LABELS: Partial<Record<CccProgrammePhase, string>> = {
