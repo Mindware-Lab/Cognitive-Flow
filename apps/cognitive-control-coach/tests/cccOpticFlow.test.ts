@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
 import { cccOpticFlowAperturesForTrial, cccOpticFlowDotsForTrial } from "../src/cccOpticFlow";
+import { createOpticFlowTesterPlan } from "../src/cccTester";
 
 const plan = createProgrammeSessionPlan({
   programmeRunId: "motion-geometry",
@@ -16,6 +17,22 @@ const plan = createProgrammeSessionPlan({
 
 function distanceFromFieldCentre(x: number, y: number): number {
   return Math.hypot(x - 50, y - 50);
+}
+
+function meanScreenCrossForRelation(relation: "cw" | "ccw"): number {
+  const rotationalPlan = createOpticFlowTesterPlan("attention_rotational", `motion-${relation}`);
+  const crosses = rotationalPlan.trials.flatMap((trial) => cccOpticFlowDotsForTrial(trial))
+    .filter((dot) => dot.relation === relation)
+    .map((dot) => {
+      const midpointX = (dot.fromX + dot.toX) / 2;
+      const midpointY = (dot.fromY + dot.toY) / 2;
+      const radialX = midpointX - 50;
+      const radialY = midpointY - 50;
+      const travelX = dot.toX - dot.fromX;
+      const travelY = dot.toY - dot.fromY;
+      return radialX * travelY - radialY * travelX;
+    });
+  return crosses.reduce((total, value) => total + value, 0) / crosses.length;
 }
 
 describe("CCC global-centre motion patches", () => {
@@ -51,5 +68,10 @@ describe("CCC global-centre motion patches", () => {
       return Math.abs(localPositionX * travelY - localPositionY * travelX) > 0.1;
     });
     expect(nonRadialWithinPatch).toBe(true);
+  });
+
+  it("renders clockwise and anti-clockwise dot trajectories with the correct screen-space sign", () => {
+    expect(meanScreenCrossForRelation("cw")).toBeGreaterThan(0);
+    expect(meanScreenCrossForRelation("ccw")).toBeLessThan(0);
   });
 });

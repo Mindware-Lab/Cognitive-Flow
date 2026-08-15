@@ -76,8 +76,11 @@ function relationUnitVector(relation: DirectionRelation, x: number, y: number): 
   const radial = normalise(x - CENTER, y - CENTER);
   if (relation === "out") return radial;
   if (relation === "in") return { x: -radial.x, y: -radial.y };
-  if (relation === "cw") return { x: radial.y, y: -radial.x };
-  return { x: -radial.y, y: radial.x };
+  // SVG/screen coordinates increase downwards on the y axis. Rotating a
+  // radial vector 90 degrees clockwise therefore uses (-y, x), while the
+  // anti-clockwise tangent uses (y, -x).
+  if (relation === "cw") return { x: -radial.y, y: radial.x };
+  return { x: radial.y, y: -radial.x };
 }
 
 function positionInAperture(random: () => number, centerX: number, centerY: number): { x: number; y: number } {

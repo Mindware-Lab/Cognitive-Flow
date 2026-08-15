@@ -28,7 +28,11 @@ describe("CCC playable integration", () => {
     expect(mainSource).not.toContain("Transferable cognitive skill reached");
     expect(mainSource).not.toContain('data-response="withhold"');
     expect(mainSource).not.toContain("Not sure");
-    expect(mainSource).toContain("Five circular patches whose majority moves in, out, clockwise or counter-clockwise around the centre");
+    expect(mainSource).toContain("function relativeStimulusDirectionLabel");
+    expect(mainSource).toContain('trial.attentionPair === "rotational" ? "clockwise or anti-clockwise" : "in or out"');
+    expect(mainSource).not.toContain("Five circular patches whose majority moves in, out, clockwise or counter-clockwise around the centre");
+    expect(mainSource).toContain("function needsRotationalStimulusReset");
+    expect(mainSource).toContain('trial.targetClass === "cw" || trial.targetClass === "ccw"');
     expect(mainSource).toContain("cccOpticFlowAperturesForTrial");
     expect(mainSource).toContain("maskStimulus");
   });

@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 import {
   CCC_DELAYED_RECHECK,
+  CCC_CONFIG_VERSION,
   CCC_LEARNING_CURVE,
   CCC_REGIMES,
   CCC_RELATIONAL_WM,
+  CCC_ROTATIONAL_RESPONSE_LABELS,
   CCC_SHIFT_VIEW,
+  CCC_PROTOCOL_VERSION,
   CCC_TRIAL_TIMING,
   CCC_WRAPPER_RESPONSE_LABELS,
   validateCccPilotConfig,
@@ -13,6 +16,8 @@ import {
 describe("CCC pilot configuration", () => {
   it("matches the accepted v0.2 timing and value parameters", () => {
     expect(validateCccPilotConfig()).toEqual([]);
+    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.10");
+    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.10");
     expect(CCC_TRIAL_TIMING.fixationCueMs).toBe(350);
     expect(CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs).toBe(350);
     expect(CCC_TRIAL_TIMING.maxResponseWindowMs).toBe(4000);
@@ -35,6 +40,15 @@ describe("CCC pilot configuration", () => {
     expect(CCC_WRAPPER_RESPONSE_LABELS.arrow_rel).toEqual({ answerOptions: ["in", "out"], labels: { in: "In", out: "Out" } });
     expect(CCC_WRAPPER_RESPONSE_LABELS.flow_rel).toEqual({ answerOptions: ["in", "out"], labels: { in: "In", out: "Out" } });
     expect(JSON.stringify(CCC_WRAPPER_RESPONSE_LABELS)).not.toContain("Not sure");
+  });
+
+  it("uses a distinct British-labelled response pair for rotating attention", () => {
+    expect(CCC_ROTATIONAL_RESPONSE_LABELS).toEqual({
+      answerOptions: ["cw", "ccw"],
+      labels: { cw: "Clockwise", ccw: "Anti-clockwise" },
+    });
+    expect(CCC_ROTATIONAL_RESPONSE_LABELS.answerOptions).not.toContain("in");
+    expect(CCC_ROTATIONAL_RESPONSE_LABELS.answerOptions).not.toContain("out");
   });
 
   it("keeps Shift the View configurable and score-neutral", () => {

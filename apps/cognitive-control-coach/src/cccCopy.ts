@@ -120,14 +120,14 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   },
   p1a_relative_mix: {
     eyebrow: "New binary pair",
-    title: "Clockwise or Counter-clockwise",
+    title: "Clockwise or Anti-clockwise",
     body: "The choice is still binary, but this block uses the rotational pair. The pair stays fixed until the block ends.",
     bridge: "Keep the active two-choice rule clear as the display changes.",
   },
   p1a_delayed_recheck: {
     eyebrow: "Return after a break",
     title: "Switch between both displays again",
-    body: "Return using the clearly cued Clockwise or Counter-clockwise pair.",
+    body: "Return using the clearly cued Clockwise or Anti-clockwise pair.",
     bridge: "Notice what feels easy and what needs practice.",
   },
   p1b_attention_bridge: {
@@ -186,7 +186,7 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   },
   p1c_attention_reentry: {
     eyebrow: "Return to now",
-    title: "Choose Clockwise or Counter-clockwise",
+    title: "Choose Clockwise or Anti-clockwise",
     body: "Use the clearly cued rotational pair for this whole block.",
     bridge: "Return to the current pattern.",
   },

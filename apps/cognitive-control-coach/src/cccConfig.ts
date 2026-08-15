@@ -12,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.9";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.9";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.10";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.10";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -119,7 +119,7 @@ export const CCC_WRAPPER_RESPONSE_LABELS: Record<CccWrapperId, CccResponseLabels
 
 export const CCC_ROTATIONAL_RESPONSE_LABELS: CccResponseLabels = {
   answerOptions: ["cw", "ccw"],
-  labels: { cw: "Clockwise", ccw: "Counter-clockwise" },
+  labels: { cw: "Clockwise", ccw: "Anti-clockwise" },
 };
 
 // Relational WM uses one overt response: press Match for a target and withhold

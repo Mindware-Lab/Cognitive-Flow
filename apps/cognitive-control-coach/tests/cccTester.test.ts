@@ -21,6 +21,10 @@ describe("optic-flow tester plans", () => {
     expect(plan.blocks[0].attentionPair).toBe("rotational");
     expect(new Set(plan.trials.flatMap((trial) => trial.answerOptions))).toEqual(new Set(["cw", "ccw"]));
     expect(new Set(plan.trials.map((trial) => trial.targetClass))).toEqual(new Set(["cw", "ccw"]));
+    expect(plan.trials.every((trial) => trial.responseLabels.labels.cw === "Clockwise")).toBe(true);
+    expect(plan.trials.every((trial) => trial.responseLabels.labels.ccw === "Anti-clockwise")).toBe(true);
+    expect(plan.trials.flatMap((trial) => trial.answerOptions)).not.toContain("in");
+    expect(plan.trials.flatMap((trial) => trial.answerOptions)).not.toContain("out");
   });
 
   it.each([

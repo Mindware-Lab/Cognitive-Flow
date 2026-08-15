@@ -155,16 +155,16 @@ const APP_BASE = import.meta.env.BASE_URL || "/";
 const testerRequested = new URLSearchParams(window.location.search).get("tester") === "optic-flow";
 let testerExercise: OpticFlowTesterExercise | null = null;
 let journey = testerRequested ? null : loadCccJourney();
-function needsRelationalStimulusReset(saved: CccSavedJourney | null): boolean {
+function needsRotationalStimulusReset(saved: CccSavedJourney | null): boolean {
   return Boolean(saved
     && !saved.completedAt
     && saved.plan.configVersion !== CCC_CONFIG_VERSION
-    && saved.plan.blocks.some((block) => block.operator === "relational_wm"));
+    && saved.plan.trials.some((trial) => trial.targetClass === "cw" || trial.targetClass === "ccw"));
 }
 
-if (needsRelationalStimulusReset(journey)) {
+if (needsRotationalStimulusReset(journey)) {
   // Preserve the programme and saved n-back level, but do not resume an
-  // in-progress sequence generated with an older n-back stream design.
+  // in-progress sequence generated with reversed rotational vectors.
   clearCccJourney();
   journey = null;
 }
@@ -780,7 +780,7 @@ function renderPhaseGuide(): string {
   const isSignal = block.estimand === "signal_capacity";
   const isWm = block.operator === "relational_wm";
   const canPractiseAgain = isWm && block.wmNLevel !== null;
-  const attentionPairLabel = block.attentionPair === "rotational" ? "Clockwise or Counter-clockwise" : "In or Out";
+  const attentionPairLabel = block.attentionPair === "rotational" ? "Clockwise or Anti-clockwise" : "In or Out";
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
@@ -793,7 +793,7 @@ function renderPhaseGuide(): string {
         </div>
         ` : isWm ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Remember</strong><span>Keep each majority relation in mind: In, Out, Clockwise or Counter-clockwise.</span></article>
+          <article><strong>Remember</strong><span>Keep each majority relation in mind: In, Out, Clockwise or Anti-clockwise.</span></article>
           <article><strong>Compare</strong><span>Press Match only for a repeat exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.</span></article>
         </div>
         <p class="ccc-soft-note">The first ${block.wmNLevel} ${block.wmNLevel === 1 ? "pattern starts" : "patterns start"} the sequence.</p>` : `
@@ -845,13 +845,18 @@ function renderRegimeIntro(): string {
   `, "ccc-regime-intro-view ccc-viewport-view");
 }
 
+function relativeStimulusDirectionLabel(trial: CccAttentionTrialDefinition): string {
+  if (trial.operator === "relational_wm") return "in, out, clockwise or anti-clockwise";
+  return trial.attentionPair === "rotational" ? "clockwise or anti-clockwise" : "in or out";
+}
+
 function arrowStimulus(trial: CccAttentionTrialDefinition): string {
   const arrows = trial.stimulusItems.map((item) => {
     const angle = Math.atan2(item.vector.y, item.vector.x) * 180 / Math.PI;
     return `<g transform="translate(${item.position.x} ${item.position.y}) rotate(${angle})"><polygon points="${arrowPolygonPoints()}" /></g>`;
   }).join("");
   const label = trial.referenceFrame === "relative"
-    ? "Five arrows whose majority points in, out, clockwise or counter-clockwise around the centre"
+    ? `Five arrows whose majority points ${relativeStimulusDirectionLabel(trial)} around the centre`
     : "Five arrows pointing left or right";
   return `<svg class="ccc-stimulus-svg" viewBox="0 0 100 100" role="img" aria-label="${label}"><g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g><g class="ccc-arrow-items">${arrows}</g></svg>`;
 }
@@ -871,7 +876,10 @@ function flowStimulus(trial: CccAttentionTrialDefinition): string {
       <g clip-path="url(#${clipId})" class="ccc-flow-points">${dots}</g>
       <circle class="ccc-flow-ring" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />`;
   }).join("");
-  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five circular patches whose majority moves in, out, clockwise or counter-clockwise around the centre"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
+  const label = trial.referenceFrame === "relative"
+    ? `Five circular patches whose majority moves ${relativeStimulusDirectionLabel(trial)} around the centre`
+    : "Five circular patches whose majority moves left or right";
+  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="${label}"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
 }
 
 function flowMaskStimulus(trial: CccAttentionTrialDefinition): string {
@@ -974,7 +982,7 @@ function renderTask(): string {
   const wrapperLabel = trial.operator === "relational_wm"
     ? `${trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns"} · ${trial.wmNLevel}-back`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
-      : trial.attentionPair === "rotational" ? `${trial.wrapperId === "arrow_rel" ? "Arrows" : "Moving dots"} · Clockwise / Counter-clockwise`
+      : trial.attentionPair === "rotational" ? `${trial.wrapperId === "arrow_rel" ? "Arrows" : "Moving dots"} · Clockwise / Anti-clockwise`
       : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
         : "In / Out moving dots";
   const responseStage = isSignal || isWm ? taskStage === "response" : taskStage === "evidence";
@@ -1896,7 +1904,7 @@ function renderTester(): string {
         <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="attention_rotational">
           <span>Attention</span>
           <strong>Optic-flow · rotation</strong>
-          <small>Make a binary Clockwise or Counter-clockwise choice.</small>
+          <small>Make a binary Clockwise or Anti-clockwise choice.</small>
           <b>Open task</b>
         </button>
         <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="wm_1">
@@ -1942,7 +1950,7 @@ function renderTesterIntro(): string {
       <span class="ccc-kicker">${isWm ? "Hold and compare" : "Find the main motion"}</span>
       <h1>${testerExerciseName()}</h1>
       ${isWm ? `
-        <p>Each display has one majority relation: <strong>In, Out, Clockwise or Counter-clockwise</strong>. Compare it with ${level === 1 ? "the previous pattern" : `the pattern ${level} steps earlier`}. Press <strong>Match</strong> only when it is the same; otherwise let the stream continue.</p>
+        <p>Each display has one majority relation: <strong>In, Out, Clockwise or Anti-clockwise</strong>. Compare it with ${level === 1 ? "the previous pattern" : `the pattern ${level} steps earlier`}. Press <strong>Match</strong> only when it is the same; otherwise let the stream continue.</p>
         ${wmPracticeExample(level)}
         <section class="ccc-speed-choice">
           <div><span>Stream pace</span><strong id="ccc-tester-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds per pattern</strong></div>
@@ -1950,7 +1958,7 @@ function renderTesterIntro(): string {
           <div class="ccc-speed-labels"><span>Faster</span><span>Slower</span></div>
         </section>
         <label class="ccc-feedback-choice"><input id="ccc-tester-wm-feedback" type="checkbox" /><span><strong>Show brief match feedback</strong><small>Off by default. Correct rejections remain silent.</small></span></label>` : `
-        <p>Look across all five moving patches. Choose <strong>${block.attentionPair === "rotational" ? "Clockwise or Counter-clockwise" : "In or Out"}</strong> from the active pair shown for this block.</p>
+        <p>Look across all five moving patches. Choose <strong>${block.attentionPair === "rotational" ? "Clockwise or Anti-clockwise" : "In or Out"}</strong> from the active pair shown for this block.</p>
         <div class="ccc-instruction-grid">
           <article><strong>Find the majority</strong><span>Use the motion shown across all five patches.</span></article>
           <article><strong>Choose when ready</strong><span>The points show the speed–accuracy trade-off.</span></article>
@@ -3316,7 +3324,7 @@ window.addEventListener("beforeunload", saveJourney);
 async function hydrateCloudProgress(user: AuthUser): Promise<void> {
   try {
     const remote = await loadCccRemoteProgress() as unknown as CccSavedJourney | null;
-    if (needsRelationalStimulusReset(remote)) {
+    if (needsRotationalStimulusReset(remote)) {
       programme = migrateCccProgrammeState(remote?.programme || programme);
       saveCccProgramme(programme);
       cloudStatus = "Your saved level is ready. Start a fresh session with the corrected motion patterns.";
