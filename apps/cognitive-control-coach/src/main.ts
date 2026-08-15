@@ -34,6 +34,10 @@ import {
   createWmPracticeBlock,
   createWmPracticeTrials,
 } from "./cccProgrammeGenerator";
+import {
+  createOpticFlowTesterPlan,
+  type OpticFlowTesterExercise,
+} from "./cccTester";
 import { buildCccBlockFeedback, buildCccSessionMetrics } from "./cccFeedback";
 import { evaluateCccLearningCurve, isCccLearningCurveBoundary } from "./cccLearningCurve";
 import { evaluateCccWmPair } from "./cccWmProgress";
@@ -132,9 +136,12 @@ type View =
   | "full_transfer"
   | "complete_reconnect"
   | "progress"
-  | "data";
+  | "data"
+  | "tester"
+  | "tester_intro"
+  | "tester_complete";
 type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval";
-type TaskMode = "practice" | "wm_practice" | "guided";
+type TaskMode = "practice" | "wm_practice" | "guided" | "tester";
 type ProgressPanel = "session" | "history" | "proof";
 type ProgressHistoryPage = "overview" | "skills";
 type DataPanel = "options" | "manage";
@@ -144,7 +151,9 @@ if (!appElement) throw new Error("Missing #app root.");
 const appRoot: HTMLDivElement = appElement;
 
 const APP_BASE = import.meta.env.BASE_URL || "/";
-let journey = loadCccJourney();
+const testerRequested = new URLSearchParams(window.location.search).get("tester") === "optic-flow";
+let testerExercise: OpticFlowTesterExercise | null = null;
+let journey = testerRequested ? null : loadCccJourney();
 function needsRelationalStimulusReset(saved: CccSavedJourney | null): boolean {
   return Boolean(saved
     && !saved.completedAt
@@ -158,7 +167,9 @@ if (needsRelationalStimulusReset(journey)) {
   clearCccJourney();
   journey = null;
 }
-let programme: CccProgrammeState = migrateCccProgrammeState(loadCccProgramme() || journey?.programme || createInitialProgrammeState());
+let programme: CccProgrammeState = testerRequested
+  ? createInitialProgrammeState()
+  : migrateCccProgrammeState(loadCccProgramme() || journey?.programme || createInitialProgrammeState());
 if (journey) {
   journey.programme = programme;
   journey.plan.programmeRunId ||= programme.programmeRunId;
@@ -192,8 +203,8 @@ if (journey) {
   journey.wmPracticeLevel ??= null;
 }
 let selectedWorkflow: WorkflowChoice = journey?.workflowChoice || "focused_work";
-let dataModeSeen = loadDataModeSeen();
-let view: View = dataModeSeen ? "welcome" : isSupabaseConfigured ? "auth" : "data";
+let dataModeSeen = testerRequested || loadDataModeSeen();
+let view: View = testerRequested ? "tester" : dataModeSeen ? "welcome" : isSupabaseConfigured ? "auth" : "data";
 let dataReturnView: View = "welcome";
 let progressReturnView: View = "welcome";
 let progressPanel: ProgressPanel = journey && !journey.completedAt ? "session" : "history";
@@ -227,7 +238,7 @@ let accountMessage = "";
 let signInEmail = "";
 let signInLinkSent = false;
 let signInBusy = false;
-let dataMode: DataMode = isSupabaseConfigured ? loadDataMode() : "local";
+let dataMode: DataMode = testerRequested ? "local" : isSupabaseConfigured ? loadDataMode() : "local";
 let cloudStatus = isSupabaseConfigured
   ? "Sign in to sync your progress across devices."
   : "Progress is saved on this device.";
@@ -239,7 +250,7 @@ let pendingRegimeIntro: CccAttentionTrialDefinition | null = null;
 let lastIntroducedRegimeKey = "";
 
 function cloudSyncActive(): boolean {
-  return isSupabaseConfigured && dataMode !== "local" && Boolean(authUser);
+  return !testerRequested && isSupabaseConfigured && dataMode !== "local" && Boolean(authUser);
 }
 
 function dataModeLabel(mode: DataMode = dataMode): string {
@@ -378,7 +389,7 @@ function recordEvent(eventType: string, payload: Record<string, unknown> = {}, b
 }
 
 function saveJourney(): void {
-  if (!journey) return;
+  if (testerRequested || !journey) return;
   journey.programme = programme;
   saveCccJourney(journey);
 }
@@ -407,7 +418,8 @@ function setView(next: View): void {
 }
 
 function progressNavigationAvailable(currentView: View = view): boolean {
-  return currentView !== "auth"
+  return !testerRequested
+    && currentView !== "auth"
     && currentView !== "data"
     && currentView !== "task"
     && currentView !== "shift_view";
@@ -426,6 +438,23 @@ function headerNavigation(): string {
 }
 
 function header(): string {
+  if (testerRequested) {
+    return `
+      <a class="ccc-skip-link" href="#ccc-content">Skip to content</a>
+      <header class="ccc-header">
+        <a class="ccc-brand" href="https://www.iqmindware.com" aria-label="IQ Mindware home">
+          <img class="ccc-brand-mark" src="${assetPath("iqmindware-eye.svg")}" alt="" />
+          <span class="ccc-brand-lockup">
+            <strong><span>IQ</span> MINDWARE</strong>
+            <small>Cognitive Control Coach</small>
+          </span>
+        </a>
+        <div class="ccc-header-actions">
+          <span class="ccc-status-chip">TEST MODE</span>
+          <a class="ccc-account-button ccc-tester-exit" href="${APP_BASE}">Exit test access</a>
+        </div>
+      </header>`;
+  }
   const activeJourney = journey && !journey.completedAt;
   const sessionCompletion = journey && !journey.completedAt ? Math.round(journeyCompletionRatio(journey) * 100) : 0;
   const completion = programmeProgressPercent(programme);
@@ -869,6 +898,7 @@ function renderTask(): string {
   const regime = CCC_REGIMES[trial.regimeId];
   const regimeCopy = REGIME_COPY[trial.regimeId];
   const isPractice = taskMode === "practice" || taskMode === "wm_practice";
+  const isTester = taskMode === "tester";
   const isWmPractice = taskMode === "wm_practice";
   const isSignal = trial.estimand === "signal_capacity";
   const isWm = trial.operator === "relational_wm";
@@ -933,7 +963,7 @@ function renderTask(): string {
   return shell(`
     <section class="ccc-task-card">
       <div class="ccc-task-topline ${showBlockPoints ? "has-points" : ""}">
-        <div><span>${isPractice ? "Practice" : `Stage ${journey.activeBlockIndex + 1} of ${journey.plan.blocks.length}`}</span><strong>${wrapperLabel}</strong></div>
+        <div><span>${isTester ? "Test mode" : isPractice ? "Practice" : `Stage ${journey.activeBlockIndex + 1} of ${journey.plan.blocks.length}`}</span><strong>${wrapperLabel}</strong></div>
         <div class="ccc-task-progress-wrap">${taskProgress(block)}</div>
         ${showBlockPoints ? `<div class="ccc-block-points" aria-label="Block points ${formatPointTotal(blockPoints)}"><span>Block points</span><strong>${formatPointTotal(blockPoints)}</strong></div>` : ""}
         <button class="ccc-exit" data-action="pause-session">Pause</button>
@@ -963,6 +993,18 @@ function renderTask(): string {
 }
 
 function renderPaused(): string {
+  if (testerRequested) {
+    return shell(`
+      <section class="ccc-narrow-card">
+        <span class="ccc-kicker">Test paused</span>
+        <h1>Continue when you are ready.</h1>
+        <p>This test run remains in this tab and is not saved to your programme.</p>
+        <div class="ccc-actions">
+          <button class="ccc-button ccc-button-primary" data-action="resume-task">Continue test</button>
+          <button class="ccc-button ccc-button-quiet" data-action="tester-menu">Leave this run</button>
+        </div>
+      </section>`, "ccc-pause-view ccc-tester-view ccc-viewport-view");
+  }
   return shell(`
     <section class="ccc-narrow-card">
       <span class="ccc-kicker">Training paused</span>
@@ -1727,8 +1769,140 @@ function renderData(): string {
     </section>`, "ccc-data-view ccc-viewport-view");
 }
 
+function testerExerciseName(exercise: OpticFlowTesterExercise | null = testerExercise): string {
+  if (exercise === "attention") return "Optic-flow attention";
+  if (exercise === "wm_2") return "Optic-flow working memory · 2-back";
+  return "Optic-flow working memory · 1-back";
+}
+
+function createTesterJourney(exercise: OpticFlowTesterExercise): void {
+  testerExercise = exercise;
+  programme = createInitialProgrammeState();
+  const sessionId = `optic-flow-test-${crypto.randomUUID()}`;
+  const plan = createOpticFlowTesterPlan(exercise, sessionId);
+  const block = plan.blocks[0];
+  if (block.operator === "relational_wm") {
+    const exposureMs = CCC_RELATIONAL_WM.defaultPresentationMs;
+    block.selectedExposureMs = exposureMs;
+    plan.trials.forEach((trial) => { trial.exposureMsRequested = exposureMs; });
+  }
+  const now = new Date().toISOString();
+  journey = {
+    storageVersion: 3,
+    programme,
+    plan,
+    workflowChoice: "focused_work",
+    activeBlockIndex: 0,
+    blockQueues: { [block.id]: [...plan.trials] },
+    blockResults: { [block.id]: [] },
+    practiceQueue: [],
+    practiceResults: [],
+    practiceComplete: true,
+    wmPracticeLevel: null,
+    shiftViewCompleted: true,
+    events: [],
+    startedAt: now,
+    updatedAt: now,
+    completedAt: null,
+  };
+  taskMode = "tester";
+}
+
+function renderTester(): string {
+  return shell(`
+    <section class="ccc-tester-screen">
+      <div class="ccc-tester-heading">
+        <span class="ccc-kicker">Pre-launch task access</span>
+        <h1>Choose an optic-flow task to test.</h1>
+        <p>These are the real task blocks used in the programme. Results stay in this test tab only: they do not change unlocks, baselines, progress or cloud data.</p>
+      </div>
+      <div class="ccc-tester-grid">
+        <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="attention">
+          <span>Attention</span>
+          <strong>Optic-flow attention</strong>
+          <small>Find whether most moving patches travel in or out.</small>
+          <b>Open task</b>
+        </button>
+        <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="wm_1">
+          <span>Working memory</span>
+          <strong>Optic-flow · 1-back</strong>
+          <small>Compare each moving pattern with the one just before it.</small>
+          <b>Open task</b>
+        </button>
+        <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="wm_2">
+          <span>Working memory</span>
+          <strong>Optic-flow · 2-back</strong>
+          <small>Compare each moving pattern with the one two steps earlier.</small>
+          <b>Open task</b>
+        </button>
+      </div>
+      <p class="ccc-soft-note">You can pause during a run and return here afterwards to test another task.</p>
+    </section>
+  `, "ccc-tester-view ccc-viewport-view");
+}
+
+function renderTesterIntro(): string {
+  if (!journey || !testerExercise) return renderTester();
+  const block = currentBlock();
+  if (!block) return renderTester();
+  const isWm = block.operator === "relational_wm";
+  const level = block.wmNLevel || 1;
+  const selectedExposure = block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
+  return shell(`
+    <section class="ccc-narrow-card ccc-tester-intro">
+      <div class="ccc-stage-line"><span>TEST MODE</span><span>Results are not saved</span></div>
+      <span class="ccc-kicker">${isWm ? "Hold and compare" : "Find the main motion"}</span>
+      <h1>${testerExerciseName()}</h1>
+      ${isWm ? `
+        <p>Find whether most patches move <strong>In</strong> or <strong>Out</strong>. Then compare that direction with ${level === 1 ? "the previous pattern" : "the pattern two steps earlier"} and choose <strong>Match</strong> or <strong>Different</strong>.</p>
+        ${wmPracticeExample(level)}
+        <section class="ccc-speed-choice">
+          <div><span>Pattern viewing time</span><strong id="ccc-tester-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
+          <input id="ccc-tester-wm-speed" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Pattern viewing time" />
+          <div class="ccc-speed-labels"><span>Faster</span><span>More time to check</span></div>
+        </section>` : `
+        <p>Look across all five moving patches. Choose <strong>In</strong> if most travel towards the centre, or <strong>Out</strong> if most travel away from it.</p>
+        <div class="ccc-instruction-grid">
+          <article><strong>Find the majority</strong><span>Use the motion shown across all five patches.</span></article>
+          <article><strong>Choose when ready</strong><span>The points show the speed–accuracy trade-off.</span></article>
+        </div>`}
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="start-tester-task">Begin test</button>
+        <button class="ccc-button ccc-button-quiet" data-action="tester-menu">Back to task choices</button>
+      </div>
+    </section>
+  `, "ccc-tester-view ccc-stage-view ccc-viewport-view");
+}
+
+function renderTesterComplete(): string {
+  if (!journey || !testerExercise) return renderTester();
+  const results = currentResults().filter((result) => !result.trial.wmBuffer);
+  const answered = results.filter((result) => result.scoring.responseClass === "answer");
+  const correct = answered.filter((result) => result.scoring.isCorrect).length;
+  const accuracy = answered.length ? Math.round(correct / answered.length * 100) : 0;
+  return shell(`
+    <section class="ccc-narrow-card ccc-tester-complete">
+      <div class="ccc-stage-line"><span>TEST RUN COMPLETE</span><span>Not saved</span></div>
+      <span class="ccc-kicker">${testerExerciseName()}</span>
+      <h1>You reached the end of the test block.</h1>
+      <div class="ccc-summary-grid">
+        <article><span>Correct choices</span><strong>${correct} of ${answered.length}</strong><small>${accuracy}% of answered patterns</small></article>
+        <article><span>Test points</span><strong>${formatPointTotal(results.reduce((total, result) => total + result.scoring.pointsRealised, 0))}</strong><small>For this run only</small></article>
+      </div>
+      <p class="ccc-soft-note">This run did not change your programme, baseline, unlocks or saved data.</p>
+      <div class="ccc-actions">
+        <button class="ccc-button ccc-button-primary" data-action="tester-again">Try this task again</button>
+        <button class="ccc-button ccc-button-secondary" data-action="tester-menu">Choose another task</button>
+      </div>
+    </section>
+  `, "ccc-tester-view ccc-review-view ccc-viewport-view");
+}
+
 function render(): void {
-  const content = view === "auth" ? renderAuth()
+  const content = view === "tester" ? renderTester()
+    : view === "tester_intro" ? renderTesterIntro()
+    : view === "tester_complete" ? renderTesterComplete()
+    : view === "auth" ? renderAuth()
     : view === "welcome" ? renderWelcome()
     : view === "workflow" ? renderWorkflow()
       : view === "practice_intro" ? renderPracticeIntro()
@@ -2232,6 +2406,15 @@ function finishCurrentBlock(): void {
   const block = currentBlock();
   if (!block) return;
   const results = [...currentResults()];
+  if (testerRequested && taskMode === "tester") {
+    recordEvent("tester_block_completed", {
+      exercise: testerExercise,
+      observationCount: results.filter((result) => result.scoring.countsTowardQuota).length,
+      answeredDecisionCount: results.filter((result) => result.scoring.responseClass === "answer").length,
+    }, block.id);
+    setView("tester_complete");
+    return;
+  }
   if (taskMode === "practice") journey.practiceComplete = true;
   const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
   let wmPairDecision = null as ReturnType<typeof evaluateCccWmPair> | null;
@@ -2635,7 +2818,33 @@ appRoot.addEventListener("click", (event) => {
     return;
   }
   const action = button.dataset.action;
-  if (action === "choose-workflow") {
+  if (action === "choose-tester-exercise") {
+    const exercise = button.dataset.testerExercise as OpticFlowTesterExercise | undefined;
+    if (exercise === "attention" || exercise === "wm_1" || exercise === "wm_2") {
+      createTesterJourney(exercise);
+      setView("tester_intro");
+    }
+  } else if (action === "start-tester-task") {
+    const block = currentBlock();
+    if (block?.operator === "relational_wm") {
+      const slider = document.querySelector<HTMLInputElement>("#ccc-tester-wm-speed");
+      const selected = Number(slider?.value || CCC_RELATIONAL_WM.defaultPresentationMs);
+      const exposureMs = Math.max(CCC_RELATIONAL_WM.minimumPresentationMs, Math.min(CCC_RELATIONAL_WM.maximumPresentationMs, selected));
+      block.selectedExposureMs = exposureMs;
+      for (const trial of journey?.blockQueues[block.id] || []) trial.exposureMsRequested = exposureMs;
+    }
+    startTask("tester");
+  } else if (action === "tester-again") {
+    if (testerExercise) {
+      createTesterJourney(testerExercise);
+      setView("tester_intro");
+    }
+  } else if (action === "tester-menu") {
+    journey = null;
+    testerExercise = null;
+    taskMode = "tester";
+    setView("tester");
+  } else if (action === "choose-workflow") {
     selectedWorkflow = button.dataset.workflow as WorkflowChoice;
     render();
   } else if (action === "show-workflow") {
@@ -2876,6 +3085,12 @@ appRoot.addEventListener("click", (event) => {
 });
 
 appRoot.addEventListener("input", (event) => {
+  const testerSlider = (event.target as HTMLElement).closest<HTMLInputElement>("#ccc-tester-wm-speed");
+  if (testerSlider) {
+    const output = document.querySelector<HTMLElement>("#ccc-tester-wm-speed-value");
+    if (output) output.textContent = `${(Number(testerSlider.value) / 1000).toFixed(2)} seconds`;
+    return;
+  }
   const slider = (event.target as HTMLElement).closest<HTMLInputElement>("#ccc-wm-speed-slider");
   if (!slider) return;
   const output = document.querySelector<HTMLElement>("#ccc-wm-speed-value");
@@ -2952,7 +3167,7 @@ async function hydrateCloudProgress(user: AuthUser): Promise<void> {
   await hydrateProgressFeedback();
 }
 
-if (isSupabaseConfigured) {
+if (isSupabaseConfigured && !testerRequested) {
   void currentAuthUser().then(async (user) => {
     authUser = user;
     if (user && dataMode !== "local") {

@@ -237,6 +237,18 @@ describe("CCC playable integration", () => {
     expect(appStyles).not.toContain(".ccc-app-tabs");
   });
 
+  it("provides isolated, unlinked optic-flow test access without saving or syncing results", () => {
+    expect(mainSource).toContain('get("tester") === "optic-flow"');
+    expect(mainSource).toContain('type TaskMode = "practice" | "wm_practice" | "guided" | "tester"');
+    expect(mainSource).toContain('if (testerRequested || !journey) return;');
+    expect(mainSource).toContain('!testerRequested && isSupabaseConfigured');
+    expect(mainSource).toContain('startTask("tester")');
+    expect(mainSource).toContain("they do not change unlocks, baselines, progress or cloud data");
+    expect(mainSource).toContain("Optic-flow attention");
+    expect(mainSource).toContain("Optic-flow · 1-back");
+    expect(mainSource).toContain("Optic-flow · 2-back");
+  });
+
   it("keeps the welcome screen readable without oversized titles or clipped content", () => {
     expect(appStyles).toMatch(/h1\s*\{[\s\S]*?font-size: clamp\(1\.7rem, min\(3\.2vw, 4\.6vh\), 2\.8rem\)/);
     expect(appStyles).toMatch(/\.ccc-welcome \.ccc-main\s*\{[\s\S]*?align-items: start;/);
