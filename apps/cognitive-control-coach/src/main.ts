@@ -1854,7 +1854,7 @@ function renderTesterIntro(): string {
       <span class="ccc-kicker">${isWm ? "Hold and compare" : "Find the main motion"}</span>
       <h1>${testerExerciseName()}</h1>
       ${isWm ? `
-        <p>Find whether most patches move <strong>In</strong> or <strong>Out</strong>. Then compare that direction with ${level === 1 ? "the previous pattern" : "the pattern two steps earlier"} and choose <strong>Match</strong> or <strong>Different</strong>.</p>
+        <p>Find whether most patches move <strong>In</strong> or <strong>Out</strong>. Compare that direction with ${level === 1 ? "the previous pattern" : "the pattern two steps earlier"}. Tap <strong>Match</strong> only when it is the same; if it is different, wait for the next pattern.</p>
         ${wmPracticeExample(level)}
         <section class="ccc-speed-choice">
           <div><span>Pattern viewing time</span><strong id="ccc-tester-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
