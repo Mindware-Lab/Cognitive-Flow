@@ -139,6 +139,32 @@ describe("CCC playable integration", () => {
     expect(mainSource).not.toContain('"Not quite."');
   });
 
+  it("uses one clear central outcome flash without changing the task timing", () => {
+    expect(mainSource).toContain('class="ccc-trial-result ${feedbackState}"');
+    expect(mainSource).toContain('aria-label="${feedbackOutcome}"');
+    expect(mainSource).not.toContain("<strong>${feedbackOutcome}</strong>");
+    expect(mainSource).toContain('taskStage === "feedback" ? trialFeedbackMarkup : stimulus');
+    expect(mainSource).toContain('feedbackState === "is-correct" ? "✓" : feedbackState === "is-incorrect" ? "×" : "·"');
+    expect(mainSource).toContain('aria-atomic="true"');
+    expect(mainSource).toContain("CCC_TRIAL_TIMING.outcomeFeedbackMs");
+    expect(mainSource).toContain("CCC_TRIAL_TIMING.interTrialIntervalMs");
+    expect(mainSource).not.toContain("ccc-result-panel");
+    expect(appStyles).toMatch(/\.ccc-trial-result\.is-correct \.ccc-feedback-icon\s*\{[\s\S]*?background: var\(--correct\);/);
+    expect(appStyles).toMatch(/\.ccc-trial-result\.is-incorrect \.ccc-feedback-icon\s*\{[\s\S]*?background: var\(--error\);/);
+  });
+
+  it("keeps a persistent block-points tally separate from correctness feedback", () => {
+    expect(mainSource).toContain('class="ccc-block-points"');
+    expect(mainSource).toContain("Block points ${formatPointTotal(blockPoints)}");
+    expect(mainSource).toContain('class="is-points-total"');
+    expect(mainSource).toContain("formatPointTotal(feedback.points)");
+    expect(mainSource).toContain("feedback.pointsKeptPercent");
+    expect(mainSource).not.toContain("feedbackPointsAnnouncement");
+    expect(mainSource).not.toContain("Points this choice");
+    expect(appStyles).toContain(".ccc-block-points");
+    expect(appStyles).toContain(".ccc-summary-grid.ccc-points-summary");
+  });
+
   it("keeps stage numbering continuous and lays every journey rail out responsively", () => {
     expect(mainSource).toContain('.filter(({ block }) => block.phase !== "practice")');
     expect(mainSource).toContain("String(stageIndex + 1)");

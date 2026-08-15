@@ -303,8 +303,9 @@ function escapeHtml(value: string): string {
   })[character] || character);
 }
 
-function formatPoints(value: number): string {
-  return `${value >= 0 ? "+" : "−"}${Math.abs(Math.round(value))}`;
+function formatPointTotal(value: number): string {
+  const rounded = Math.round(value);
+  return rounded < 0 ? `−${Math.abs(rounded)}` : String(rounded);
 }
 
 function currentViewportClass(): CccRecordedTrial["viewportClass"] {
@@ -881,6 +882,8 @@ function renderTask(): string {
   const isWmPractice = taskMode === "wm_practice";
   const isSignal = trial.estimand === "signal_capacity";
   const isWm = trial.operator === "relational_wm";
+  const showBlockPoints = !isPractice && !isSignal;
+  const blockPoints = currentResults().reduce((total, result) => total + result.scoring.pointsRealised, 0);
   const wrapperLabel = trial.operator === "relational_wm"
     ? `${trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns"} · ${trial.wmNLevel}-back`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
@@ -888,12 +891,11 @@ function renderTask(): string {
         : "In / Out moving dots";
   const responseStage = isSignal || isWm ? taskStage === "response" : taskStage === "evidence";
   const controlsDisabled = trial.wmBuffer || !responseStage || !responseEnabled || responseLocked;
-  const feedbackPoints = feedbackResult?.scoring.pointsRealised ?? 0;
   const feedbackState = feedbackResult?.trial.wmBuffer
     ? "is-neutral"
     : feedbackResult?.scoring.isCorrect
     ? "is-correct"
-    : feedbackResult?.scoring.responseClass === "answer"
+    : feedbackResult?.scoring.responseClass === "answer" || feedbackResult?.scoring.responseClass === "omission"
         ? "is-incorrect"
         : "is-neutral";
   const feedbackIcon = feedbackState === "is-correct" ? "✓" : feedbackState === "is-incorrect" ? "×" : "·";
@@ -902,25 +904,22 @@ function renderTask(): string {
     : 0;
   const feedbackOutcome = feedbackResult?.trial.wmBuffer
     ? "Keep this pattern in mind"
-    : isPractice
-    ? feedbackResult?.scoring.responseClass === "answer"
+    : feedbackResult?.scoring.responseClass === "answer"
       ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
-      : feedbackResult?.scoring.responseClass === "omission" ? "No response" : "Paused"
+      : feedbackResult?.scoring.responseClass === "omission" ? "No response" : "Paused";
+  const trialFeedbackMarkup = `<div class="ccc-trial-result ${feedbackState}" role="status" aria-live="polite" aria-atomic="true" aria-label="${feedbackOutcome}"><span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span></div>`;
+  const feedbackDetailMarkup = trial.wmBuffer
+    ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>Start the sequence</span><strong>Remember this pattern</strong></div><small></small></div>`
     : isSignal
-      ? feedbackResult?.scoring.responseClass === "answer"
-        ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
-        : "No response"
-      : feedbackResult?.scoring.responseClass === "answer"
-        ? isWm
-          ? feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"
-          : `${feedbackResult.scoring.isCorrect ? "Correct" : "Incorrect"} · ${formatPoints(feedbackPoints)}`
-        : "No response";
-  const signalFeedbackMarkup = `<div class="ccc-signal-result ${feedbackState}" role="status" aria-live="polite"><span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span><strong>${feedbackOutcome}</strong></div>`;
+      ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small></small></div>`
+      : isPractice
+        ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>${isWmPractice ? `${trial.wmNLevel}-back practice` : "Practice"}</span><strong>${isWmPractice ? "Compare, then choose" : "Left or Right"}</strong></div><small>${isWmPractice ? `Practice ${Math.min(4, practiceComparisonCount)} of 4` : ""}</small></div>`
+        : `<div class="ccc-feedback-spacer" aria-hidden="true"></div>`;
   const pot = regime.correctPot;
   const taskTitle = isSignal ? "Pattern check" : isWm ? `${isWmPractice ? "Practice" : "Hold and compare"} · ${trial.wmNLevel}-back` : isPractice ? "Practice" : regimeCopy.title;
   const taskCue = taskStage === "fixation" ? "Get ready"
     : taskStage === "interval" ? "Next pattern"
-    : taskStage === "feedback" ? isSignal || isPractice ? trial.wmBuffer ? "Remembered" : "Result" : feedbackMessage
+    : taskStage === "feedback" ? trial.wmBuffer ? "Remembered" : "Result"
         : taskStage === "mask" ? "Pattern covered"
           : taskStage === "response" ? "Make your best choice"
           : isSignal ? "Hold the majority direction"
@@ -943,9 +942,10 @@ function renderTask(): string {
   }).join("");
   return shell(`
     <section class="ccc-task-card">
-      <div class="ccc-task-topline">
+      <div class="ccc-task-topline ${showBlockPoints ? "has-points" : ""}">
         <div><span>${isPractice ? "Practice" : `Stage ${journey.activeBlockIndex + 1} of ${journey.plan.blocks.length}`}</span><strong>${wrapperLabel}</strong></div>
         <div class="ccc-task-progress-wrap">${taskProgress(block)}</div>
+        ${showBlockPoints ? `<div class="ccc-block-points" aria-label="Block points ${formatPointTotal(blockPoints)}"><span>Block points</span><strong>${formatPointTotal(blockPoints)}</strong></div>` : ""}
         <button class="ccc-exit" data-action="pause-session">Pause</button>
       </div>
       <div class="ccc-task-cue">
@@ -953,16 +953,9 @@ function renderTask(): string {
         <strong>${taskCue}</strong>
       </div>
       <div class="ccc-stimulus-stage ${taskStage === "fixation" || taskStage === "response" || taskStage === "interval" ? "is-fixation" : ""} ${taskStage === "feedback" ? "is-feedback" : ""}">
-        ${taskStage === "feedback" && (isSignal || isPractice) ? signalFeedbackMarkup : stimulus}
+        ${taskStage === "feedback" ? trialFeedbackMarkup : stimulus}
       </div>
-      ${taskStage === "feedback" ? `
-        ${isSignal || isPractice
-          ? `<div class="ccc-value-panel ccc-signal-panel" aria-hidden="true"><div><span>${isWmPractice ? `${trial.wmNLevel}-back practice` : "Pattern check"}</span><strong>${isWmPractice ? "Compare, then choose" : "Watch, then choose"}</strong></div><small>${isWmPractice ? `Practice ${Math.min(4, practiceComparisonCount)} of 4` : ""}</small></div>`
-          : `<div class="ccc-value-panel ccc-result-panel ${feedbackState}" role="status" aria-live="polite">
-            <span class="ccc-feedback-icon" aria-hidden="true">${feedbackIcon}</span>
-            <div><span>This choice</span><strong>${feedbackOutcome}</strong></div>
-            <small>${isWm ? "" : feedbackMessage}</small>
-          </div>`}` : `
+      ${taskStage === "feedback" ? feedbackDetailMarkup : `
         ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>Choose when the buttons appear.</small></div>`
           : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>${isWmPractice ? trial.wmBuffer ? "Remember this pattern" : "Match or Different" : "Left or Right"}</strong></div><small></small></div>`
           : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Start the sequence</span><strong>Remember this pattern</strong></div><small>The first ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "pattern starts" : "patterns start"} the sequence.</small></div>`
@@ -1159,10 +1152,13 @@ function renderBlockComplete(): string {
       <h1>${copy.title}</h1>
       <p>${copy.body}</p>
       ${isPractice ? "" : `
-        <div class="ccc-summary-grid">
+        <div class="ccc-summary-grid ${isSignal ? "" : "ccc-points-summary"}">
           <article><span>${isSignal ? "Patterns correct" : isWm ? "Memory accuracy" : "Accuracy"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong></article>
           <article><span>${isSignal ? "Typical answer time" : isWm ? "Chosen viewing time" : "Typical decision time"}</span><strong>${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}</strong></article>
-          <article><span>${isSignal ? "Patterns completed" : "Points kept"}</span><strong>${isSignal ? feedback.observationCount : `${feedback.pointsKeptPercent}%`}</strong></article>
+          ${isSignal
+            ? `<article><span>Patterns completed</span><strong>${feedback.observationCount}</strong></article>`
+            : `<article class="is-points-total"><span>Block points</span><strong>${formatPointTotal(feedback.points)}</strong></article>
+              <article><span>Points kept</span><strong>${feedback.pointsKeptPercent}%</strong></article>`}
         </div>`}
       ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>Read accuracy, time and points together.</strong> ${isWm ? `Compare with exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Choose sooner only when the main direction is clear enough."}</p>`}
       ${wmLevelMessage ? `<p class="ccc-learning-status"><strong>Memory level:</strong> ${wmLevelMessage}</p>` : ""}
