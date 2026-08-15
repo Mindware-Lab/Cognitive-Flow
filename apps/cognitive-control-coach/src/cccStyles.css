@@ -380,6 +380,52 @@ a:focus-visible {
 .ccc-comparison-options em { position: absolute; top: 12px; right: 12px; padding: 4px 7px; border-radius: 999px; color: var(--blue-700); background: rgba(34, 170, 255, 0.1); font-size: 0.62rem; font-style: normal; font-weight: 850; }
 .ccc-progress-message { margin: -4px 0 14px; padding: 9px 12px; border-radius: 10px; color: var(--teal-text); background: rgba(31, 184, 166, 0.08); font-size: 0.76rem; font-weight: 700; }
 
+.ccc-session-trend-card {
+  margin-bottom: 12px;
+  padding: 15px 16px 12px;
+  border: 1px solid rgba(24, 88, 144, 0.16);
+  border-radius: 16px;
+  background: #fff;
+}
+
+.ccc-session-trend-heading {
+  display: flex;
+  align-items: end;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.ccc-session-trend-heading div { display: grid; gap: 2px; }
+.ccc-session-trend-heading span { color: var(--blue-700); font-size: 0.67rem; font-weight: 850; letter-spacing: 0.08em; text-transform: uppercase; }
+.ccc-session-trend-heading strong { color: var(--navy); font-size: 1.05rem; }
+.ccc-session-trend-heading small { max-width: 310px; color: var(--muted); font-size: 0.7rem; line-height: 1.4; text-align: right; }
+
+.ccc-session-trend-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin: 12px 0 4px;
+}
+
+.ccc-session-trend-legend span { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 0.7rem; font-weight: 750; }
+.ccc-session-trend-legend i { width: 18px; height: 3px; border-radius: 999px; background: var(--blue-700); }
+.ccc-session-trend-legend .is-points i { background: var(--control); }
+.ccc-session-trend-legend .is-memory i { background: var(--teal); }
+.ccc-session-trend-legend strong { margin-left: 2px; color: var(--navy); font-size: 0.78rem; }
+
+.ccc-session-trend-chart { width: 100%; height: auto; max-height: 230px; overflow: visible; }
+.ccc-session-trend-chart .is-grid { stroke: var(--line); stroke-width: 1; }
+.ccc-session-trend-chart .is-baseline { stroke: rgba(24, 88, 144, 0.35); stroke-width: 1.5; stroke-dasharray: 5 5; }
+.ccc-session-trend-axis-line { stroke: var(--line-strong); stroke-width: 1.2; }
+.ccc-session-trend-axis { fill: var(--muted); font-size: 11px; font-weight: 700; }
+.ccc-session-trend-line { fill: none; stroke: var(--blue-700); stroke-width: 3.5; stroke-linecap: round; stroke-linejoin: round; }
+.ccc-session-trend-line.is-points { stroke: var(--control); }
+.ccc-session-trend-line.is-memory { stroke: var(--teal); }
+.ccc-session-trend-dot { fill: var(--blue-700); stroke: #fff; stroke-width: 2; }
+.ccc-session-trend-dot.is-points { fill: var(--control); }
+.ccc-session-trend-dot.is-memory { fill: var(--teal); }
+.ccc-session-trend-explainer { margin: 4px 0 0; color: var(--muted); font-size: 0.7rem; line-height: 1.45; }
+
 .ccc-progress-metric-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .ccc-progress-metric-card,
 .ccc-proof-card { min-width: 0; padding: 14px; border: 1px solid var(--line); border-radius: 15px; background: var(--canvas-alt); }
@@ -391,7 +437,8 @@ a:focus-visible {
 .ccc-proof-card strong { color: var(--blue-700); font-size: 1.55rem; }
 .ccc-progress-metric-card p,
 .ccc-proof-card p { min-height: 34px; margin: 5px 0; color: var(--muted); font-size: 0.7rem; line-height: 1.35; }
-.ccc-progress-metric-card small { color: var(--muted); font-size: 0.65rem; font-weight: 700; }
+.ccc-progress-metric-card small,
+.ccc-proof-card small { display: block; color: var(--muted); font-size: 0.65rem; font-weight: 700; line-height: 1.4; }
 .ccc-progress-metric-card svg,
 .ccc-proof-card svg { width: 100%; height: 54px; }
 .ccc-progress-metric-card line,
@@ -435,6 +482,10 @@ a:focus-visible {
   .ccc-current-session-progress { padding-bottom: 10px; }
   .ccc-progress-segments { width: 100%; }
   .ccc-progress-segments button { flex: 1; padding: 0 8px; }
+  .ccc-session-trend-heading { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .ccc-session-trend-heading small { max-width: none; text-align: left; }
+  .ccc-session-trend-card { padding: 12px 10px 10px; }
+  .ccc-session-trend-legend { gap: 7px 10px; }
   .ccc-active-session-banner { align-items: flex-start; flex-direction: column; }
 }
 
@@ -2305,7 +2356,7 @@ p {
 }
 
 .ccc-summary-grid.ccc-points-summary {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
 .ccc-summary-grid article {

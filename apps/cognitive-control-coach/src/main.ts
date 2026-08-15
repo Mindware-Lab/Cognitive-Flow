@@ -137,7 +137,7 @@ type View =
   | "data";
 type TaskStage = "fixation" | "evidence" | "mask" | "response" | "feedback" | "interval";
 type TaskMode = "practice" | "wm_practice" | "guided";
-type ProgressPanel = "session" | "history";
+type ProgressPanel = "session" | "history" | "proof";
 
 const appElement = document.querySelector<HTMLDivElement>("#app");
 if (!appElement) throw new Error("Missing #app root.");
@@ -990,11 +990,17 @@ function formatPercent(value: number | null): string {
 }
 
 function formatTime(value: number | null): string {
-  return value === null ? "—" : `${(value / 1000).toFixed(2)} s`;
+  return value === null ? "—" : `${(value / 1000).toFixed(1)} s`;
 }
 
 function formatTrendTime(value: number): string {
-  return `${value.toFixed(2)} s`;
+  return `${value.toFixed(1)} s`;
+}
+
+function timingShiftMeaning(value: number | null): string {
+  if (value === null) return "Still building";
+  if (Math.abs(value) < 100) return "Used similar timing";
+  return value > 0 ? "Slowed when mistakes cost more" : "Sped up when delay cost more";
 }
 
 function metricBar(label: string, value: number | null, maximum: number, display: string, tone = "blue"): string {
@@ -1029,14 +1035,21 @@ function miniTrend(values: readonly number[], label: string, format: (value: num
 function renderBetweenBlockTrends(): string {
   const block = currentBlock();
   const isWm = block?.operator === "relational_wm";
-  const feedback = blockHistoryBeforeCurrent().map((results) => buildCccBlockFeedback(results));
+  const isSignal = block?.estimand === "signal_capacity";
+  const history = blockHistoryBeforeCurrent();
+  const feedback = history.map((results) => buildCccBlockFeedback(results));
   const accuracy = feedback.map((item) => item.accuracy === null ? null : item.accuracy * 100).filter((value): value is number => value !== null);
   const decisionTime = feedback.map((item) => item.medianDecisionMs).filter((value): value is number => value !== null);
+  const pointsKept = history
+    .filter((results) => results.some((result) => result.trial.presentationMode === "self_paced_value"))
+    .map((results) => buildCccBlockFeedback(results).pointsKeptPercent);
   return `<section class="ccc-between-block-trends" aria-label="Progress across this session">
     <div class="ccc-section-heading"><span>This session</span><strong>Your results so far</strong></div>
     <div class="ccc-mini-trend-grid">
       ${miniTrend(accuracy, "Accuracy", (value) => `${Math.round(value)}%`)}
-      ${miniTrend(decisionTime.map((value) => value / 1000), isWm ? "Chosen viewing time" : "Decision time", formatTrendTime)}
+      ${isSignal
+        ? miniTrend(decisionTime.map((value) => value / 1000), isWm ? "Chosen viewing time" : "Decision time", formatTrendTime)
+        : miniTrend(pointsKept, "Points kept", (value) => `${Math.round(value)}%`)}
     </div>
   </section>`;
 }
@@ -1055,8 +1068,8 @@ function renderStrategyCard(item: CccRegimeStrategyFeedback): string {
   const timing = item.observedMedianMs === null
     ? `${item.observationCount} choices recorded`
     : item.estimatedBestMs === null
-      ? `You used ${(item.observedMedianMs / 1000).toFixed(2)} s`
-      : `You used ${(item.observedMedianMs / 1000).toFixed(2)} s · try about ${(item.estimatedBestMs / 1000).toFixed(2)} s`;
+      ? `You used ${(item.observedMedianMs / 1000).toFixed(1)} s`
+      : `You used ${(item.observedMedianMs / 1000).toFixed(1)} s · try about ${(item.estimatedBestMs / 1000).toFixed(1)} s`;
   return `<article class="ccc-strategy-card is-${item.direction}">
     <span>${REGIME_COPY[item.regimeId].title}</span>
     <strong>${item.title}</strong>
@@ -1154,13 +1167,13 @@ function renderBlockComplete(): string {
       ${isPractice ? "" : `
         <div class="ccc-summary-grid ${isSignal ? "" : "ccc-points-summary"}">
           <article><span>${isSignal ? "Patterns correct" : isWm ? "Memory accuracy" : "Accuracy"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong></article>
-          <article><span>${isSignal ? "Typical answer time" : isWm ? "Chosen viewing time" : "Typical decision time"}</span><strong>${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}</strong></article>
           ${isSignal
-            ? `<article><span>Patterns completed</span><strong>${feedback.observationCount}</strong></article>`
+            ? `<article><span>Typical answer time</span><strong>${formatTime(feedback.medianDecisionMs)}</strong></article>
+              <article><span>Patterns completed</span><strong>${feedback.observationCount}</strong></article>`
             : `<article class="is-points-total"><span>Block points</span><strong>${formatPointTotal(feedback.points)}</strong></article>
               <article><span>Points kept</span><strong>${feedback.pointsKeptPercent}%</strong></article>`}
         </div>`}
-      ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>Read accuracy, time and points together.</strong> ${isWm ? `Compare with exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Choose sooner only when the main direction is clear enough."}</p>`}
+      ${isPractice || isSignal ? "" : `<p class="ccc-metric-note"><strong>${isWm ? "Chosen viewing time" : "Typical decision time"}: ${isWm ? formatTime(block.selectedExposureMs || null) : formatTime(feedback.medianDecisionMs)}.</strong> ${isWm ? `Compare with exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.` : "Read this together with accuracy and points."}</p>`}
       ${wmLevelMessage ? `<p class="ccc-learning-status"><strong>Memory level:</strong> ${wmLevelMessage}</p>` : ""}
       ${isPractice ? "" : renderBetweenBlockTrends()}
       ${learningCurve.status === "stabilised" ? `<p class="ccc-learning-status"><strong>New display next.</strong> Your recent results were steady.</p>` : ""}
@@ -1198,8 +1211,8 @@ function renderBlockInsights(): string {
     : Math.abs(feedback.timingShiftMs) < 100
       ? "You used a similar viewing time in both conditions."
       : feedback.timingShiftMs > 0
-        ? `You looked ${(Math.abs(feedback.timingShiftMs) / 1000).toFixed(2)} s longer when mistakes cost more.`
-        : `You looked ${(Math.abs(feedback.timingShiftMs) / 1000).toFixed(2)} s less when mistakes cost more.`;
+        ? `You looked ${(Math.abs(feedback.timingShiftMs) / 1000).toFixed(1)} s longer when mistakes cost more.`
+        : `You looked ${(Math.abs(feedback.timingShiftMs) / 1000).toFixed(1)} s less when mistakes cost more.`;
   return shell(`
     <section class="ccc-narrow-card ccc-insights-card">
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} feedback</span><span>${feedback.observationCount} patterns</span></div>
@@ -1282,9 +1295,9 @@ function renderComplete(): string {
       <p>${sessionSummary?.gateDecisions.at(-1) || "Your progress has been saved."}</p>
       ${journeyRail(Math.min(journey.plan.blocks.length, journey.activeBlockIndex + 1), null)}
       <div class="ccc-summary-grid">
-        <article><span>${hasSignal ? "Pattern accuracy" : "Attention accuracy"}</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
-        <article><span>${hasWm ? "Memory accuracy" : "Viewing-time shift"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : policyFeedback.timingShiftMs === null ? "Building" : `${policyFeedback.timingShiftMs >= 0 ? "+" : "−"}${(Math.abs(policyFeedback.timingShiftMs) / 1000).toFixed(2)} s`}</strong></article>
-        <article><span>${hasWm ? "Saved memory level" : "Programme progress"}</span><strong>${hasWm ? `${programme.wmLevel}-back` : `${programmeProgressPercent(programme)}%`}</strong></article>
+        <article><span>Finding the main pattern</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
+        <article><span>${hasWm ? "Holding and comparing" : "Adjusting to different stakes"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : timingShiftMeaning(policyFeedback.timingShiftMs)}</strong></article>
+        <article><span>${hasWm ? "Saved memory challenge" : "Programme progress"}</span><strong>${hasWm ? `${programme.wmLevel} ${programme.wmLevel === 1 ? "pattern" : "patterns"} back` : `${programmeProgressPercent(programme)}%`}</strong></article>
       </div>
       ${renderSessionScoreStrip(sessionMetrics)}
       ${renderStrategyTakeaway(allResults)}
@@ -1304,11 +1317,11 @@ const TRAINING_METRICS: Array<{
   lowerIsBetter?: boolean;
   rawValue?: boolean;
 }> = [
-  { key: "accuracy", label: "Attention accuracy", detail: "Choosing the main pattern correctly", populationKey: "session.attention_accuracy" },
-  { key: "decisionTime", label: "Viewing time", detail: "How long you looked before choosing", populationKey: "session.decision_time_ms", rawValue: true },
-  { key: "pointsKept", label: "Points balance", detail: "Accuracy and time together", populationKey: "session.points_kept" },
-  { key: "closePatterns", label: "Close-pattern accuracy", detail: "Accuracy when the majority was harder to see", populationKey: "session.close_pattern_accuracy" },
-  { key: "workingMemory", label: "Memory accuracy", detail: "Comparing with an earlier pattern", populationKey: "session.wm_accuracy" },
+  { key: "accuracy", label: "Finding the pattern", detail: "How reliably you picked out the main direction", populationKey: "session.attention_accuracy" },
+  { key: "decisionTime", label: "Time before choosing", detail: "How long you gathered information before deciding", populationKey: "session.decision_time_ms", rawValue: true },
+  { key: "pointsKept", label: "Decision balance", detail: "How well you balanced accuracy with timely choices", populationKey: "session.points_kept" },
+  { key: "closePatterns", label: "Finding a weak signal", detail: "How accurately you responded when the answer was less obvious", populationKey: "session.close_pattern_accuracy" },
+  { key: "workingMemory", label: "Holding and comparing", detail: "How reliably you compared the current relation with an earlier one", populationKey: "session.wm_accuracy" },
 ];
 
 function latestSessionMetrics() {
@@ -1346,15 +1359,20 @@ function scoreForSessionMetric(
 
 function scoreStatus(score: number | null): string {
   if (score === null) return "Building";
-  if (score >= 110) return "Strong";
-  if (score >= 100) return "Developing";
-  if (score >= 90) return "Keep building";
-  return "Needs practice";
+  if (comparisonMode === "population") {
+    if (score >= 110) return "Above the current user average";
+    if (score >= 90) return "Within the current user range";
+    return "Below the current user average";
+  }
+  if (score >= 110) return "Clear improvement from your start";
+  if (score > 100) return "Improving from your start";
+  if (score >= 95) return "Close to where you started";
+  return "Below your starting result for now";
 }
 
 function metricDisplay(metric: typeof TRAINING_METRICS[number], value: number | null): string {
   if (value === null) return "—";
-  return metric.rawValue ? `${(value / 1000).toFixed(2)} s` : String(value);
+  return metric.rawValue ? `${(value / 1000).toFixed(1)} s` : String(value);
 }
 
 function trainingMetricCard(metric: typeof TRAINING_METRICS[number]): string {
@@ -1368,8 +1386,64 @@ function trainingMetricCard(metric: typeof TRAINING_METRICS[number]): string {
     <div><span>${metric.label}</span><strong>${metricDisplay(metric, score)}</strong></div>
     <p>${metric.detail}</p>
     ${points ? `<svg viewBox="0 0 260 68" role="img" aria-label="${metric.label} session trend"><line x1="0" x2="260" y1="58" y2="58"></line><polyline points="${points}"></polyline></svg>` : ""}
-    <small>${metric.rawValue ? "Read with accuracy and points" : `${scoreStatus(score)} · ${comparisonMode === "personal" ? "Starting score = 100" : "Compared with other users"}`}</small>
+    <small>${metric.rawValue ? "Read this with accuracy and decision balance" : `${scoreStatus(score)} · ${comparisonMode === "personal" ? "100 is your starting point" : "Compared with other app users"}`}</small>
   </article>`;
+}
+
+const SESSION_TREND_SERIES: Array<{
+  key: CccProgressMetricKey;
+  label: string;
+  className: string;
+}> = [
+  { key: "accuracy", label: "Finding the pattern", className: "is-attention" },
+  { key: "pointsKept", label: "Decision balance", className: "is-points" },
+  { key: "workingMemory", label: "Holding and comparing", className: "is-memory" },
+];
+
+function renderSessionTrendChart(): string {
+  const sessions = programme.sessions.filter((session) => session.metrics).slice(-8);
+  if (!sessions.length) return "";
+  const width = 720;
+  const height = 220;
+  const left = 44;
+  const right = 18;
+  const top = 18;
+  const bottom = 34;
+  const plotWidth = width - left - right;
+  const plotHeight = height - top - bottom;
+  const xFor = (index: number) => sessions.length === 1
+    ? left + plotWidth / 2
+    : left + index / (sessions.length - 1) * plotWidth;
+  const yFor = (value: number) => top + (130 - Math.max(70, Math.min(130, value))) / 60 * plotHeight;
+  const series = SESSION_TREND_SERIES.map((item) => {
+    const metric = TRAINING_METRICS.find((candidate) => candidate.key === item.key)!;
+    const values = sessions.map((session) => scoreForSessionMetric(session, metric, "personal"));
+    const available = values
+      .map((value, index) => value === null ? null : { value, index, x: xFor(index), y: yFor(value) })
+      .filter((point): point is { value: number; index: number; x: number; y: number } => point !== null);
+    return { ...item, values, available, latest: [...values].reverse().find((value) => value !== null) ?? null };
+  });
+  const visibleSeries = series.filter((item) => item.available.length);
+  const grid = [80, 100, 120].map((value) => `
+    <line class="${value === 100 ? "is-baseline" : "is-grid"}" x1="${left}" x2="${width - right}" y1="${yFor(value).toFixed(1)}" y2="${yFor(value).toFixed(1)}"></line>
+    <text class="ccc-session-trend-axis" x="8" y="${(yFor(value) + 4).toFixed(1)}">${value}</text>
+  `).join("");
+  const xLabels = sessions.map((session, index) => `<text class="ccc-session-trend-axis" x="${xFor(index).toFixed(1)}" y="${height - 8}" text-anchor="middle">S${session.sessionNumber}</text>`).join("");
+  return `<section class="ccc-session-trend-card" aria-labelledby="ccc-session-trend-title">
+    <div class="ccc-session-trend-heading">
+      <div><span>Running graph</span><strong id="ccc-session-trend-title">Performance across sessions</strong></div>
+      <small>100 marks where you started. A line above 100 shows improvement.</small>
+    </div>
+    <div class="ccc-session-trend-legend">${visibleSeries.map((item) => `<span class="${item.className}"><i></i>${item.label}<strong>${item.latest ?? "—"}</strong></span>`).join("")}</div>
+    <svg class="ccc-session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="Finding the pattern, decision balance and holding-and-comparing performance across sessions">
+      ${grid}
+      ${visibleSeries.map((item) => `<path class="ccc-session-trend-line ${item.className}" d="${item.available.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ")}"></path>`).join("")}
+      ${visibleSeries.map((item) => item.available.map((point) => `<circle class="ccc-session-trend-dot ${item.className}" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4"></circle>`).join("")).join("")}
+      <line class="ccc-session-trend-axis-line" x1="${left}" x2="${width - right}" y1="${height - bottom}" y2="${height - bottom}"></line>
+      ${xLabels}
+    </svg>
+    <p class="ccc-session-trend-explainer">The graph separates finding relevant information, holding it across time and choosing efficiently enough for the current rewards and costs.</p>
+  </section>`;
 }
 
 function proofScoresFor(domain: CccProofDomain): CccProofScore[] {
@@ -1380,21 +1454,19 @@ function proofScoresFor(domain: CccProofDomain): CccProofScore[] {
 
 function proofCard(domain: CccProofDomain, label: string): string {
   const scores = proofScoresFor(domain);
-  const baseline = scores.find((score) => score.timepoint === "baseline") || scores[0];
   const latest = scores.at(-1);
-  const display = latest
-    ? comparisonMode === "personal"
-      ? displayTrainingScore({ value: latest.score, baseline: baseline?.score ?? null, mode: "personal" })
-      : latest.score
-    : null;
-  const values = scores.map((score) => comparisonMode === "personal"
-    ? displayTrainingScore({ value: score.score, baseline: baseline?.score ?? null, mode: "personal" })
-    : score.score).filter((value): value is number => value !== null);
+  const values = scores.map((score) => score.score).filter((value): value is number => value !== null);
   const points = progressSparkline(values, 260, 58);
+  const meaning = domain === "attention"
+    ? "Staying focused and resisting distraction"
+    : domain === "working_memory"
+      ? "Holding and updating information"
+      : "Finding patterns and solving new problems";
   return `<article class="ccc-proof-card is-${domain.replace("_", "-")}">
-    <div><span>${label}</span><strong>${display ?? "—"}</strong></div>
+    <div><span>${label}</span><strong>${latest?.score ?? "—"}</strong></div>
     ${points ? `<svg viewBox="0 0 260 68" role="img" aria-label="${label} G Track trend"><line x1="0" x2="260" y1="58" y2="58"></line><polyline points="${points}"></polyline></svg>` : ""}
-    <p>${latest ? `Latest G Track check · ${latest.completedAt}` : authUser ? "No G Track result found yet." : "Sign in to import your G Track results."}</p>
+    <p>${meaning}</p>
+    <small>${latest ? `Latest check ${latest.completedAt} · 100 is the reference-group average` : authUser ? "No G Track result found yet" : "Sign in to import your G Track results"}</small>
   </article>`;
 }
 
@@ -1403,13 +1475,13 @@ function renderComparisonSelector(): string {
   const standardSelected = dataMode === "cloud_benchmark";
   const personalSelected = !standardSelected;
   return `<section class="ccc-comparison-panel">
-    <div><span class="ccc-kicker">Score view</span><h2>Compare with your start or with other users</h2></div>
+    <div><span class="ccc-kicker">How to read training progress</span><h2>Compare with your own start or with other users</h2></div>
     <div class="ccc-comparison-options">
       <button data-action="select-personal-mode" class="${personalSelected ? "is-selected" : ""}" aria-pressed="${personalSelected}">
-        <strong>Personal progress</strong><span>Your starting result is 100.</span><em>${personalSelected ? "Selected" : "Choose"}</em>
+        <strong>My progress</strong><span>Your first result becomes 100, so later scores show change from where you started.</span><em>${personalSelected ? "Selected" : "Choose"}</em>
       </button>
       <button data-action="select-population-mode" class="${standardSelected ? "is-selected" : ""}" aria-pressed="${standardSelected}" ${isSupabaseConfigured ? "" : "disabled"}>
-        <strong>Other users</strong><span>${available ? "Compare with other app users." : "Available after enough people have used the app."}</span><em>${standardSelected ? available ? "Selected" : "Waiting for comparison data" : isSupabaseConfigured ? "Choose" : "Unavailable"}</em>
+        <strong>Other users</strong><span>${available ? "See how your result compares with other people using this app." : "Available after enough people have used the app."}</span><em>${standardSelected ? available ? "Selected" : "Waiting for comparison data" : isSupabaseConfigured ? "Choose" : "Unavailable"}</em>
       </button>
     </div>
   </section>`;
@@ -1432,7 +1504,7 @@ function renderSessionScoreStrip(metrics: ReturnType<typeof buildCccSessionMetri
     .slice(0, 4);
   if (!items.length) return "";
   return `<section class="ccc-session-score-strip">
-    <div class="ccc-section-heading"><span>Your session</span><strong>Starting scores use 100</strong></div>
+    <div class="ccc-section-heading"><span>Your session</span><strong>100 marks where you started</strong></div>
     <div>${items.map((metric) => `<article><span>${metric.label}</span><strong>${metricDisplay(metric, personalSessionScore(metrics, metric.key))}</strong></article>`).join("")}</div>
     <button class="ccc-text-button" data-action="show-progress">Open Progress</button>
   </section>`;
@@ -1443,6 +1515,7 @@ function progressPanelNavigation(): string {
   return `<nav class="ccc-progress-segments" aria-label="Progress view">
     ${hasSession ? `<button data-action="show-session-progress" class="${progressPanel === "session" ? "is-active" : ""}" aria-pressed="${progressPanel === "session"}">This session</button>` : ""}
     <button data-action="show-history-progress" class="${progressPanel === "history" ? "is-active" : ""}" aria-pressed="${progressPanel === "history"}">Across sessions</button>
+    <button data-action="show-proof-progress" class="${progressPanel === "proof" ? "is-active" : ""}" aria-pressed="${progressPanel === "proof"}">G Track scores</button>
   </nav>`;
 }
 
@@ -1530,10 +1603,10 @@ function renderCurrentSessionProgress(): string {
     <section class="ccc-progress-section">
       <div class="ccc-section-heading"><span>Results so far</span><strong>${blockFeedback.observationCount ? `${blockFeedback.observationCount} patterns` : "Your first results will appear here"}</strong></div>
       <div class="ccc-live-session-grid">
-        ${sessionMetricTile(metrics.wmAccuracy !== null ? "Memory accuracy" : "Accuracy", formatPercent(relevantAccuracy), metrics.wmAccuracy !== null ? `${programme.wmLevel}-back is saved across sessions` : "Correct choices")}
-        ${sessionMetricTile("Viewing time", formatTime(metrics.medianDecisionMs), "Read with accuracy and points")}
-        ${sessionMetricTile("Points kept", hasPolicyResults ? `${metrics.pointsKeptPercent}%` : "—", hasPolicyResults ? "Accuracy and speed together" : "Starts when points are used")}
-        ${sessionMetricTile("Close patterns", formatPercent(metrics.closePatternAccuracy), "Accuracy when the majority was hardest to see")}
+        ${sessionMetricTile(metrics.wmAccuracy !== null ? "Holding and comparing" : "Finding the main pattern", formatPercent(relevantAccuracy), metrics.wmAccuracy !== null ? `${programme.wmLevel} ${programme.wmLevel === 1 ? "pattern" : "patterns"} back is saved` : "How often you chose the main direction")}
+        ${sessionMetricTile("Time before choosing", formatTime(metrics.medianDecisionMs), "How long you gathered information")}
+        ${sessionMetricTile("Decision balance", hasPolicyResults ? `${metrics.pointsKeptPercent}%` : "—", hasPolicyResults ? "Accuracy and timely choices together" : "Starts when points are used")}
+        ${sessionMetricTile("Finding a weak signal", formatPercent(metrics.closePatternAccuracy), "Accuracy when the answer was least obvious")}
       </div>
     </section>
     <section class="ccc-progress-section ccc-session-strategy">
@@ -1559,22 +1632,42 @@ function renderProgressHistory(): string {
     ${renderComparisonSelector()}
     ${progressMessage ? `<p class="ccc-progress-message">${escapeHtml(progressMessage)}</p>` : ""}
     <section class="ccc-progress-section">
-      <div class="ccc-section-heading"><span>Session results</span><strong>${latest ? "Latest results and trends" : "Complete a session to start"}</strong></div>
+      <div class="ccc-section-heading"><span>Skills across sessions</span><strong>${latest ? "Your latest pattern and running graph" : "Complete a session to start"}</strong></div>
+      ${renderSessionTrendChart()}
       <div class="ccc-progress-metric-grid">${TRAINING_METRICS.map(trainingMetricCard).join("")}</div>
-      ${sessionsWithMetrics.length ? `<div class="ccc-session-history">${[...sessionsWithMetrics].reverse().slice(0, 8).map((session) => `<article><span>Session ${session.sessionNumber}</span><strong>${session.metrics?.attentionAccuracy !== null && session.metrics?.attentionAccuracy !== undefined ? `${Math.round(session.metrics.attentionAccuracy * 100)}% attention` : session.metrics?.signalAccuracy !== null && session.metrics?.signalAccuracy !== undefined ? `${Math.round(session.metrics.signalAccuracy * 100)}% pattern` : "Session recorded"}</strong><small>${session.completedAt.slice(0, 10)} · ${session.metrics?.observationCount || 0} patterns</small></article>`).join("")}</div>` : ""}
+      ${sessionsWithMetrics.length ? `<div class="ccc-session-history">${[...sessionsWithMetrics].reverse().slice(0, 8).map((session) => `<article><span>Session ${session.sessionNumber}</span><strong>${session.metrics?.attentionAccuracy !== null && session.metrics?.attentionAccuracy !== undefined ? `${Math.round(session.metrics.attentionAccuracy * 100)}% finding the pattern` : session.metrics?.signalAccuracy !== null && session.metrics?.signalAccuracy !== undefined ? `${Math.round(session.metrics.signalAccuracy * 100)}% finding the pattern` : "Session recorded"}</strong><small>${session.completedAt.slice(0, 10)} · ${session.metrics?.observationCount || 0} patterns</small></article>`).join("")}</div>` : ""}
       ${journey?.completedAt ? renderStrategyTakeaway(Object.values(journey.blockResults).flat(), true) : ""}
     </section>
+    ${journey && !journey.completedAt ? `<div class="ccc-progress-return"><button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button></div>` : ""}
+  </section>`;
+}
+
+function renderGTrackProgress(): string {
+  const imported = (programme.proofScores || []).length;
+  return `<section class="ccc-progress-screen ccc-gtrack-progress-screen">
+    <div class="ccc-progress-hero">
+      <div><span class="ccc-kicker">Independent cognitive check-ins</span><h1>Your G Track scores.</h1><p>Review your attention, working-memory and reasoning results through the cognitive skills they represent.</p></div>
+      <div class="ccc-progress-hero-stat"><span>Scores imported</span><strong>${imported}</strong><small>Kept separate from training performance</small></div>
+    </div>
+    ${progressPanelNavigation()}
+    ${progressMessage ? `<p class="ccc-progress-message">${escapeHtml(progressMessage)}</p>` : ""}
     <section class="ccc-progress-section ccc-proof-section">
-      <div class="ccc-section-heading"><span>G Track check-ins</span><strong>Imported test scores</strong></div>
+      <div class="ccc-section-heading"><span>G Track cognitive skills</span><strong>Compared with a reference group · average 100</strong></div>
       <div class="ccc-proof-grid">${proofCard("attention", "Attention Control")}${proofCard("working_memory", "Working Memory")}${proofCard("reasoning", "Matrix Reasoning")}</div>
-      <p class="ccc-soft-note">G Track results are shown separately from training sessions.</p>
+      <p class="ccc-soft-note">These independent check-ins are kept separate from practice performance. Repeating G Track later shows whether change extends beyond the trained exercises.</p>
+      <div class="ccc-actions"><a class="ccc-button ccc-button-primary" href="/g-track-test-battery/">Take a G Track check-in</a></div>
     </section>
     ${journey && !journey.completedAt ? `<div class="ccc-progress-return"><button class="ccc-button ccc-button-primary" data-action="return-session">${progressReturnLabel()}</button></div>` : ""}
   </section>`;
 }
 
 function renderProgress(): string {
-  return shell(progressPanel === "session" && journey ? renderCurrentSessionProgress() : renderProgressHistory(), "ccc-progress-view");
+  const content = progressPanel === "proof"
+    ? renderGTrackProgress()
+    : progressPanel === "session" && journey
+      ? renderCurrentSessionProgress()
+      : renderProgressHistory();
+  return shell(content, "ccc-progress-view");
 }
 
 function renderFullTransfer(): string {
@@ -2709,6 +2802,10 @@ appRoot.addEventListener("click", (event) => {
     render();
   } else if (action === "show-history-progress") {
     progressPanel = "history";
+    render();
+    if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
+  } else if (action === "show-proof-progress") {
+    progressPanel = "proof";
     render();
     if (cloudSyncActive()) void hydrateProgressFeedback().finally(render);
   } else if (action === "return-session") {

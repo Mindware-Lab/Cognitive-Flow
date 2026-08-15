@@ -257,9 +257,23 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("Strategy takeaway");
     expect(mainSource).toContain("See how your results change");
     expect(mainSource).toContain("G Track check-ins");
-    expect(mainSource).toContain("Personal progress");
+    expect(mainSource).toContain("My progress");
     expect(mainSource).toContain("Other users");
     expect(mainSource).toContain("loadCccGTrackScores");
+  });
+
+  it("leads with plain-language graphs and gives G Track scores their own progress view", () => {
+    expect(mainSource).toContain("Performance across sessions");
+    expect(mainSource).toContain("100 marks where you started. A line above 100 shows improvement.");
+    expect(mainSource).toContain("Finding the pattern");
+    expect(mainSource).toContain("Holding and comparing");
+    expect(mainSource).toContain("Decision balance");
+    expect(mainSource).toContain('data-action="show-proof-progress"');
+    expect(mainSource).toContain("Your G Track scores.");
+    expect(mainSource).toContain("Compared with a reference group · average 100");
+    expect(mainSource).toContain("100 is the reference-group average");
+    expect(mainSource).not.toContain("Population-standardised");
+    expect(appStyles).toContain(".ccc-session-trend-chart");
   });
 
   it("offers Attention Coach-style data choices with cloud personal as the default", () => {
