@@ -12,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.8";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.8";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.9";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.9";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,
@@ -117,6 +117,11 @@ export const CCC_WRAPPER_RESPONSE_LABELS: Record<CccWrapperId, CccResponseLabels
   },
 };
 
+export const CCC_ROTATIONAL_RESPONSE_LABELS: CccResponseLabels = {
+  answerOptions: ["cw", "ccw"],
+  labels: { cw: "Clockwise", ccw: "Counter-clockwise" },
+};
+
 // Relational WM uses one overt response: press Match for a target and withhold
 // on every non-match. "different" remains an internal legacy response value so
 // earlier stored trials can still be interpreted safely.
@@ -150,8 +155,8 @@ export const CCC_RELATIONAL_WM: CccRelationalWmConfig = {
   initialNBack: 1,
   minimumNBack: 1,
   maximumNBack: 5,
-  matchFrequency: 0.5,
-  differentFrequency: 0.5,
+  matchFrequency: 0.3,
+  differentFrequency: 0.7,
   wrongLagLureRateOfFeasibleDifferent: 0.25,
   resetBufferOnRegimeTransition: true,
   excludeFirstNItemsFromScoring: true,
@@ -211,10 +216,9 @@ export function validateCccPilotConfig(): string[] {
     if (!CCC_REGIMES[pair[0]] || !CCC_REGIMES[pair[1]]) issues.push("A session regime pair references an unknown regime.");
   }
   if (CCC_RELATIONAL_WM.minimumPresentationMs >= CCC_RELATIONAL_WM.maximumPresentationMs
-    || CCC_RELATIONAL_WM.maskMs <= 0
     || CCC_RELATIONAL_WM.scoredTrialsPerBlock < 20
     || CCC_RELATIONAL_WM.blocksPerSession < 4) {
-    issues.push("WM blocks require a valid presentation range, mask, and at least four 20-trial blocks.");
+    issues.push("WM blocks require a valid stream-pace range and at least four 20-trial blocks.");
   }
   if (Math.abs(CCC_RELATIONAL_WM.matchFrequency + CCC_RELATIONAL_WM.differentFrequency - 1) > 0.000001) {
     issues.push("WM match and non-match frequencies must sum to 1.");

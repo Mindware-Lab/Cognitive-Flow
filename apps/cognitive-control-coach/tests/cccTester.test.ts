@@ -16,9 +16,17 @@ describe("optic-flow tester plans", () => {
     expect(plan.trials.every((trial) => trial.wrapperId === "flow_rel" && trial.carrier === "flow")).toBe(true);
   });
 
+  it("offers a separately cued rotational binary attention block", () => {
+    const plan = createOpticFlowTesterPlan("attention_rotational", "tester-rotation");
+    expect(plan.blocks[0].attentionPair).toBe("rotational");
+    expect(new Set(plan.trials.flatMap((trial) => trial.answerOptions))).toEqual(new Set(["cw", "ccw"]));
+    expect(new Set(plan.trials.map((trial) => trial.targetClass))).toEqual(new Set(["cw", "ccw"]));
+  });
+
   it.each([
     ["wm_1", 1],
     ["wm_2", 2],
+    ["wm_3", 3],
   ] as const)("uses the real optic-flow %s-back memory block", (exercise, level) => {
     const plan = createOpticFlowTesterPlan(exercise, `tester-${exercise}`);
     expect(plan.blocks).toHaveLength(1);
@@ -32,5 +40,16 @@ describe("optic-flow tester plans", () => {
     });
     expect(plan.trials.filter((trial) => trial.wmBuffer)).toHaveLength(level);
     expect(plan.trials.every((trial) => trial.wrapperId === "flow_rel" && trial.carrier === "flow")).toBe(true);
+  });
+
+  it.each([
+    ["arrow_wm_1", 1],
+    ["arrow_wm_2", 2],
+    ["arrow_wm_3", 3],
+  ] as const)("uses the same continuous %s-back plan for arrows", (exercise, level) => {
+    const plan = createOpticFlowTesterPlan(exercise, `tester-${exercise}`);
+    expect(plan.blocks[0]).toMatchObject({ wrapperId: "arrow_rel", wmNLevel: level });
+    expect(plan.trials).toHaveLength(20 + level);
+    expect(plan.trials.every((trial) => trial.carrier === "arrow")).toBe(true);
   });
 });

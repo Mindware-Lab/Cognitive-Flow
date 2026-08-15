@@ -119,15 +119,15 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
     bridge: "Return to the familiar display.",
   },
   p1a_relative_mix: {
-    eyebrow: "Switch displays",
-    title: "Switch between arrows and moving dots",
-    body: "The display changes, but your choice remains In or Out.",
-    bridge: "Keep the rule as the display changes.",
+    eyebrow: "New binary pair",
+    title: "Clockwise or Counter-clockwise",
+    body: "The choice is still binary, but this block uses the rotational pair. The pair stays fixed until the block ends.",
+    bridge: "Keep the active two-choice rule clear as the display changes.",
   },
   p1a_delayed_recheck: {
     eyebrow: "Return after a break",
     title: "Switch between both displays again",
-    body: "Use the same In or Out rule with arrows and moving dots.",
+    body: "Return using the clearly cued Clockwise or Counter-clockwise pair.",
     bridge: "Notice what feels easy and what needs practice.",
   },
   p1b_attention_bridge: {
@@ -137,15 +137,15 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
     bridge: "Find the current pattern before comparing it over time.",
   },
   p1b_wm_arrow_stabilisation: {
-    eyebrow: "Match or Different",
+    eyebrow: "Continuous n-back",
     title: "Compare with an earlier pattern",
-    body: "Choose whether the current pattern matches the one n steps back.",
+    body: "Press Match only when the current majority relation repeats n steps back.",
     bridge: "Keep the earlier pattern in mind as new ones arrive.",
   },
   p1b_wm_flow_first_contact: {
     eyebrow: "Moving dots",
-    title: "Keep the Match or Different rule",
-    body: "Use the same memory rule with moving dot patterns.",
+    title: "Keep the Match rule",
+    body: "Press Match only for an n-back repeat in the moving-dot stream.",
     bridge: "The display changes; the memory rule stays the same.",
   },
   p1b_wm_flow_recovery: {
@@ -157,13 +157,13 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   p1b_wm_arrow_return: {
     eyebrow: "Return to arrows",
     title: "Keep the memory rule",
-    body: "Use Match or Different with arrows again.",
+    body: "Press Match only for an n-back repeat with arrows again.",
     bridge: "Return to the familiar display.",
   },
   p1b_wm_relative_mix: {
     eyebrow: "Switch displays",
     title: "Compare across arrows and moving dots",
-    body: "Use Match or Different as the display changes.",
+    body: "Press Match only for an n-back repeat as the display changes.",
     bridge: "Keep the earlier pattern in mind as the display changes.",
   },
   p1c_attention_entry: {
@@ -179,19 +179,19 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
     bridge: "Return to the main rule.",
   },
   p1c_wm_hold: {
-    eyebrow: "Match or Different",
+    eyebrow: "Continuous n-back",
     title: "Keep an earlier pattern in mind",
     body: "Compare each pattern with the one n steps back.",
     bridge: "Keep the earlier pattern in mind as new ones arrive.",
   },
   p1c_attention_reentry: {
     eyebrow: "Return to now",
-    title: "Choose In or Out again",
-    body: "Find the direction followed by most.",
+    title: "Choose Clockwise or Counter-clockwise",
+    body: "Use the clearly cued rotational pair for this whole block.",
     bridge: "Return to the current pattern.",
   },
   p1c_operator_mix: {
-    eyebrow: "Match or Different",
+    eyebrow: "Continuous n-back",
     title: "Finish with the memory rule",
     body: "Compare each pattern with the one n steps back.",
     bridge: "Keep the rule as the task changes.",

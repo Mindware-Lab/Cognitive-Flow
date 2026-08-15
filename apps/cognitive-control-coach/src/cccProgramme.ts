@@ -346,7 +346,7 @@ export function applyCompletedSession(
     programme.currentStage = wmReady ? "P1c" : "P1b";
     decisions.push(wmReady
       ? "The final stages are ready."
-      : "Next time, keep practising Match or Different.");
+      : "Next time, keep practising the Match-only n-back stream.");
   }
 
   if (passedPhase(journey, ["p1c_attention_reentry"], 12)) evidence.returnToNowPasses += 1;
@@ -391,7 +391,7 @@ export function applyCompletedSession(
       decisions.push("The final return is ready after a break.");
     } else {
       programme.currentStage = "P1c";
-      decisions.push("Next time, keep practising the switch between In or Out and Match or Different.");
+      decisions.push("Next time, keep practising the switch between a two-choice attention block and the Match-only n-back stream.");
     }
   }
 

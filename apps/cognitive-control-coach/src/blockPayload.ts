@@ -93,11 +93,11 @@ export function buildCccBlockSubmissionPayload(input: CccBlockPayloadInput): Rec
         drainRatePerSecond: isValueTrial ? regime.drainPointsPerSecond : null,
         errorLoss: isValueTrial ? regime.errorLoss : null,
         omissionValue: CCC_TRIAL_TIMING.omissionPoints,
-        minimumExposureMs: isValueTrial ? CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs : null,
+        minimumExposureMs: trial.operator === "relational_wm" ? 0 : isValueTrial ? CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs : null,
         deadlineMs: trial.presentationMode === "masked_forced_choice"
           ? CCC_TRIAL_TIMING.signalResponseDeadlineMs
           : trial.operator === "relational_wm"
-            ? CCC_RELATIONAL_WM.responseDeadlineMs
+            ? trial.exposureMsRequested || block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs
             : CCC_TRIAL_TIMING.maxResponseWindowMs,
         correctResponse: trial.correctResponse,
         response: result.response,

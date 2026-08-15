@@ -96,6 +96,7 @@ import type {
   CccRuntimeEvent,
 } from "./cccTypes";
 import { scoreCccAttentionTrial } from "./cccValue";
+import { classifyNBackOutcome, feedbackIconForNBackOutcome } from "./cccNBack";
 import {
   currentAuthUser,
   deleteCoachData,
@@ -163,7 +164,7 @@ function needsRelationalStimulusReset(saved: CccSavedJourney | null): boolean {
 
 if (needsRelationalStimulusReset(journey)) {
   // Preserve the programme and saved n-back level, but do not resume an
-  // in-progress sequence generated with the retired four-relation stimulus set.
+  // in-progress sequence generated with an older n-back stream design.
   clearCccJourney();
   journey = null;
 }
@@ -181,6 +182,8 @@ if (journey) {
     block.wmPairIndex ??= null;
     block.wmPairPosition ??= null;
     block.selectedExposureMs ??= null;
+    block.feedbackEnabled ??= false;
+    block.attentionPair ??= "radial";
   });
   journey.plan.blocks.forEach((block) => {
     block.learningCurveGate ??= block.phase === "arrow_rel_stabilisation" || block.phase === "p1a_arrow_stabilisation"
@@ -192,6 +195,7 @@ if (journey) {
     trial.wmIsMatch ??= null;
     trial.wmBuffer ??= false;
     trial.wmLureType ??= null;
+    trial.attentionPair ??= "radial";
   });
   if (journey.completedAt) {
     const migrated = applyCompletedSession(programme, journey);
@@ -248,6 +252,12 @@ let populationScores: Record<string, CccPopulationScore> = {};
 let progressMessage = "";
 let pendingRegimeIntro: CccAttentionTrialDefinition | null = null;
 let lastIntroducedRegimeKey = "";
+let wmMatchPressed = false;
+let wmMatchResponseTimeMs: number | null = null;
+let wmMatchInputMode: CccInputMode = "deadline";
+let wmFeedbackIcon: "check" | "cross" | null = null;
+let wmFeedbackTimer = 0;
+let wmPracticeFeedbackEnabled = false;
 
 function cloudSyncActive(): boolean {
   return !testerRequested && isSupabaseConfigured && dataMode !== "local" && Boolean(authUser);
@@ -412,6 +422,11 @@ function stopShiftView(): void {
 
 function setView(next: View): void {
   clearTaskTiming();
+  if (next !== "task") {
+    if (wmFeedbackTimer) window.clearTimeout(wmFeedbackTimer);
+    wmFeedbackTimer = 0;
+    wmFeedbackIcon = null;
+  }
   if (view === "shift_view" && next !== "shift_view") stopShiftView();
   view = next;
   render();
@@ -676,7 +691,7 @@ function wmPracticeExample(level: CccNBackLevel): string {
       <i aria-hidden="true">→</i>
       <div class="is-answer"><span>2</span><strong>In</strong><small>Same as 1 step back: Match</small></div>
       <i aria-hidden="true">→</i>
-      <div class="is-answer"><span>3</span><strong>Out</strong><small>Different from 1 step back: Different</small></div>
+      <div class="is-answer"><span>3</span><strong>Out</strong><small>Different from 1 step back: wait</small></div>
     </div>`;
   }
   const middleLabel = level === 2 ? "2" : `2–${level}`;
@@ -698,8 +713,9 @@ function renderWmPracticeIntro(): string {
       <div class="ccc-stage-line"><span>Learn ${level}-back</span><span>Four examples</span></div>
       <span class="ccc-kicker">Practise first</span>
       <h1>Compare each pattern with ${level === 1 ? "the one just before it" : `the one ${level} steps earlier`}.</h1>
-      <p>Choose <strong>Match</strong> when the main direction is the same, or <strong>Different</strong> when it has changed.</p>
+      <p>Press <strong>Match</strong> only when the main relation is the same. When it has changed, let the stream continue without pressing.</p>
       ${wmPracticeExample(level)}
+      <label class="ccc-feedback-choice"><input id="ccc-practice-wm-feedback" type="checkbox" ${wmPracticeFeedbackEnabled ? "checked" : ""} /><span><strong>Show brief match feedback</strong><small>Optional ✓ for a hit and × for a miss or mistaken Match.</small></span></label>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="start-wm-practice">Begin ${level}-back practice</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-phase-intro">Back</button>
@@ -764,6 +780,7 @@ function renderPhaseGuide(): string {
   const isSignal = block.estimand === "signal_capacity";
   const isWm = block.operator === "relational_wm";
   const canPractiseAgain = isWm && block.wmNLevel !== null;
+  const attentionPairLabel = block.attentionPair === "rotational" ? "Clockwise or Counter-clockwise" : "In or Out";
   return shell(`
     <section class="ccc-narrow-card">
       <div class="ccc-stage-line"><span>Stage ${stageNumber} of ${journey.plan.blocks.length}</span><span>${Math.round(journeyCompletionRatio(journey) * 100)}% complete</span></div>
@@ -776,12 +793,12 @@ function renderPhaseGuide(): string {
         </div>
         ` : isWm ? `
         <div class="ccc-instruction-grid">
-          <article><strong>Remember</strong><span>Keep each main direction in mind.</span></article>
-          <article><strong>Compare</strong><span>Choose Match or Different.</span></article>
+          <article><strong>Remember</strong><span>Keep each majority relation in mind: In, Out, Clockwise or Counter-clockwise.</span></article>
+          <article><strong>Compare</strong><span>Press Match only for a repeat exactly ${block.wmNLevel} ${block.wmNLevel === 1 ? "step" : "steps"} back.</span></article>
         </div>
         <p class="ccc-soft-note">The first ${block.wmNLevel} ${block.wmNLevel === 1 ? "pattern starts" : "patterns start"} the sequence.</p>` : `
         <div class="ccc-instruction-grid">
-          <article><strong>Find the majority</strong><span>Choose In or Out.</span></article>
+          <article><strong>Active pair</strong><span>Choose ${attentionPairLabel}. This pair stays fixed for the whole block.</span></article>
           <article><strong>Use the points</strong><span>Check longer when mistakes cost more; choose sooner when points fade fast.</span></article>
         </div>`}
       <div class="ccc-actions">
@@ -805,22 +822,23 @@ function renderRegimeIntro(): string {
   return shell(`
     <section class="ccc-narrow-card ccc-regime-intro-card">
       <div class="ccc-stage-line"><span>Work condition</span><span>${conditionNumber} of ${isWm ? 4 : currentBlock()?.regimePair.length || 2}</span></div>
-      <span class="ccc-kicker">Points for this block</span>
+      <span class="ccc-kicker">${isWm ? "Set this block" : "Points for this block"}</span>
       <h1>${copy.title}</h1>
       <p>${copy.instruction}</p>
-      <div class="ccc-payoff-grid" aria-label="${copy.title} payoffs">
+      ${isWm ? "" : `<div class="ccc-payoff-grid" aria-label="${copy.title} payoffs">
         <article><span>Correct</span><strong>Up to ${regime.correctPot}</strong><small>Choose sooner to keep more</small></article>
         <article><span>Wrong</span><strong>−${regime.errorLoss}</strong><small>Cost of a mistake</small></article>
         <article><span>Waiting</span><strong>−${regime.drainPointsPerSecond}/sec</strong><small>Points fade while viewing</small></article>
       </div>
-      <aside class="ccc-strategy-principle"><span>Your strategy</span><strong>${copy.strategy}</strong></aside>
+      <aside class="ccc-strategy-principle"><span>Your strategy</span><strong>${copy.strategy}</strong></aside>`}
       ${isWm ? `<section class="ccc-speed-choice">
-        <div><span>Choose your viewing time</span><strong id="ccc-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
-        <input id="ccc-wm-speed-slider" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Pattern viewing time" />
-        <div class="ccc-speed-labels"><span>Faster presentation</span><span>More time to check</span></div>
-      </section>` : ""}
+        <div><span>Choose the stream pace</span><strong id="ccc-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds per pattern</strong></div>
+        <input id="ccc-wm-speed-slider" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Time between pattern starts" />
+        <div class="ccc-speed-labels"><span>Faster stream</span><span>Slower stream</span></div>
+      </section>
+      <label class="ccc-feedback-choice"><input id="ccc-wm-feedback" type="checkbox" ${block?.feedbackEnabled ? "checked" : ""} /><span><strong>Show brief match feedback</strong><small>Off by default. Correct rejections remain silent.</small></span></label>` : ""}
       <div class="ccc-actions">
-        <button class="ccc-button ccc-button-primary" data-action="continue-regime">${isWm ? "Use this viewing time" : "I understand — continue"}</button>
+        <button class="ccc-button ccc-button-primary" data-action="continue-regime">${isWm ? "Start continuous stream" : "I understand — continue"}</button>
         <button class="ccc-button ccc-button-quiet" data-action="back-welcome">Save and leave</button>
       </div>
     </section>
@@ -833,7 +851,7 @@ function arrowStimulus(trial: CccAttentionTrialDefinition): string {
     return `<g transform="translate(${item.position.x} ${item.position.y}) rotate(${angle})"><polygon points="${arrowPolygonPoints()}" /></g>`;
   }).join("");
   const label = trial.referenceFrame === "relative"
-    ? "Five arrows pointing towards or away from the centre"
+    ? "Five arrows whose majority points in, out, clockwise or counter-clockwise around the centre"
     : "Five arrows pointing left or right";
   return `<svg class="ccc-stimulus-svg" viewBox="0 0 100 100" role="img" aria-label="${label}"><g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g><g class="ccc-arrow-items">${arrows}</g></svg>`;
 }
@@ -853,7 +871,7 @@ function flowStimulus(trial: CccAttentionTrialDefinition): string {
       <g clip-path="url(#${clipId})" class="ccc-flow-points">${dots}</g>
       <circle class="ccc-flow-ring" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />`;
   }).join("");
-  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five circular patches of moving flecks travelling towards or away from the centre"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
+  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five circular patches whose majority moves in, out, clockwise or counter-clockwise around the centre"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
 }
 
 function flowMaskStimulus(trial: CccAttentionTrialDefinition): string {
@@ -891,6 +909,54 @@ function taskProgress(block: CccAttentionBlockPlan): string {
   return `<div class="ccc-task-progress" role="progressbar" aria-label="Stage progress" aria-valuemin="0" aria-valuemax="${target}" aria-valuenow="${Math.min(valid, target)}"><span style="width:${percentage}%"></span></div><small>${Math.min(valid, target)} of ${target} patterns</small>`;
 }
 
+function wmFeedbackIsEnabled(block: CccAttentionBlockPlan): boolean {
+  return taskMode === "wm_practice" ? wmPracticeFeedbackEnabled : Boolean(block.feedbackEnabled);
+}
+
+function renderWmStreamTask(trial: CccAttentionTrialDefinition, block: CccAttentionBlockPlan): string {
+  if (!journey) return renderWelcome();
+  const isPractice = taskMode === "wm_practice";
+  const isTester = taskMode === "tester";
+  const blockPoints = currentResults().reduce((total, result) => total + result.scoring.pointsRealised, 0);
+  const carrierLabel = trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns";
+  const paceMs = block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
+  const stimulus = taskStage === "evidence"
+    ? stimulusFor(trial)
+    : `<span class="ccc-fixation" aria-label="Keep the sequence in mind">+</span>`;
+  const feedback = wmFeedbackIcon
+    ? `<div class="ccc-wm-feedback-overlay is-${wmFeedbackIcon}" role="status" aria-live="polite" aria-label="${wmFeedbackIcon === "check" ? "Match found" : "Match error"}"><span aria-hidden="true">${wmFeedbackIcon === "check" ? "✓" : "×"}</span></div>`
+    : "";
+  const matchDisabled = trial.wmBuffer || !responseEnabled || wmMatchPressed;
+  const completed = currentResults().filter((result) => result.scoring.countsTowardQuota).length;
+  return shell(`
+    <section class="ccc-task-card ccc-wm-stream-card">
+      <div class="ccc-task-topline has-points">
+        <div><span>${isTester ? "Test mode" : isPractice ? "Practice" : `Stage ${journey.activeBlockIndex + 1} of ${journey.plan.blocks.length}`}</span><strong>${carrierLabel} · ${trial.wmNLevel}-back</strong></div>
+        <div class="ccc-task-progress-wrap">${taskProgress(block)}</div>
+        <div class="ccc-block-points" aria-label="Block points ${formatPointTotal(blockPoints)}"><span>Block points</span><strong>${formatPointTotal(blockPoints)}</strong></div>
+      </div>
+      <div class="ccc-task-cue">
+        <span>Continuous stream</span>
+        <strong>${trial.wmBuffer ? `Remember ${trial.blockTrialIndex} of ${trial.wmNLevel}` : `Press Match only if this repeats ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "step" : "steps"} back`}</strong>
+      </div>
+      <div class="ccc-stimulus-stage ${taskStage === "evidence" ? "" : "is-fixation"}">
+        ${stimulus}${feedback}
+      </div>
+      <div class="ccc-wm-status-panel">
+        <span>${completed} of ${block.validTrialCount} comparisons</span>
+        <strong>${(paceMs / 1000).toFixed(2)} s pace</strong>
+        <small>Feedback ${wmFeedbackIsEnabled(block) ? "on" : "off"} · fixed for this block</small>
+      </div>
+      <div class="ccc-wm-controls" aria-label="Working-memory controls">
+        <button class="ccc-response ccc-match-response" data-response="match" aria-label="Match" ${matchDisabled ? "disabled" : ""}><span aria-hidden="true">=</span><strong>Match</strong><kbd>Space</kbd></button>
+        <button class="ccc-response ccc-control-response" data-action="pause-session"><span aria-hidden="true">Ⅱ</span><strong>Pause</strong><kbd>P</kbd></button>
+        <button class="ccc-response ccc-control-response is-end" data-action="end-wm-block"><span aria-hidden="true">■</span><strong>End block</strong><kbd>Esc</kbd></button>
+      </div>
+      <p class="ccc-task-helper" aria-live="polite">No key is needed when the current relation does not match.</p>
+    </section>
+  `, "ccc-task-view ccc-wm-stream-view");
+}
+
 function renderTask(): string {
   const trial = taskStage === "feedback" ? feedbackTrial : activeTrial();
   const block = currentBlock();
@@ -902,11 +968,13 @@ function renderTask(): string {
   const isWmPractice = taskMode === "wm_practice";
   const isSignal = trial.estimand === "signal_capacity";
   const isWm = trial.operator === "relational_wm";
+  if (isWm) return renderWmStreamTask(trial, block);
   const showBlockPoints = !isPractice && !isSignal;
   const blockPoints = currentResults().reduce((total, result) => total + result.scoring.pointsRealised, 0);
   const wrapperLabel = trial.operator === "relational_wm"
     ? `${trial.wrapperId === "arrow_rel" ? "Arrow patterns" : "Moving-dot patterns"} · ${trial.wmNLevel}-back`
     : trial.wrapperId === "arrow_abs" ? "Left / Right arrows"
+      : trial.attentionPair === "rotational" ? `${trial.wrapperId === "arrow_rel" ? "Arrows" : "Moving dots"} · Clockwise / Counter-clockwise`
       : trial.wrapperId === "arrow_rel" ? "In / Out arrows"
         : "In / Out moving dots";
   const responseStage = isSignal || isWm ? taskStage === "response" : taskStage === "evidence";
@@ -956,7 +1024,7 @@ function renderTask(): string {
           : stimulusFor(trial);
   const responseButtons = trial.answerOptions.map((answer, index) => {
     const label = trial.responseLabels.labels[answer] || answer;
-    const icon = answer === "left" ? "←" : answer === "right" ? "→" : answer === "in" ? "⇥" : answer === "out" ? "⇤" : answer === "match" ? "=" : "≠";
+    const icon = answer === "left" ? "←" : answer === "right" ? "→" : answer === "in" ? "⇥" : answer === "out" ? "⇤" : answer === "cw" ? "↻" : answer === "ccw" ? "↺" : answer === "match" ? "=" : "≠";
     const key = index === 0 ? "←" : "→";
     return `<button class="ccc-response" data-response="${answer}" aria-label="Choose ${label}" ${controlsDisabled ? "disabled" : ""}><span aria-hidden="true">${icon}</span><strong>${label}</strong><kbd>${key}</kbd></button>`;
   }).join("");
@@ -977,17 +1045,17 @@ function renderTask(): string {
       </div>
       ${taskStage === "feedback" ? feedbackDetailMarkup : `
         ${isSignal ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Pattern check</span><strong>Watch, then choose</strong></div><small>Choose when the buttons appear.</small></div>`
-          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>${isWmPractice ? trial.wmBuffer ? "Remember this pattern" : "Match or Different" : "Left or Right"}</strong></div><small></small></div>`
+          : isPractice ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Practice</span><strong>${isWmPractice ? trial.wmBuffer ? "Remember this pattern" : "Press Match only for a repeat" : "Left or Right"}</strong></div><small></small></div>`
           : trial.wmBuffer ? `<div class="ccc-value-panel ccc-signal-panel"><div><span>Start the sequence</span><strong>Remember this pattern</strong></div><small>The first ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "pattern starts" : "patterns start"} the sequence.</small></div>`
           : `<div class="ccc-value-panel">
           <div><span>Available if correct</span><strong id="ccc-live-pot">${Math.round(pot)}</strong></div>
           <div class="ccc-pot-track"><span id="ccc-pot-bar" style="width:100%"></span></div>
           <small>${isWm ? `Viewing time ${((block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs) / 1000).toFixed(2)} s · ` : ""}Wrong choice −${regime.errorLoss}</small>
         </div>`}`}
-      <div class="ccc-response-row ${trial.wmBuffer ? "is-hidden" : ""}" aria-label="${isWm ? "Choose Match or Different" : "Choose the main direction"}" ${trial.wmBuffer ? "aria-hidden=\"true\"" : ""}>
+      <div class="ccc-response-row ${trial.wmBuffer ? "is-hidden" : ""}" aria-label="${isWm ? "Press Match for a repeated relation" : "Choose the main direction"}" ${trial.wmBuffer ? "aria-hidden=\"true\"" : ""}>
         ${responseButtons}
       </div>
-      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? taskStage === "response" ? "Choose Left or Right—even if you are unsure." : taskStage === "mask" ? "Keep your first impression in mind." : "Take in the pattern before the mask." : trial.wmBuffer ? "Remember this pattern; you will compare it with a later one." : isWm ? responseEnabled ? `Choose Match or Different by comparing with ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "step" : "steps"} back.` : "Find the current pattern first." : responseEnabled ? "Look at the whole pattern, then make your best choice." : "Look at the whole pattern first."}</p>
+      <p class="ccc-task-helper" aria-live="polite">${taskStage === "fixation" || taskStage === "interval" ? "The next pattern is about to appear." : taskStage === "feedback" ? "" : isSignal ? taskStage === "response" ? "Choose Left or Right—even if you are unsure." : taskStage === "mask" ? "Keep your first impression in mind." : "Take in the pattern before the mask." : trial.wmBuffer ? "Remember this pattern; you will compare it with a later one." : isWm ? responseEnabled ? `Press Match only when the relation repeats from ${trial.wmNLevel} ${trial.wmNLevel === 1 ? "step" : "steps"} back.` : "Find the current pattern first." : responseEnabled ? "Look at the whole pattern, then make your best choice." : "Look at the whole pattern first."}</p>
     </section>
   `, "ccc-task-view");
 }
@@ -1771,8 +1839,10 @@ function renderData(): string {
 
 function testerExerciseName(exercise: OpticFlowTesterExercise | null = testerExercise): string {
   if (exercise === "attention") return "Optic-flow attention";
-  if (exercise === "wm_2") return "Optic-flow working memory · 2-back";
-  return "Optic-flow working memory · 1-back";
+  if (exercise === "attention_rotational") return "Optic-flow attention · rotation";
+  const arrow = exercise?.startsWith("arrow_");
+  const level = exercise?.endsWith("_3") ? 3 : exercise?.endsWith("_2") ? 2 : 1;
+  return `${arrow ? "Arrow" : "Optic-flow"} working memory · ${level}-back`;
 }
 
 function createTesterJourney(exercise: OpticFlowTesterExercise): void {
@@ -1813,7 +1883,7 @@ function renderTester(): string {
     <section class="ccc-tester-screen">
       <div class="ccc-tester-heading">
         <span class="ccc-kicker">Pre-launch task access</span>
-        <h1>Choose an optic-flow task to test.</h1>
+        <h1>Choose a task to test.</h1>
         <p>These are the real task blocks used in the programme. Results stay in this test tab only: they do not change unlocks, baselines, progress or cloud data.</p>
       </div>
       <div class="ccc-tester-grid">
@@ -1821,6 +1891,12 @@ function renderTester(): string {
           <span>Attention</span>
           <strong>Optic-flow attention</strong>
           <small>Find whether most moving patches travel in or out.</small>
+          <b>Open task</b>
+        </button>
+        <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="attention_rotational">
+          <span>Attention</span>
+          <strong>Optic-flow · rotation</strong>
+          <small>Make a binary Clockwise or Counter-clockwise choice.</small>
           <b>Open task</b>
         </button>
         <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="wm_1">
@@ -1835,6 +1911,18 @@ function renderTester(): string {
           <small>Compare each moving pattern with the one two steps earlier.</small>
           <b>Open task</b>
         </button>
+        <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="wm_3">
+          <span>Working memory</span>
+          <strong>Optic-flow · 3-back</strong>
+          <small>Test the four-relation stream at 3-back.</small>
+          <b>Open task</b>
+        </button>
+        ${([1, 2, 3] as const).map((level) => `<button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="arrow_wm_${level}">
+          <span>Working memory</span>
+          <strong>Arrows · ${level}-back</strong>
+          <small>Test the same continuous logic with arrow displays.</small>
+          <b>Open task</b>
+        </button>`).join("")}
       </div>
       <p class="ccc-soft-note">You can pause during a run and return here afterwards to test another task.</p>
     </section>
@@ -1854,14 +1942,15 @@ function renderTesterIntro(): string {
       <span class="ccc-kicker">${isWm ? "Hold and compare" : "Find the main motion"}</span>
       <h1>${testerExerciseName()}</h1>
       ${isWm ? `
-        <p>Find whether most patches move <strong>In</strong> or <strong>Out</strong>. Compare that direction with ${level === 1 ? "the previous pattern" : "the pattern two steps earlier"}. Tap <strong>Match</strong> only when it is the same; if it is different, wait for the next pattern.</p>
+        <p>Each display has one majority relation: <strong>In, Out, Clockwise or Counter-clockwise</strong>. Compare it with ${level === 1 ? "the previous pattern" : `the pattern ${level} steps earlier`}. Press <strong>Match</strong> only when it is the same; otherwise let the stream continue.</p>
         ${wmPracticeExample(level)}
         <section class="ccc-speed-choice">
-          <div><span>Pattern viewing time</span><strong id="ccc-tester-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds</strong></div>
-          <input id="ccc-tester-wm-speed" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Pattern viewing time" />
-          <div class="ccc-speed-labels"><span>Faster</span><span>More time to check</span></div>
-        </section>` : `
-        <p>Look across all five moving patches. Choose <strong>In</strong> if most travel towards the centre, or <strong>Out</strong> if most travel away from it.</p>
+          <div><span>Stream pace</span><strong id="ccc-tester-wm-speed-value">${(selectedExposure / 1000).toFixed(2)} seconds per pattern</strong></div>
+          <input id="ccc-tester-wm-speed" type="range" min="${CCC_RELATIONAL_WM.minimumPresentationMs}" max="${CCC_RELATIONAL_WM.maximumPresentationMs}" step="${CCC_RELATIONAL_WM.presentationStepMs}" value="${selectedExposure}" aria-label="Time between pattern starts" />
+          <div class="ccc-speed-labels"><span>Faster</span><span>Slower</span></div>
+        </section>
+        <label class="ccc-feedback-choice"><input id="ccc-tester-wm-feedback" type="checkbox" /><span><strong>Show brief match feedback</strong><small>Off by default. Correct rejections remain silent.</small></span></label>` : `
+        <p>Look across all five moving patches. Choose <strong>${block.attentionPair === "rotational" ? "Clockwise or Counter-clockwise" : "In or Out"}</strong> from the active pair shown for this block.</p>
         <div class="ccc-instruction-grid">
           <article><strong>Find the majority</strong><span>Use the motion shown across all five patches.</span></article>
           <article><strong>Choose when ready</strong><span>The points show the speed–accuracy trade-off.</span></article>
@@ -1877,18 +1966,25 @@ function renderTesterIntro(): string {
 function renderTesterComplete(): string {
   if (!journey || !testerExercise) return renderTester();
   const results = currentResults().filter((result) => !result.trial.wmBuffer);
-  const answered = results.filter((result) => result.scoring.responseClass === "answer");
-  const correct = answered.filter((result) => result.scoring.isCorrect).length;
-  const accuracy = answered.length ? Math.round(correct / answered.length * 100) : 0;
+  const isWm = results.some((result) => result.trial.operator === "relational_wm");
+  const points = results.reduce((total, result) => total + result.scoring.pointsRealised, 0);
+  const targets = results.filter((result) => result.trial.wmIsMatch === true);
+  const targetHits = targets.filter((result) => result.response === "match").length;
+  const falseAlarms = results.filter((result) => result.trial.wmIsMatch === false && result.response === "match").length;
+  const correct = results.filter((result) => result.scoring.isCorrect).length;
+  const accuracy = results.length ? Math.round(correct / results.length * 100) : 0;
+  const summary = isWm ? `
+        <article><span>Targets caught</span><strong>${targetHits} of ${targets.length}</strong><small>${targets.length - targetHits} missed</small></article>
+        <article><span>Mistaken Matches</span><strong>${falseAlarms}</strong><small>Pressed Match when the relation was different</small></article>
+        <article class="is-points-total"><span>Test points</span><strong>${formatPointTotal(points)}</strong><small>For this run only</small></article>` : `
+        <article><span>Correct choices</span><strong>${correct} of ${results.length}</strong><small>${accuracy}% of patterns</small></article>
+        <article class="is-points-total"><span>Test points</span><strong>${formatPointTotal(points)}</strong><small>For this run only</small></article>`;
   return shell(`
     <section class="ccc-narrow-card ccc-tester-complete">
       <div class="ccc-stage-line"><span>TEST RUN COMPLETE</span><span>Not saved</span></div>
       <span class="ccc-kicker">${testerExerciseName()}</span>
       <h1>You reached the end of the test block.</h1>
-      <div class="ccc-summary-grid">
-        <article><span>Correct choices</span><strong>${correct} of ${answered.length}</strong><small>${accuracy}% of answered patterns</small></article>
-        <article><span>Test points</span><strong>${formatPointTotal(results.reduce((total, result) => total + result.scoring.pointsRealised, 0))}</strong><small>For this run only</small></article>
-      </div>
+      <div class="ccc-summary-grid ${isWm ? "ccc-points-summary" : ""}">${summary}</div>
       <p class="ccc-soft-note">This run did not change your programme, baseline, unlocks or saved data.</p>
       <div class="ccc-actions">
         <button class="ccc-button ccc-button-primary" data-action="tester-again">Try this task again</button>
@@ -2150,6 +2246,9 @@ function beginTrial(): void {
   signalExposureMsActual = null;
   signalStimulusFrames = null;
   signalRefreshRate = null;
+  wmMatchPressed = false;
+  wmMatchResponseTimeMs = null;
+  wmMatchInputMode = "deadline";
   const previous = currentResults().at(-1)?.trial;
   const regimeIntroKey = trial.operator === "relational_wm"
     ? trial.blockId
@@ -2208,32 +2307,52 @@ function beginTrial(): void {
 
 function startWmExposure(trial: CccAttentionTrialDefinition): void {
   const block = currentBlock();
-  const exposureMs = block?.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
-  trial.exposureMsRequested = exposureMs;
+  if (!block) return;
+  const soaMs = block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
+  const displayMs = Math.max(180, Math.min(soaMs - 80, Math.round(soaMs * 0.68)));
+  trial.exposureMsRequested = soaMs;
   taskStage = "evidence";
   evidenceStartedAt = performance.now();
-  responseEnabled = false;
+  responseLocked = false;
+  responseEnabled = !trial.wmBuffer;
+  wmMatchPressed = false;
+  wmMatchResponseTimeMs = null;
+  wmMatchInputMode = "deadline";
   render();
-  startPotDisplay(trial);
   taskTimers.push(window.setTimeout(() => {
     if (responseLocked || view !== "task") return;
-    taskStage = "mask";
-    responseEnabled = false;
+    taskStage = "interval";
     render();
-    taskTimers.push(window.setTimeout(() => {
-      if (responseLocked || view !== "task") return;
-      if (trial.wmBuffer) {
-        completeTrial(null, "system");
-        return;
-      }
-      taskStage = "response";
-      evidenceStartedAt = performance.now();
-      responseEnabled = true;
-      render();
-      enableResponseControls();
-      taskTimers.push(window.setTimeout(() => completeTrial(null, "deadline"), CCC_RELATIONAL_WM.responseDeadlineMs));
-    }, CCC_RELATIONAL_WM.maskMs));
-  }, exposureMs));
+  }, displayMs));
+  taskTimers.push(window.setTimeout(() => {
+    if (responseLocked || view !== "task") return;
+    completeTrial(wmMatchPressed ? "match" : null, wmMatchPressed ? wmMatchInputMode : "deadline", false, false, undefined, true);
+  }, soaMs));
+}
+
+function showWmFeedback(icon: "check" | "cross" | null): void {
+  if (!icon) return;
+  if (wmFeedbackTimer) window.clearTimeout(wmFeedbackTimer);
+  wmFeedbackIcon = icon;
+  render();
+  wmFeedbackTimer = window.setTimeout(() => {
+    wmFeedbackTimer = 0;
+    wmFeedbackIcon = null;
+    if (view === "task") render();
+  }, 300);
+}
+
+function recordWmMatch(inputMode: CccInputMode): void {
+  const trial = activeTrial();
+  const block = currentBlock();
+  if (!trial || !block || trial.operator !== "relational_wm" || trial.wmBuffer || wmMatchPressed || !responseEnabled) return;
+  wmMatchPressed = true;
+  wmMatchResponseTimeMs = Math.max(0, Math.round(performance.now() - evidenceStartedAt));
+  wmMatchInputMode = inputMode;
+  const outcome = classifyNBackOutcome(false, trial.wmIsMatch, true);
+  showWmFeedback(feedbackIconForNBackOutcome(outcome, wmFeedbackIsEnabled(block)));
+  recordEvent("wm_match_pressed", { trialId: trial.id, responseTimeMs: wmMatchResponseTimeMs, inputMode }, trial.blockId);
+  render();
 }
 
 function enableResponseControls(): void {
@@ -2244,7 +2363,7 @@ function enableResponseControls(): void {
   if (helper) helper.textContent = currentBlock()?.estimand === "signal_capacity"
     ? "Choose Left or Right—even if you are unsure."
     : currentBlock()?.operator === "relational_wm"
-      ? "Choose Match or Different before the next pattern."
+      ? "Press Match only when the relation repeats from n steps back."
       : "Look at the whole pattern, then make your best choice.";
 }
 
@@ -2294,12 +2413,15 @@ function completeTrial(
   invalidated = false,
   focusLost = false,
   invalidReason?: "focus_loss" | "aborted",
+  continuousWm = false,
 ): void {
   if (responseLocked || !journey) return;
   const trial = activeTrial();
   if (!trial) return;
   responseLocked = true;
-  const responseTimeMs = evidenceStartedAt > 0 ? Math.max(0, Math.round(performance.now() - evidenceStartedAt)) : null;
+  const responseTimeMs = continuousWm
+    ? wmMatchResponseTimeMs
+    : evidenceStartedAt > 0 ? Math.max(0, Math.round(performance.now() - evidenceStartedAt)) : null;
   clearTaskTiming();
   const scoring = scoreCccAttentionTrial({ trial, response, responseTimeMs, invalidated, invalidReason });
   const exposureMsActual = trial.estimand === "signal_capacity"
@@ -2348,6 +2470,22 @@ function completeTrial(
     invalidReason: scoring.invalidReason,
   }, trial.blockId);
   saveJourney();
+  if (continuousWm) {
+    const outcome = classifyNBackOutcome(trial.wmBuffer, trial.wmIsMatch, response === "match");
+    const streamBlock = currentBlock();
+    if (outcome === "miss" && streamBlock) showWmFeedback(feedbackIconForNBackOutcome(outcome, wmFeedbackIsEnabled(streamBlock)));
+    if (blockIsComplete()) {
+      finishCurrentBlock();
+      return;
+    }
+    const nextTrial = prepareActiveTrial();
+    if (!nextTrial) {
+      finishCurrentBlock();
+      return;
+    }
+    startWmExposure(nextTrial);
+    return;
+  }
   render();
   taskTimers.push(window.setTimeout(() => {
     if (pauseAfterFeedback) {
@@ -2809,6 +2947,11 @@ appRoot.addEventListener("click", (event) => {
   const response = button.dataset.response as CccResponseChoice | undefined;
   if (response) {
     const trial = activeTrial();
+    if (trial?.operator === "relational_wm" && response === "match" && view === "task") {
+      const inputMode: CccInputMode = event instanceof PointerEvent && event.pointerType === "touch" ? "touch" : "pointer";
+      recordWmMatch(inputMode);
+      return;
+    }
     const responseStage = trial?.estimand === "signal_capacity" || trial?.operator === "relational_wm"
       ? taskStage === "response"
       : taskStage === "evidence";
@@ -2820,7 +2963,7 @@ appRoot.addEventListener("click", (event) => {
   const action = button.dataset.action;
   if (action === "choose-tester-exercise") {
     const exercise = button.dataset.testerExercise as OpticFlowTesterExercise | undefined;
-    if (exercise === "attention" || exercise === "wm_1" || exercise === "wm_2") {
+    if (exercise && ["attention", "attention_rotational", "wm_1", "wm_2", "wm_3", "arrow_wm_1", "arrow_wm_2", "arrow_wm_3"].includes(exercise)) {
       createTesterJourney(exercise);
       setView("tester_intro");
     }
@@ -2831,6 +2974,7 @@ appRoot.addEventListener("click", (event) => {
       const selected = Number(slider?.value || CCC_RELATIONAL_WM.defaultPresentationMs);
       const exposureMs = Math.max(CCC_RELATIONAL_WM.minimumPresentationMs, Math.min(CCC_RELATIONAL_WM.maximumPresentationMs, selected));
       block.selectedExposureMs = exposureMs;
+      block.feedbackEnabled = Boolean(document.querySelector<HTMLInputElement>("#ccc-tester-wm-feedback")?.checked);
       for (const trial of journey?.blockQueues[block.id] || []) trial.exposureMsRequested = exposureMs;
     }
     startTask("tester");
@@ -2866,6 +3010,7 @@ appRoot.addEventListener("click", (event) => {
   } else if (action === "start-practice") {
     startTask("practice");
   } else if (action === "start-wm-practice") {
+    wmPracticeFeedbackEnabled = Boolean(document.querySelector<HTMLInputElement>("#ccc-practice-wm-feedback")?.checked);
     startTask("wm_practice");
   } else if (action === "retry-wm-practice") {
     const level = journey?.wmPracticeLevel;
@@ -2919,6 +3064,7 @@ appRoot.addEventListener("click", (event) => {
       const slider = document.querySelector<HTMLInputElement>("#ccc-wm-speed-slider");
       const selected = Number(slider?.value || CCC_RELATIONAL_WM.defaultPresentationMs);
       block.selectedExposureMs = Math.max(CCC_RELATIONAL_WM.minimumPresentationMs, Math.min(CCC_RELATIONAL_WM.maximumPresentationMs, selected));
+      block.feedbackEnabled = Boolean(document.querySelector<HTMLInputElement>("#ccc-wm-feedback")?.checked);
       for (const trial of journey?.blockQueues[block.id] || []) trial.exposureMsRequested = block.selectedExposureMs;
       recordEvent("wm_presentation_time_selected", {
         exposureMs: block.selectedExposureMs,
@@ -2995,8 +3141,21 @@ appRoot.addEventListener("click", (event) => {
     }
   } else if (action === "pause-session") {
     recordEvent("pause", { taskStage });
-    if (taskStage === "fixation" || taskStage === "evidence" || taskStage === "mask" || taskStage === "response") completeTrial(null, "system", true, false, "aborted");
+    if (activeTrial()?.operator === "relational_wm") setView("paused");
+    else if (taskStage === "fixation" || taskStage === "evidence" || taskStage === "mask" || taskStage === "response") completeTrial(null, "system", true, false, "aborted");
     else setView("paused");
+  } else if (action === "end-wm-block") {
+    const block = currentBlock();
+    if (!block || block.operator !== "relational_wm") return;
+    if (taskMode !== "tester" && !window.confirm("End this block? The incomplete block will not count.")) return;
+    recordEvent("wm_block_ended", { completedComparisons: currentResults().filter((result) => result.scoring.countsTowardQuota).length }, block.id);
+    if (taskMode === "tester") setView("tester_complete");
+    else {
+      if (taskMode === "wm_practice") journey!.practiceResults = [];
+      else journey!.blockResults[block.id] = [];
+      saveJourney();
+      setView(taskMode === "wm_practice" ? "wm_practice_intro" : "phase_intro");
+    }
   } else if (action === "resume-task") {
     recordEvent("resume", {});
     setView("task");
@@ -3088,13 +3247,13 @@ appRoot.addEventListener("input", (event) => {
   const testerSlider = (event.target as HTMLElement).closest<HTMLInputElement>("#ccc-tester-wm-speed");
   if (testerSlider) {
     const output = document.querySelector<HTMLElement>("#ccc-tester-wm-speed-value");
-    if (output) output.textContent = `${(Number(testerSlider.value) / 1000).toFixed(2)} seconds`;
+    if (output) output.textContent = `${(Number(testerSlider.value) / 1000).toFixed(2)} seconds per pattern`;
     return;
   }
   const slider = (event.target as HTMLElement).closest<HTMLInputElement>("#ccc-wm-speed-slider");
   if (!slider) return;
   const output = document.querySelector<HTMLElement>("#ccc-wm-speed-value");
-  if (output) output.textContent = `${(Number(slider.value) / 1000).toFixed(2)} seconds`;
+  if (output) output.textContent = `${(Number(slider.value) / 1000).toFixed(2)} seconds per pattern`;
 });
 
 window.addEventListener("keydown", (event) => {
@@ -3106,7 +3265,21 @@ window.addEventListener("keydown", (event) => {
     return;
   }
   const trial = activeTrial();
-  const responseStage = trial?.estimand === "signal_capacity" || trial?.operator === "relational_wm"
+  if (view === "task" && trial?.operator === "relational_wm") {
+    if ((event.code === "Space" || event.key === "Enter") && responseEnabled && !responseLocked) {
+      event.preventDefault();
+      recordWmMatch("keyboard");
+    } else if (event.key.toLowerCase() === "p") {
+      event.preventDefault();
+      recordEvent("pause", { taskStage });
+      setView("paused");
+    } else if (event.key === "Escape") {
+      event.preventDefault();
+      document.querySelector<HTMLButtonElement>("[data-action='end-wm-block']")?.click();
+    }
+    return;
+  }
+  const responseStage = trial?.estimand === "signal_capacity"
     ? taskStage === "response"
     : taskStage === "evidence";
   if (view !== "task" || !responseStage || !responseEnabled || responseLocked || !trial) return;
@@ -3120,7 +3293,10 @@ window.addEventListener("keydown", (event) => {
 
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden || view !== "task" || responseLocked) return;
-  if (taskStage === "fixation" || taskStage === "evidence" || taskStage === "mask" || taskStage === "response") {
+  if (activeTrial()?.operator === "relational_wm") {
+    recordEvent("focus_loss", { taskStage });
+    setView("paused");
+  } else if (taskStage === "fixation" || taskStage === "evidence" || taskStage === "mask" || taskStage === "response") {
     completeTrial(null, "system", true, true, "focus_loss");
     recordEvent("focus_loss", { taskStage });
   }

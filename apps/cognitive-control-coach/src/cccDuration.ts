@@ -93,11 +93,7 @@ export function estimateCccSessionDuration(
   const policyBody = CCC_TRIAL_TIMING.fixationCueMs
     + assumptions.policyDecisionMs
     + CCC_TRIAL_TIMING.outcomeFeedbackMs;
-  const wmBody = CCC_TRIAL_TIMING.fixationCueMs
-    + CCC_RELATIONAL_WM.defaultPresentationMs
-    + CCC_RELATIONAL_WM.maskMs
-    + assumptions.wmDecisionMs
-    + CCC_TRIAL_TIMING.outcomeFeedbackMs;
+  const wmBody = CCC_RELATIONAL_WM.defaultPresentationMs;
   const policyIntervals = plan.blocks
     .filter((block) => block.estimand === "policy" || block.estimand === "transfer")
     .reduce((total, block) => total + Math.max(0, block.validTrialCount - 1) * CCC_TRIAL_TIMING.interTrialIntervalMs, 0);
@@ -106,7 +102,7 @@ export function estimateCccSessionDuration(
     + trialSequenceMs(signalCount, signalBody)
     + policyCount * policyBody
     + policyIntervals
-    + trialSequenceMs(wmCount, wmBody)
+    + wmCount * wmBody
     + (plan.shiftViewEligible ? CCC_SHIFT_VIEW.durationMs : 0);
   const manualScreenMs = guidedManualScreenCount(plan) * assumptions.manualScreenMs;
   const totalMs = automatedTaskMs + manualScreenMs;

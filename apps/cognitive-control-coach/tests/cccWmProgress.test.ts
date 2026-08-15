@@ -57,7 +57,7 @@ describe("CCC n-back pair progression", () => {
   });
 
   it("holds the level when false alarms are too high despite adequate overall accuracy", () => {
-    const decision = evaluateCccWmPair(answersWithWrongDifferent(5), 2);
+    const decision = evaluateCccWmPair(answersWithWrongDifferent(7), 2);
     expect(decision.balancedAccuracy).toBeCloseTo(0.875);
     expect(decision.falseAlarmRate).toBe(0.25);
     expect(decision).toMatchObject({ direction: "maintain", nextLevel: 2 });

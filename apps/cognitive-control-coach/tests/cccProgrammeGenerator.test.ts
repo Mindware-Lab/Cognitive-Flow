@@ -45,6 +45,24 @@ describe("CCC multi-session plan generator", () => {
     expect(plan.delayedRecheckNotBefore).toBe("2026-08-13T12:00:00.000Z");
   });
 
+  it("keeps attention binary and changes response pairs only between blocks", () => {
+    const plan = createProgrammeSessionPlan({
+      ...base,
+      sessionId: "attention-pairs",
+      seed: "attention-pairs",
+      programmeSessionNumber: 2,
+      kind: "p1a_consolidation",
+    });
+    const attentionBlocks = plan.blocks.filter((block) => block.operator === "attention");
+    expect(new Set(attentionBlocks.map((block) => block.attentionPair))).toEqual(new Set(["radial", "rotational"]));
+    for (const block of attentionBlocks) {
+      const expected = block.attentionPair === "rotational" ? ["cw", "ccw"] : ["in", "out"];
+      const trials = plan.trials.filter((trial) => trial.blockId === block.id);
+      expect(trials.every((trial) => trial.answerOptions.length === 2)).toBe(true);
+      expect(new Set(trials.flatMap((trial) => trial.answerOptions))).toEqual(new Set(expected));
+    }
+  });
+
   it("builds four A-B-A-B memory blocks with 20 scored decisions plus the current n", () => {
     const plan = createProgrammeSessionPlan({
       ...base,
@@ -70,13 +88,11 @@ describe("CCC multi-session plan generator", () => {
     for (const block of plan.blocks) {
       const trials = plan.trials.filter((trial) => trial.blockId === block.id);
       const scored = trials.filter((trial) => !trial.wmBuffer);
-      expect(new Set(trials.map((trial) => trial.targetClass))).toEqual(new Set(["in", "out"]));
-      expect(trials.flatMap((trial) => trial.stimulusItems.map((item) => item.relation))).not.toContain("cw");
-      expect(trials.flatMap((trial) => trial.stimulusItems.map((item) => item.relation))).not.toContain("ccw");
+      expect(new Set(trials.map((trial) => trial.targetClass))).toEqual(new Set(["in", "out", "cw", "ccw"]));
       expect(trials.filter((trial) => trial.wmBuffer)).toHaveLength(block.wmNLevel || 0);
       expect(scored).toHaveLength(20);
-      expect(scored.filter((trial) => trial.correctResponse === "match")).toHaveLength(10);
-      expect(scored.filter((trial) => trial.correctResponse === "different")).toHaveLength(10);
+      expect(scored.filter((trial) => trial.correctResponse === "match")).toHaveLength(6);
+      expect(scored.filter((trial) => trial.correctResponse === "different")).toHaveLength(14);
       const expectedRatios = scored[0].regimeId === "clear_sprint"
         ? { "5:0": 12, "4:1": 6, "3:2": 2 }
         : { "5:0": 2, "4:1": 6, "3:2": 12 };
@@ -95,7 +111,7 @@ describe("CCC multi-session plan generator", () => {
       expect(trials.filter((trial) => !trial.wmBuffer)).toHaveLength(4);
       expect(trials.every((trial) => trial.practice && trial.ratio === "5:0" && trial.wrapperId === "arrow_rel")).toBe(true);
       expect(trials.every((trial) => trial.exposureMsRequested === 1200)).toBe(true);
-      expect(new Set(trials.map((trial) => trial.targetClass))).toEqual(new Set(["in", "out"]));
+      expect(new Set(trials.map((trial) => trial.targetClass)).size).toBeGreaterThanOrEqual(2);
       expect(block).toMatchObject({ practice: true, validTrialCount: 4, wmNLevel: level, selectedExposureMs: 1200 });
       const scoredPractice = trials.filter((trial) => !trial.wmBuffer).map((trial) => scoreCccAttentionTrial({
         trial,

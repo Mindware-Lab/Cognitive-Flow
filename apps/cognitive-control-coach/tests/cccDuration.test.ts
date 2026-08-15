@@ -6,6 +6,7 @@ import {
   estimateCccSessionDuration,
   guidedManualScreenCount,
 } from "../src/cccDuration";
+import { CCC_RELATIONAL_WM } from "../src/cccConfig";
 import { createP0AttentionCarrierTransferPlan } from "../src/cccGenerator";
 import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
 
@@ -28,7 +29,7 @@ describe("CCC session-duration planning model", () => {
     expect(CCC_SESSION_DURATION_LABEL).toBe("Usually 10–15 minutes · up to about 20");
   });
 
-  it("models the chosen viewing period, mask and response period for relational-memory sessions", () => {
+  it("models relational-memory sessions as a fixed-pace continuous stream", () => {
     const wmPlan = createProgrammeSessionPlan({
       sessionId: "duration-wm",
       seed: "duration-wm",
@@ -42,7 +43,6 @@ describe("CCC session-duration planning model", () => {
     const estimate = estimateCccSessionDuration(wmPlan, "typical");
     expect(wmItems).toBeGreaterThan(0);
     expect(guidedManualScreenCount(wmPlan)).toBe(wmPlan.blocks.length * 5 + 2);
-    expect(estimate.automatedTaskMs).toBeGreaterThanOrEqual(wmItems * 3000);
-    expect(estimate.automatedTaskMs).toBeLessThan(wmItems * 5000);
+    expect(estimate.automatedTaskMs).toBe(wmItems * CCC_RELATIONAL_WM.defaultPresentationMs);
   });
 });

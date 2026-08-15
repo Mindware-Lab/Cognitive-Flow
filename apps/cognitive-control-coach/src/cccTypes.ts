@@ -9,10 +9,11 @@ export type CccRatio = "5:0" | "4:1" | "3:2";
 export type CccRegimeId = "clear_sprint" | "calculated_risk" | "clean_precision" | "deep_check";
 export type CccNBackLevel = 1 | 2 | 3 | 4 | 5;
 export type CccWmWrapperStage = "arrow_stabilisation" | "flow_first_contact" | "flow_recovery" | "arrow_return" | "mixed";
-export type CccAttentionAnswer = "left" | "right" | "in" | "out";
+export type CccAttentionPair = "radial" | "rotational";
+export type CccAttentionAnswer = "left" | "right" | "in" | "out" | "cw" | "ccw";
 export type CccWmAnswer = "match" | "different";
 export type CccResponseChoice = CccAttentionAnswer | CccWmAnswer;
-export type CccStimulusRelation = CccAttentionAnswer | "cw" | "ccw";
+export type CccStimulusRelation = CccAttentionAnswer;
 export type CccResponseClass = "answer" | "omission" | "invalid";
 export type CccEstimand = "practice" | "signal_capacity" | "policy" | "transfer" | "relational_wm";
 export type CccPresentationMode = "masked_forced_choice" | "self_paced_value";
@@ -295,6 +296,8 @@ export interface CccAttentionBlockPlan {
   wmPairIndex?: 1 | 2 | null;
   wmPairPosition?: "A" | "B" | null;
   selectedExposureMs?: number | null;
+  feedbackEnabled?: boolean;
+  attentionPair?: CccAttentionPair;
 }
 
 export interface CccAttentionTrialDefinition {
@@ -337,6 +340,7 @@ export interface CccAttentionTrialDefinition {
   wmIsMatch: boolean | null;
   wmBuffer: boolean;
   wmLureType: "none" | "wrong_lag" | null;
+  attentionPair?: CccAttentionPair;
   replacementOfTrialId: string | null;
 }
 

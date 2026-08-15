@@ -8,15 +8,18 @@ import {
   CCC_PROTOCOL_VERSION,
   CCC_RATIO_MAJORITY_COUNTS,
   CCC_RELATIONAL_WM,
+  CCC_ROTATIONAL_RESPONSE_LABELS,
   CCC_REGIMES,
   CCC_TRIAL_TIMING,
   CCC_WM_PRACTICE_SCORED_TRIALS,
   CCC_WM_RESPONSE_LABELS,
   CCC_WRAPPER_RESPONSE_LABELS,
 } from "./cccConfig";
+import { CCC_NBACK_RELATIONS, differentNBackRelation, scheduleNBackMatches } from "./cccNBack";
 import { carrierForWrapper, referenceFrameForWrapper } from "./cccProgression";
 import type {
   CccAttentionAnswer,
+  CccAttentionPair,
   CccAttentionBlockPlan,
   CccAttentionTrialDefinition,
   CccAttentionTrialPurpose,
@@ -48,6 +51,7 @@ type ProgrammePlanInput = {
   wmWrapperStage?: CccWmWrapperStage;
   delayedRecheckNotBefore?: string | null;
   includeFirstContact?: boolean;
+  attentionPairOverride?: CccAttentionPair;
 };
 
 type ProgrammeBlockSpec = {
@@ -70,6 +74,7 @@ type ProgrammeBlockSpec = {
   wmPairIndex?: 1 | 2 | null;
   wmPairPosition?: "A" | "B" | null;
   regimeId?: CccRegimeId;
+  attentionPair?: CccAttentionPair;
 };
 
 const EASY_RATIO_QUOTA: readonly CccRatio[] = ["5:0", "5:0", "5:0", "4:1", "4:1", "3:2"];
@@ -84,9 +89,7 @@ const WM_HARD_RATIO_QUOTA: readonly CccRatio[] = [
   ...Array<CccRatio>(6).fill("4:1"),
   ...Array<CccRatio>(12).fill("3:2"),
 ];
-// Relational n-back uses the same binary In/Out relation as the Attention task.
-// Carrier changes alter how that relation is displayed, not the latent relation set.
-const WM_RELATIONS: readonly CccStimulusRelation[] = ["in", "out"];
+const WM_RELATIONS: readonly CccStimulusRelation[] = CCC_NBACK_RELATIONS;
 
 function ratiosFor(regimeId: CccRegimeId, random: () => number): CccRatio[] {
   return shuffle(random, [...(CCC_REGIMES[regimeId].ratioPriors["5:0"] > 0.5 ? EASY_RATIO_QUOTA : HARD_RATIO_QUOTA)]);
@@ -155,9 +158,17 @@ function createTrial(input: {
   wmIsMatch?: boolean | null;
   wmBuffer?: boolean;
   wmLureType?: "none" | "wrong_lag" | null;
+  attentionPair?: CccAttentionPair;
 }): CccAttentionTrialDefinition {
   const majorityCount = CCC_RATIO_MAJORITY_COUNTS[input.ratio];
-  const attentionChoices = input.operator === "attention" ? answersForWrapper(input.wrapperId) : WM_RELATIONS;
+  const responseLabels = input.operator === "attention" && input.attentionPair === "rotational"
+    ? CCC_ROTATIONAL_RESPONSE_LABELS
+    : input.operator === "attention"
+      ? CCC_WRAPPER_RESPONSE_LABELS[input.wrapperId]
+      : CCC_WM_RESPONSE_LABELS;
+  const attentionChoices = input.operator === "attention"
+    ? responseLabels.answerOptions as readonly CccAttentionAnswer[]
+    : WM_RELATIONS;
   return {
     id: input.id,
     sessionId: input.sessionId,
@@ -184,8 +195,8 @@ function createTrial(input: {
     majorityCount,
     targetClass: input.targetClass,
     correctResponse: input.correctResponse,
-    answerOptions: input.operator === "attention" ? CCC_WRAPPER_RESPONSE_LABELS[input.wrapperId].answerOptions : CCC_WM_RESPONSE_LABELS.answerOptions,
-    responseLabels: input.operator === "attention" ? CCC_WRAPPER_RESPONSE_LABELS[input.wrapperId] : CCC_WM_RESPONSE_LABELS,
+    answerOptions: responseLabels.answerOptions,
+    responseLabels,
     stimulusItems: stimulusItems(input.targetClass, majorityCount, input.random, attentionChoices),
     coherenceNoiseLevel: 0,
     seed: input.seed,
@@ -198,6 +209,7 @@ function createTrial(input: {
     wmIsMatch: input.wmIsMatch ?? null,
     wmBuffer: input.wmBuffer ?? false,
     wmLureType: input.wmLureType ?? null,
+    attentionPair: input.attentionPair || "radial",
     replacementOfTrialId: null,
   };
 }
@@ -223,10 +235,15 @@ function addAttentionBlock(
     for (const regimeId of plan.regimePair) {
       const ratios = ratiosFor(regimeId, random);
       const wrappers = wrappersFor(spec, random);
-      const targets = balancedAttentionTargets(wrappers[0], random);
+      const attentionPair = spec.attentionPair || "radial";
+      const targets = attentionPair === "rotational"
+        ? shuffle(random, ["cw", "cw", "cw", "ccw", "ccw", "ccw"] as CccAttentionAnswer[])
+        : balancedAttentionTargets(wrappers[0], random);
       for (let slot = 0; slot < CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle; slot += 1) {
         const wrapperId = wrappers[slot];
-        const options = answersForWrapper(wrapperId);
+        const options = attentionPair === "rotational"
+          ? CCC_ROTATIONAL_RESPONSE_LABELS.answerOptions as readonly CccAttentionAnswer[]
+          : answersForWrapper(wrapperId);
         const target = options.includes(targets[slot]) ? targets[slot] : options[slot % 2];
         const trialIndex = trials.length + 1;
         trials.push(createTrial({
@@ -255,6 +272,7 @@ function addAttentionBlock(
           seed: `${seed}:${spec.id}:${microcycleIndex}:${regimeId}:${slot + 1}`,
           diagnostic: spec.diagnostic,
           assistedFirstContact: spec.diagnostic,
+          attentionPair,
         }));
       }
     }
@@ -281,13 +299,9 @@ function addAttentionBlock(
     diagnostic: spec.diagnostic,
     shiftViewBefore: spec.shiftViewBefore,
     wmNLevel: null,
+    attentionPair: spec.attentionPair || "radial",
     learningCurveGate: spec.phase === "p1a_arrow_stabilisation" ? "source_stabilisation" : null,
   });
-}
-
-function nextDifferentRelation(random: () => number, excluded: readonly CccStimulusRelation[]): CccStimulusRelation {
-  const options = WM_RELATIONS.filter((relation) => !excluded.includes(relation));
-  return options[Math.floor(random() * options.length)] || "in";
 }
 
 function addWmBlock(
@@ -308,7 +322,7 @@ function addWmBlock(
     ? shuffle(random, Array.from({ length: total }, (_, index) => index % 2 ? "flow_rel" : "arrow_rel") as CccWrapperId[])
     : Array<CccWrapperId>(total).fill(spec.wrappers[0]);
   const relations: CccStimulusRelation[] = [];
-  const matchSlots = new Set(shuffle(random, Array.from({ length: scoredCount }, (_, index) => index + level)).slice(0, scoredCount / 2));
+  const matchSlots = scheduleNBackMatches(scoredCount, level, CCC_RELATIONAL_WM.matchFrequency, random);
   for (let slot = 0; slot < total; slot += 1) {
     const isBuffer = slot < level;
     const isMatch = !isBuffer && matchSlots.has(slot);
@@ -321,7 +335,7 @@ function addWmBlock(
       ? relations[slot - level]
       : useWrongLag
         ? relations[candidateWrongLag]
-        : nextDifferentRelation(random, slot >= level ? [relations[slot - level]] : []);
+        : differentNBackRelation(slot >= level ? [relations[slot - level]] : [], random);
     relations.push(relation);
     const ratio = isBuffer ? "5:0" : ratioQuota[slot - level];
     const trialIndex = trials.length + 1;
@@ -383,6 +397,7 @@ function addWmBlock(
     wmPairIndex: spec.wmPairIndex || null,
     wmPairPosition: spec.wmPairPosition || null,
     selectedExposureMs: null,
+    feedbackEnabled: false,
   });
 }
 
@@ -393,10 +408,10 @@ export function createWmPracticeTrials(
 ): CccAttentionTrialDefinition[] {
   const blockId = `wm-practice-${level}-back`;
   const random = mulberry32(hashSeed(`${plan.sessionId}:${blockId}:${attempt}`));
-  const relationPattern: CccStimulusRelation[] = Array.from({ length: level }, (_value, index) => index % 2 ? "out" : "in");
+  const relationPattern: CccStimulusRelation[] = Array.from({ length: level }, (_value, index) => WM_RELATIONS[index % WM_RELATIONS.length]);
   [true, false, true, false].forEach((match, comparisonIndex) => {
     const relationToCompare = relationPattern[comparisonIndex];
-    relationPattern.push(match ? relationToCompare : relationToCompare === "in" ? "out" : "in");
+    relationPattern.push(match ? relationToCompare : differentNBackRelation([relationToCompare], random));
   });
   return relationPattern.map((relation, slot) => {
     const isBuffer = slot < level;
@@ -470,6 +485,7 @@ export function createWmPracticeBlock(
     wmPairIndex: null,
     wmPairPosition: null,
     selectedExposureMs: CCC_RELATIONAL_WM.defaultPresentationMs,
+    feedbackEnabled: false,
   };
 }
 
@@ -547,7 +563,10 @@ function p1cSpecs(kind: ProgrammePlanInput["kind"], sessionNumber: number, level
 export function createProgrammeSessionPlan(input: ProgrammePlanInput): CccSessionPlan {
   const stage = input.kind.startsWith("p1a") ? "P1a" : input.kind.startsWith("p1b") ? "P1b" : "P1c";
   const sessionType = stage === "P1a" ? "portability_check" : stage === "P1b" ? "wm_bridge" : "return_to_now";
-  const specs = stage === "P1a" ? p1aSpecs(input.kind, input.includeFirstContact ?? true) : stage === "P1b" ? p1bSpecs(input.wmPairLevels || [input.wmLevel, input.wmLevel], input.wmWrapperStage || "arrow_stabilisation", input.regimePair) : p1cSpecs(input.kind, input.programmeSessionNumber, input.wmLevel);
+  const baseSpecs = stage === "P1a" ? p1aSpecs(input.kind, input.includeFirstContact ?? true) : stage === "P1b" ? p1bSpecs(input.wmPairLevels || [input.wmLevel, input.wmLevel], input.wmWrapperStage || "arrow_stabilisation", input.regimePair) : p1cSpecs(input.kind, input.programmeSessionNumber, input.wmLevel);
+  const specs = baseSpecs.map((spec) => spec.operator === "attention"
+    ? { ...spec, attentionPair: input.attentionPairOverride || spec.attentionPair || (spec.phase === "p1a_relative_mix" || spec.phase === "p1a_delayed_recheck" || spec.phase === "p1c_attention_reentry" ? "rotational" : "radial") }
+    : spec);
   const plan: CccSessionPlan = {
     planId: `${input.sessionId}:${input.kind}`,
     appId: CCC_APP_ID,
