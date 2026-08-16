@@ -15,14 +15,14 @@ describe("CCC session-duration planning model", () => {
 
   it("uses the 24-signal anchor and a maximum adaptive policy schedule", () => {
     expect(plan.trials.filter((trial) => trial.estimand === "signal_capacity")).toHaveLength(24);
-    expect(plan.trials.filter((trial) => trial.estimand !== "signal_capacity")).toHaveLength(192);
-    expect(CCC_GUIDED_MANUAL_SCREEN_COUNT).toBe(36);
+    expect(plan.trials.filter((trial) => trial.estimand !== "signal_capacity")).toHaveLength(120);
+    expect(CCC_GUIDED_MANUAL_SCREEN_COUNT).toBe(16);
   });
 
   it("reports transparent fast, typical and deliberate planning scenarios", () => {
     const estimates = (["fast", "typical", "deliberate"] as const)
       .map((scenario) => estimateCccSessionDuration(plan, scenario));
-    expect(estimates.map((estimate) => estimate.totalMinutes)).toEqual([11.4, 15.4, 21.3]);
+    expect(estimates.map((estimate) => estimate.totalMinutes)).toEqual([6.5, 8.6, 11.8]);
     expect(estimates[0].totalMs).toBeLessThan(estimates[1].totalMs);
     expect(estimates[1].totalMs).toBeLessThan(estimates[2].totalMs);
     expect(CCC_DURATION_ASSUMPTIONS.typical.policyDecisionMs).toBe(1250);

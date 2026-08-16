@@ -1,7 +1,7 @@
 import type { CccProgrammeSessionSummary, CccSessionMetrics } from "./cccTypes";
 
 export type CccComparisonMode = "personal" | "population";
-export type CccProgressMetricKey = "accuracy" | "decisionTime" | "pointsKept" | "closePatterns" | "workingMemory";
+export type CccProgressMetricKey = "attentionPerformance" | "wmPerformance" | "accuracy" | "decisionTime" | "pointsKept" | "closePatterns" | "workingMemory";
 
 export interface CccPopulationScore {
   standardScore: number | null;
@@ -12,11 +12,13 @@ export const CCC_POPULATION_MIN_N = 30;
 
 export function sessionMetricValue(metrics: CccSessionMetrics | undefined, key: CccProgressMetricKey): number | null {
   if (!metrics) return null;
+  if (key === "attentionPerformance") return metrics.attentionThroughputBps ?? null;
+  if (key === "wmPerformance") return metrics.wmThroughputBps ?? null;
   if (key === "accuracy") return metrics.attentionAccuracy ?? metrics.signalAccuracy;
   if (key === "decisionTime") return metrics.medianDecisionMs;
   if (key === "pointsKept") return metrics.pointsKeptPercent;
   if (key === "closePatterns") return metrics.closePatternAccuracy;
-  return metrics.wmAccuracy;
+  return metrics.wmAccuracy ?? null;
 }
 
 export function firstValidBaseline(

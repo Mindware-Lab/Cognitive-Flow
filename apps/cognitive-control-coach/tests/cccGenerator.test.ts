@@ -7,17 +7,14 @@ import {
   createP0PracticeBlock,
   createP0PracticeTrials,
 } from "../src/cccGenerator";
+import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
 
 describe("CCC P0 dual-estimand generator", () => {
-  it("creates a protected signal anchor followed by the complete relative carrier-transfer journey", () => {
+  it("creates the signal anchor and first arrow learning curve without pre-scheduling later wrappers", () => {
     const plan = createP0AttentionCarrierTransferPlan({ seed: "p0-plan", regimePairIndex: 0 });
     expect(plan.blocks.map((block) => block.phase)).toEqual([
       "signal_anchor",
       "arrow_rel_stabilisation",
-      "flow_rel_first_contact",
-      "flow_rel_recovery",
-      "arrow_rel_return",
-      "relative_mix",
     ]);
     expect(plan.blocks[0]).toMatchObject({
       wrapperId: "arrow_abs",
@@ -27,31 +24,29 @@ describe("CCC P0 dual-estimand generator", () => {
     });
     expect(plan.blocks[1]).toMatchObject({ wrapperId: "arrow_rel", estimand: "policy" });
     expect(plan.blocks[1]).toMatchObject({
-      learningCurveGate: "source_stabilisation",
+      learningCurveGate: "stage_stabilisation",
       microcycleCount: 10,
       validTrialCount: 120,
     });
-    expect(plan.blocks[2]).toMatchObject({
-      wrapperId: "flow_rel",
-      sourceWrapperId: "arrow_rel",
-      transitionKind: "carrier_transfer",
-      strictCarrierTransferBoundary: true,
-      diagnostic: true,
-      shiftViewBefore: true,
-      learningCurveGate: null,
-    });
-    expect(plan.blocks[5]).toMatchObject({ wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"] });
     const relative = plan.trials.filter((trial) => trial.referenceFrame === "relative");
     expect(relative.length / plan.trials.length).toBeGreaterThanOrEqual(0.8);
     expect(relative.every((trial) => trial.answerOptions.join("|") === "in|out")).toBe(true);
   });
 
   it("protects relative-flow first contact and does not contaminate recovery", () => {
-    const plan = createP0AttentionCarrierTransferPlan({ seed: "boundary-check", regimePairIndex: 0 });
-    const boundaryTrials = plan.trials.filter((trial) => trial.strictCarrierTransferBoundary);
-    expect(new Set(boundaryTrials.map((trial) => trial.phase))).toEqual(new Set(["flow_rel_first_contact"]));
+    const common = {
+      programmeRunId: "boundary-check",
+      programmeSessionNumber: 2,
+      kind: "p1a_consolidation" as const,
+      regimePair: ["clear_sprint", "deep_check"] as const,
+      wmLevel: 1 as const,
+    };
+    const firstContact = createProgrammeSessionPlan({ ...common, sessionId: "first-contact", seed: "first-contact", attentionWrapperStage: "flow_first_contact" });
+    const recovery = createProgrammeSessionPlan({ ...common, sessionId: "recovery", seed: "recovery", attentionWrapperStage: "flow_recovery" });
+    const boundaryTrials = firstContact.trials.filter((trial) => trial.strictCarrierTransferBoundary);
+    expect(new Set(boundaryTrials.map((trial) => trial.phase))).toEqual(new Set(["p1a_flow_first_contact"]));
     expect(boundaryTrials.every((trial) => trial.diagnostic && trial.assistedFirstContact)).toBe(true);
-    expect(plan.trials.filter((trial) => trial.phase === "flow_rel_recovery").every((trial) => !trial.diagnostic)).toBe(true);
+    expect(recovery.trials.every((trial) => !trial.diagnostic && trial.phase === "p1a_flow_recovery")).toBe(true);
   });
 
   it("balances forced-choice targets and constrains clarity quotas within each niche microcycle", () => {

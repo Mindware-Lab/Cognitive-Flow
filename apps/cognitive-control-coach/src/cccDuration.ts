@@ -27,10 +27,10 @@ export interface CccDurationEstimate {
 
 /**
  * One workflow chooser, two practice explanations, one practice review,
- * five screens for each of six guided blocks, and two final review screens.
+ * five screens for each of the two P0 blocks, and two final review screens.
  * The count is an explicit product-planning assumption, not observed telemetry.
  */
-export const CCC_GUIDED_MANUAL_SCREEN_COUNT = 36;
+export const CCC_GUIDED_MANUAL_SCREEN_COUNT = 16;
 
 /** Later sessions omit workflow selection and practice but retain five guided screens per block. */
 export function guidedManualScreenCount(plan: CccSessionPlan): number {

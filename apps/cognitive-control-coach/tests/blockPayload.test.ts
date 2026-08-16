@@ -1,13 +1,23 @@
 import { describe, expect, it } from "vitest";
 import { buildCccBlockSubmissionPayload } from "../src/blockPayload";
 import { createP0AttentionCarrierTransferPlan } from "../src/cccGenerator";
+import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
 import { scoreCccAttentionTrial } from "../src/cccValue";
 import type { CccRecordedTrial } from "../src/cccTypes";
 
 describe("CCC block payload", () => {
   it("serialises the value, validity, transfer and workflow contract", () => {
-    const plan = createP0AttentionCarrierTransferPlan({ seed: "payload", regimePairIndex: 0 });
-    const block = plan.blocks[2];
+    const plan = createProgrammeSessionPlan({
+      sessionId: "payload",
+      seed: "payload",
+      programmeRunId: "payload",
+      programmeSessionNumber: 2,
+      kind: "p1a_consolidation",
+      regimePair: ["clear_sprint", "deep_check"],
+      wmLevel: 1,
+      attentionWrapperStage: "flow_first_contact",
+    });
+    const block = plan.blocks[0];
     const trial = plan.trials.find((candidate) => candidate.blockId === block.id)!;
     const scoring = scoreCccAttentionTrial({ trial, response: trial.correctResponse, responseTimeMs: 900 });
     const result: CccRecordedTrial = {
@@ -42,12 +52,12 @@ describe("CCC block payload", () => {
     expect(payload).toMatchObject({
       appId: "cognitive_control_coach",
       workflowChoice: "ai_assisted",
-      phase: "flow_rel_first_contact",
+      phase: "p1a_flow_first_contact",
     });
     expect(serialized).toMatchObject({
       wrapperId: "flow_rel",
       sourceWrapperId: "arrow_rel",
-      phase: "flow_rel_first_contact",
+      phase: "p1a_flow_first_contact",
       estimand: "transfer",
       presentationMode: "self_paced_value",
       diagnostic: true,

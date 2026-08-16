@@ -1,5 +1,7 @@
 import { CCC_REGIMES } from "./cccConfig";
+import { cccInformationThroughputBps } from "./cccLearningCurve";
 import { signalDemandBitsPerSecond } from "./cccSignal";
+import { cccWmInformationThroughputBps } from "./cccWmProgress";
 import type { CccRatio, CccRecordedTrial, CccRegimeId, CccSessionMetrics } from "./cccTypes";
 
 export interface CccClarityMetric {
@@ -22,6 +24,8 @@ export interface CccNicheMetric {
 
 export interface CccBlockFeedback {
   observationCount: number;
+  attentionThroughputBps: number | null;
+  wmThroughputBps: number | null;
   accuracy: number | null;
   omissionCount: number;
   medianDecisionMs: number | null;
@@ -146,9 +150,13 @@ export function buildCccBlockFeedback(results: readonly CccRecordedTrial[]): Ccc
   const wmLures = wm.filter((result) => result.trial.wmLureType === "wrong_lag");
   const wmHitRate = wmMatches.length ? wmMatches.filter((result) => result.scoring.isCorrect).length / wmMatches.length : null;
   const wmCorrectRejectionRate = wmDifferent.length ? wmDifferent.filter((result) => result.scoring.isCorrect).length / wmDifferent.length : null;
+  const attention = observations.filter((result) => result.trial.operator === "attention"
+    && result.trial.estimand !== "signal_capacity");
 
   return {
     observationCount: observations.length,
+    attentionThroughputBps: attention.length ? cccInformationThroughputBps(attention) : null,
+    wmThroughputBps: cccWmInformationThroughputBps(wm),
     accuracy: accuracy(results),
     omissionCount: observations.filter((result) => result.scoring.responseClass === "omission").length,
     medianDecisionMs: medianDecisionMs(results),
@@ -178,6 +186,8 @@ export function buildCccSessionMetrics(results: readonly CccRecordedTrial[]): Cc
   const wmFeedback = buildCccBlockFeedback(wm);
   const policyFeedback = buildCccBlockFeedback(policy);
   return {
+    attentionThroughputBps: attentionFeedback.attentionThroughputBps,
+    wmThroughputBps: wmFeedback.wmThroughputBps,
     attentionAccuracy: attentionFeedback.accuracy,
     signalAccuracy: signalFeedback.accuracy,
     wmAccuracy: wmFeedback.accuracy,

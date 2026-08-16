@@ -1,10 +1,15 @@
 import { CCC_LEARNING_CURVE, CCC_REGIMES, CCC_TRIAL_TIMING } from "./cccConfig";
+import { CCC_SIGNAL_INFORMATION_BITS } from "./cccSignal";
 import type {
+  CccAttentionLearningStage,
   CccAttentionBlockPlan,
   CccLearningCurveConfig,
   CccLearningCurveHistoryPoint,
   CccRecordedTrial,
 } from "./cccTypes";
+
+export const CCC_ATTENTION_MAX_INFORMATION_THROUGHPUT_BPS = CCC_SIGNAL_INFORMATION_BITS["3:2"]
+  / (CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs / 1000);
 
 export type CccLearningCurveStatus =
   | "not_applicable"
@@ -19,6 +24,7 @@ export interface CccLearningCurvePoint {
   accuracy: number;
   omissionRate: number;
   valueEfficiency: number;
+  informationThroughputBps: number;
   performanceIndex: number;
 }
 
@@ -38,12 +44,23 @@ export interface CccLearningCurveDecision {
   points: CccLearningCurvePoint[];
   checks: {
     minimumExposure: boolean;
-    accuracyReady: boolean;
-    omissionsReady: boolean;
     slopeReady: boolean;
     rangeReady: boolean;
-    learningObserved: boolean;
   };
+}
+
+function hasLearningCurveGate(block: CccAttentionBlockPlan): boolean {
+  return block.learningCurveGate === "stage_stabilisation" || block.learningCurveGate === "source_stabilisation";
+}
+
+export function attentionLearningStageForBlock(block: CccAttentionBlockPlan): CccAttentionLearningStage | null {
+  if (block.phase === "arrow_rel_stabilisation" || block.phase === "p1a_arrow_stabilisation") return "arrow_stabilisation";
+  if (block.phase === "flow_rel_recovery" || block.phase === "p1a_flow_recovery") return "flow_recovery";
+  if (block.phase === "arrow_rel_return" || block.phase === "p1a_arrow_return") return "arrow_return";
+  if (block.phase === "relative_mix" || block.phase === "p1a_relative_mix") return "mixed";
+  if (block.phase === "p1a_delayed_recheck") return "delayed_recheck";
+  if (block.phase === "p1c_delayed_reentry") return "final_delayed_reentry";
+  return null;
 }
 
 function mean(values: readonly number[]): number {
@@ -67,21 +84,47 @@ function valueEfficiency(result: CccRecordedTrial): number {
     : 0;
 }
 
-function pointFor(microcycleIndex: number, results: readonly CccRecordedTrial[]): CurvePoint {
+/**
+ * MFT-M-derived correct information throughput. The grouping-search entropy
+ * attached to each majority ratio is credited only when that relation is
+ * resolved correctly, while every observation contributes its effective
+ * processing time. This is an app training metric in bits/s, not a validated
+ * MFT-M or MFT-M-R capacity estimate.
+ */
+export function cccInformationThroughputBps(results: readonly CccRecordedTrial[]): number {
+  const observations = results.filter((result) => result.scoring.countsTowardQuota);
+  const correctBits = observations.reduce(
+    (total, result) => total + (result.scoring.isCorrect ? CCC_SIGNAL_INFORMATION_BITS[result.trial.ratio] : 0),
+    0,
+  );
+  const processingMs = observations.reduce((total, result) => {
+    const measured = result.scoring.valueTimeMs
+      ?? result.trial.exposureMsRequested
+      ?? CCC_TRIAL_TIMING.maxResponseWindowMs;
+    return total + Math.max(1, measured);
+  }, 0);
+  return processingMs > 0 ? correctBits / (processingMs / 1000) : 0;
+}
+
+export function cccLearningCurvePointForResults(
+  microcycleIndex: number,
+  results: readonly CccRecordedTrial[],
+): CurvePoint {
   const correct = results.filter((result) => result.scoring.isCorrect).length;
   const omissions = results.filter((result) => result.scoring.isOmission).length;
   const accuracy = results.length ? correct / results.length : 0;
   const omissionRate = results.length ? omissions / results.length : 1;
   const efficiency = mean(results.map(valueEfficiency));
+  const informationThroughputBps = cccInformationThroughputBps(results);
   return {
     microcycleIndex,
     observationCount: results.length,
     accuracy,
     omissionRate,
     valueEfficiency: efficiency,
-    // Accuracy remains primary; payoff efficiency adds the regime-sensitive
-    // speed/accuracy policy component without treating faster as inherently better.
-    performanceIndex: 0.65 * accuracy + 0.35 * efficiency,
+    informationThroughputBps,
+    // Kept as the generic persisted curve ordinate.
+    performanceIndex: informationThroughputBps,
   };
 }
 
@@ -100,11 +143,8 @@ function emptyDecision(status: CccLearningCurveStatus = "not_applicable"): CccLe
     points: [],
     checks: {
       minimumExposure: false,
-      accuracyReady: false,
-      omissionsReady: false,
       slopeReady: false,
       rangeReady: false,
-      learningObserved: false,
     },
   };
 }
@@ -115,10 +155,13 @@ export function evaluateCccLearningCurve(
   config: CccLearningCurveConfig = CCC_LEARNING_CURVE,
   history: readonly CccLearningCurveHistoryPoint[] = [],
 ): CccLearningCurveDecision {
-  if (block.learningCurveGate !== "source_stabilisation") return emptyDecision();
+  if (!hasLearningCurveGate(block)) return emptyDecision();
   const currentPoints = learningCurvePointsForResults(block, allResults);
+  const learningStage = attentionLearningStageForBlock(block);
+  const relevantHistory = history.filter((point) => point.wrapperStage === learningStage
+    || (point.wrapperStage === undefined && learningStage === "arrow_stabilisation"));
   const points = [
-    ...history.map(({ sessionId: _sessionId, ...point }) => point),
+    ...relevantHistory.map(({ sessionId: _sessionId, wrapperStage: _wrapperStage, ...point }) => point),
     ...currentPoints,
   ].map((point, index) => ({ ...point, microcycleIndex: index + 1 }));
   if (!points.length) return emptyDecision("collecting");
@@ -136,22 +179,20 @@ export function evaluateCccLearningCurve(
     : null;
   const recentValues = recent.map((point) => point.performanceIndex);
   const recentPerformance = recentValues.length ? mean(recentValues) : null;
-  const performanceSlope = slope(recentValues);
+  const recentScale = Math.max(0.05, Math.abs(recentPerformance ?? 0));
+  const rawPerformanceSlope = slope(recentValues);
+  const performanceSlope = rawPerformanceSlope === null ? null : rawPerformanceSlope / recentScale;
   const early = points.slice(0, Math.max(2, points.length - config.recentWindowMicrocycles));
   const performanceGain = recentPerformance === null || !early.length
     ? null
     : recentPerformance - mean(early.map((point) => point.performanceIndex));
   const recentRange = recentValues.length
-    ? Math.max(...recentValues) - Math.min(...recentValues)
+    ? (Math.max(...recentValues) - Math.min(...recentValues)) / recentScale
     : null;
   const checks = {
     minimumExposure: completedMicrocycles >= config.minimumBalancedMicrocycles,
-    accuracyReady: recentAccuracy !== null && recentAccuracy >= config.accuracyFloor,
-    omissionsReady: recentOmissionRate !== null && recentOmissionRate <= config.omissionCeiling,
     slopeReady: performanceSlope !== null && Math.abs(performanceSlope) <= config.maximumAbsoluteSlope,
     rangeReady: recentRange !== null && recentRange <= config.maximumRecentRange,
-    learningObserved: performanceGain !== null
-      && (performanceGain >= config.minimumLearningGain || (recentPerformance ?? 0) >= config.highPerformanceBypass),
   };
   const stabilised = currentMicrocycles >= 1 && Object.values(checks).every(Boolean);
   const atCeiling = currentMicrocycles >= config.maximumBalancedMicrocycles;
@@ -184,12 +225,12 @@ export function learningCurvePointsForResults(
   block: CccAttentionBlockPlan,
   allResults: readonly CccRecordedTrial[],
 ): CccLearningCurvePoint[] {
-  if (block.learningCurveGate !== "source_stabilisation") return [];
+  if (!hasLearningCurveGate(block)) return [];
   const eligible = allResults.filter((result) => result.trial.blockId === block.id
     && result.scoring.countsTowardQuota
     && result.trial.operator === "attention"
     && result.trial.presentationMode === "self_paced_value"
-    && !result.trial.diagnostic);
+    && (!result.trial.diagnostic || result.trial.purpose === "delayed_recheck"));
   const expectedPerCycle = CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle * block.regimePair.length;
   const groups = new Map<number, CccRecordedTrial[]>();
   for (const result of eligible) {
@@ -200,14 +241,14 @@ export function learningCurvePointsForResults(
   return [...groups.entries()]
     .filter(([, results]) => results.length >= expectedPerCycle)
     .sort(([left], [right]) => left - right)
-    .map(([index, results]) => pointFor(index, results.slice(0, expectedPerCycle)));
+    .map(([index, results]) => cccLearningCurvePointForResults(index, results.slice(0, expectedPerCycle)));
 }
 
 export function isCccLearningCurveBoundary(
   block: CccAttentionBlockPlan,
   results: readonly CccRecordedTrial[],
 ): boolean {
-  if (block.learningCurveGate !== "source_stabilisation") return false;
+  if (!hasLearningCurveGate(block)) return false;
   const eligible = results.filter((result) => result.scoring.countsTowardQuota);
   const perCycle = CCC_TRIAL_TIMING.validTrialsPerRegimeMicrocycle * block.regimePair.length;
   return eligible.length > 0 && eligible.length % perCycle === 0;

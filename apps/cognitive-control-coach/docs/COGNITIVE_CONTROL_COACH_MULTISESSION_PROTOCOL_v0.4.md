@@ -1,9 +1,9 @@
-# Cognitive Control Coach Multi-Session Protocol v0.12
+# Cognitive Control Coach Multi-Session Protocol v0.14
 
 Status: implementation contract for the public early-access programme
 Date: 16 August 2026
-Protocol version: `ccc-multisession-transfer-v0.12`
-Configuration version: `ccc-programme-p1-v0.12`
+Protocol version: `ccc-multisession-transfer-v0.14`
+Configuration version: `ccc-programme-p1-v0.14`
 Canonical route: `/cognitive-control-coach/`
 
 ## 1. Purpose and claims boundary
@@ -87,40 +87,69 @@ This keeps exposure to all four environments within one session of balance while
 
 ## 4. Multi-session stages
 
+### Performance used by the learning curves
+
+Progression uses the **shape** of a performance learning curve, not an absolute performance score. Information throughput in bits per second is the vertical axis; the recent slope and range determine whether learning has locally flattened. Slope and range are divided by the recent mean so that the gate is scale-free and does not impose a hidden absolute bits-per-second requirement.
+
+The protected masked Attention anchor follows the MFT-M measurement logic: each majority ratio has a published grouping-search information value, and the imposed information rate is that value divided by actual stimulus exposure time. The short in-app psychometric fit estimates the information rate associated with criterion performance. It is reported as a **provisional MFT-M-derived signal-capacity estimate**, because this abbreviated adaptive implementation is not a validated MFT-M or MFT-M-R administration.
+
+For self-paced Attention transfer blocks, each balanced microcycle produces a separate training measure:
+
+```text
+ratio information: 5:0 = 1.58 bits; 4:1 = 2.91 bits; 3:2 = 4.91 bits
+correct information = sum(correct response × ratio information)
+Attention throughput = correct information / total effective processing time in seconds
+```
+
+Errors and omissions contribute processing time but zero correct information. Effective processing time is the recorded decision/value time, with the configured exposure or response window used only as a fallback. This measure therefore combines accuracy, evidence difficulty and speed in a common bits-per-second unit. It is explicitly labelled **MFT-M-derived correct information throughput** rather than MFT-M capacity: unlike the protected anchor, the self-paced task does not experimentally impose exposure duration and fit an accuracy-by-information-rate function. Decision value and error cost remain separate feedback dimensions rather than arbitrary weights inside the capacity ordinate.
+
+For relational n-back, each completed A/B pair produces an app-derived information-throughput measure:
+
+```text
+relation information = log2(4 relation states) = 2 bits
+presentation rate = 1000 / mean presentation time in milliseconds
+WM throughput = 2 bits × n-back level × presentation rate
+                × balanced accuracy
+                × (1 − wrong-lag false-alarm rate)
+```
+
+When no wrong-lag observations are available, the overall false-alarm rate is used. Thus a person who sustains the same accuracy and interference control at a faster presentation rate has higher measured performance. This is a relational information-throughput training metric, not a published MFT-M capacity estimate. Wrapper progression still depends only on whether recent WM throughput has flattened at one n-back level. The 85%/70% pair thresholds described below adapt `n`; they do not pass a wrapper gate.
+
+P1c normalises Attention and WM throughput to their configured task maxima before averaging them into each carrier-specific integration point. Separate arrow and optic-flow integration curves must flatten before the final delayed re-entry.
+
 ### P0 — Foundation
 
 1. Four unscored absolute Left/Right practice observations.
 2. Twenty-four-observation protected signal anchor.
-3. Relative-arrow stabilisation.
-4. Protected first contact with relative optic flow.
-5. Flow recovery.
-6. Return to relative arrows.
-7. Mixed relative arrows and flow.
+3. Relative-arrow training until the person's learning curve reaches a local plateau.
 
-The first-contact block is diagnostic. A performance dip is not itself a failure and is not reused as recovery credit.
+The later carrier stages are not pre-scheduled inside P0. The arrow plateau, rather than a fixed score or exposure count, authorises the first optic-flow check in P1a.
 
 ### P1a — Repeated Attention portability and delayed confirmation
 
-Consolidation sessions repeat:
+P1a follows one evidence-gated carrier sequence:
 
 ```text
-relative-arrow stability
-→ flow recovery
-→ return to arrows
-→ mixed arrows/flow
+relative-arrow plateau
+→ protected first optic-flow contact
+→ optic-flow recovery plateau
+→ arrow-return plateau
+→ alternating arrow/flow plateau
 ```
 
-If no protected carrier-change observation exists, the first P1a consolidation adds one; it is not repeated after genuine first contact has been recorded.
+Only the current stage is scheduled. A stage continues across sessions until the recent performance curve is flat and locally stable. A ten-microcycle session cap ends practice for the day but never authorises the next wrapper by itself.
 
-The delayed re-check is scheduled only after four criterion sessions have supplied recovery, return, mixed-format and two-environment coverage. P0 may contribute the first criterion session. The fresh delayed mixed block:
+The first optic-flow block is diagnostic: it records the carrier-change dip and is never reused as recovery evidence. Optic-flow recovery is judged from its own subsequent learning curve; it is not required to equal the arrow score. During the mixed stage, complete balanced microcycles alternate between arrows and optic flow rather than mixing carriers within one display.
+
+The delayed re-check is scheduled only after the alternating-format learning curve has flattened. The delayed mixed sequence:
 
 - opens no earlier than 18 hours after the qualifying session;
 - targets 24–72 hours;
-- appears before same-session recovery practice;
-- requires at least 12 fresh scored decisions;
-- requires at least 75% accuracy and no more than 10% omissions.
+- preserves the first post-delay microcycle as the fresh re-entry observation;
+- alternates arrow and optic-flow microcycles;
+- continues until the re-entry learning curve flattens or the session cap is reached.
 
-Passing sets `attention_portable`. Three unsuccessful valid delayed checks after at least five Attention sessions may set `supported_unlock`. Supported unlock permits P1b training but never sets `attention_portable` or `full_transfer`.
+Curve stabilisation sets `attention_portable`. Three unsuccessful valid delayed curve attempts after at least five Attention sessions may set `supported_unlock`. Supported unlock permits P1b training but never sets `attention_portable` or `full_transfer`.
 
 ### P1b — Relational WM and carrier recovery
 
@@ -143,11 +172,11 @@ environment A at the saved n-back level
 → environment B at the same adjusted level
 ```
 
-After each A/B pair, the level increases when balanced accuracy is at least 85%, omissions are no more than 10%, and both miss and false-alarm rates are no more than 20%. It decreases when balanced accuracy is below 70%; otherwise it holds. The level is bounded to 1–5.
+After each A/B pair, the level increases when balanced accuracy is at least 85%, omissions are no more than 10%, and both miss and false-alarm rates are no more than 20%. It decreases when balanced accuracy is below 70%; otherwise it holds. The level is bounded to 1–5. These values adapt task difficulty; they do not authorise a wrapper transition.
 
 The level reached at the end of the session is saved in programme state. The next session, including a later day or restored signed-in session, starts at that saved level.
 
-The horizontal format sequence remains evidence-gated: arrow stabilisation → first motion contact → motion recovery → arrow return → mixed formats. A format swap happens only after recent pair-level capacity has flattened at one n-back level with acceptable accuracy, misses, false alarms and omissions; it is not triggered by completing a fixed number of trials alone.
+The horizontal format sequence remains evidence-gated: arrow plateau → first motion contact → motion recovery plateau → arrow-return plateau → mixed-format plateau. A wrapper changes only when the recent pair-level accuracy-adjusted throughput curve has flattened at one n-back level. Balanced accuracy, omissions, misses and false alarms remain feedback and difficulty-adaptation variables, but none is an absolute wrapper-progression score. In the mixed stage, the four A–B–A–B blocks alternate arrow, flow, arrow and flow carriers; carriers never change within an n-back stream.
 
 ### P1c — Return to Now and bidirectional integration
 
@@ -160,9 +189,9 @@ Attention entry
 → relational WM integration
 ```
 
-Successive P1c sessions alternate arrow and flow carriers. A final delayed re-entry is scheduled after at least four passing Attention re-entry and integration sessions, with both carriers represented. The final session begins with a fresh Attention block before same-day memory practice.
+Successive P1c sessions alternate arrow and flow carriers. Each session adds one combined Attention/WM integration-curve point. A final delayed re-entry is scheduled only after separate arrow and optic-flow integration curves have each supplied at least three points and flattened. The final session begins with a fresh Attention block before same-day memory practice.
 
-`full_transfer` requires that final delayed block to pass at the same 12-observation, 75%-accuracy and 10%-omission criterion, with all four decision environments represented and their cumulative exposures balanced to within one session. A failed final delayed check schedules another fresh check and does not award completion or transfer.
+`full_transfer` requires the final delayed re-entry curve to flatten, with all four decision environments represented and their cumulative exposures balanced to within one session. No fixed accuracy score is used. A delayed curve that remains unstable schedules another fresh check and does not award completion or transfer.
 
 ## 5. Minimum, typical and supported paths
 
@@ -171,12 +200,12 @@ The route contains these minimum fixed components plus the performance-dependent
 | Stage | Minimum sessions |
 | --- | ---: |
 | P0 | 1 |
-| P1a consolidation + delayed confirmation | 4 additional |
+| P1a carrier curves + delayed confirmation | Performance-dependent |
 | P1b adaptive n-back stability and WM format recovery | Performance-dependent |
-| P1c bidirectional integration + final delayed re-entry | 5 |
+| P1c bidirectional integration + final delayed re-entry | Performance-dependent |
 | **Complete path** | **Performance-dependent** |
 
-P1b duration is intentionally performance-dependent because the format changes follow a stable learning curve rather than a fixed session count. Telemetry must estimate observed session and gate distributions.
+P1a, P1b and P1c duration is intentionally performance-dependent because every format change follows a personal learning-curve plateau rather than a fixed score or session count. Telemetry must estimate observed plateau, dip, recovery and re-entry distributions.
 
 ## 6. Status semantics
 
@@ -196,6 +225,7 @@ The congratulations achievement screen is permitted only when the stored program
 
 Every block reports plain-language, separable readings:
 
+- the task-performance information-throughput metric used by the learning curve;
 - accuracy by clarity;
 - median viewing time by environment;
 - points retained;
@@ -205,6 +235,8 @@ Every block reports plain-language, separable readings:
 - the current and next n-back level after each A/B pair;
 - the current evidence gate and what remains missing.
 
+The progress graph leads with the same Attention and relational-WM bits-per-second measures used by the learning curves. Accuracy, decision time, retained value and decision balance remain visible as component or diagnostic metrics; they are not substituted for the progression ordinate.
+
 Workflow prompts are transfer intentions, not transfer outcomes. Users are told to judge real-world benefit in the real task.
 
 ## 8. Persistence and auditability
@@ -212,13 +244,13 @@ Workflow prompts are transfer intentions, not transfer outcomes. Users are told 
 The programme state stores:
 
 - programme run and session identifiers;
-- the attained n-back level, within-session pending level and WM format stage;
+- the Attention format stage, attained n-back level, within-session pending level and WM format stage;
 - the set of n-back levels whose onboarding practice has been completed;
-- pair-level WM learning-curve history;
+- stage-specific Attention, pair-level WM and carrier-specific integration learning-curve histories;
 - stage and session kind;
 - environment exposure counts and pair history;
 - protected delayed not-before and target-window timestamps;
-- evidence counters for first contact, recovery, return, mixing, WM, re-entry and delayed checks;
+- the protected first-contact dip and curve evidence for recovery, return, mixing, WM, re-entry and delayed checks;
 - `attention_portable` versus `supported_unlock` explicitly;
 - versioned gate decisions and reasons.
 
@@ -226,4 +258,9 @@ Interrupted or focus-invalidated observations are replaced deterministically. De
 
 ## 9. Validation boundary
 
-The implementation is suitable for early-access engineering and pilot evaluation. Before efficacy claims, it requires device-timing validation, test–retest work, calibration of the short signal anchor, empirical gate thresholds, held-out policy prediction and external transfer outcomes.
+The implementation is suitable for early-access engineering and pilot evaluation. Before efficacy claims, it requires device-timing validation, test–retest work, calibration of the short signal anchor, empirical calibration of curve-window and stability parameters, held-out policy prediction and external transfer outcomes.
+
+## 10. MFT-M measurement references
+
+- Wu, Y.-H. et al. (2016), *Measuring human cognitive capacity using a visual-spatial task*. Scientific Reports 6, 34025. https://www.nature.com/articles/srep34025
+- He, Y. et al. (2022), *A new adaptive procedure for measuring working memory capacity*. Quarterly Journal of Experimental Psychology. https://journals.sagepub.com/doi/10.1177/17470218211030838

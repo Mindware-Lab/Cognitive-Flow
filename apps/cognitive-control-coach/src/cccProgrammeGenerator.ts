@@ -19,6 +19,7 @@ import { CCC_NBACK_RELATIONS, differentNBackRelation, scheduleNBackMatches } fro
 import { carrierForWrapper, referenceFrameForWrapper } from "./cccProgression";
 import type {
   CccAttentionAnswer,
+  CccAttentionWrapperStage,
   CccAttentionPair,
   CccAttentionBlockPlan,
   CccAttentionTrialDefinition,
@@ -49,6 +50,7 @@ type ProgrammePlanInput = {
   wmLevel: CccNBackLevel;
   wmPairLevels?: readonly [CccNBackLevel, CccNBackLevel];
   wmWrapperStage?: CccWmWrapperStage;
+  attentionWrapperStage?: CccAttentionWrapperStage;
   delayedRecheckNotBefore?: string | null;
   includeFirstContact?: boolean;
   attentionPairOverride?: CccAttentionPair;
@@ -75,6 +77,8 @@ type ProgrammeBlockSpec = {
   wmPairPosition?: "A" | "B" | null;
   regimeId?: CccRegimeId;
   attentionPair?: CccAttentionPair;
+  learningCurveGate?: "stage_stabilisation" | null;
+  microcycles?: number;
 };
 
 const EASY_RATIO_QUOTA: readonly CccRatio[] = ["5:0", "5:0", "5:0", "4:1", "4:1", "3:2"];
@@ -222,9 +226,12 @@ function createTrial(input: {
   };
 }
 
-function wrappersFor(spec: ProgrammeBlockSpec, random: () => number): CccWrapperId[] {
+function wrappersFor(spec: ProgrammeBlockSpec, random: () => number, microcycleIndex: number): CccWrapperId[] {
   if (spec.wrapperId !== "mixed_rel") return Array<CccWrapperId>(6).fill(spec.wrappers[0]);
-  return shuffle(random, ["arrow_rel", "arrow_rel", "arrow_rel", "flow_rel", "flow_rel", "flow_rel"]);
+  // Mixed stages alternate complete balanced microcycles. Carrier changes are
+  // therefore blockwise rather than occurring between individual displays.
+  const wrapper = microcycleIndex % 2 === 1 ? "arrow_rel" : "flow_rel";
+  return Array<CccWrapperId>(6).fill(wrapper);
 }
 
 function addAttentionBlock(
@@ -236,13 +243,13 @@ function addAttentionBlock(
 ): void {
   const random = mulberry32(hashSeed(`${seed}:${spec.id}`));
   const blockStart = trials.length;
-  const learningCurveCycles = spec.phase === "p1a_arrow_stabilisation"
+  const learningCurveCycles = spec.learningCurveGate
     ? CCC_LEARNING_CURVE.maximumBalancedMicrocycles
-    : 1;
+    : spec.microcycles || 1;
   for (let microcycleIndex = 1; microcycleIndex <= learningCurveCycles; microcycleIndex += 1) {
     for (const regimeId of plan.regimePair) {
       const ratios = ratiosFor(regimeId, random);
-      const wrappers = wrappersFor(spec, random);
+      const wrappers = wrappersFor(spec, random, microcycleIndex);
       const attentionPair = spec.attentionPair || "radial";
       const targets = attentionPair === "rotational"
         ? shuffle(random, ["cw", "cw", "cw", "ccw", "ccw", "ccw"] as CccAttentionAnswer[])
@@ -308,7 +315,7 @@ function addAttentionBlock(
     shiftViewBefore: spec.shiftViewBefore,
     wmNLevel: null,
     attentionPair: spec.attentionPair || "radial",
-    learningCurveGate: spec.phase === "p1a_arrow_stabilisation" ? "source_stabilisation" : null,
+    learningCurveGate: spec.learningCurveGate || null,
   });
 }
 
@@ -497,22 +504,28 @@ export function createWmPracticeBlock(
   };
 }
 
-function p1aSpecs(kind: ProgrammePlanInput["kind"], includeFirstContact = true): ProgrammeBlockSpec[] {
+function p1aSpecs(
+  kind: ProgrammePlanInput["kind"],
+  stage: CccAttentionWrapperStage,
+): ProgrammeBlockSpec[] {
   if (kind === "p1a_delayed_recheck") {
     return [
-      { id: "p1a-delayed-recheck", stepId: "p1a_delayed_relative_mix", label: "Fresh return check", stage: "P1a", operator: "attention", phase: "p1a_delayed_recheck", estimand: "transfer", wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"], sourceWrapperId: null, transitionKind: "mixed_attention_portability", purpose: "delayed_recheck", diagnostic: true, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-      { id: "p1a-flow-recovery", stepId: "p1a_recovery", label: "Recover motion", stage: "P1a", operator: "attention", phase: "p1a_flow_recovery", estimand: "transfer", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "flow_rel", transitionKind: "baseline_stabilization", purpose: "recovery", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-      { id: "p1a-arrow-return", stepId: "p1a_return", label: "Protect the familiar rule", stage: "P1a", operator: "attention", phase: "p1a_arrow_return", estimand: "transfer", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "flow_rel", transitionKind: "carrier_transfer", purpose: "return", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
+      { id: "p1a-delayed-recheck", stepId: "p1a_delayed_relative_mix", label: "Rebuild the mixed-format plateau", stage: "P1a", operator: "attention", phase: "p1a_delayed_recheck", estimand: "transfer", wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"], sourceWrapperId: null, transitionKind: "mixed_attention_portability", purpose: "delayed_recheck", diagnostic: true, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null, learningCurveGate: "stage_stabilisation" },
     ];
   }
-  const specs: ProgrammeBlockSpec[] = [
-    { id: "p1a-arrow-stabilise", stepId: "p1a_arrow_stabilise", label: "Stabilise the relative rule", stage: "P1a", operator: "attention", phase: "p1a_arrow_stabilisation", estimand: "policy", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "baseline_stabilization", purpose: "training", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-    { id: "p1a-flow-first-contact", stepId: "p1a_held_out_relative_recheck", label: "Protected motion check", stage: "P1a", operator: "attention", phase: "p1a_flow_first_contact", estimand: "transfer", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "carrier_transfer", purpose: "carrier_probe", diagnostic: true, shiftViewBefore: true, strictCarrierTransferBoundary: true, wmNLevel: null },
-    { id: "p1a-flow-recovery", stepId: "p1a_recovery", label: "Recover motion", stage: "P1a", operator: "attention", phase: "p1a_flow_recovery", estimand: "transfer", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "flow_rel", transitionKind: "baseline_stabilization", purpose: "recovery", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-    { id: "p1a-arrow-return", stepId: "p1a_return", label: "Protect the familiar rule", stage: "P1a", operator: "attention", phase: "p1a_arrow_return", estimand: "transfer", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "flow_rel", transitionKind: "carrier_transfer", purpose: "return", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-    { id: "p1a-relative-mix", stepId: "p1a_mix", label: "Stabilise across formats", stage: "P1a", operator: "attention", phase: "p1a_relative_mix", estimand: "transfer", wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"], sourceWrapperId: null, transitionKind: "mixed_attention_portability", purpose: "mix", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
-  ];
-  return includeFirstContact ? specs : specs.filter((spec) => spec.phase !== "p1a_flow_first_contact");
+  if (stage === "flow_first_contact") {
+    return [{ id: "p1a-flow-first-contact", stepId: "p1a_held_out_relative_recheck", label: "Protected motion check", stage: "P1a", operator: "attention", phase: "p1a_flow_first_contact", estimand: "transfer", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "carrier_transfer", purpose: "carrier_probe", diagnostic: true, shiftViewBefore: true, strictCarrierTransferBoundary: true, wmNLevel: null }];
+  }
+  if (stage === "flow_recovery") {
+    return [{ id: "p1a-flow-recovery", stepId: "p1a_recovery", label: "Build the motion learning curve", stage: "P1a", operator: "attention", phase: "p1a_flow_recovery", estimand: "transfer", wrapperId: "flow_rel", wrappers: ["flow_rel"], sourceWrapperId: "flow_rel", transitionKind: "baseline_stabilization", purpose: "recovery", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null, learningCurveGate: "stage_stabilisation" }];
+  }
+  if (stage === "arrow_return") {
+    return [{ id: "p1a-arrow-return", stepId: "p1a_return", label: "Rebuild the arrow plateau", stage: "P1a", operator: "attention", phase: "p1a_arrow_return", estimand: "transfer", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "flow_rel", transitionKind: "carrier_transfer", purpose: "return", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null, learningCurveGate: "stage_stabilisation" }];
+  }
+  if (stage === "mixed") {
+    return [{ id: "p1a-relative-mix", stepId: "p1a_mix", label: "Alternate arrows and motion", stage: "P1a", operator: "attention", phase: "p1a_relative_mix", estimand: "transfer", wrapperId: "mixed_rel", wrappers: ["arrow_rel", "flow_rel"], sourceWrapperId: null, transitionKind: "mixed_attention_portability", purpose: "mix", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null, learningCurveGate: "stage_stabilisation" }];
+  }
+  return [{ id: "p1a-arrow-stabilise", stepId: "p1a_arrow_stabilise", label: "Build the arrow learning curve", stage: "P1a", operator: "attention", phase: "p1a_arrow_stabilisation", estimand: "policy", wrapperId: "arrow_rel", wrappers: ["arrow_rel"], sourceWrapperId: "arrow_rel", transitionKind: "baseline_stabilization", purpose: "training", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null, learningCurveGate: "stage_stabilisation" }];
 }
 
 function p1bSpecs(
@@ -532,6 +545,7 @@ function p1bSpecs(
     const pairPosition = blockNumber % 2 ? "A" as const : "B" as const;
     const level = levels[pairIndex - 1];
     const firstContact = stage === "flow_first_contact" && blockNumber === 1;
+    const mixedWrapper = blockNumber % 2 ? "arrow_rel" as const : "flow_rel" as const;
     return {
       id: `p1b-wm-${stage}-${pairIndex}-${pairPosition.toLowerCase()}`,
       stepId: firstContact ? "p1b_wm_flow_rel_transfer" : stage === "arrow_stabilisation" ? "p1b_wm_arrow_rel_intro" : stage === "arrow_return" ? "p1b_wm_arrow_return" : stage === "mixed" ? "p1b_wm_relative_mix" : "p1b_wm_flow_recovery",
@@ -540,8 +554,8 @@ function p1bSpecs(
       operator: "relational_wm",
       phase: firstContact ? "p1b_wm_flow_first_contact" : settings.phase,
       estimand: "relational_wm",
-      wrapperId: settings.wrapperId,
-      wrappers: settings.wrappers,
+      wrapperId: stage === "mixed" ? mixedWrapper : settings.wrapperId,
+      wrappers: stage === "mixed" ? [mixedWrapper] : settings.wrappers,
       sourceWrapperId: firstContact ? "arrow_rel" : settings.source,
       transitionKind: firstContact ? "wm_carrier_transfer" : stage === "mixed" ? "operator_integration" : stage === "arrow_stabilisation" ? "wm_introduction" : "baseline_stabilization",
       purpose: firstContact ? "wm_carrier_probe" : settings.purpose,
@@ -561,7 +575,7 @@ function p1cSpecs(kind: ProgrammePlanInput["kind"], sessionNumber: number, level
   const carrierLabel = wrapper === "arrow_rel" ? "arrows" : "motion";
   const delayed = kind === "p1c_delayed_integration";
   return [
-    { id: delayed ? "p1c-delayed-reentry" : "p1c-attention-entry", stepId: delayed ? "p1c_delayed_reentry" : "p1c_attention_entry", label: delayed ? "Fresh re-entry after time away" : `Read the present in ${carrierLabel}`, stage: "P1c", operator: "attention", phase: delayed ? "p1c_delayed_reentry" : "p1c_attention_entry", estimand: "transfer", wrapperId: wrapper, wrappers: [wrapper], sourceWrapperId: wrapper, transitionKind: "return_to_now", purpose: delayed ? "delayed_recheck" : "return_to_now", diagnostic: delayed, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
+    { id: delayed ? "p1c-delayed-reentry" : "p1c-attention-entry", stepId: delayed ? "p1c_delayed_reentry" : "p1c_attention_entry", label: delayed ? "Rebuild the re-entry plateau" : `Read the present in ${carrierLabel}`, stage: "P1c", operator: "attention", phase: delayed ? "p1c_delayed_reentry" : "p1c_attention_entry", estimand: "transfer", wrapperId: wrapper, wrappers: [wrapper], sourceWrapperId: wrapper, transitionKind: "return_to_now", purpose: delayed ? "delayed_recheck" : "return_to_now", diagnostic: delayed, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null, learningCurveGate: delayed ? "stage_stabilisation" : null },
     { id: "p1c-wm-hold", stepId: "p1c_wm_hold", label: `Hold the relation · ${level}-back`, stage: "P1c", operator: "relational_wm", phase: "p1c_wm_hold", estimand: "relational_wm", wrapperId: wrapper, wrappers: [wrapper], sourceWrapperId: wrapper, transitionKind: "operator_integration", purpose: "wm_training", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: level },
     { id: "p1c-attention-reentry", stepId: "p1c_return_to_now_attention", label: "Return to what is here now", stage: "P1c", operator: "attention", phase: "p1c_attention_reentry", estimand: "transfer", wrapperId: wrapper, wrappers: [wrapper], sourceWrapperId: wrapper, transitionKind: "return_to_now", purpose: "return_to_now", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: null },
     { id: "p1c-operator-mix", stepId: "p1c_cued_operator_miniblocks", label: "Switch the operation, keep the format", stage: "P1c", operator: "relational_wm", phase: "p1c_operator_mix", estimand: "relational_wm", wrapperId: wrapper, wrappers: [wrapper], sourceWrapperId: wrapper, transitionKind: "operator_integration", purpose: "operator_integration", diagnostic: false, shiftViewBefore: false, strictCarrierTransferBoundary: false, wmNLevel: level },
@@ -571,7 +585,11 @@ function p1cSpecs(kind: ProgrammePlanInput["kind"], sessionNumber: number, level
 export function createProgrammeSessionPlan(input: ProgrammePlanInput): CccSessionPlan {
   const stage = input.kind.startsWith("p1a") ? "P1a" : input.kind.startsWith("p1b") ? "P1b" : "P1c";
   const sessionType = stage === "P1a" ? "portability_check" : stage === "P1b" ? "wm_bridge" : "return_to_now";
-  const baseSpecs = stage === "P1a" ? p1aSpecs(input.kind, input.includeFirstContact ?? true) : stage === "P1b" ? p1bSpecs(input.wmPairLevels || [input.wmLevel, input.wmLevel], input.wmWrapperStage || "arrow_stabilisation", input.regimePair) : p1cSpecs(input.kind, input.programmeSessionNumber, input.wmLevel);
+  const baseSpecs = stage === "P1a"
+    ? p1aSpecs(input.kind, input.attentionWrapperStage || "arrow_stabilisation")
+    : stage === "P1b"
+      ? p1bSpecs(input.wmPairLevels || [input.wmLevel, input.wmLevel], input.wmWrapperStage || "arrow_stabilisation", input.regimePair)
+      : p1cSpecs(input.kind, input.programmeSessionNumber, input.wmLevel);
   const specs = baseSpecs.map((spec) => spec.operator === "attention"
     ? { ...spec, attentionPair: input.attentionPairOverride || spec.attentionPair || (spec.phase === "p1a_relative_mix" || spec.phase === "p1a_delayed_recheck" || spec.phase === "p1c_attention_reentry" ? "rotational" : "radial") }
     : spec);

@@ -2436,6 +2436,10 @@ p {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
+.ccc-summary-grid.ccc-performance-summary {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
 .ccc-summary-grid article {
   display: flex;
   flex-direction: column;
@@ -3211,6 +3215,10 @@ p {
   }
 
   .ccc-review-view .ccc-summary-grid.ccc-points-summary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .ccc-review-view .ccc-summary-grid.ccc-performance-summary {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 

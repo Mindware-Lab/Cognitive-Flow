@@ -9,6 +9,8 @@ import {
 } from "../_shared/supabase.ts";
 
 const SESSION_METRICS: Array<[string, string, string]> = [
+  ["attentionThroughputBps", "session.attention_throughput_bps", "bits_per_second"],
+  ["wmThroughputBps", "session.wm_throughput_bps", "bits_per_second"],
   ["attentionAccuracy", "session.attention_accuracy", "ratio"],
   ["signalAccuracy", "session.signal_accuracy", "ratio"],
   ["wmAccuracy", "session.wm_accuracy", "ratio"],

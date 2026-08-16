@@ -1,8 +1,19 @@
-import { CCC_DELAYED_RECHECK, CCC_REGIME_PAIRS } from "./cccConfig";
+import { CCC_DELAYED_RECHECK, CCC_LEARNING_CURVE, CCC_REGIME_PAIRS, CCC_RELATIONAL_WM } from "./cccConfig";
 import { hashSeed } from "./random";
 import { buildCccSessionMetrics } from "./cccFeedback";
-import { learningCurvePointsForResults } from "./cccLearningCurve";
-import { cccWmCurveIsStable, evaluateCccWmPair, wmHistoryPoint } from "./cccWmProgress";
+import {
+  CCC_ATTENTION_MAX_INFORMATION_THROUGHPUT_BPS,
+  attentionLearningStageForBlock,
+  cccLearningCurvePointForResults,
+  learningCurvePointsForResults,
+} from "./cccLearningCurve";
+import {
+  CCC_WM_MAX_CAPACITY_THROUGHPUT,
+  CCC_WM_RELATION_INFORMATION_BITS,
+  cccWmCurveIsStable,
+  evaluateCccWmPair,
+  wmHistoryPoint,
+} from "./cccWmProgress";
 import type { CccSavedJourney } from "./cccStorage";
 import type {
   CccAttentionBlockPlan,
@@ -14,12 +25,11 @@ import type {
 } from "./cccTypes";
 
 export const CCC_PROGRAMME_VERSION = 1 as const;
-export const CCC_PROGRAMME_GATE_VERSION = "ccc-programme-gates-v0.4";
+export const CCC_PROGRAMME_GATE_VERSION = "ccc-programme-gates-v0.6";
 export const CCC_DELAY_MS = CCC_DELAYED_RECHECK.minimumReentryHours * 60 * 60 * 1000;
-export const CCC_MIN_ATTENTION_STABILITY_SESSIONS = 4;
 export const CCC_MIN_WM_STABILITY_PASSES = 1;
 export const CCC_MIN_WM_TRANSFER_PASSES = 1;
-export const CCC_MIN_INTEGRATION_PASSES = 4;
+export const CCC_MIN_INTEGRATION_CARRIER_POINTS = 3;
 
 const REGIME_IDS: readonly CccRegimeId[] = [
   "clear_sprint",
@@ -43,6 +53,7 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
     transferStatus: "building",
     sessionNumber: 0,
     attentionSessionCount: 0,
+    attentionWrapperStage: "arrow_stabilisation",
     wmLevel: 1,
     wmWrapperStage: "arrow_stabilisation",
     wmPendingPairLevel: null,
@@ -59,6 +70,7 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
     evidence: {
       carrierFirstContactObserved: false,
       carrierFirstContactPassed: false,
+      carrierFirstContactPerformance: null,
       recoveryPasses: 0,
       returnPasses: 0,
       mixedPasses: 0,
@@ -74,8 +86,10 @@ export function createInitialProgrammeState(now = new Date(), programmeRunId: st
       integrationCarriers: [],
       finalDelayedPasses: 0,
       failedFinalDelayedChecks: 0,
+      attentionLearningCurve: [],
       attentionSourceLearningCurve: [],
       wmLearningCurve: [],
+      integrationLearningCurve: [],
     },
     sessions: [],
     proofScores: [],
@@ -91,12 +105,14 @@ export function migrateCccProgrammeState(programme: CccProgrammeState): CccProgr
     wmWrapperStage?: CccProgrammeState["wmWrapperStage"];
     wmPendingPairLevel?: number | null;
     wmPracticeCompletedLevels?: number[];
+    attentionWrapperStage?: CccProgrammeState["attentionWrapperStage"];
   };
   const boundedLevel = (value: number | null | undefined, fallback: CccNBackLevel): CccNBackLevel => {
     if (!Number.isFinite(value)) return fallback;
     return Math.max(1, Math.min(5, Math.round(Number(value)))) as CccNBackLevel;
   };
   programme.wmLevel = boundedLevel(legacy.wmLevel, 1);
+  programme.attentionWrapperStage ||= "arrow_stabilisation";
   programme.wmWrapperStage ||= "arrow_stabilisation";
   programme.wmPendingPairLevel = legacy.wmPendingPairLevel === null || legacy.wmPendingPairLevel === undefined
     ? null
@@ -105,8 +121,33 @@ export function migrateCccProgrammeState(programme: CccProgrammeState): CccProgr
     .filter((value) => Number.isFinite(value))
     .map((value) => boundedLevel(value, 1)))]
     .sort((left, right) => left - right);
-  programme.evidence.attentionSourceLearningCurve ||= [];
-  programme.evidence.wmLearningCurve ||= [];
+  programme.evidence.attentionSourceLearningCurve = (programme.evidence.attentionSourceLearningCurve || [])
+    .filter((point) => Number.isFinite(point.informationThroughputBps));
+  programme.evidence.attentionLearningCurve = (programme.evidence.attentionLearningCurve
+    || programme.evidence.attentionSourceLearningCurve.map((point) => ({
+      ...point,
+      wrapperStage: point.wrapperStage || "arrow_stabilisation",
+    })))
+    .filter((point) => Number.isFinite(point.informationThroughputBps));
+  programme.evidence.carrierFirstContactPerformance ??= null;
+  programme.evidence.wmLearningCurve = (programme.evidence.wmLearningCurve || []).map((point) => {
+    const hasRecordedPace = Number.isFinite(point.meanPresentationMs) && Number.isFinite(point.presentationRateHz);
+    if (hasRecordedPace && Number.isFinite(point.informationThroughputBps)) return point;
+    const meanPresentationMs = hasRecordedPace ? point.meanPresentationMs : CCC_RELATIONAL_WM.defaultPresentationMs;
+    const presentationRateHz = hasRecordedPace ? point.presentationRateHz : 1000 / meanPresentationMs;
+    const informationThroughputBps = point.capacityIndex
+      * CCC_WM_RELATION_INFORMATION_BITS
+      * (hasRecordedPace ? 1 : presentationRateHz);
+    return {
+      ...point,
+      meanPresentationMs,
+      presentationRateHz,
+      informationThroughputBps,
+      // Legacy capacity omitted information units and, before v0.13, pace.
+      capacityIndex: informationThroughputBps,
+    };
+  });
+  programme.evidence.integrationLearningCurve ||= [];
   programme.proofScores ||= [];
   return programme;
 }
@@ -162,31 +203,8 @@ function blockResults(journey: CccSavedJourney, block: CccAttentionBlockPlan): C
   return quotaResults(journey.blockResults[block.id] || []);
 }
 
-function blockAccuracy(results: readonly CccRecordedTrial[]): number {
-  return results.length ? results.filter((result) => result.scoring.isCorrect).length / results.length : 0;
-}
-
-function omissionRate(results: readonly CccRecordedTrial[]): number {
-  return results.length ? results.filter((result) => result.scoring.isOmission).length / results.length : 1;
-}
-
-function passesBlock(results: readonly CccRecordedTrial[], minimum = 12, accuracy = 0.75, omissionCeiling = 0.1): boolean {
-  return results.length >= minimum && blockAccuracy(results) >= accuracy && omissionRate(results) <= omissionCeiling;
-}
-
 function blockForPhase(journey: CccSavedJourney, phases: readonly string[]): CccAttentionBlockPlan | null {
   return journey.plan.blocks.find((block) => phases.includes(block.phase)) || null;
-}
-
-function passedPhase(
-  journey: CccSavedJourney,
-  phases: readonly string[],
-  minimum = 12,
-  accuracy = 0.75,
-  omissionCeiling = 0.1,
-): boolean {
-  const block = blockForPhase(journey, phases);
-  return block ? passesBlock(blockResults(journey, block), minimum, accuracy, omissionCeiling) : false;
 }
 
 function hasBalancedPolicyCoverage(journey: CccSavedJourney): boolean {
@@ -203,13 +221,72 @@ function scheduleDelayed(state: CccProgrammeState, completedAt: Date): void {
   state.delayedRecheckWindowEndsAt = upper.toISOString();
 }
 
+function mean(values: readonly number[]): number {
+  return values.length ? values.reduce((total, value) => total + value, 0) / values.length : 0;
+}
+
+function slope(values: readonly number[]): number | null {
+  if (values.length < 2) return null;
+  const centre = (values.length - 1) / 2;
+  const average = mean(values);
+  const numerator = values.reduce((total, value, index) => total + (index - centre) * (value - average), 0);
+  const denominator = values.reduce((total, _value, index) => total + (index - centre) ** 2, 0);
+  return denominator ? numerator / denominator : null;
+}
+
+function curveIsFlat(
+  values: readonly number[],
+  minimumPoints: number,
+  recentPoints: number,
+  maximumAbsoluteSlope: number,
+  maximumRecentRange: number,
+): boolean {
+  if (values.length < minimumPoints) return false;
+  const recent = values.slice(-recentPoints);
+  const recentMean = mean(recent);
+  const scale = Math.max(0.05, Math.abs(recentMean));
+  const rawSlope = slope(recent);
+  const recentSlope = rawSlope === null ? null : rawSlope / scale;
+  const range = (Math.max(...recent) - Math.min(...recent)) / scale;
+  return recentSlope !== null
+    && Math.abs(recentSlope) <= maximumAbsoluteSlope
+    && range <= maximumRecentRange;
+}
+
+function attentionCurveIsStable(
+  state: CccProgrammeState,
+  stage: NonNullable<CccProgrammeState["evidence"]["attentionLearningCurve"][number]["wrapperStage"]>,
+): boolean {
+  const values = state.evidence.attentionLearningCurve
+    .filter((point) => point.wrapperStage === stage)
+    .map((point) => point.performanceIndex);
+  return curveIsFlat(
+    values,
+    CCC_LEARNING_CURVE.minimumBalancedMicrocycles,
+    CCC_LEARNING_CURVE.recentWindowMicrocycles,
+    CCC_LEARNING_CURVE.maximumAbsoluteSlope,
+    CCC_LEARNING_CURVE.maximumRecentRange,
+  );
+}
+
+function integrationCarrierIsStable(state: CccProgrammeState, carrier: "arrow" | "flow"): boolean {
+  const values = state.evidence.integrationLearningCurve
+    .filter((point) => point.carrier === carrier)
+    .map((point) => point.performanceIndex);
+  return curveIsFlat(
+    values,
+    CCC_MIN_INTEGRATION_CARRIER_POINTS,
+    CCC_MIN_INTEGRATION_CARRIER_POINTS,
+    CCC_RELATIONAL_WM.learningCurveMaximumAbsoluteSlope,
+    CCC_RELATIONAL_WM.learningCurveMaximumRecentRange,
+  );
+}
+
 function immediateAttentionEvidenceReady(state: CccProgrammeState): boolean {
-  const evidence = state.evidence;
-  return evidence.carrierFirstContactObserved
-    && evidence.recoveryPasses >= CCC_MIN_ATTENTION_STABILITY_SESSIONS
-    && evidence.returnPasses >= CCC_MIN_ATTENTION_STABILITY_SESSIONS
-    && evidence.mixedPasses >= CCC_MIN_ATTENTION_STABILITY_SESSIONS
-    && evidence.policyCoverageSessions >= CCC_MIN_ATTENTION_STABILITY_SESSIONS;
+  return state.evidence.carrierFirstContactObserved
+    && attentionCurveIsStable(state, "flow_recovery")
+    && attentionCurveIsStable(state, "arrow_return")
+    && attentionCurveIsStable(state, "mixed");
 }
 
 function supportedUnlockReady(state: CccProgrammeState): boolean {
@@ -232,6 +309,7 @@ export function applyCompletedSession(
   const decisions: string[] = [];
   const evidence = programme.evidence;
   const completedAt = new Date(journey.completedAt);
+  const attentionStageAtStart = programme.attentionWrapperStage;
 
   programme.sessionNumber += 1;
   if (journey.plan.stage === "P0" || journey.plan.stage === "P1a" || journey.plan.stage === "P1c") {
@@ -240,33 +318,36 @@ export function applyCompletedSession(
   for (const regime of journey.plan.regimePair) programme.regimeExposure[regime] += 1;
   programme.pairHistory.push(pairKey(journey.plan.regimePair));
 
-  const sourceCurveBlock = journey.plan.blocks.find((block) => block.learningCurveGate === "source_stabilisation");
-  if (sourceCurveBlock) {
-    const points = learningCurvePointsForResults(sourceCurveBlock, blockResults(journey, sourceCurveBlock));
-    evidence.attentionSourceLearningCurve.push(...points.map((point) => ({
+  for (const curveBlock of journey.plan.blocks.filter((block) => block.learningCurveGate)) {
+    const wrapperStage = attentionLearningStageForBlock(curveBlock);
+    if (!wrapperStage) continue;
+    const points = learningCurvePointsForResults(curveBlock, blockResults(journey, curveBlock)).map((point) => ({
       ...point,
       sessionId: journey.plan.sessionId,
-    })));
+      wrapperStage,
+    }));
+    evidence.attentionLearningCurve.push(...points);
+    if (wrapperStage === "arrow_stabilisation") evidence.attentionSourceLearningCurve.push(...points);
   }
 
   const firstContact = blockForPhase(journey, ["flow_rel_first_contact", "p1a_flow_first_contact"]);
   if (firstContact) {
     const results = blockResults(journey, firstContact);
     evidence.carrierFirstContactObserved = results.length >= 6;
-    if (passesBlock(results, 6, 2 / 3, 1 / 6)) evidence.carrierFirstContactPassed = true;
+    evidence.carrierFirstContactPassed = evidence.carrierFirstContactObserved;
+    if (results.length) evidence.carrierFirstContactPerformance = cccLearningCurvePointForResults(1, results).performanceIndex;
   }
-  if (passedPhase(journey, ["flow_rel_recovery", "p1a_flow_recovery"])) evidence.recoveryPasses += 1;
-  if (passedPhase(journey, ["arrow_rel_return", "p1a_arrow_return"])) evidence.returnPasses += 1;
-  if (passedPhase(journey, ["relative_mix", "p1a_relative_mix"])) evidence.mixedPasses += 1;
+  if (attentionCurveIsStable(programme, "flow_recovery")) evidence.recoveryPasses = Math.max(1, evidence.recoveryPasses);
+  if (attentionCurveIsStable(programme, "arrow_return")) evidence.returnPasses = Math.max(1, evidence.returnPasses);
+  if (attentionCurveIsStable(programme, "mixed")) evidence.mixedPasses = Math.max(1, evidence.mixedPasses);
   if (hasBalancedPolicyCoverage(journey)) evidence.policyCoverageSessions += 1;
 
   const delayedBlock = blockForPhase(journey, ["p1a_delayed_recheck"]);
   if (delayedBlock) {
-    const fresh = blockResults(journey, delayedBlock);
     const notBefore = journey.plan.delayedRecheckNotBefore ? Date.parse(journey.plan.delayedRecheckNotBefore) : NaN;
     const started = Date.parse(journey.startedAt);
     const timingValid = Number.isFinite(notBefore) && Number.isFinite(started) && started >= notBefore;
-    if (timingValid && passesBlock(fresh, CCC_DELAYED_RECHECK.minimumFreshValidDecisions)) {
+    if (timingValid && attentionCurveIsStable(programme, "delayed_recheck")) {
       evidence.delayedPasses += 1;
       programme.transferStatus = "attention_portable";
       programme.currentStage = "P1b";
@@ -284,13 +365,26 @@ export function applyCompletedSession(
         decisions.push("The next stages are ready.");
       }
     }
-  } else if ((journey.plan.stage === "P0" || journey.plan.stage === "P1a") && immediateAttentionEvidenceReady(programme)) {
-    programme.currentStage = "P1a";
-    scheduleDelayed(programme, completedAt);
-    decisions.push("This set is complete. Return after a break.");
   } else if (journey.plan.stage === "P0" || journey.plan.stage === "P1a") {
     programme.currentStage = "P1a";
-    decisions.push("Next time, keep practising the skills that need more work.");
+    if (attentionStageAtStart === "arrow_stabilisation" && attentionCurveIsStable(programme, "arrow_stabilisation")) {
+      programme.attentionWrapperStage = "flow_first_contact";
+      decisions.push("Your arrow learning curve has flattened. Next: the first moving-dot check.");
+    } else if (attentionStageAtStart === "flow_first_contact" && evidence.carrierFirstContactObserved) {
+      programme.attentionWrapperStage = "flow_recovery";
+      decisions.push("The initial motion dip is recorded. Next: build the motion learning curve.");
+    } else if (attentionStageAtStart === "flow_recovery" && attentionCurveIsStable(programme, "flow_recovery")) {
+      programme.attentionWrapperStage = "arrow_return";
+      decisions.push("Your motion learning curve has flattened. Next: return to arrows.");
+    } else if (attentionStageAtStart === "arrow_return" && attentionCurveIsStable(programme, "arrow_return")) {
+      programme.attentionWrapperStage = "mixed";
+      decisions.push("Your returning arrow curve has flattened. Next: alternate arrows and motion.");
+    } else if (attentionStageAtStart === "mixed" && immediateAttentionEvidenceReady(programme)) {
+      scheduleDelayed(programme, completedAt);
+      decisions.push("Your alternating-format curve has flattened. Return after a break.");
+    } else {
+      decisions.push("Next time, continue this learning curve until it flattens.");
+    }
   }
 
   if (journey.plan.stage === "P1b") {
@@ -349,24 +443,41 @@ export function applyCompletedSession(
       : "Next time, keep practising the Match-only n-back stream.");
   }
 
-  if (passedPhase(journey, ["p1c_attention_reentry"], 12)) evidence.returnToNowPasses += 1;
-  if (passedPhase(journey, ["p1c_operator_mix"], 12)) {
-    evidence.integrationPasses += 1;
-    const carrier = blockForPhase(journey, ["p1c_operator_mix"])?.wrappers[0]?.startsWith("flow") ? "flow" : "arrow";
-    evidence.integrationCarriers = uniqueCarriers([...evidence.integrationCarriers, carrier]);
-  }
   if (journey.plan.stage === "P1c") {
-    const integrationReady = evidence.returnToNowPasses >= CCC_MIN_INTEGRATION_PASSES
-      && evidence.integrationPasses >= CCC_MIN_INTEGRATION_PASSES
-      && evidence.integrationCarriers.length >= 2;
+    if (journey.plan.programmeSessionKind === "p1c_operator_integration") {
+      const attentionBlock = blockForPhase(journey, ["p1c_attention_reentry"]);
+      const wmBlock = blockForPhase(journey, ["p1c_operator_mix"]);
+      const attentionResults = attentionBlock ? blockResults(journey, attentionBlock) : [];
+      const wmResults = wmBlock ? blockResults(journey, wmBlock) : [];
+      if (attentionBlock && wmBlock && attentionResults.length && wmResults.length) {
+        const carrier = wmBlock.wrappers[0]?.startsWith("flow") ? "flow" as const : "arrow" as const;
+        const attentionThroughputBps = cccLearningCurvePointForResults(1, attentionResults).informationThroughputBps;
+        const attentionPerformance = Math.max(0, Math.min(1,
+          attentionThroughputBps / CCC_ATTENTION_MAX_INFORMATION_THROUGHPUT_BPS,
+        ));
+        const wmDecision = evaluateCccWmPair(wmResults, wmBlock.wmNLevel || programme.wmLevel);
+        const wmCapacity = Math.max(0, Math.min(1, wmDecision.capacityIndex / CCC_WM_MAX_CAPACITY_THROUGHPUT));
+        evidence.integrationLearningCurve.push({
+          sessionId: journey.plan.sessionId,
+          carrier,
+          observationCount: attentionResults.length + wmResults.length,
+          attentionPerformance,
+          wmCapacity,
+          performanceIndex: mean([attentionPerformance, wmCapacity]),
+        });
+        evidence.returnToNowPasses = evidence.integrationLearningCurve.length;
+        evidence.integrationPasses = evidence.integrationLearningCurve.length;
+        evidence.integrationCarriers = uniqueCarriers([...evidence.integrationCarriers, carrier]);
+      }
+    }
+    const integrationReady = integrationCarrierIsStable(programme, "arrow")
+      && integrationCarrierIsStable(programme, "flow");
     if (journey.plan.programmeSessionKind === "p1c_delayed_integration") {
-      const delayed = blockForPhase(journey, ["p1c_delayed_reentry"]);
-      const fresh = delayed ? blockResults(journey, delayed) : [];
       const notBefore = journey.plan.delayedRecheckNotBefore ? Date.parse(journey.plan.delayedRecheckNotBefore) : NaN;
       const started = Date.parse(journey.startedAt);
       const timingValid = Number.isFinite(notBefore) && Number.isFinite(started) && started >= notBefore;
       const delayedPassed = timingValid
-        && passesBlock(fresh, CCC_DELAYED_RECHECK.minimumFreshValidDecisions)
+        && attentionCurveIsStable(programme, "final_delayed_reentry")
         && integrationReady
         && allRegimesBalanced(programme);
       if (delayedPassed) {
@@ -383,15 +494,15 @@ export function applyCompletedSession(
         evidence.failedFinalDelayedChecks += 1;
         programme.currentStage = "P1c";
         scheduleDelayed(programme, completedAt);
-        decisions.push("This return was harder. Try again after a break.");
+        decisions.push("The delayed re-entry curve has not flattened yet. Try again after a break.");
       }
     } else if (integrationReady) {
       programme.currentStage = "P1c";
       scheduleDelayed(programme, completedAt);
-      decisions.push("The final return is ready after a break.");
+      decisions.push("Both carrier-integration curves have flattened. The final return is ready after a break.");
     } else {
       programme.currentStage = "P1c";
-      decisions.push("Next time, keep practising the switch between a two-choice attention block and the Match-only n-back stream.");
+      decisions.push("Next time, continue the alternating carrier-integration curves.");
     }
   }
 
@@ -414,16 +525,16 @@ export function programmeProgressPercent(programme: CccProgrammeState): number {
   const evidence = programme.evidence;
   const checks = [
     evidence.carrierFirstContactObserved,
-    evidence.recoveryPasses >= CCC_MIN_ATTENTION_STABILITY_SESSIONS,
-    evidence.returnPasses >= CCC_MIN_ATTENTION_STABILITY_SESSIONS,
-    evidence.mixedPasses >= CCC_MIN_ATTENTION_STABILITY_SESSIONS,
+    attentionCurveIsStable(programme, "flow_recovery"),
+    attentionCurveIsStable(programme, "arrow_return"),
+    attentionCurveIsStable(programme, "mixed"),
     programme.transferStatus !== "building",
     evidence.wmStabilityPasses >= CCC_MIN_WM_STABILITY_PASSES,
     evidence.wmRecoveryPasses >= CCC_MIN_WM_TRANSFER_PASSES,
     evidence.wmReturnPasses >= CCC_MIN_WM_TRANSFER_PASSES,
     evidence.wmMixedPasses >= CCC_MIN_WM_TRANSFER_PASSES,
-    evidence.returnToNowPasses >= CCC_MIN_INTEGRATION_PASSES,
-    evidence.integrationPasses >= CCC_MIN_INTEGRATION_PASSES && evidence.integrationCarriers.length >= 2,
+    integrationCarrierIsStable(programme, "arrow"),
+    integrationCarrierIsStable(programme, "flow"),
     evidence.finalDelayedPasses >= 1,
   ];
   return Math.round(checks.filter(Boolean).length / checks.length * 100);
@@ -433,9 +544,9 @@ export function missingTransferEvidence(programme: CccProgrammeState): string[] 
   const evidence = programme.evidence;
   const missing: string[] = [];
   if (!evidence.carrierFirstContactObserved) missing.push("trying the moving format");
-  if (evidence.recoveryPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("more practice with motion");
-  if (evidence.returnPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("returning to arrows");
-  if (evidence.mixedPasses < CCC_MIN_ATTENTION_STABILITY_SESSIONS) missing.push("switching between formats");
+  if (!attentionCurveIsStable(programme, "flow_recovery")) missing.push("a flattened motion learning curve");
+  if (!attentionCurveIsStable(programme, "arrow_return")) missing.push("a flattened arrow-return curve");
+  if (!attentionCurveIsStable(programme, "mixed")) missing.push("a flattened alternating-format curve");
   if (programme.transferStatus === "building") missing.push("a check after time away");
   return missing;
 }

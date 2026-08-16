@@ -19,6 +19,8 @@ const sessions: CccProgrammeSessionSummary[] = [
     completedAt: "2026-08-12T10:10:00.000Z",
     gateDecisions: [],
     metrics: {
+      attentionThroughputBps: 2.8,
+      wmThroughputBps: null,
       attentionAccuracy: 0.75,
       signalAccuracy: 0.7,
       wmAccuracy: null,
@@ -35,6 +37,7 @@ const sessions: CccProgrammeSessionSummary[] = [
 
 describe("CCC progress score views", () => {
   it("sets a user's first valid result to 100 and shows proportional change", () => {
+    expect(firstValidBaseline(sessions, "attentionPerformance")).toBe(2.8);
     expect(firstValidBaseline(sessions, "accuracy")).toBe(0.75);
     expect(personalIndex(0.75, 0.75)).toBe(100);
     expect(personalIndex(0.825, 0.75)).toBe(110);

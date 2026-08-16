@@ -8,6 +8,8 @@ export type CccWrapperId = "arrow_abs" | "flow_abs" | "arrow_rel" | "flow_rel";
 export type CccRatio = "5:0" | "4:1" | "3:2";
 export type CccRegimeId = "clear_sprint" | "calculated_risk" | "clean_precision" | "deep_check";
 export type CccNBackLevel = 1 | 2 | 3 | 4 | 5;
+export type CccAttentionWrapperStage = "arrow_stabilisation" | "flow_first_contact" | "flow_recovery" | "arrow_return" | "mixed";
+export type CccAttentionLearningStage = CccAttentionWrapperStage | "delayed_recheck" | "final_delayed_reentry";
 export type CccWmWrapperStage = "arrow_stabilisation" | "flow_first_contact" | "flow_recovery" | "arrow_return" | "mixed";
 export type CccAttentionPair = "radial" | "rotational";
 export type CccAttentionAnswer = "left" | "right" | "in" | "out" | "cw" | "ccw";
@@ -68,6 +70,8 @@ export type CccTransferStatus = "building" | "attention_portable" | "supported_u
 export type CccProgrammeStatus = "active" | "programme_complete" | "full_transfer" | "supported_completion";
 
 export interface CccSessionMetrics {
+  attentionThroughputBps: number | null;
+  wmThroughputBps: number | null;
   attentionAccuracy: number | null;
   signalAccuracy: number | null;
   wmAccuracy: number | null;
@@ -83,6 +87,7 @@ export interface CccSessionMetrics {
 export interface CccProgrammeEvidence {
   carrierFirstContactObserved: boolean;
   carrierFirstContactPassed: boolean;
+  carrierFirstContactPerformance: number | null;
   recoveryPasses: number;
   returnPasses: number;
   mixedPasses: number;
@@ -98,8 +103,10 @@ export interface CccProgrammeEvidence {
   integrationCarriers: CccCarrier[];
   finalDelayedPasses: number;
   failedFinalDelayedChecks: number;
+  attentionLearningCurve: CccLearningCurveHistoryPoint[];
   attentionSourceLearningCurve: CccLearningCurveHistoryPoint[];
   wmLearningCurve: CccWmLearningCurveHistoryPoint[];
+  integrationLearningCurve: CccIntegrationLearningCurveHistoryPoint[];
 }
 
 export interface CccWmLearningCurveHistoryPoint {
@@ -113,16 +120,31 @@ export interface CccWmLearningCurveHistoryPoint {
   missRate: number;
   falseAlarmRate: number;
   lureFalseAlarmRate: number | null;
+  meanPresentationMs: number;
+  presentationRateHz: number;
+  informationThroughputBps: number;
+  /** Alias retained for persisted curve logic; expressed in bits per second. */
   capacityIndex: number;
 }
 
 export interface CccLearningCurveHistoryPoint {
   sessionId: string;
+  wrapperStage?: CccAttentionLearningStage;
   microcycleIndex: number;
   observationCount: number;
   accuracy: number;
   omissionRate: number;
   valueEfficiency: number;
+  informationThroughputBps: number;
+  performanceIndex: number;
+}
+
+export interface CccIntegrationLearningCurveHistoryPoint {
+  sessionId: string;
+  carrier: CccCarrier;
+  observationCount: number;
+  attentionPerformance: number;
+  wmCapacity: number;
   performanceIndex: number;
 }
 
@@ -159,6 +181,7 @@ export interface CccProgrammeState {
   transferStatus: CccTransferStatus;
   sessionNumber: number;
   attentionSessionCount: number;
+  attentionWrapperStage: CccAttentionWrapperStage;
   wmLevel: CccNBackLevel;
   wmWrapperStage: CccWmWrapperStage;
   wmPendingPairLevel: CccNBackLevel | null;
@@ -196,12 +219,8 @@ export interface CccLearningCurveConfig {
   recentWindowMicrocycles: number;
   minimumBalancedMicrocycles: number;
   maximumBalancedMicrocycles: number;
-  accuracyFloor: number;
-  omissionCeiling: number;
   maximumAbsoluteSlope: number;
   maximumRecentRange: number;
-  minimumLearningGain: number;
-  highPerformanceBypass: number;
 }
 
 export interface CccRegimeConfig {
@@ -237,6 +256,7 @@ export interface CccRelationalWmConfig {
   learningCurveMinimumPairs: number;
   learningCurveRecentPairs: number;
   learningCurveMaximumAbsoluteSlope: number;
+  learningCurveMaximumRecentRange: number;
 }
 
 export interface CccDelayedRecheckConfig {
@@ -291,7 +311,7 @@ export interface CccAttentionBlockPlan {
   diagnostic: boolean;
   shiftViewBefore: boolean;
   wmNLevel: CccNBackLevel | null;
-  learningCurveGate?: "source_stabilisation" | null;
+  learningCurveGate?: "stage_stabilisation" | "source_stabilisation" | null;
   wmPairIndex?: 1 | 2 | null;
   wmPairPosition?: "A" | "B" | null;
   selectedExposureMs?: number | null;

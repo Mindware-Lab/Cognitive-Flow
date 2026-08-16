@@ -36,11 +36,11 @@ describe("CCC multi-session plan generator", () => {
     });
     const source = plan.blocks.find((block) => block.phase === "p1a_arrow_stabilisation")!;
     expect(source).toMatchObject({
-      learningCurveGate: "source_stabilisation",
+      learningCurveGate: "stage_stabilisation",
       microcycleCount: 10,
       validTrialCount: 120,
     });
-    expect(plan.blocks.find((block) => block.phase === "p1a_flow_first_contact")?.learningCurveGate).toBeNull();
+    expect(plan.blocks).toHaveLength(1);
   });
 
   it("puts a protected delayed re-check before same-session recovery", () => {
@@ -54,27 +54,48 @@ describe("CCC multi-session plan generator", () => {
     });
     expect(plan.blocks[0].phase).toBe("p1a_delayed_recheck");
     expect(plan.blocks[0].diagnostic).toBe(true);
-    expect(plan.blocks[0].validTrialCount).toBe(12);
+    expect(plan.blocks[0].validTrialCount).toBe(120);
+    expect(plan.blocks[0].learningCurveGate).toBe("stage_stabilisation");
     expect(plan.delayedRecheckNotBefore).toBe("2026-08-13T12:00:00.000Z");
   });
 
   it("keeps attention binary and changes response pairs only between blocks", () => {
-    const plan = createProgrammeSessionPlan({
+    const radialPlan = createProgrammeSessionPlan({
       ...base,
       sessionId: "attention-pairs",
       seed: "attention-pairs",
       programmeSessionNumber: 2,
       kind: "p1a_consolidation",
+      attentionWrapperStage: "flow_recovery",
     });
-    const attentionBlocks = plan.blocks.filter((block) => block.operator === "attention");
+    const rotationalPlan = createProgrammeSessionPlan({
+      ...base,
+      sessionId: "attention-rotation",
+      seed: "attention-rotation",
+      programmeSessionNumber: 3,
+      kind: "p1a_consolidation",
+      attentionWrapperStage: "mixed",
+    });
+    const attentionBlocks = [...radialPlan.blocks, ...rotationalPlan.blocks];
     expect(new Set(attentionBlocks.map((block) => block.attentionPair))).toEqual(new Set(["radial", "rotational"]));
     for (const block of attentionBlocks) {
       const expected = block.attentionPair === "rotational" ? ["cw", "ccw"] : ["in", "out"];
-      const trials = plan.trials.filter((trial) => trial.blockId === block.id);
+      const sourcePlan = block.attentionPair === "rotational" ? rotationalPlan : radialPlan;
+      const trials = sourcePlan.trials.filter((trial) => trial.blockId === block.id);
       expect(trials.every((trial) => trial.answerOptions.length === 2)).toBe(true);
       expect(new Set(trials.flatMap((trial) => trial.answerOptions))).toEqual(new Set(expected));
       trials.forEach(expectMftmDisplayUsesOnePair);
     }
+    const mixedBlock = rotationalPlan.blocks[0];
+    const carrierByCycle = Array.from({ length: mixedBlock.microcycleCount }, (_value, index) => {
+      const cycle = index + 1;
+      return new Set(rotationalPlan.trials.filter((trial) => trial.microcycleIndex === cycle).map((trial) => trial.wrapperId));
+    });
+    expect(carrierByCycle.every((carriers) => carriers.size === 1)).toBe(true);
+    expect(carrierByCycle.map((carriers) => [...carriers][0])).toEqual([
+      "arrow_rel", "flow_rel", "arrow_rel", "flow_rel", "arrow_rel",
+      "flow_rel", "arrow_rel", "flow_rel", "arrow_rel", "flow_rel",
+    ]);
   });
 
   it("never mixes radial and rotational relations within arrow or optic-flow MFT-M displays", () => {

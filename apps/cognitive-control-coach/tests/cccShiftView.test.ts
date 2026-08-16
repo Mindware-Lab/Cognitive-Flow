@@ -45,10 +45,11 @@ describe("CCC Shift the View protocol", () => {
   });
 
   it("appears only immediately before genuine first-contact wrapper swaps", () => {
-    expectOnlyFirstContactSwaps(createP0AttentionCarrierTransferPlan({ sessionId: "p0-pulse", seed: "p0-pulse" }), 1);
+    expectOnlyFirstContactSwaps(createP0AttentionCarrierTransferPlan({ sessionId: "p0-pulse", seed: "p0-pulse" }), 0);
     expectOnlyFirstContactSwaps(createProgrammeSessionPlan({
       sessionId: "p1a-pulse", seed: "p1a-pulse", programmeRunId: "programme", programmeSessionNumber: 2,
       kind: "p1a_consolidation", regimePair: ["clear_sprint", "deep_check"], wmLevel: 1,
+      attentionWrapperStage: "flow_first_contact",
     }), 1);
     expectOnlyFirstContactSwaps(createProgrammeSessionPlan({
       sessionId: "p1b-pulse", seed: "p1b-pulse", programmeRunId: "programme", programmeSessionNumber: 3,

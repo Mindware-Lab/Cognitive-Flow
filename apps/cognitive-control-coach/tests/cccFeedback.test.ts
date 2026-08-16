@@ -40,6 +40,7 @@ describe("CCC block feedback", () => {
     expect(feedback.accuracy).toBe(0.75);
     expect(feedback.niches).toHaveLength(2);
     expect(feedback.timingShiftMs).toBe(800);
+    expect(feedback.attentionThroughputBps).toBeCloseTo((1.58 + 1.58 + 4.91) / 4.8);
     expect(feedback.clarity.find((item) => item.ratio === "5:0")?.accuracy).toBe(1);
     expect(feedback.clarity.find((item) => item.ratio === "3:2")?.accuracy).toBe(0.5);
   });
@@ -61,7 +62,10 @@ describe("CCC block feedback", () => {
       recorded(wm, 1100, true),
     ]);
     expect(metrics.attentionAccuracy).toBe(0.5);
+    expect(metrics.attentionThroughputBps).not.toBeNull();
+    expect(metrics.attentionThroughputBps).toBeGreaterThan(0);
     expect(metrics.wmAccuracy).toBe(1);
+    expect(metrics.wmThroughputBps).toBe(0);
     expect(metrics.medianDecisionMs).toBe(1000);
     expect(metrics.observationCount).toBe(3);
   });

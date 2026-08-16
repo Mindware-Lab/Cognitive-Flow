@@ -169,13 +169,14 @@ function needsStimulusCompatibilityReset(saved: CccSavedJourney | null): boolean
   });
   const hasLegacyRotationalVectors = configRevision(saved.plan.configVersion) < 10
     && saved.plan.trials.some((trial) => trial.targetClass === "cw" || trial.targetClass === "ccw");
-  return hasMixedPairDisplay || hasLegacyRotationalVectors;
+  const hasLegacyAbsoluteProgression = configRevision(saved.plan.configVersion) < 14;
+  return hasMixedPairDisplay || hasLegacyRotationalVectors || hasLegacyAbsoluteProgression;
 }
 
 if (needsStimulusCompatibilityReset(journey)) {
   // Preserve the programme and saved n-back level, but do not resume an
-  // in-progress sequence containing legacy rotational vectors or a display
-  // that mixes radial and rotational relations.
+  // in-progress sequence containing legacy stimulus vectors, mixed relation
+  // families, or the pre-v0.14 progression/performance gates.
   clearCccJourney();
   journey = null;
 }
@@ -197,8 +198,9 @@ if (journey) {
     block.attentionPair ??= "radial";
   });
   journey.plan.blocks.forEach((block) => {
+    if (block.learningCurveGate === "source_stabilisation") block.learningCurveGate = "stage_stabilisation";
     block.learningCurveGate ??= block.phase === "arrow_rel_stabilisation" || block.phase === "p1a_arrow_stabilisation"
-      ? "source_stabilisation"
+      ? "stage_stabilisation"
       : null;
   });
   journey.plan.trials.forEach((trial) => {
@@ -380,8 +382,8 @@ function blockIsComplete(block = currentBlock()): boolean {
   if (!journey || !block) return false;
   const queue = taskMode === "practice" || taskMode === "wm_practice" ? journey.practiceQueue : journey.blockQueues[block.id] || [];
   const results = taskMode === "practice" || taskMode === "wm_practice" ? journey.practiceResults : journey.blockResults[block.id] || [];
-  if (taskMode === "guided" && block.learningCurveGate === "source_stabilisation") {
-    return evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve).shouldEndBlock;
+  if (taskMode === "guided" && block.learningCurveGate) {
+    return evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionLearningCurve).shouldEndBlock;
   }
   return results.length >= queue.length
     && results.filter((result) => result.scoring.countsTowardQuota).length >= block.validTrialCount;
@@ -1112,10 +1114,8 @@ function formatTime(value: number | null): string {
   return value === null ? "—" : `${(value / 1000).toFixed(1)} s`;
 }
 
-function timingShiftMeaning(value: number | null): string {
-  if (value === null) return "Still building";
-  if (Math.abs(value) < 100) return "Used similar timing";
-  return value > 0 ? "Slowed when mistakes cost more" : "Sped up when delay cost more";
+function formatBps(value: number | null): string {
+  return value === null ? "—" : `${value.toFixed(2)} bps`;
 }
 
 function metricBar(label: string, value: number | null, maximum: number, display: string, tone = "blue"): string {
@@ -1210,10 +1210,15 @@ function renderBlockComplete(): string {
   if (!block) return renderComplete();
   const results = currentResults();
   const feedback = buildCccBlockFeedback(results);
-  const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
+  const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionLearningCurve);
   const isPractice = taskMode === "practice";
   const isSignal = block.estimand === "signal_capacity";
   const isWm = block.operator === "relational_wm";
+  const taskPerformanceBps = isSignal
+    ? feedback.attentionControlBps
+    : isWm
+      ? feedback.wmThroughputBps
+      : feedback.attentionThroughputBps;
   const wmPairDecision = isWm && block.wmPairPosition === "B" && block.wmPairIndex
     ? evaluateCccWmPair(
         journey.plan.blocks
@@ -1255,8 +1260,9 @@ function renderBlockComplete(): string {
       ${isPractice ? `<p>${copy.body}</p>` : ""}
       ${isPractice ? "" : `<aside class="ccc-block-meaning"><span>What this block shows</span><strong>${blockMeaning(feedback, isWm, isSignal)}</strong></aside>`}
       ${isPractice ? "" : `
-        <div class="ccc-summary-grid ${isSignal ? "" : "ccc-points-summary"}">
-          <article><span>${isWm ? "Holding and comparing" : "Finding the main pattern"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong><small>Correct choices</small></article>
+        <div class="ccc-summary-grid ccc-performance-summary ${isSignal ? "" : "ccc-points-summary"}">
+          <article><span>${isSignal ? "Signal capacity" : "Task performance"}</span><strong>${formatBps(taskPerformanceBps)}</strong><small>${isSignal ? "Provisional MFT-M-derived estimate" : isWm ? "Relational information throughput" : "Correct information processed per second"}</small></article>
+          <article><span>${isWm ? "Holding and comparing" : "Finding the main pattern"}</span><strong>${formatPercent(isWm ? feedback.wmBalancedAccuracy : feedback.accuracy)}</strong><small>Accuracy component</small></article>
           ${isSignal
             ? `<article><span>Time before choosing</span><strong>${formatTime(feedback.medianDecisionMs)}</strong><small>Typical response</small></article>
               <article><span>Patterns completed</span><strong>${feedback.observationCount}</strong><small>Useful responses</small></article>`
@@ -1280,6 +1286,12 @@ function renderBlockInsights(): string {
   if (!block || block.phase === "practice") return renderWelcome();
   const feedback = buildCccBlockFeedback(currentResults());
   const isSignal = block.estimand === "signal_capacity";
+  const isWm = block.operator === "relational_wm";
+  const taskPerformanceBps = isSignal
+    ? feedback.attentionControlBps
+    : isWm
+      ? feedback.wmThroughputBps
+      : feedback.attentionThroughputBps;
   const clarityBars = feedback.clarity.map((item) => metricBar(
     `${item.label} pattern`,
     item.accuracy,
@@ -1306,6 +1318,7 @@ function renderBlockInsights(): string {
       <div class="ccc-stage-line"><span>Stage ${journey.activeBlockIndex + 1} feedback</span><span>${feedback.observationCount} patterns</span></div>
       <span class="ccc-kicker">${isSignal ? "Clear and less obvious patterns" : "Look, then choose"}</span>
       <h1>${isSignal ? "What made the pattern easier or harder" : "How the rewards and costs changed your choices"}</h1>
+      <p class="ccc-metric-note"><strong>${isSignal ? "Provisional signal capacity" : "Task performance"}: ${formatBps(taskPerformanceBps)}.</strong> ${isSignal ? "Estimated from accuracy across MFT-M information-rate conditions." : isWm ? "Combines relational load, presentation rate, balanced accuracy and interference control." : "Correctly resolved MFT-M grouping-search information divided by effective viewing time."}</p>
       <div class="ccc-chart-grid ${isSignal ? "is-single" : ""}">
         <section><h2>Finding the main pattern</h2>${clarityBars}</section>
         ${isSignal ? "" : `<section><h2>Time before choosing</h2>${nicheBars}</section>`}
@@ -1323,7 +1336,7 @@ function renderBlockReconnect(): string {
   if (!journey) return renderWelcome();
   const block = currentBlock();
   if (!block || block.phase === "practice") return renderWelcome();
-  const learningCurve = evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve);
+  const learningCurve = evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionLearningCurve);
   const exposureStopped = learningCurve.status === "exposure_ceiling";
   const isLast = exposureStopped || journey.activeBlockIndex === journey.plan.blocks.length - 1;
   const isWm = block.operator === "relational_wm";
@@ -1367,9 +1380,9 @@ function renderComplete(): string {
   if (!journey) return renderWelcome();
   const allResults = Object.values(journey.blockResults).flat();
   const signalFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.estimand === "signal_capacity"));
-  const policyFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.estimand !== "signal_capacity" && !result.trial.wmBuffer));
   const attentionFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.operator === "attention" && result.trial.estimand !== "signal_capacity"));
   const wmFeedback = buildCccBlockFeedback(allResults.filter((result) => result.trial.operator === "relational_wm" && !result.trial.wmBuffer));
+  const sessionMetrics = buildCccSessionMetrics(allResults);
   const hasSignal = signalFeedback.observationCount > 0;
   const hasWm = wmFeedback.observationCount > 0;
   const sessionSummary = programme.sessions.find((session) => session.sessionId === journey?.plan.sessionId);
@@ -1379,8 +1392,8 @@ function renderComplete(): string {
       <h1>This session is complete.</h1>
       <p>${sessionSummary?.gateDecisions.at(-1) || "Your progress is saved."}</p>
       <div class="ccc-summary-grid">
-        <article><span>Finding the main pattern</span><strong>${hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
-        <article><span>${hasWm ? "Holding and comparing" : "Adjusting to different stakes"}</span><strong>${hasWm ? formatPercent(wmFeedback.wmBalancedAccuracy) : timingShiftMeaning(policyFeedback.timingShiftMs)}</strong></article>
+        <article><span>Attention performance</span><strong>${formatBps(sessionMetrics.attentionThroughputBps ?? sessionMetrics.attentionControlBps)}</strong></article>
+        <article><span>${hasWm ? "Memory performance" : "Finding the main pattern"}</span><strong>${hasWm ? formatBps(sessionMetrics.wmThroughputBps) : hasSignal ? formatPercent(signalFeedback.accuracy) : formatPercent(attentionFeedback.accuracy)}</strong></article>
         <article><span>${hasWm ? "Saved memory challenge" : "Programme progress"}</span><strong>${hasWm ? `${programme.wmLevel} ${programme.wmLevel === 1 ? "pattern" : "patterns"} back` : `${programmeProgressPercent(programme)}%`}</strong></article>
       </div>
       ${renderStrategyTakeaway(allResults)}
@@ -1399,6 +1412,8 @@ const TRAINING_METRICS: Array<{
   lowerIsBetter?: boolean;
   rawValue?: boolean;
 }> = [
+  { key: "attentionPerformance", label: "Attention performance", detail: "Correct MFT-M-derived information processed per second", populationKey: "session.attention_throughput_bps" },
+  { key: "wmPerformance", label: "Memory performance", detail: "Relational information throughput across n-back level, pace, accuracy and interference", populationKey: "session.wm_throughput_bps" },
   { key: "accuracy", label: "Finding the pattern", detail: "How reliably you picked out the main direction", populationKey: "session.attention_accuracy" },
   { key: "decisionTime", label: "Time before choosing", detail: "How long you gathered information before deciding", populationKey: "session.decision_time_ms", rawValue: true },
   { key: "pointsKept", label: "Decision balance", detail: "How well you balanced accuracy with timely choices", populationKey: "session.points_kept" },
@@ -1481,9 +1496,8 @@ const SESSION_TREND_SERIES: Array<{
   label: string;
   className: string;
 }> = [
-  { key: "accuracy", label: "Finding the pattern", className: "is-attention" },
-  { key: "pointsKept", label: "Decision balance", className: "is-points" },
-  { key: "workingMemory", label: "Holding and comparing", className: "is-memory" },
+  { key: "attentionPerformance", label: "Attention performance", className: "is-attention" },
+  { key: "wmPerformance", label: "Memory performance", className: "is-memory" },
 ];
 
 function renderSessionTrendChart(): string {
@@ -1530,14 +1544,14 @@ function renderSessionTrendChart(): string {
       <small>${populationComparison ? "100 marks the other-user average. Above 100 means above average." : "100 marks where you started. A line above 100 shows improvement."}</small>
     </div>
     <div class="ccc-session-trend-legend">${visibleSeries.map((item) => `<span class="${item.className}"><i></i>${item.label}<strong>${item.latest ?? "—"}</strong></span>`).join("")}</div>
-    <svg class="ccc-session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${populationComparison ? "Latest cognitive-control results compared with other app users" : "Finding the pattern, decision balance and holding-and-comparing performance across sessions"}">
+    <svg class="ccc-session-trend-chart" viewBox="0 0 ${width} ${height}" role="img" aria-label="${populationComparison ? "Latest cognitive-control results compared with other app users" : "Attention and relational-memory information throughput across sessions"}">
       ${grid}
       ${visibleSeries.map((item) => `<path class="ccc-session-trend-line ${item.className}" d="${item.available.map((point, index) => `${index ? "L" : "M"}${point.x.toFixed(1)} ${point.y.toFixed(1)}`).join(" ")}"></path>`).join("")}
       ${visibleSeries.map((item) => item.available.map((point) => `<circle class="ccc-session-trend-dot ${item.className}" cx="${point.x.toFixed(1)}" cy="${point.y.toFixed(1)}" r="4"></circle>`).join("")).join("")}
       <line class="ccc-session-trend-axis-line" x1="${left}" x2="${width - right}" y1="${height - bottom}" y2="${height - bottom}"></line>
       ${xLabels}
     </svg>
-    <p class="ccc-session-trend-explainer">${populationComparison ? "Each point shows where your latest standardised skill score sits around the other-user average of 100." : "The graph separates finding relevant information, holding it across time and choosing efficiently enough for the current rewards and costs."}</p>
+    <p class="ccc-session-trend-explainer">${populationComparison ? "Each point shows where your latest standardised task-performance score sits around the other-user average of 100." : "The graph leads with the information-throughput measures used by the learning curves. Accuracy, timing and decision balance remain available as component metrics."}</p>
   </section>`;
 }
 
@@ -1638,7 +1652,16 @@ function renderCurrentSessionProgress(): string {
   const stageLabel = current ? JOURNEY_LABELS[current.phase] || current.label : "Review";
   const completion = Math.round(journeyCompletionRatio(journey) * 100);
   const blockFeedback = buildCccBlockFeedback(results.filter((result) => !result.trial.wmBuffer));
-  const relevantAccuracy = metrics.wmAccuracy ?? metrics.attentionAccuracy ?? metrics.signalAccuracy;
+  const relevantAccuracy = current?.operator === "relational_wm"
+    ? metrics.wmAccuracy
+    : current?.estimand === "signal_capacity"
+      ? metrics.signalAccuracy
+      : metrics.attentionAccuracy;
+  const taskPerformanceBps = current?.operator === "relational_wm"
+    ? metrics.wmThroughputBps
+    : current?.estimand === "signal_capacity"
+      ? metrics.attentionControlBps
+      : metrics.attentionThroughputBps;
   const hasPolicyResults = metrics.pointsKeptPercent !== null;
   const operatorResults = current
     ? journey.plan.blocks
@@ -1661,10 +1684,10 @@ function renderCurrentSessionProgress(): string {
     <section class="ccc-progress-section">
       <div class="ccc-section-heading"><span>Results so far</span><strong>${blockFeedback.observationCount ? `${blockFeedback.observationCount} patterns completed` : "Your first results will appear here"}</strong></div>
       <div class="ccc-live-session-grid">
-        ${sessionMetricTile(metrics.wmAccuracy !== null ? "Holding and comparing" : "Finding the main pattern", formatPercent(relevantAccuracy), metrics.wmAccuracy !== null ? `${programme.wmLevel} ${programme.wmLevel === 1 ? "pattern" : "patterns"} back is saved` : "How often you chose the main direction")}
+        ${sessionMetricTile("Task performance", formatBps(taskPerformanceBps), current?.operator === "relational_wm" ? "Relational information throughput" : current?.estimand === "signal_capacity" ? "Provisional MFT-M-derived capacity" : "Correct information processed per second")}
+        ${sessionMetricTile(current?.operator === "relational_wm" ? "Holding and comparing" : "Finding the main pattern", formatPercent(relevantAccuracy), "Accuracy component")}
         ${sessionMetricTile("Time before choosing", formatTime(metrics.medianDecisionMs), "How long you gathered information")}
         ${sessionMetricTile("Decision balance", hasPolicyResults ? `${metrics.pointsKeptPercent}%` : "—", hasPolicyResults ? "Accuracy and timely choices together" : "Starts when points are used")}
-        ${sessionMetricTile("Finding a weak signal", formatPercent(metrics.closePatternAccuracy), "Accuracy when the answer was least obvious")}
       </div>
     </section>
     <section class="ccc-progress-section ccc-session-strategy">
@@ -2096,6 +2119,7 @@ function createNewJourney(): void {
         regimePair,
         wmLevel: programme.wmLevel,
         wmPairLevels,
+        attentionWrapperStage: programme.attentionWrapperStage,
         wmWrapperStage: programme.wmWrapperStage,
         delayedRecheckNotBefore: next.kind === "p1a_delayed_recheck" || next.kind === "p1c_delayed_integration" ? programme.delayedRecheckDueAt : null,
         includeFirstContact: !programme.evidence.carrierFirstContactObserved,
@@ -2143,6 +2167,7 @@ function createNewJourney(): void {
     allocationRule: "least-exposed-pair-without-immediate-repeat",
     wmLevelAtStart: programme.wmLevel,
     wmPairLevels: wmPairLevels || null,
+    attentionWrapperStage: programme.attentionWrapperStage,
     wmWrapperStage: programme.wmWrapperStage,
   }, null);
   saveJourney();
@@ -2507,7 +2532,7 @@ function completeTrial(
     }
     const activeBlock = currentBlock();
     if (activeBlock && isCccLearningCurveBoundary(activeBlock, currentResults())) {
-      const decision = evaluateCccLearningCurve(activeBlock, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve);
+      const decision = evaluateCccLearningCurve(activeBlock, currentResults(), undefined, programme.evidence.attentionLearningCurve);
       recordEvent("learning_curve_evaluated", {
         status: decision.status,
         completedMicrocycles: decision.completedMicrocycles,
@@ -2567,7 +2592,7 @@ function finishCurrentBlock(): void {
     return;
   }
   if (taskMode === "practice") journey.practiceComplete = true;
-  const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionSourceLearningCurve);
+  const learningCurve = evaluateCccLearningCurve(block, results, undefined, programme.evidence.attentionLearningCurve);
   let wmPairDecision = null as ReturnType<typeof evaluateCccWmPair> | null;
   if (block.operator === "relational_wm" && block.wmPairPosition === "B" && block.wmPairIndex) {
     const pairBlocks = journey.plan.blocks.filter((candidate) => candidate.operator === "relational_wm"
@@ -2607,7 +2632,7 @@ function finishCurrentBlock(): void {
       ...wmPairDecision,
     }, block.id);
   }
-  if (learningCurve.shouldEndBlock && block.learningCurveGate === "source_stabilisation") {
+  if (learningCurve.shouldEndBlock && block.learningCurveGate) {
     block.validTrialCount = results.filter((result) => result.scoring.countsTowardQuota).length;
   }
   if (taskMode === "wm_practice") {
@@ -2657,7 +2682,7 @@ async function finaliseJourney(): Promise<void> {
   programme = progression.programme;
   journey.programme = programme;
   recordEvent("programme_gate_decision", {
-    gateVersion: "ccc-programme-gates-v0.4",
+    gateVersion: "ccc-programme-gates-v0.6",
     decisions: progression.gateDecisions,
     currentStage: programme.currentStage,
     transferStatus: programme.transferStatus,
@@ -2713,7 +2738,7 @@ function continueAfterBlock(): void {
     return;
   }
   const block = currentBlock();
-  if (block && evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionSourceLearningCurve).status === "exposure_ceiling") {
+  if (block && evaluateCccLearningCurve(block, currentResults(), undefined, programme.evidence.attentionLearningCurve).status === "exposure_ceiling") {
     recordEvent("wrapper_change_deferred", {
       reason: "learning_curve_not_stabilised_before_session_cap",
       phase: block.phase,

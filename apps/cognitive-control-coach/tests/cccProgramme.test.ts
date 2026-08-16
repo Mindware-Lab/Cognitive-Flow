@@ -89,9 +89,10 @@ describe("CCC evidence-gated programme", () => {
       "2026-08-12T08:15:00.000Z",
     )).programme;
     expect(programme.currentStage).toBe("P1a");
+    expect(programme.attentionWrapperStage).toBe("flow_first_contact");
     expect(nextProgrammeAction(programme, new Date("2026-08-12T12:00:00.000Z"))).toMatchObject({ type: "session", kind: "p1a_consolidation" });
 
-    for (const sessionNumber of [2, 3, 4]) {
+    for (const sessionNumber of [2, 3, 4, 5]) {
       const attentionPlan = createProgrammeSessionPlan({
         sessionId: `attention-${sessionNumber}`,
         seed: `attention-${sessionNumber}`,
@@ -100,7 +101,7 @@ describe("CCC evidence-gated programme", () => {
         kind: "p1a_consolidation",
         regimePair: selectBalancedRegimePair(programme, `attention-${sessionNumber}`),
         wmLevel: programme.wmLevel,
-        includeFirstContact: !programme.evidence.carrierFirstContactObserved,
+        attentionWrapperStage: programme.attentionWrapperStage,
       });
       programme = applyCompletedSession(programme, completedJourney(
         attentionPlan,
@@ -109,14 +110,15 @@ describe("CCC evidence-gated programme", () => {
         `2026-08-${11 + sessionNumber}T08:15:00.000Z`,
       )).programme;
     }
-    expect(nextProgrammeAction(programme, new Date("2026-08-15T12:00:00.000Z")).type).toBe("wait");
+    expect(programme.attentionWrapperStage).toBe("mixed");
+    expect(nextProgrammeAction(programme, new Date("2026-08-16T12:00:00.000Z")).type).toBe("wait");
 
     const due = programme.delayedRecheckDueAt!;
     const delayedPlan = createProgrammeSessionPlan({
       sessionId: "delayed",
       seed: "delayed",
       programmeRunId: programme.programmeRunId,
-      programmeSessionNumber: 5,
+      programmeSessionNumber: 6,
       kind: "p1a_delayed_recheck",
       regimePair: selectBalancedRegimePair(programme, "delayed"),
       wmLevel: programme.wmLevel,
@@ -132,9 +134,9 @@ describe("CCC evidence-gated programme", () => {
     expect(programme.transferStatus).toBe("attention_portable");
     expect(programme.currentStage).toBe("P1b");
 
-    let sessionNumber = 6;
+    let sessionNumber = 7;
     const savedLevels: number[] = [];
-    while (programme.currentStage === "P1b" && sessionNumber < 25) {
+    while (programme.currentStage === "P1b" && sessionNumber < 35) {
       const savedLevelAtStart = programme.wmLevel;
       savedLevels.push(savedLevelAtStart);
       const wmPlan = createProgrammeSessionPlan({
@@ -160,7 +162,7 @@ describe("CCC evidence-gated programme", () => {
     expect(savedLevels[0]).toBe(1);
     expect(savedLevels).toContain(5);
 
-    for (let integrationIndex = 0; integrationIndex < 4; integrationIndex += 1) {
+    for (let integrationIndex = 0; integrationIndex < 20 && !programme.delayedRecheckDueAt; integrationIndex += 1) {
       const integrationSessionNumber = sessionNumber + integrationIndex;
       const integrationPlan = createProgrammeSessionPlan({
         sessionId: `integration-${integrationSessionNumber}`,
@@ -180,6 +182,7 @@ describe("CCC evidence-gated programme", () => {
     }
     expect(programme.currentStage).toBe("P1c");
     expect(programme.status).toBe("active");
+    expect(programme.delayedRecheckDueAt).not.toBeNull();
     const finalDue = programme.delayedRecheckDueAt!;
     const finalPlan = createProgrammeSessionPlan({
       sessionId: "final-delayed",

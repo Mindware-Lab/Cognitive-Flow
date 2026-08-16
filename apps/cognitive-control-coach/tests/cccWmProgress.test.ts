@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import { createInitialProgrammeState, migrateCccProgrammeState } from "../src/cccProgramme";
 import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
 import { loadCccProgramme, saveCccProgramme } from "../src/cccStorage";
-import { evaluateCccWmPair } from "../src/cccWmProgress";
+import { cccWmCurveIsStable, evaluateCccWmPair } from "../src/cccWmProgress";
 import { scoreCccAttentionTrial } from "../src/cccValue";
-import type { CccAttentionTrialDefinition, CccRecordedTrial } from "../src/cccTypes";
+import type { CccAttentionTrialDefinition, CccRecordedTrial, CccWmLearningCurveHistoryPoint } from "../src/cccTypes";
 
 const plan = createProgrammeSessionPlan({
   sessionId: "wm-level-test",
@@ -22,9 +22,13 @@ const pairTrials = plan.trials.filter((trial) => {
   return block?.wmPairIndex === 1 && !trial.wmBuffer;
 });
 
-function recorded(trial: CccAttentionTrialDefinition, response: CccRecordedTrial["response"]): CccRecordedTrial {
+function recorded(
+  trial: CccAttentionTrialDefinition,
+  response: CccRecordedTrial["response"],
+  presentationMs = 1200,
+): CccRecordedTrial {
   const responseTimeMs = response === null ? null : 700;
-  const prepared = { ...trial, exposureMsRequested: 1200 };
+  const prepared = { ...trial, exposureMsRequested: presentationMs };
   return {
     trial: prepared,
     response,
@@ -33,7 +37,7 @@ function recorded(trial: CccAttentionTrialDefinition, response: CccRecordedTrial
     viewportClass: "desktop",
     inputMode: response === null ? "deadline" : "keyboard",
     focusLost: false,
-    exposureMsActual: 1200,
+    exposureMsActual: presentationMs,
     actualStimulusFrames: null,
     deviceRefreshRateEstimate: null,
     timingQuality: "not_applicable",
@@ -50,10 +54,42 @@ function answersWithWrongDifferent(count: number): CccRecordedTrial[] {
 }
 
 describe("CCC n-back pair progression", () => {
+  it("changes wrapper from a flat capacity curve rather than an absolute accuracy score", () => {
+    const history: CccWmLearningCurveHistoryPoint[] = Array.from({ length: 4 }, (_value, index) => ({
+      sessionId: `flat-${index}`,
+      wrapperStage: "flow_recovery",
+      pairIndex: index % 2 ? 2 : 1,
+      nLevel: 2,
+      observationCount: 40,
+      balancedAccuracy: 0.55,
+      omissionRate: 0.25,
+      missRate: 0.4,
+      falseAlarmRate: 0.4,
+      lureFalseAlarmRate: 0.4,
+      meanPresentationMs: 1200,
+      presentationRateHz: 1000 / 1200,
+      informationThroughputBps: 0.55,
+      capacityIndex: 0.55,
+    }));
+    expect(cccWmCurveIsStable(history)).toBe(true);
+    expect(cccWmCurveIsStable(history.map((point, index) => ({ ...point, capacityIndex: 0.4 + index * 0.2 })))).toBe(false);
+  });
+
   it("steps up only after strong balanced performance across both conditions", () => {
     const decision = evaluateCccWmPair(pairTrials.map((trial) => recorded(trial, trial.correctResponse)), 2);
     expect(decision).toMatchObject({ direction: "increase", currentLevel: 2, nextLevel: 3, observationCount: 40 });
     expect(decision.balancedAccuracy).toBe(1);
+  });
+
+  it("defines working-memory performance as accuracy-adjusted relational throughput", () => {
+    const responses = pairTrials.map((trial) => recorded(trial, trial.correctResponse, 1200));
+    const comfortable = evaluateCccWmPair(responses, 2);
+    const faster = evaluateCccWmPair(
+      pairTrials.map((trial) => recorded(trial, trial.correctResponse, 600)),
+      2,
+    );
+    expect(comfortable.presentationRateHz).toBeCloseTo(1000 / 1200);
+    expect(faster.capacityIndex).toBeCloseTo(comfortable.capacityIndex * 2);
   });
 
   it("holds the level when false alarms are too high despite adequate overall accuracy", () => {

@@ -40,7 +40,7 @@ export function createOpticFlowTesterPlan(
     const plan = createProgrammeSessionPlan({
       ...common,
       kind: "p1a_consolidation",
-      includeFirstContact: false,
+      attentionWrapperStage: "flow_recovery",
       attentionPairOverride: exercise === "attention_rotational" ? "rotational" : "radial",
     });
     return singleBlockPlan(plan, "p1a-flow-recovery");

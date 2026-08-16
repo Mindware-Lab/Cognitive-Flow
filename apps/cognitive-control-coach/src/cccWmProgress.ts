@@ -13,8 +13,18 @@ export interface CccWmPairDecision {
   missRate: number;
   falseAlarmRate: number;
   lureFalseAlarmRate: number | null;
+  meanPresentationMs: number;
+  presentationRateHz: number;
+  informationThroughputBps: number;
+  /** Alias retained for persisted curve logic; expressed in bits per second. */
   capacityIndex: number;
 }
+
+/** Four possible relations carry two bits before accuracy/interference adjustment. */
+export const CCC_WM_RELATION_INFORMATION_BITS = Math.log2(4);
+export const CCC_WM_MAX_CAPACITY_THROUGHPUT = CCC_RELATIONAL_WM.maximumNBack
+  * CCC_WM_RELATION_INFORMATION_BITS
+  * (1000 / CCC_RELATIONAL_WM.minimumPresentationMs);
 
 function boundedLevel(value: number): CccNBackLevel {
   return Math.max(CCC_RELATIONAL_WM.minimumNBack, Math.min(CCC_RELATIONAL_WM.maximumNBack, value)) as CccNBackLevel;
@@ -40,6 +50,13 @@ export function evaluateCccWmPair(results: readonly CccRecordedTrial[], level: C
   const missRate = matches.length ? misses / matches.length : 1;
   const falseAlarmRate = different.length ? falseAlarms / different.length : 1;
   const lureFalseAlarmRate = lureTrials.length ? lureFalseAlarms / lureTrials.length : null;
+  const requestedPresentationTimes = scored
+    .map((result) => result.trial.exposureMsRequested)
+    .filter((value): value is number => typeof value === "number" && value > 0);
+  const meanPresentationMs = requestedPresentationTimes.length
+    ? requestedPresentationTimes.reduce((sum, value) => sum + value, 0) / requestedPresentationTimes.length
+    : CCC_RELATIONAL_WM.defaultPresentationMs;
+  const presentationRateHz = 1000 / meanPresentationMs;
   const enoughData = scored.length >= CCC_RELATIONAL_WM.scoredTrialsPerBlock * 2;
   const advance = enoughData
     && balancedAccuracy >= CCC_RELATIONAL_WM.advancementAnsweredAccuracy
@@ -49,6 +66,11 @@ export function evaluateCccWmPair(results: readonly CccRecordedTrial[], level: C
   const decrease = enoughData && balancedAccuracy < CCC_RELATIONAL_WM.maintenanceAnsweredAccuracy;
   const direction: CccWmLevelDirection = advance ? "increase" : decrease ? "decrease" : "maintain";
   const nextLevel = boundedLevel(level + (direction === "increase" ? 1 : direction === "decrease" ? -1 : 0));
+  const informationThroughputBps = level
+    * CCC_WM_RELATION_INFORMATION_BITS
+    * presentationRateHz
+    * balancedAccuracy
+    * (1 - (lureFalseAlarmRate ?? falseAlarmRate));
   return {
     direction,
     currentLevel: level,
@@ -59,7 +81,10 @@ export function evaluateCccWmPair(results: readonly CccRecordedTrial[], level: C
     missRate,
     falseAlarmRate,
     lureFalseAlarmRate,
-    capacityIndex: level * balancedAccuracy * (1 - (lureFalseAlarmRate ?? falseAlarmRate)),
+    meanPresentationMs,
+    presentationRateHz,
+    informationThroughputBps,
+    capacityIndex: informationThroughputBps,
   };
 }
 
@@ -80,8 +105,30 @@ export function wmHistoryPoint(
     missRate: decision.missRate,
     falseAlarmRate: decision.falseAlarmRate,
     lureFalseAlarmRate: decision.lureFalseAlarmRate,
+    meanPresentationMs: decision.meanPresentationMs,
+    presentationRateHz: decision.presentationRateHz,
+    informationThroughputBps: decision.informationThroughputBps,
     capacityIndex: decision.capacityIndex,
   };
+}
+
+/** Weighted session/block aggregate across any n-levels present in the results. */
+export function cccWmInformationThroughputBps(results: readonly CccRecordedTrial[]): number | null {
+  const scored = results.filter((result) => result.trial.operator === "relational_wm"
+    && !result.trial.wmBuffer
+    && result.scoring.countsTowardQuota
+    && result.trial.wmNLevel !== null);
+  if (!scored.length) return null;
+  const groups = new Map<CccNBackLevel, CccRecordedTrial[]>();
+  for (const result of scored) {
+    const level = result.trial.wmNLevel as CccNBackLevel;
+    groups.set(level, [...(groups.get(level) || []), result]);
+  }
+  const decisions = [...groups.entries()].map(([level, group]) => evaluateCccWmPair(group, level));
+  const observations = decisions.reduce((sum, decision) => sum + decision.observationCount, 0);
+  return observations
+    ? decisions.reduce((sum, decision) => sum + decision.informationThroughputBps * decision.observationCount, 0) / observations
+    : null;
 }
 
 function slope(values: readonly number[]): number | null {
@@ -97,12 +144,14 @@ export function cccWmCurveIsStable(history: readonly CccWmLearningCurveHistoryPo
   if (history.length < CCC_RELATIONAL_WM.learningCurveMinimumPairs) return false;
   const recent = history.slice(-CCC_RELATIONAL_WM.learningCurveRecentPairs);
   const levels = new Set(recent.map((point) => point.nLevel));
-  const capacitySlope = slope(recent.map((point) => point.capacityIndex));
+  const recentCapacity = recent.map((point) => point.capacityIndex);
+  const capacityMean = recentCapacity.reduce((sum, value) => sum + value, 0) / recentCapacity.length;
+  const capacityScale = Math.max(0.05, Math.abs(capacityMean));
+  const rawCapacitySlope = slope(recentCapacity);
+  const capacitySlope = rawCapacitySlope === null ? null : rawCapacitySlope / capacityScale;
+  const capacityRange = (Math.max(...recentCapacity) - Math.min(...recentCapacity)) / capacityScale;
   return levels.size === 1
-    && recent.every((point) => point.balancedAccuracy >= CCC_RELATIONAL_WM.maintenanceAnsweredAccuracy
-      && point.omissionRate <= CCC_RELATIONAL_WM.advancementOmissionCeiling
-      && point.missRate <= 0.3
-      && point.falseAlarmRate <= 0.3)
     && capacitySlope !== null
-    && Math.abs(capacitySlope) <= CCC_RELATIONAL_WM.learningCurveMaximumAbsoluteSlope;
+    && Math.abs(capacitySlope) <= CCC_RELATIONAL_WM.learningCurveMaximumAbsoluteSlope
+    && capacityRange <= CCC_RELATIONAL_WM.learningCurveMaximumRecentRange;
 }

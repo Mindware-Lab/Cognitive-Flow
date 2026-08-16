@@ -16,8 +16,8 @@ import {
 describe("CCC pilot configuration", () => {
   it("matches the accepted v0.2 timing and value parameters", () => {
     expect(validateCccPilotConfig()).toEqual([]);
-    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.12");
-    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.12");
+    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.14");
+    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.14");
     expect(CCC_TRIAL_TIMING.fixationCueMs).toBe(350);
     expect(CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs).toBe(350);
     expect(CCC_TRIAL_TIMING.maxResponseWindowMs).toBe(4000);
@@ -28,8 +28,8 @@ describe("CCC pilot configuration", () => {
       recentWindowMicrocycles: 4,
       minimumBalancedMicrocycles: 7,
       maximumBalancedMicrocycles: 10,
-      accuracyFloor: 0.75,
-      omissionCeiling: 0.1,
+      maximumAbsoluteSlope: 0.02,
+      maximumRecentRange: 0.12,
     });
     expect(CCC_REGIMES.clear_sprint).toMatchObject({ correctPot: 50, errorLoss: 10, drainPointsPerSecond: 15 });
     expect(CCC_REGIMES.deep_check).toMatchObject({ correctPot: 10, errorLoss: 50, drainPointsPerSecond: 1.5 });

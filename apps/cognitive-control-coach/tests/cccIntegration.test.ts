@@ -34,7 +34,7 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain("function needsStimulusCompatibilityReset");
     expect(mainSource).toContain('trial.targetClass === "cw" || trial.targetClass === "ccw"');
     expect(mainSource).toContain("configRevision(saved.plan.configVersion) < 10");
-    expect(mainSource).toContain("return hasMixedPairDisplay || hasLegacyRotationalVectors");
+    expect(mainSource).toContain("return hasMixedPairDisplay || hasLegacyRotationalVectors || hasLegacyAbsoluteProgression");
     expect(mainSource).toContain("cccOpticFlowAperturesForTrial");
     expect(mainSource).toContain("maskStimulus");
   });
@@ -47,6 +47,7 @@ describe("CCC playable integration", () => {
     expect(mainSource).toContain('reason: "learning_curve_not_stabilised_before_session_cap"');
     expect(mainSource).toContain("New display next.");
     expect(mainSource).toContain("Your recent results were steady.");
+    expect(mainSource).toContain("attentionWrapperStage: programme.attentionWrapperStage");
   });
 
   it("reuses the original Attention Coach arrow proportions and location-matched diamond masks", () => {
@@ -294,10 +295,15 @@ describe("CCC playable integration", () => {
     expect(finaliseFunction).toContain('from("coach_metric_observations")');
     expect(finaliseFunction).toContain('from("coach_metric_norms")');
     expect(finaliseFunction).toContain("latestByUser");
+    expect(finaliseFunction).toContain('"session.attention_throughput_bps"');
+    expect(finaliseFunction).toContain('"session.wm_throughput_bps"');
   });
 
   it("makes stage, session and G Track feedback accessible in the UX", () => {
     expect(mainSource).toContain("Results so far");
+    expect(mainSource).toContain("Task performance");
+    expect(mainSource).toContain("Correct MFT-M-derived information processed per second");
+    expect(mainSource).toContain("Relational information throughput across n-back level, pace, accuracy and interference");
     expect(mainSource).toContain("Your session");
     expect(mainSource).toContain("Points for this block");
     expect(mainSource).toContain("Match how long you look to the rewards and costs");
@@ -312,6 +318,9 @@ describe("CCC playable integration", () => {
   it("leads with plain-language graphs and gives G Track scores their own progress view", () => {
     expect(mainSource).toContain("Change across your sessions");
     expect(mainSource).toContain("100 marks where you started. A line above 100 shows improvement.");
+    expect(mainSource).toContain("Attention performance");
+    expect(mainSource).toContain("Memory performance");
+    expect(mainSource).toContain("information-throughput measures used by the learning curves");
     expect(mainSource).toContain("Finding the pattern");
     expect(mainSource).toContain("Holding and comparing");
     expect(mainSource).toContain("Decision balance");

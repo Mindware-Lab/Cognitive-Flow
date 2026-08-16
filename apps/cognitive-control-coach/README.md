@@ -26,7 +26,7 @@ Supporting copy must make clear that the product includes working-memory and dec
 
 ## Product Contract
 
-- `docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` — current v0.12 scientific and runtime contract; filename retained for existing links
+- `docs/COGNITIVE_CONTROL_COACH_MULTISESSION_PROTOCOL_v0.4.md` — current v0.14 scientific and runtime contract; filename retained for existing links
 - `docs/COGNITIVE_CONTROL_COACH_DUAL_ESTIMAND_PROTOCOL_v0.3.md` — retained P0 design history
 - `docs/PRODUCT_IMPLEMENTATION_SPEC_v0.2.md`
 - Source app folder: `IQ-Coach/apps/cognitive-control-coach`
@@ -38,6 +38,8 @@ Supporting copy must make clear that the product includes working-memory and dec
 ## Current Implementation
 
 The complete evidence-gated P0/P1a/P1b/P1c programme is implemented in the `src/` modules, including `cccProgrammeGenerator.ts`, `cccLearningCurve.ts` and `cccWmProgress.ts`.
+
+Wrapper progression is based on personal learning-curve shape rather than fixed accuracy scores. Attention curves use MFT-M-derived correct information throughput in bits per second: published grouping-search information is credited for correct responses and divided by effective processing time. Relational-memory curves use an app-derived relational information throughput that combines relation load, n-back level, presentation speed, balanced accuracy and interference control. These transfer-task measures are training metrics, not validated MFT-M capacity estimates. A locally flat curve advances the format sequence: familiar wrapper, first-contact dip, new-wrapper recovery, familiar-wrapper return, then alternating wrapper blocks.
 
 The runtime uses forced choice, a frame-counted masked signal anchor, relative radial or rotational arrows, and annular optic-flow segments defined relative to the common centre of the task field. Dots farther from the centre move slightly faster according to a shallow full-field motion gradient. It provides separate feedback for signal performance, decision strategy and transfer across trained formats.
 
