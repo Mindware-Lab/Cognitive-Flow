@@ -882,15 +882,15 @@ function flowStimulus(trial: CccAttentionTrialDefinition): string {
         <animate attributeName="cy" values="${dot.fromY.toFixed(2)};${dot.toY.toFixed(2)}" dur="${dot.durationMs}ms" begin="${dot.delayMs}ms" repeatCount="indefinite" />
         <animate attributeName="opacity" values="0.14;${dot.opacity.toFixed(2)};0.16" dur="${dot.durationMs}ms" begin="${dot.delayMs}ms" repeatCount="indefinite" />
       </circle>`).join("");
-    return `<defs><clipPath id="${clipId}"><circle cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" /></clipPath></defs>
-      <circle class="ccc-flow-patch" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />
+    return `<defs><clipPath id="${clipId}"><path d="${aperture.path}" /></clipPath></defs>
+      <path class="ccc-flow-patch" d="${aperture.path}" />
       <g clip-path="url(#${clipId})" class="ccc-flow-points">${dots}</g>
-      <circle class="ccc-flow-ring" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />`;
+      <path class="ccc-flow-ring" d="${aperture.path}" />`;
   }).join("");
   const label = trial.referenceFrame === "relative"
-    ? `Five circular patches whose majority moves ${relativeStimulusDirectionLabel(trial)} around the centre`
-    : "Five circular patches whose majority moves left or right";
-  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="${label}"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
+    ? `Five arc-shaped segments whose majority moves ${relativeStimulusDirectionLabel(trial)} around the centre`
+    : "Five arc-shaped segments whose majority moves left or right";
+  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="${label}">${apertures}<g class="ccc-centre-fixation" aria-hidden="true"><line x1="46.5" y1="50" x2="53.5" y2="50" /><line x1="50" y1="46.5" x2="50" y2="53.5" /></g></svg>`;
 }
 
 function flowMaskStimulus(trial: CccAttentionTrialDefinition): string {
@@ -902,12 +902,12 @@ function flowMaskStimulus(trial: CccAttentionTrialDefinition): string {
       const points = `${dot.x.toFixed(2)},${(dot.y - size).toFixed(2)} ${(dot.x + size).toFixed(2)},${dot.y.toFixed(2)} ${dot.x.toFixed(2)},${(dot.y + size).toFixed(2)} ${(dot.x - size).toFixed(2)},${dot.y.toFixed(2)}`;
       return `<polygon class="ccc-flow-mask-dot" points="${points}" opacity="${dot.opacity.toFixed(2)}" />`;
     }).join("");
-    return `<defs><clipPath id="${clipId}"><circle cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" /></clipPath></defs>
-      <circle class="ccc-flow-patch" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />
+    return `<defs><clipPath id="${clipId}"><path d="${aperture.path}" /></clipPath></defs>
+      <path class="ccc-flow-patch" d="${aperture.path}" />
       <g clip-path="url(#${clipId})" class="ccc-flow-mask-field">${dots}</g>
-      <circle class="ccc-flow-ring is-mask" cx="${aperture.x}" cy="${aperture.y}" r="${aperture.radius}" />`;
+      <path class="ccc-flow-ring is-mask" d="${aperture.path}" />`;
   }).join("");
-  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five patterned masks covering the previous motion patches"><circle class="ccc-flow-orbit" cx="50" cy="50" r="34" />${apertures}</svg>`;
+  return `<svg class="ccc-stimulus-svg ccc-flow-svg" viewBox="0 0 100 100" role="img" aria-label="Five patterned masks covering the previous motion segments">${apertures}</svg>`;
 }
 
 function stimulusFor(trial: CccAttentionTrialDefinition): string {
@@ -1909,7 +1909,7 @@ function renderTester(): string {
         <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="attention">
           <span>Attention</span>
           <strong>Optic-flow attention</strong>
-          <small>Find whether most moving patches travel in or out.</small>
+          <small>Find whether most moving segments travel in or out.</small>
           <b>Open task</b>
         </button>
         <button class="ccc-tester-card" data-action="choose-tester-exercise" data-tester-exercise="attention_rotational">
@@ -1969,9 +1969,9 @@ function renderTesterIntro(): string {
           <div class="ccc-speed-labels"><span>Faster</span><span>Slower</span></div>
         </section>
         <label class="ccc-feedback-choice"><input id="ccc-tester-wm-feedback" type="checkbox" /><span><strong>Show brief match feedback</strong><small>Off by default. Correct rejections remain silent.</small></span></label>` : `
-        <p>Look across all five moving patches. Choose <strong>${block.attentionPair === "rotational" ? "Clockwise or Anti-clockwise" : "In or Out"}</strong> from the active pair shown for this block.</p>
+        <p>Look across all five moving segments. Choose <strong>${block.attentionPair === "rotational" ? "Clockwise or Anti-clockwise" : "In or Out"}</strong> from the active pair shown for this block.</p>
         <div class="ccc-instruction-grid">
-          <article><strong>Find the majority</strong><span>Use the motion shown across all five patches.</span></article>
+          <article><strong>Find the majority</strong><span>Use the motion shown across all five segments.</span></article>
           <article><strong>Choose when ready</strong><span>The points show the speed–accuracy trade-off.</span></article>
         </div>`}
       <div class="ccc-actions">
@@ -2328,7 +2328,6 @@ function startWmExposure(trial: CccAttentionTrialDefinition): void {
   const block = currentBlock();
   if (!block) return;
   const soaMs = block.selectedExposureMs || CCC_RELATIONAL_WM.defaultPresentationMs;
-  const displayMs = Math.max(180, Math.min(soaMs - 80, Math.round(soaMs * 0.68)));
   trial.exposureMsRequested = soaMs;
   taskStage = "evidence";
   evidenceStartedAt = performance.now();
@@ -2338,11 +2337,6 @@ function startWmExposure(trial: CccAttentionTrialDefinition): void {
   wmMatchResponseTimeMs = null;
   wmMatchInputMode = "deadline";
   render();
-  taskTimers.push(window.setTimeout(() => {
-    if (responseLocked || view !== "task") return;
-    taskStage = "interval";
-    render();
-  }, displayMs));
   taskTimers.push(window.setTimeout(() => {
     if (responseLocked || view !== "task") return;
     completeTrial(wmMatchPressed ? "match" : null, wmMatchPressed ? wmMatchInputMode : "deadline", false, false, undefined, true);

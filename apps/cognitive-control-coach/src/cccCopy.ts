@@ -73,13 +73,13 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   flow_rel_first_contact: {
     eyebrow: "Moving dots",
     title: "Use the same In or Out rule",
-    body: "Choose whether most dot patches move towards or away from the centre.",
+    body: "Choose whether most dot segments move towards or away from the centre.",
     bridge: "The display changes; the choice stays the same.",
   },
   flow_rel_recovery: {
     eyebrow: "Moving dots",
     title: "Keep finding the main direction",
-    body: "Choose the direction followed by most dot patches.",
+    body: "Choose the direction followed by most dot segments.",
     bridge: "Return to the In or Out rule.",
   },
   arrow_rel_return: {
@@ -103,13 +103,13 @@ export const PHASE_COPY: Record<Exclude<CccProgrammePhase, "practice">, {
   p1a_flow_first_contact: {
     eyebrow: "Moving dots",
     title: "Use the same rule with moving dots",
-    body: "Choose whether most dot patches move In or Out.",
+    body: "Choose whether most dot segments move In or Out.",
     bridge: "The display changes; the choice stays the same.",
   },
   p1a_flow_recovery: {
     eyebrow: "Moving dots",
     title: "Keep practising the same rule",
-    body: "Find the direction followed by most dot patches.",
+    body: "Find the direction followed by most dot segments.",
     bridge: "Return to the In or Out rule.",
   },
   p1a_arrow_return: {

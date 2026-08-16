@@ -1,6 +1,10 @@
 import { describe, expect, it } from "vitest";
 import { createProgrammeSessionPlan } from "../src/cccProgrammeGenerator";
-import { cccOpticFlowAperturesForTrial, cccOpticFlowDotsForTrial } from "../src/cccOpticFlow";
+import {
+  cccOpticFlowAperturesForTrial,
+  cccOpticFlowDotsForTrial,
+  cccOpticFlowSpeedScale,
+} from "../src/cccOpticFlow";
 import { createOpticFlowTesterPlan } from "../src/cccTester";
 
 const plan = createProgrammeSessionPlan({
@@ -35,16 +39,48 @@ function meanScreenCrossForRelation(relation: "cw" | "ccw"): number {
   return crosses.reduce((total, value) => total + value, 0) / crosses.length;
 }
 
-describe("CCC global-centre motion patches", () => {
-  it("uses five circular clipping patches with deterministic flecks", () => {
+describe("CCC global-centre motion segments", () => {
+  it("uses five deterministic centre-aligned annular sectors", () => {
     const trial = plan.trials.find((candidate) => candidate.carrier === "flow")!;
     const first = cccOpticFlowDotsForTrial(trial);
     const second = cccOpticFlowDotsForTrial(trial);
+    const apertures = cccOpticFlowAperturesForTrial(trial);
 
-    expect(cccOpticFlowAperturesForTrial(trial)).toHaveLength(5);
+    expect(apertures).toHaveLength(5);
     expect(first).toHaveLength(80);
     expect(second).toEqual(first);
-    expect(first.every((dot) => Math.hypot(dot.x - dot.apertureX, dot.y - dot.apertureY) <= dot.apertureRadius)).toBe(true);
+    expect(apertures.every((aperture) => aperture.path.includes(" A "))).toBe(true);
+    expect(apertures.every((aperture) => !("guidePath" in aperture))).toBe(true);
+    expect(apertures.every((aperture) => aperture.innerRadius === 29 && aperture.outerRadius === 47)).toBe(true);
+    expect(apertures.every((aperture) => aperture.dots.every((dot) => {
+      const radius = distanceFromFieldCentre(dot.x, dot.y);
+      const dotAngle = Math.atan2(dot.y - 50, dot.x - 50);
+      const angleDelta = Math.atan2(
+        Math.sin(dotAngle - aperture.centreAngle),
+        Math.cos(dotAngle - aperture.centreAngle),
+      );
+      return radius > aperture.innerRadius
+        && radius < aperture.outerRadius
+        && Math.abs(angleDelta) < aperture.halfAngle;
+    }))).toBe(true);
+  });
+
+  it("uses a shallow full-field speed gradient for radial and rotational motion", () => {
+    const trials = [
+      ...createOpticFlowTesterPlan("attention", "gradient-radial").trials,
+      ...createOpticFlowTesterPlan("attention_rotational", "gradient-rotational").trials,
+    ];
+    const dots = trials.flatMap((trial) => cccOpticFlowDotsForTrial(trial));
+    const ordered = [...dots].sort((a, b) => a.fieldDistance - b.fieldDistance);
+
+    expect(new Set(dots.map((dot) => dot.relation))).toEqual(new Set(["in", "out", "cw", "ccw"]));
+    expect(dots.every((dot) => dot.speedScale === cccOpticFlowSpeedScale(dot.x, dot.y))).toBe(true);
+    expect(dots.every((dot) => {
+      const travel = Math.hypot(dot.toX - dot.fromX, dot.toY - dot.fromY);
+      return Math.abs(travel / dot.speedScale - 6.1) < 0.000_001;
+    })).toBe(true);
+    expect(ordered.at(-1)!.speedScale).toBeGreaterThan(ordered[0].speedScale);
+    expect(ordered.at(-1)!.speedScale - ordered[0].speedScale).toBeLessThan(0.1);
   });
 
   it("moves each fleck relative to the one centre of the whole screen", () => {
@@ -58,16 +94,16 @@ describe("CCC global-centre motion patches", () => {
     }
   });
 
-  it("does not treat each patch centre as a local expansion centre", () => {
+  it("does not treat each segment centre as a local expansion centre", () => {
     const trial = plan.trials.find((candidate) => candidate.carrier === "flow")!;
-    const nonRadialWithinPatch = cccOpticFlowDotsForTrial(trial).some((dot) => {
+    const nonRadialWithinSegment = cccOpticFlowDotsForTrial(trial).some((dot) => {
       const localPositionX = dot.x - dot.apertureX;
       const localPositionY = dot.y - dot.apertureY;
       const travelX = dot.toX - dot.fromX;
       const travelY = dot.toY - dot.fromY;
       return Math.abs(localPositionX * travelY - localPositionY * travelX) > 0.1;
     });
-    expect(nonRadialWithinPatch).toBe(true);
+    expect(nonRadialWithinSegment).toBe(true);
   });
 
   it("renders clockwise and anti-clockwise dot trajectories with the correct screen-space sign", () => {

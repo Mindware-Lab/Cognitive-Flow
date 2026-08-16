@@ -220,7 +220,6 @@ export interface CccRelationalWmConfig {
   maximumPresentationMs: number;
   presentationStepMs: number;
   defaultPresentationMs: number;
-  maskMs: number;
   responseDeadlineMs: number;
   initialNBack: 1;
   minimumNBack: 1;

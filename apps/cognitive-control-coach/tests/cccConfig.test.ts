@@ -16,8 +16,8 @@ import {
 describe("CCC pilot configuration", () => {
   it("matches the accepted v0.2 timing and value parameters", () => {
     expect(validateCccPilotConfig()).toEqual([]);
-    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.11");
-    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.11");
+    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.12");
+    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.12");
     expect(CCC_TRIAL_TIMING.fixationCueMs).toBe(350);
     expect(CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs).toBe(350);
     expect(CCC_TRIAL_TIMING.maxResponseWindowMs).toBe(4000);
@@ -69,7 +69,6 @@ describe("CCC pilot configuration", () => {
       minimumPresentationMs: 350,
       maximumPresentationMs: 3500,
       defaultPresentationMs: 1200,
-      maskMs: 350,
       responseDeadlineMs: 4000,
       initialNBack: 1,
       maximumNBack: 5,
@@ -79,6 +78,7 @@ describe("CCC pilot configuration", () => {
       advancementAnsweredAccuracy: 0.85,
       maintenanceAnsweredAccuracy: 0.7,
     });
+    expect("maskMs" in CCC_RELATIONAL_WM).toBe(false);
     expect(CCC_DELAYED_RECHECK).toMatchObject({
       minimumReentryHours: 18,
       minimumFreshValidDecisions: 12,

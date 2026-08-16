@@ -2079,12 +2079,6 @@ p {
   fill: var(--blue-700);
 }
 
-.ccc-flow-orbit {
-  fill: none;
-  stroke: rgba(39, 100, 183, 0.14);
-  stroke-width: 0.8;
-}
-
 .ccc-flow-mask-dot {
   fill: var(--navy);
   stroke: none;

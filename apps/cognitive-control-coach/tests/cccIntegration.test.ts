@@ -71,6 +71,15 @@ describe("CCC playable integration", () => {
     expect(mainSource).not.toContain("trial.exposureMsRequested} ms");
   });
 
+  it("keeps relational n-back continuous without a mask or blank interval", () => {
+    const wmExposureSource = mainSource.match(/function startWmExposure[\s\S]*?(?=function showWmFeedback)/)?.[0] || "";
+    expect(wmExposureSource).toContain("const soaMs = block.selectedExposureMs");
+    expect(wmExposureSource).toContain('taskStage = "evidence"');
+    expect(wmExposureSource).not.toContain('taskStage = "mask"');
+    expect(wmExposureSource).not.toContain('taskStage = "interval"');
+    expect(wmExposureSource).not.toContain("displayMs");
+  });
+
   it("keeps consumer copy plain and workflow-centred", () => {
     const visibleCopy = JSON.stringify({
       phases: PHASE_COPY,

@@ -1,9 +1,9 @@
-# Cognitive Control Coach Multi-Session Protocol v0.8
+# Cognitive Control Coach Multi-Session Protocol v0.12
 
 Status: implementation contract for the public early-access programme
-Date: 13 August 2026
-Protocol version: `ccc-multisession-transfer-v0.8`
-Configuration version: `ccc-programme-p1-v0.8`
+Date: 16 August 2026
+Protocol version: `ccc-multisession-transfer-v0.12`
+Configuration version: `ccc-programme-p1-v0.12`
 Canonical route: `/cognitive-control-coach/`
 
 ## 1. Purpose and claims boundary
@@ -35,24 +35,26 @@ The programme tests performance across its trained arrow and optic-flow formats.
 
 ### 2.2 Relative Attention policy task
 
-- Relative arrows: In/Out.
-- Relative motion: In/Out, shown as circular patches of translating flecks moving towards or away from the one central fixation point.
+- Relative arrows use one binary pair per display: In/Out or Clockwise/Anti-clockwise.
+- Relative motion uses one binary pair per display: In/Out or Clockwise/Anti-clockwise. It is shown in five annular segments of translating flecks defined relative to the one central fixation point.
 - Forced two-choice response after at least 350 ms and before 4,000 ms.
 - Deadline omissions are retained as unresolved observations.
 
 ### 2.3 Relational WM task
 
-- Two latent relations: In and Out, matching the Attention task.
-- Motion patches are clipping apertures only. Flecks translate along vectors defined relative to the single centre of the full stimulus field; individual patches do not expand, contract or rotate around their own centres.
+- Four latent relations: In, Out, Clockwise and Anti-clockwise, matching the two Attention-task response pairs.
+- Every five-item display uses only one coherent binary pair: In/Out or Clockwise/Anti-clockwise. Radial and rotational relations are never mixed within one display.
+- Motion segments are clipping apertures only. Flecks translate along vectors defined relative to the single centre of the full stimulus field; individual segments do not expand, contract or rotate around their own centres.
+- Dot speed follows a shallow full-field eccentricity gradient, so dots farther from the common centre move slightly faster in both radial and rotational displays.
 - Five-item majority evidence at `5:0`, `4:1` or `3:2` clarity.
 - Adaptive 1-back to 5-back level, preserved across sessions and devices when signed in.
 - Match-only response rule: press **Match** when the current majority relation matches the relation `n` steps back; otherwise withhold the response.
 - The first `n` items after each environment reset fill the memory buffer and are retained in telemetry but excluded from scores and gates.
 - Each session has four blocks in A–B–A–B order. Each block contains 20 scored comparisons plus the first `n` buffer items.
-- Before every block, the player chooses a fixed presentation time from 350 to 3,500 ms. The pattern is then masked for 350 ms before the separate response period.
+- Before every block, the player chooses a fixed pattern-to-pattern pace from 350 to 3,500 ms. The n-back stream has no mask or blank interval: each pattern remains visible until the next pattern replaces it.
 - For easy pattern environments, the 20 scored comparisons contain 12 `5:0`, six `4:1` and two `3:2` patterns. Hard environments reverse the clear and close counts: two, six and twelve.
 - Ten scored comparisons are matches and ten are non-matches. A Match press on a non-match is a false alarm; withholding on a match is a miss; withholding on a non-match is a correct rejection. Above 1-back, 25% of feasible non-matches use a wrong-lag lure.
-- Points drain during the chosen presentation time. Response latency after the mask is recorded but does not reduce the reward.
+- Match-response latency is recorded within the continuous presentation cycle.
 
 ### 2.4 Shift the View transition pulse
 

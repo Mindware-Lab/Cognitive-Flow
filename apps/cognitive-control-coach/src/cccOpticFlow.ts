@@ -8,6 +8,8 @@ export interface CccOpticFlowDot {
   apertureRadius: number;
   x: number;
   y: number;
+  fieldDistance: number;
+  speedScale: number;
   r: number;
   opacity: number;
   fromX: number;
@@ -19,11 +21,19 @@ export interface CccOpticFlowDot {
   durationMs: number;
 }
 
-export interface CccOpticFlowAperture {
+interface CccOpticFlowSector {
   index: number;
   x: number;
   y: number;
   radius: number;
+  innerRadius: number;
+  outerRadius: number;
+  centreAngle: number;
+  halfAngle: number;
+  path: string;
+}
+
+export interface CccOpticFlowAperture extends CccOpticFlowSector {
   relation: CccStimulusRelation;
   dots: CccOpticFlowDot[];
 }
@@ -39,16 +49,18 @@ export interface CccOpticMaskDot {
   opacity: number;
 }
 
-export interface CccOpticMaskAperture {
-  index: number;
-  x: number;
-  y: number;
-  radius: number;
+export interface CccOpticMaskAperture extends CccOpticFlowSector {
   dots: CccOpticMaskDot[];
 }
 
 const FIELD_CENTRE = 50;
-const APERTURE_RADIUS = 9.4;
+const FULL_FIELD_RADIUS = Math.hypot(FIELD_CENTRE, FIELD_CENTRE);
+const SECTOR_INNER_RADIUS = 29;
+const SECTOR_OUTER_RADIUS = 47;
+const SECTOR_HALF_ANGLE = 11.5 * Math.PI / 180;
+const DOT_RADIAL_INSET = 2.6;
+const DOT_ANGULAR_INSET = 2.25 * Math.PI / 180;
+const BASE_TRAVEL = 6.1;
 const DOTS_PER_APERTURE = 16;
 const MASK_DOTS_PER_APERTURE = 24;
 
@@ -63,8 +75,8 @@ function normalise(dx: number, dy: number): { x: number; y: number } {
 
 /**
  * Relative motion is defined by the single centre of the whole stimulus field.
- * The circular apertures only clip the flecks; they are not local expansion or
- * contraction centres. This reproduces the original Attention Coach geometry.
+ * The annular sectors only clip the flecks; they are not local expansion or
+ * contraction centres. Every trajectory is derived from the one field centre.
  */
 function relationUnitVector(relation: CccStimulusRelation, x: number, y: number): { x: number; y: number } {
   if (relation === "left") return { x: -1, y: 0 };
@@ -80,16 +92,64 @@ function relationUnitVector(relation: CccStimulusRelation, x: number, y: number)
   return { x: radial.y, y: -radial.x };
 }
 
-function positionInAperture(
-  random: () => number,
-  centreX: number,
-  centreY: number,
-): { x: number; y: number } {
-  const angle = random() * Math.PI * 2;
-  const radius = Math.sqrt(random()) * (APERTURE_RADIUS * 0.78);
+function distanceFromFieldCentre(x: number, y: number): number {
+  return Math.hypot(x - FIELD_CENTRE, y - FIELD_CENTRE);
+}
+
+function polarPoint(radius: number, angle: number): { x: number; y: number } {
   return {
-    x: centreX + Math.cos(angle) * radius,
-    y: centreY + Math.sin(angle) * radius,
+    x: FIELD_CENTRE + Math.cos(angle) * radius,
+    y: FIELD_CENTRE + Math.sin(angle) * radius,
+  };
+}
+
+function sectorPath(centreAngle: number): string {
+  const startAngle = centreAngle - SECTOR_HALF_ANGLE;
+  const endAngle = centreAngle + SECTOR_HALF_ANGLE;
+  const innerStart = polarPoint(SECTOR_INNER_RADIUS, startAngle);
+  const outerStart = polarPoint(SECTOR_OUTER_RADIUS, startAngle);
+  const outerEnd = polarPoint(SECTOR_OUTER_RADIUS, endAngle);
+  const innerEnd = polarPoint(SECTOR_INNER_RADIUS, endAngle);
+  return [
+    `M ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+    `L ${outerStart.x.toFixed(2)} ${outerStart.y.toFixed(2)}`,
+    `A ${SECTOR_OUTER_RADIUS} ${SECTOR_OUTER_RADIUS} 0 0 1 ${outerEnd.x.toFixed(2)} ${outerEnd.y.toFixed(2)}`,
+    `L ${innerEnd.x.toFixed(2)} ${innerEnd.y.toFixed(2)}`,
+    `A ${SECTOR_INNER_RADIUS} ${SECTOR_INNER_RADIUS} 0 0 0 ${innerStart.x.toFixed(2)} ${innerStart.y.toFixed(2)}`,
+    "Z",
+  ].join(" ");
+}
+
+function positionInSector(random: () => number, centreAngle: number): { x: number; y: number } {
+  const innerRadius = SECTOR_INNER_RADIUS + DOT_RADIAL_INSET;
+  const outerRadius = SECTOR_OUTER_RADIUS - DOT_RADIAL_INSET;
+  const radius = Math.sqrt(innerRadius ** 2 + random() * (outerRadius ** 2 - innerRadius ** 2));
+  const usableHalfAngle = SECTOR_HALF_ANGLE - DOT_ANGULAR_INSET;
+  const angle = centreAngle + (random() * 2 - 1) * usableHalfAngle;
+  return polarPoint(radius, angle);
+}
+
+/**
+ * A deliberately shallow, linear full-field gradient. The field centre maps
+ * to 0.8× speed and the furthest screen corner to 1.2×, so the change within
+ * any one small sector remains subtle while farther flecks always move faster.
+ */
+export function cccOpticFlowSpeedScale(x: number, y: number): number {
+  return 0.8 + 0.4 * clamp(distanceFromFieldCentre(x, y) / FULL_FIELD_RADIUS, 0, 1);
+}
+
+function sectorForPosition(index: number, x: number, y: number): CccOpticFlowSector {
+  const centreAngle = Math.atan2(y - FIELD_CENTRE, x - FIELD_CENTRE);
+  return {
+    index,
+    x,
+    y,
+    radius: (SECTOR_OUTER_RADIUS - SECTOR_INNER_RADIUS) / 2,
+    innerRadius: SECTOR_INNER_RADIUS,
+    outerRadius: SECTOR_OUTER_RADIUS,
+    centreAngle,
+    halfAngle: SECTOR_HALF_ANGLE,
+    path: sectorPath(centreAngle),
   };
 }
 
@@ -99,12 +159,13 @@ export function cccOpticFlowAperturesForTrial(
   const random = mulberry32(hashSeed(`${trial.seed}:ccc-optic-flow:dots`));
 
   return trial.stimulusItems.map((item, apertureIndex) => {
-    const centreX = item.position.x;
-    const centreY = item.position.y;
+    const sector = sectorForPosition(apertureIndex, item.position.x, item.position.y);
     const dots = Array.from({ length: DOTS_PER_APERTURE }, (_, dotIndex) => {
-      const position = positionInAperture(random, centreX, centreY);
+      const position = positionInSector(random, sector.centreAngle);
       const vector = relationUnitVector(item.relation, position.x, position.y);
-      const travel = 5.2 + random() * 1.8;
+      const fieldDistance = distanceFromFieldCentre(position.x, position.y);
+      const speedScale = cccOpticFlowSpeedScale(position.x, position.y);
+      const travel = BASE_TRAVEL * speedScale;
       const halfTravel = travel / 2;
       const fromX = clamp(position.x - vector.x * halfTravel, 1, 99);
       const fromY = clamp(position.y - vector.y * halfTravel, 1, 99);
@@ -113,11 +174,13 @@ export function cccOpticFlowAperturesForTrial(
 
       return {
         apertureIndex,
-        apertureX: centreX,
-        apertureY: centreY,
-        apertureRadius: APERTURE_RADIUS,
+        apertureX: sector.x,
+        apertureY: sector.y,
+        apertureRadius: sector.radius,
         x: position.x,
         y: position.y,
+        fieldDistance,
+        speedScale,
         r: 0.62 + random() * 0.38,
         opacity: 0.46 + random() * 0.34,
         fromX,
@@ -131,10 +194,7 @@ export function cccOpticFlowAperturesForTrial(
     });
 
     return {
-      index: apertureIndex,
-      x: centreX,
-      y: centreY,
-      radius: APERTURE_RADIUS,
+      ...sector,
       relation: item.relation,
       dots,
     };
@@ -153,17 +213,16 @@ export function cccOpticFlowMaskAperturesForTrial(
   const random = mulberry32(hashSeed(`${trial.seed}:ccc-optic-flow:mask`));
 
   return trial.stimulusItems.map((item, apertureIndex) => {
-    const centreX = item.position.x;
-    const centreY = item.position.y;
+    const sector = sectorForPosition(apertureIndex, item.position.x, item.position.y);
     const dots = shuffle(
       random,
       Array.from({ length: MASK_DOTS_PER_APERTURE }, () => {
-        const position = positionInAperture(random, centreX, centreY);
+        const position = positionInSector(random, sector.centreAngle);
         return {
           apertureIndex,
-          apertureX: centreX,
-          apertureY: centreY,
-          apertureRadius: APERTURE_RADIUS,
+          apertureX: sector.x,
+          apertureY: sector.y,
+          apertureRadius: sector.radius,
           x: position.x,
           y: position.y,
           r: 0.8 + random() * 0.9,
@@ -173,10 +232,7 @@ export function cccOpticFlowMaskAperturesForTrial(
     );
 
     return {
-      index: apertureIndex,
-      x: centreX,
-      y: centreY,
-      radius: APERTURE_RADIUS,
+      ...sector,
       dots,
     };
   });
