@@ -1565,8 +1565,144 @@ p {
   text-underline-offset: 0.18em;
 }
 
-.ccc-data-view .ccc-main {
+.ccc-data-view .ccc-main,
+.ccc-access-view .ccc-main {
   align-items: center;
+}
+
+.ccc-access-screen {
+  width: min(100%, 720px);
+  margin: 0 auto;
+  padding: clamp(20px, 4vw, 36px);
+  border: 1px solid var(--line);
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: var(--shadow);
+}
+
+.ccc-access-screen h1 {
+  max-width: 19ch;
+  margin: 0 0 10px;
+  font-size: clamp(1.85rem, 4vw, 2.75rem);
+  line-height: 1.02;
+}
+
+.ccc-access-screen > p:not(.ccc-kicker) {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.ccc-access-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin: 20px 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ccc-access-steps li {
+  display: flex;
+  gap: 9px;
+  min-height: 92px;
+  padding: 13px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: var(--canvas-alt);
+}
+
+.ccc-access-steps b {
+  display: grid;
+  flex: 0 0 26px;
+  width: 26px;
+  height: 26px;
+  place-items: center;
+  border-radius: 50%;
+  color: #fff;
+  background: var(--blue);
+  font-size: 0.76rem;
+}
+
+.ccc-access-steps span,
+.ccc-access-steps strong,
+.ccc-access-steps small {
+  display: block;
+}
+
+.ccc-access-steps strong {
+  color: var(--navy);
+  font-size: 0.82rem;
+}
+
+.ccc-access-steps small {
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: 0.7rem;
+  line-height: 1.35;
+}
+
+.ccc-access-account {
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(20, 88, 255, 0.06);
+}
+
+.ccc-access-actions {
+  margin-top: 16px;
+}
+
+.ccc-access-products {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.ccc-access-products article {
+  display: grid;
+  align-content: start;
+  gap: 7px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--canvas-alt);
+}
+
+.ccc-access-products article.is-route {
+  border-color: rgba(20, 88, 255, 0.34);
+  background: rgba(20, 88, 255, 0.055);
+}
+
+.ccc-access-products span {
+  color: var(--blue-700);
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.ccc-access-products strong {
+  color: var(--navy);
+  font-size: 1rem;
+  line-height: 1.2;
+}
+
+.ccc-access-products p {
+  min-height: 2.8em;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.4;
+}
+
+.ccc-access-products b {
+  color: var(--navy);
+  font-size: 1.45rem;
+}
+
+.ccc-access-products .ccc-button {
+  width: 100%;
+  margin-top: 3px;
 }
 
 .ccc-auth-screen {
@@ -2866,6 +3002,22 @@ p {
 }
 
 @media (max-width: 700px) {
+  .ccc-access-products {
+    grid-template-columns: 1fr;
+  }
+
+  .ccc-access-products p {
+    min-height: 0;
+  }
+
+  .ccc-access-steps {
+    grid-template-columns: 1fr;
+  }
+
+  .ccc-access-steps li {
+    min-height: 0;
+  }
+
   .ccc-data-mode-grid {
     grid-template-columns: 1fr;
     gap: 8px;

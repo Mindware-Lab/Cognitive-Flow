@@ -1,0 +1,5 @@
+[functions.create-iq-coach-checkout-session]
+verify_jwt = false
+
+[functions.iq-coach-stripe-webhook]
+verify_jwt = false

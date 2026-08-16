@@ -9,6 +9,7 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string | undefined;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined;
 
 export const isSupabaseConfigured = Boolean(supabaseUrl && supabaseAnonKey);
+export const isIqCoachCommerceEnabled = import.meta.env.VITE_IQ_COACH_COMMERCE_ENABLED === "true";
 export const supabase = isSupabaseConfigured
   ? createClient(supabaseUrl!, supabaseAnonKey!, {
       auth: { flowType: "pkce", persistSession: true, autoRefreshToken: true },
@@ -28,6 +29,17 @@ export type StandardizedScoreRow = {
   session_number: number | null;
   recorded_at: string | null;
 };
+
+export type IqCoachEntitlement = {
+  product_code: IqCoachEntitlementCode;
+  status: "active" | "revoked";
+  source: "stripe_checkout" | "beta" | "admin";
+  granted_at: string;
+  expires_at: string | null;
+};
+
+export type IqCoachEntitlementCode = "g_track" | "cognitive_control_coach";
+export type IqCoachPurchaseProductCode = IqCoachEntitlementCode | "complete_cognitive_route";
 
 export type GTrackHistoryResult = {
   id: string;
@@ -102,6 +114,48 @@ export async function signOutUser(): Promise<void> {
   if (!supabase) return;
   const { error } = await supabase.auth.signOut();
   if (error) throw new Error(error.message);
+}
+
+export async function createIqCoachCheckoutSession(productCode: IqCoachPurchaseProductCode): Promise<string> {
+  if (!supabase) throw new Error("Checkout is unavailable because Supabase is not configured.");
+  const { data, error } = await supabase.functions.invoke("create-iq-coach-checkout-session", {
+    body: { productCode },
+  });
+  if (error) throw new Error(await functionErrorMessage(error));
+  const urlValue = data && typeof data === "object" ? (data as { url?: unknown }).url : null;
+  if (typeof urlValue !== "string") throw new Error("Stripe Checkout did not return a payment URL.");
+  const checkoutUrl = new URL(urlValue);
+  if (checkoutUrl.protocol !== "https:" || checkoutUrl.hostname !== "checkout.stripe.com") {
+    throw new Error("Stripe Checkout returned an invalid payment URL.");
+  }
+  return checkoutUrl.toString();
+}
+
+export async function claimIqCoachAccess(): Promise<boolean> {
+  if (!supabase) return false;
+  const { data, error } = await supabase.rpc("claim_my_iq_coach_access");
+  if (error) throw new Error(error.message);
+  return data === true;
+}
+
+export async function loadIqCoachAccess(productCode: IqCoachEntitlementCode): Promise<IqCoachEntitlement | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from("user_entitlements")
+    .select("product_code,status,source,granted_at,expires_at")
+    .eq("product_code", productCode)
+    .eq("status", "active")
+    .maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  if (data.expires_at && Date.parse(data.expires_at) <= Date.now()) return null;
+  return data as IqCoachEntitlement;
+}
+
+export async function resolveIqCoachAccess(productCode: IqCoachEntitlementCode): Promise<IqCoachEntitlement | null> {
+  if (!supabase) return null;
+  await claimIqCoachAccess();
+  return loadIqCoachAccess(productCode);
 }
 
 export async function submitCoachBlock(payload: Record<string, unknown>): Promise<void> {

@@ -1,0 +1,63 @@
+import { describe, expect, it } from "vitest";
+import accessMigration from "../supabase/migrations/202608160001_iq_coach_suite_access.sql?raw";
+import checkoutFunction from "../supabase/functions/create-iq-coach-checkout-session/index.ts?raw";
+import webhookFunction from "../supabase/functions/iq-coach-stripe-webhook/index.ts?raw";
+import functionConfig from "../supabase/config.toml?raw";
+import mainSource from "../src/main.ts?raw";
+
+describe("IQ Coach product checkout-first access", () => {
+  it("keeps private email grants separate from public user entitlements", () => {
+    expect(accessMigration).toContain("private.iq_coach_checkout_purchases");
+    expect(accessMigration).toContain("private.iq_coach_access_grants");
+    expect(accessMigration).toContain("public.user_entitlements");
+    expect(accessMigration).toContain("public.user_data_preferences");
+    expect(accessMigration).toContain("revoke all on private.iq_coach_access_grants from public, anon, authenticated");
+    expect(accessMigration).toContain("users read own entitlements");
+  });
+
+  it("claims by the authenticated user's server-side email", () => {
+    expect(accessMigration).toContain("create or replace function public.claim_my_iq_coach_access()");
+    expect(accessMigration).toContain("current_user_id uuid := auth.uid()");
+    expect(accessMigration).toContain("from auth.users");
+    expect(accessMigration).not.toMatch(/claim_my_iq_coach_access\(\s*p_email/i);
+  });
+
+  it("maps the Complete Cognitive Route to both 12-month entitlements", () => {
+    expect(accessMigration).toContain("when 'complete_cognitive_route' then array['g_track', 'cognitive_control_coach']");
+    expect(accessMigration).toContain("purchase_time + interval '1 year'");
+    expect(accessMigration).toContain("product_code in ('g_track', 'cognitive_control_coach')");
+  });
+
+  it("uses the three server-controlled Stripe Prices and hosted Checkout", () => {
+    expect(checkoutFunction).toContain('Deno.env.get("STRIPE_G_TRACK_PRICE_ID")');
+    expect(checkoutFunction).toContain('Deno.env.get("STRIPE_COGNITIVE_CONTROL_COACH_PRICE_ID")');
+    expect(checkoutFunction).toContain('Deno.env.get("STRIPE_COMPLETE_COGNITIVE_ROUTE_PRICE_ID")');
+    expect(checkoutFunction).toContain('Deno.env.get("G_TRACK_APP_URL")');
+    expect(checkoutFunction).toContain('Deno.env.get("COGNITIVE_CONTROL_COACH_APP_URL")');
+    expect(checkoutFunction).toContain('"line_items[0][price]": priceId');
+    expect(checkoutFunction).toContain('"custom_text[submit][message]"');
+    expect(checkoutFunction).toContain('checkoutUrl.hostname !== "checkout.stripe.com"');
+    expect(checkoutFunction).not.toContain("unit_amount");
+    expect(functionConfig).toContain("[functions.create-iq-coach-checkout-session]\nverify_jwt = false");
+  });
+
+  it("treats the verified webhook as the authority for access", () => {
+    expect(webhookFunction).toContain("verifiesStripeSignature");
+    expect(webhookFunction).toContain("verifiedCheckoutSession");
+    expect(webhookFunction).toContain("priceId === purchasedPriceId");
+    expect(webhookFunction).toContain('session?.payment_status !== "paid"');
+    expect(webhookFunction).toContain("lineItems.length !== 1");
+    expect(webhookFunction).toContain("session?.metadata?.product_code !== productCode");
+    expect(webhookFunction).toContain('supabase.rpc("record_iq_coach_checkout"');
+    expect(webhookFunction).toContain("p_product_code: productCode");
+  });
+
+  it("gates normal views while preserving the private tester route", () => {
+    expect(mainSource).toContain('const testerRequested = new URLSearchParams(window.location.search).get("tester") === "optic-flow"');
+    expect(mainSource).toContain("return !testerRequested && isIqCoachCommerceEnabled");
+    expect(mainSource).toContain('next !== "access" && next !== "auth"');
+    expect(mainSource).toContain('resolveIqCoachAccess("cognitive_control_coach")');
+    expect(mainSource).toContain('data-product-code="cognitive_control_coach"');
+    expect(mainSource).toContain('data-product-code="complete_cognitive_route"');
+  });
+});
