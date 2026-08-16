@@ -12,8 +12,8 @@ import type {
 } from "./cccTypes";
 
 export const CCC_APP_ID = "cognitive_control_coach" as const;
-export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.10";
-export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.10";
+export const CCC_PROTOCOL_VERSION = "ccc-multisession-transfer-v0.11";
+export const CCC_CONFIG_VERSION = "ccc-programme-p1-v0.11";
 
 export const CCC_TRIAL_TIMING: CccTrialTimingConfig = {
   fixationCueMs: 350,

@@ -91,6 +91,15 @@ const WM_HARD_RATIO_QUOTA: readonly CccRatio[] = [
 ];
 const WM_RELATIONS: readonly CccStimulusRelation[] = CCC_NBACK_RELATIONS;
 
+const MFT_M_RELATION_PAIRS: Record<CccStimulusRelation, readonly [CccStimulusRelation, CccStimulusRelation]> = {
+  left: ["left", "right"],
+  right: ["left", "right"],
+  in: ["in", "out"],
+  out: ["in", "out"],
+  cw: ["cw", "ccw"],
+  ccw: ["cw", "ccw"],
+};
+
 function ratiosFor(regimeId: CccRegimeId, random: () => number): CccRatio[] {
   return shuffle(random, [...(CCC_REGIMES[regimeId].ratioPriors["5:0"] > 0.5 ? EASY_RATIO_QUOTA : HARD_RATIO_QUOTA)]);
 }
@@ -108,10 +117,12 @@ function stimulusItems(
   relation: CccStimulusRelation,
   majorityCount: 3 | 4 | 5,
   random: () => number,
-  relationPool: readonly CccStimulusRelation[],
 ) {
-  const foilPool = relationPool.filter((candidate) => candidate !== relation);
-  const foil = foilPool[Math.floor(random() * foilPool.length)] || relation;
+  // The four-relation n-back alphabet operates across successive displays.
+  // Within one MFT-M display, the minority items must always be the opposite
+  // member of the target's active binary family.
+  const relationPair = MFT_M_RELATION_PAIRS[relation];
+  const foil = relationPair[0] === relation ? relationPair[1] : relationPair[0];
   const relations = shuffle(random, [
     ...Array<CccStimulusRelation>(majorityCount).fill(relation),
     ...Array<CccStimulusRelation>(5 - majorityCount).fill(foil),
@@ -166,9 +177,6 @@ function createTrial(input: {
     : input.operator === "attention"
       ? CCC_WRAPPER_RESPONSE_LABELS[input.wrapperId]
       : CCC_WM_RESPONSE_LABELS;
-  const attentionChoices = input.operator === "attention"
-    ? responseLabels.answerOptions as readonly CccAttentionAnswer[]
-    : WM_RELATIONS;
   return {
     id: input.id,
     sessionId: input.sessionId,
@@ -197,7 +205,7 @@ function createTrial(input: {
     correctResponse: input.correctResponse,
     answerOptions: responseLabels.answerOptions,
     responseLabels,
-    stimulusItems: stimulusItems(input.targetClass, majorityCount, input.random, attentionChoices),
+    stimulusItems: stimulusItems(input.targetClass, majorityCount, input.random),
     coherenceNoiseLevel: 0,
     seed: input.seed,
     practice: false,

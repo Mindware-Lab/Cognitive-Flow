@@ -16,8 +16,8 @@ import {
 describe("CCC pilot configuration", () => {
   it("matches the accepted v0.2 timing and value parameters", () => {
     expect(validateCccPilotConfig()).toEqual([]);
-    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.10");
-    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.10");
+    expect(CCC_PROTOCOL_VERSION).toBe("ccc-multisession-transfer-v0.11");
+    expect(CCC_CONFIG_VERSION).toBe("ccc-programme-p1-v0.11");
     expect(CCC_TRIAL_TIMING.fixationCueMs).toBe(350);
     expect(CCC_TRIAL_TIMING.minimumExposureBeforeAnswerMs).toBe(350);
     expect(CCC_TRIAL_TIMING.maxResponseWindowMs).toBe(4000);

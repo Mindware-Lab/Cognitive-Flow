@@ -12,6 +12,19 @@ const base = {
   wmLevel: 1 as const,
 };
 
+const expectedMftmPair = (relation: string): readonly string[] => relation === "in" || relation === "out"
+  ? ["in", "out"]
+  : relation === "cw" || relation === "ccw"
+    ? ["cw", "ccw"]
+    : ["left", "right"];
+
+function expectMftmDisplayUsesOnePair(trial: ReturnType<typeof createProgrammeSessionPlan>["trials"][number]): void {
+  const expectedPair = expectedMftmPair(trial.targetClass);
+  const displayed = trial.stimulusItems.map((item) => item.relation);
+  expect(displayed.every((relation) => expectedPair.includes(relation))).toBe(true);
+  if (trial.ratio !== "5:0") expect(new Set(displayed)).toEqual(new Set(expectedPair));
+}
+
 describe("CCC multi-session plan generator", () => {
   it("gates the familiar attention wrapper on a rolling learning curve before another transfer probe", () => {
     const plan = createProgrammeSessionPlan({
@@ -60,6 +73,25 @@ describe("CCC multi-session plan generator", () => {
       const trials = plan.trials.filter((trial) => trial.blockId === block.id);
       expect(trials.every((trial) => trial.answerOptions.length === 2)).toBe(true);
       expect(new Set(trials.flatMap((trial) => trial.answerOptions))).toEqual(new Set(expected));
+      trials.forEach(expectMftmDisplayUsesOnePair);
+    }
+  });
+
+  it("never mixes radial and rotational relations within arrow or optic-flow MFT-M displays", () => {
+    for (const wmWrapperStage of ["arrow_stabilisation", "flow_recovery", "mixed"] as const) {
+      const plan = createProgrammeSessionPlan({
+        ...base,
+        sessionId: `paired-${wmWrapperStage}`,
+        seed: `paired-${wmWrapperStage}`,
+        programmeSessionNumber: 3,
+        kind: "p1b_wm_bridge",
+        wmPairLevels: [2, 3],
+        wmWrapperStage,
+      });
+      expect(new Set(plan.trials.map((trial) => trial.wrapperId))).toEqual(
+        new Set(wmWrapperStage === "mixed" ? ["arrow_rel", "flow_rel"] : [wmWrapperStage === "arrow_stabilisation" ? "arrow_rel" : "flow_rel"]),
+      );
+      plan.trials.forEach(expectMftmDisplayUsesOnePair);
     }
   });
 

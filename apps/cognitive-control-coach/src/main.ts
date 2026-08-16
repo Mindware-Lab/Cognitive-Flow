@@ -155,16 +155,27 @@ const APP_BASE = import.meta.env.BASE_URL || "/";
 const testerRequested = new URLSearchParams(window.location.search).get("tester") === "optic-flow";
 let testerExercise: OpticFlowTesterExercise | null = null;
 let journey = testerRequested ? null : loadCccJourney();
-function needsRotationalStimulusReset(saved: CccSavedJourney | null): boolean {
-  return Boolean(saved
-    && !saved.completedAt
-    && saved.plan.configVersion !== CCC_CONFIG_VERSION
-    && saved.plan.trials.some((trial) => trial.targetClass === "cw" || trial.targetClass === "ccw"));
+function configRevision(configVersion: string): number {
+  return Number(configVersion.match(/-v0\.(\d+)$/)?.[1] || 0);
 }
 
-if (needsRotationalStimulusReset(journey)) {
+function needsStimulusCompatibilityReset(saved: CccSavedJourney | null): boolean {
+  if (!saved || saved.completedAt || saved.plan.configVersion === CCC_CONFIG_VERSION) return false;
+  const hasMixedPairDisplay = saved.plan.trials.some((trial) => {
+    const relations = trial.stimulusItems.map((item) => item.relation);
+    const hasRadial = relations.some((relation) => relation === "in" || relation === "out");
+    const hasRotational = relations.some((relation) => relation === "cw" || relation === "ccw");
+    return hasRadial && hasRotational;
+  });
+  const hasLegacyRotationalVectors = configRevision(saved.plan.configVersion) < 10
+    && saved.plan.trials.some((trial) => trial.targetClass === "cw" || trial.targetClass === "ccw");
+  return hasMixedPairDisplay || hasLegacyRotationalVectors;
+}
+
+if (needsStimulusCompatibilityReset(journey)) {
   // Preserve the programme and saved n-back level, but do not resume an
-  // in-progress sequence generated with reversed rotational vectors.
+  // in-progress sequence containing legacy rotational vectors or a display
+  // that mixes radial and rotational relations.
   clearCccJourney();
   journey = null;
 }
@@ -3324,7 +3335,7 @@ window.addEventListener("beforeunload", saveJourney);
 async function hydrateCloudProgress(user: AuthUser): Promise<void> {
   try {
     const remote = await loadCccRemoteProgress() as unknown as CccSavedJourney | null;
-    if (needsRotationalStimulusReset(remote)) {
+    if (needsStimulusCompatibilityReset(remote)) {
       programme = migrateCccProgrammeState(remote?.programme || programme);
       saveCccProgramme(programme);
       cloudStatus = "Your saved level is ready. Start a fresh session with the corrected motion patterns.";
