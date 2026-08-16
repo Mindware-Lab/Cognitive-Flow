@@ -266,6 +266,8 @@ describe("CCC playable integration", () => {
   });
 
   it("keeps the welcome screen readable without oversized titles or clipped content", () => {
+    expect(mainSource).toContain('<p class="ccc-app-title">Cognitive Control Coach</p>');
+    expect(appStyles).toMatch(/\.ccc-app-title\s*\{[\s\S]*?max-width: 100%;[\s\S]*?overflow-wrap: anywhere;/);
     expect(appStyles).toMatch(/h1\s*\{[\s\S]*?font-size: clamp\(1\.7rem, min\(3\.2vw, 4\.6vh\), 2\.8rem\)/);
     expect(appStyles).toMatch(/\.ccc-welcome \.ccc-main\s*\{[\s\S]*?align-items: start;/);
     expect(appStyles).toMatch(/\.ccc-workflow-picker h1,[\s\S]*?font-size: clamp\(1\.65rem, min\(3\.1vw, 4\.6vh\), 2\.35rem\)/);
