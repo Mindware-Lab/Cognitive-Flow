@@ -47,7 +47,12 @@ Website purchase buttons should call `create-iq-coach-checkout-session` with one
 
 The production build sets `VITE_IQ_COACH_COMMERCE_ENABLED=true` in `.env.production`. Keep it enabled after the migration, functions, secrets and webhook have been tested. The unlinked `?tester=optic-flow` QA route remains isolated from saved progress, but production access still requires an active Cognitive Control Coach entitlement.
 
-Before the first paid-gate deployment, apply `202608170001_grandfather_existing_cognitive_control_users.sql`. It gives a 12-month `beta` entitlement to authenticated users with existing Cognitive Control Coach cloud records. It does not grant access based on unrelated IQ Mindware apps and cannot identify people who used only local browser storage. Handle any verified local-only legacy user with an individual `admin` grant rather than a shareable Stripe coupon.
+Before the first paid-gate deployment, apply both grandfathering migrations in order:
+
+- `202608170001_grandfather_existing_cognitive_control_users.sql` gives a 12-month `beta` entitlement to authenticated users with existing Cognitive Control Coach cloud records.
+- `202608170002_grandfather_existing_g_track_users.sql` gives the equivalent `g_track` entitlement to authenticated users with existing G Track attempts, sessions or G Track consent records in the shared backend.
+
+Neither migration can identify people who used only local browser storage. Handle any verified local-only legacy user with an individual `admin` grant rather than a shareable Stripe coupon.
 
 For a non-Stripe beta tester, insert an `active` row into `private.iq_coach_access_grants` with `source = 'beta'` and the appropriate `product_code`. Their entitlement is claimed only after they authenticate with that exact email address.
 
