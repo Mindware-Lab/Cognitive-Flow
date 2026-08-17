@@ -37,10 +37,14 @@
 }
 
 .ccc-real-life-lens-heading strong {
-  max-width: 62%;
+  flex: 0 0 auto;
+  max-width: 42%;
+  padding: 4px 8px;
+  border-radius: 999px;
   color: var(--navy);
-  font-size: 0.76rem;
-  line-height: 1.35;
+  background: rgba(34, 170, 255, 0.1);
+  font-size: 0.72rem;
+  line-height: 1.3;
   text-align: right;
   overflow-wrap: anywhere;
 }
@@ -57,7 +61,7 @@
 .ccc-real-life-lens p {
   min-width: 0;
   display: grid;
-  grid-template-columns: 44px minmax(0, 1fr);
+  grid-template-columns: minmax(70px, 92px) minmax(0, 1fr);
   gap: 8px;
   margin: 0;
   color: var(--ink);
@@ -66,12 +70,19 @@
   overflow-wrap: anywhere;
 }
 
+.ccc-real-life-mission-lens p {
+  grid-template-columns: minmax(86px, 106px) minmax(0, 1fr);
+}
+
 .ccc-real-life-lens p > span {
+  min-width: 0;
   color: var(--blue-700);
   font-size: 0.67rem;
   font-weight: 850;
-  letter-spacing: 0.05em;
+  letter-spacing: 0.04em;
+  line-height: 1.3;
   text-transform: uppercase;
+  overflow-wrap: anywhere;
 }
 
 .ccc-real-life-checkin-view .ccc-main {
@@ -168,12 +179,13 @@
   }
 
   .ccc-real-life-lens-heading strong {
-    max-width: 56%;
-    font-size: 0.7rem;
+    max-width: 36%;
+    font-size: 0.68rem;
   }
 
-  .ccc-real-life-lens p {
-    grid-template-columns: 38px minmax(0, 1fr);
+  .ccc-real-life-lens p,
+  .ccc-real-life-mission-lens p {
+    grid-template-columns: minmax(68px, 78px) minmax(0, 1fr);
   }
 }
 
@@ -183,7 +195,8 @@
     padding-block: 10px;
   }
 
-  .ccc-real-life-checkin-card .ccc-compact-boundary {
+  .ccc-real-life-checkin-card .ccc-compact-boundary,
+  .ccc-block-reconnect-card .ccc-soft-note {
     display: none;
   }
 
@@ -195,6 +208,11 @@
     min-height: 44px;
     padding-block: 8px;
   }
+
+  .ccc-real-life-lens {
+    gap: 7px;
+    padding-block: 10px;
+  }
 }
 
 @media (max-height: 610px) {
@@ -205,5 +223,10 @@
 
   .ccc-real-life-checkin-heading h1 {
     font-size: 1.2rem;
+  }
+
+  .ccc-real-life-lens p {
+    font-size: 0.74rem;
+    line-height: 1.35;
   }
 }
