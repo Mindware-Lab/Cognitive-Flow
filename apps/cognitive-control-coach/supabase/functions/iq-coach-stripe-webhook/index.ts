@@ -3,6 +3,9 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.104.1";
 type PurchaseProductCode = "g_track" | "cognitive_control_coach" | "complete_cognitive_route";
 
 const STRIPE_API_VERSION = "2026-02-25.clover";
+const COMPLETE_ROUTE_PROMO_PRICE_IDS = new Set([
+  "price_1U5RaBAZLCi6B66bgtw7tW0q",
+]);
 const encoder = new TextEncoder();
 
 function json(status: number, body: unknown): Response {
@@ -12,11 +15,16 @@ function json(status: number, body: unknown): Response {
   });
 }
 
-function productPrices(): Record<PurchaseProductCode, string | undefined> {
+function productPriceIds(): Record<PurchaseProductCode, string[]> {
+  const gTrackPriceId = Deno.env.get("STRIPE_G_TRACK_PRICE_ID");
+  const cognitiveControlCoachPriceId = Deno.env.get("STRIPE_COGNITIVE_CONTROL_COACH_PRICE_ID");
+  const completeRoutePriceId = Deno.env.get("STRIPE_COMPLETE_COGNITIVE_ROUTE_PRICE_ID");
   return {
-    g_track: Deno.env.get("STRIPE_G_TRACK_PRICE_ID"),
-    cognitive_control_coach: Deno.env.get("STRIPE_COGNITIVE_CONTROL_COACH_PRICE_ID"),
-    complete_cognitive_route: Deno.env.get("STRIPE_COMPLETE_COGNITIVE_ROUTE_PRICE_ID"),
+    g_track: gTrackPriceId ? [gTrackPriceId] : [],
+    cognitive_control_coach: cognitiveControlCoachPriceId ? [cognitiveControlCoachPriceId] : [],
+    complete_cognitive_route: completeRoutePriceId
+      ? [completeRoutePriceId, ...COMPLETE_ROUTE_PROMO_PRICE_IDS]
+      : [],
   };
 }
 
@@ -53,7 +61,7 @@ async function verifiesStripeSignature(body: string, signatureHeader: string, se
 async function verifiedCheckoutSession(
   sessionId: string,
   stripeSecretKey: string,
-  prices: Record<PurchaseProductCode, string | undefined>,
+  priceIdsByProduct: Record<PurchaseProductCode, string[]>,
 ): Promise<{ session: any; productCode: PurchaseProductCode } | null> {
   const query = new URLSearchParams({ "expand[]": "line_items" });
   const response = await fetch(
@@ -72,8 +80,8 @@ async function verifiedCheckoutSession(
 
   const purchasedPriceId = lineItems[0]?.price?.id;
   const quantity = lineItems[0]?.quantity;
-  const productCode = (Object.entries(prices) as Array<[PurchaseProductCode, string | undefined]>)
-    .find(([, priceId]) => priceId && priceId === purchasedPriceId)?.[0];
+  const productCode = (Object.entries(priceIdsByProduct) as Array<[PurchaseProductCode, string[]]>)
+    .find(([, allowedPriceIds]) => typeof purchasedPriceId === "string" && allowedPriceIds.includes(purchasedPriceId))?.[0];
   if (!productCode || quantity !== 1 || session?.metadata?.product_code !== productCode) return null;
   return { session, productCode };
 }
@@ -83,13 +91,13 @@ Deno.serve(async (request) => {
 
   const webhookSecret = Deno.env.get("STRIPE_IQ_COACH_WEBHOOK_SECRET");
   const stripeSecretKey = Deno.env.get("STRIPE_SECRET_KEY");
-  const prices = productPrices();
+  const priceIdsByProduct = productPriceIds();
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
   if (
     !webhookSecret
     || !stripeSecretKey
-    || Object.values(prices).some((priceId) => !priceId)
+    || Object.values(priceIdsByProduct).some((priceIds) => priceIds.length === 0)
     || !supabaseUrl
     || !serviceRoleKey
     || !Deno.env.get("G_TRACK_APP_URL")
@@ -121,7 +129,7 @@ Deno.serve(async (request) => {
 
   let verified: { session: any; productCode: PurchaseProductCode } | null;
   try {
-    verified = await verifiedCheckoutSession(sessionId, stripeSecretKey, prices);
+    verified = await verifiedCheckoutSession(sessionId, stripeSecretKey, priceIdsByProduct);
   } catch {
     return json(500, { error: "Paid checkout could not be verified with Stripe." });
   }
