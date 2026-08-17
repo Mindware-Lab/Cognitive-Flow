@@ -54,9 +54,10 @@ describe("IQ Coach product checkout-first access", () => {
     expect(webhookFunction).toContain("p_product_code: productCode");
   });
 
-  it("gates normal views while preserving the private tester route", () => {
+  it("gates normal and tester views behind the same production entitlement", () => {
     expect(mainSource).toContain('const testerRequested = new URLSearchParams(window.location.search).get("tester") === "optic-flow"');
-    expect(mainSource).toContain("return !testerRequested && isIqCoachCommerceEnabled");
+    expect(mainSource).toContain("return isIqCoachCommerceEnabled");
+    expect(mainSource).toContain('if (testerRequested) view = "tester"');
     expect(mainSource).toContain('next !== "access" && next !== "auth"');
     expect(mainSource).toContain('resolveIqCoachAccess("cognitive_control_coach")');
     expect(mainSource).toContain('data-product-code="cognitive_control_coach"');

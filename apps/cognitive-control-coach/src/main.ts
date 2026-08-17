@@ -228,10 +228,10 @@ if (journey) {
 }
 let selectedWorkflow: WorkflowChoice = journey?.workflowChoice || "focused_work";
 let dataModeSeen = testerRequested || loadDataModeSeen();
-let view: View = testerRequested
-  ? "tester"
-  : isIqCoachCommerceEnabled
-    ? "access"
+let view: View = isIqCoachCommerceEnabled
+  ? "access"
+  : testerRequested
+    ? "tester"
     : dataModeSeen ? "welcome" : isSupabaseConfigured ? "auth" : "data";
 let dataReturnView: View = "welcome";
 let progressReturnView: View = "welcome";
@@ -297,7 +297,7 @@ function cloudSyncActive(): boolean {
 }
 
 function paidAccessRequired(): boolean {
-  return !testerRequested && isIqCoachCommerceEnabled;
+  return isIqCoachCommerceEnabled;
 }
 
 function dataModeLabel(mode: DataMode = dataMode): string {
@@ -1848,45 +1848,49 @@ function dataModeCard(mode: DataMode, kicker: string, title: string): string {
 }
 
 function renderAccess(): string {
-  const signedIn = Boolean(authUser);
-  const checking = suiteAccessStatus === "checking";
-  const statusMessage = accessMessage || (checking
-    ? "Checking your Cognitive Control Coach access…"
-    : signedIn
-      ? "No active Cognitive Control Coach access was found for this account."
-      : "Sign in with the email address used at checkout, or choose an access route below.");
-  return shell(`
-    <section class="ccc-access-screen">
-      <span class="ccc-kicker">Cognitive Control Coach</span>
-      <h1>Activate your app access.</h1>
-      <p>Purchase access, sign in by email and use the code we send to activate the Coach.</p>
-      <ol class="ccc-access-steps" aria-label="How app access works">
-        <li><b>1</b><span><strong>Choose access</strong><small>Select the Coach or the Complete Cognitive Route.</small></span></li>
-        <li><b>2</b><span><strong>Use your email</strong><small>Use the same email address at checkout and sign-in.</small></span></li>
-        <li><b>3</b><span><strong>Enter your code</strong><small>Activate the app with the six-digit code from your email.</small></span></li>
-      </ol>
-      <p class="ccc-access-account" role="status">${escapeHtml(statusMessage)}</p>
-      <div class="ccc-access-products">
-        <article>
-          <span>Coach access</span>
-          <strong>Cognitive Control Coach</strong>
-          <p>Train attention control, working memory and decision timing.</p>
-          <button class="ccc-button ccc-button-primary" data-action="start-product-checkout" data-product-code="cognitive_control_coach" ${checkoutBusy ? "disabled" : ""}>${checkoutBusy ? "Opening checkout…" : "Choose Coach access"}</button>
-        </article>
-        <article class="is-route">
-          <span>Measurement + training</span>
-          <strong>Complete Cognitive Route</strong>
-          <p>Combine G Track measurement with Cognitive Control Coach access.</p>
-          <button class="ccc-button ccc-button-primary" data-action="start-product-checkout" data-product-code="complete_cognitive_route" ${checkoutBusy ? "disabled" : ""}>${checkoutBusy ? "Opening checkout…" : "Choose the complete route"}</button>
-        </article>
-      </div>
-      <div class="ccc-actions ccc-access-actions">
-        ${signedIn
-          ? `<button class="ccc-button ccc-button-secondary" data-action="retry-suite-access" ${checking ? "disabled" : ""}>${checking ? "Checking access…" : "Check my access again"}</button>`
-          : `<button class="ccc-button ccc-button-secondary" data-action="access-sign-in">I already purchased access</button>`}
-      </div>
-    </section>
-  `, "ccc-access-view ccc-viewport-view");
+  const signedInCopy = authUser?.email
+    ? `<p class="ccc-access-account">Signed in as <strong>${escapeHtml(authUser.email)}</strong>, but this account does not yet include the Cognitive Control Coach programme.</p>`
+    : "";
+  const controls = !isSupabaseConfigured
+    ? `<p class="ccc-account-message">Paid access is not available in this build because its secure account service is not configured.</p>`
+    : suiteAccessStatus === "checking"
+      ? `<button class="ccc-button ccc-button-primary" disabled>Checking access…</button>`
+      : suiteAccessStatus === "error"
+        ? `<button class="ccc-button ccc-button-primary" data-action="retry-suite-access">Try the access check again</button>`
+        : `<div class="ccc-access-products">
+             <article>
+               <span>Coach programme</span>
+               <strong>Cognitive Control Coach</strong>
+               <p>12-month programme access.</p>
+               <b>$39</b>
+               <button class="ccc-button ccc-button-primary" data-action="start-product-checkout" data-product-code="cognitive_control_coach" ${checkoutBusy ? "disabled" : ""}>${checkoutBusy ? "Opening secure checkout…" : "Choose Coach"}</button>
+             </article>
+             <article class="is-route">
+               <span>Combined route</span>
+               <strong>Complete Cognitive Route</strong>
+               <p>G Track measurement plus the Coach programme.</p>
+               <b>$49</b>
+               <button class="ccc-button ccc-button-primary" data-action="start-product-checkout" data-product-code="complete_cognitive_route" ${checkoutBusy ? "disabled" : ""}>${checkoutBusy ? "Opening secure checkout…" : "Choose Complete Route"}</button>
+             </article>
+           </div>
+           ${authUser
+             ? `<button class="ccc-button ccc-button-secondary" data-action="sign-out">Use a different checkout email</button>`
+             : `<button class="ccc-button ccc-button-secondary" data-action="access-sign-in">Already purchased? Sign in</button>`}`;
+  return shell(`<section class="ccc-access-screen">
+    <span class="ccc-kicker">Cognitive Control Coach</span>
+    <h1>Choose your 12-month access route.</h1>
+    <p>Pay securely with Stripe first. We then send access to the email address used at checkout.</p>
+    <ol class="ccc-access-steps" aria-label="Access steps">
+      <li><b>1</b><span><strong>Secure payment</strong><small>Complete checkout with Stripe.</small></span></li>
+      <li><b>2</b><span><strong>Email sign-in</strong><small>Use the link or code sent to your checkout email.</small></span></li>
+      <li><b>3</b><span><strong>App access</strong><small>Your 12-month entitlement follows the same account across the included apps.</small></span></li>
+    </ol>
+    ${signedInCopy}
+    ${accessMessage ? `<p class="ccc-account-message">${escapeHtml(accessMessage)}</p>` : ""}
+    <div class="ccc-auth-actions ccc-access-actions">${controls}</div>
+    <p class="ccc-soft-note">Payment and account access are verified on the server. Looking for measurement only? <a href="https://www.iqmindware.com/g-track-test-battery/">View the $19 G Track Measurement Pass.</a></p>
+    <p class="ccc-account-links"><a href="mailto:admin@iqmindware.com">Access help</a> · <a href="https://www.iqmindware.com/privacy/">Privacy</a> · <a href="https://www.iqmindware.com/terms/">Terms</a></p>
+  </section>`, "ccc-access-view ccc-viewport-view");
 }
 
 function renderAuth(): string {
@@ -2953,7 +2957,8 @@ async function refreshSuiteAccess(user: AuthUser | null = authUser): Promise<boo
     }
     suiteAccessStatus = "active";
     accessMessage = "Cognitive Control Coach access confirmed.";
-    if (view === "access" || view === "auth") view = dataModeSeen ? "welcome" : "data";
+    if (testerRequested) view = "tester";
+    else if (view === "access" || view === "auth") view = dataModeSeen ? "welcome" : "data";
     render();
     return true;
   } catch (error) {
@@ -3022,6 +3027,10 @@ async function verifySignIn(): Promise<void> {
     accountMessage = "";
     signInLinkSent = false;
     if (paidAccessRequired() && !(await refreshSuiteAccess(user))) return;
+    if (testerRequested) {
+      setView("tester");
+      return;
+    }
     if (user && dataMode !== "local") await hydrateCloudProgress(user);
     dataReturnView = "welcome";
     setView(dataModeSeen ? "welcome" : "data");
@@ -3525,7 +3534,7 @@ async function hydrateCloudProgress(user: AuthUser): Promise<void> {
   await hydrateProgressFeedback();
 }
 
-if (isSupabaseConfigured && !testerRequested) {
+if (isSupabaseConfigured) {
   void currentAuthUser().then(async (user) => {
     authUser = user;
     if (paidAccessRequired()) {
