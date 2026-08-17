@@ -1,0 +1,54 @@
+name: CCC real-life practice integration
+
+on:
+  push:
+    branches:
+      - feature/ccc-real-life-practice-20260817
+
+permissions:
+  contents: write
+
+jobs:
+  integrate-and-test:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out feature branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/cognitive-control-coach/package-lock.json
+
+      - name: Integrate real-life practice controller
+        run: python .github/scripts/apply-ccc-real-life-practice.py
+
+      - name: Install Cognitive Control Coach dependencies
+        working-directory: apps/cognitive-control-coach
+        run: npm ci
+
+      - name: Run complete Cognitive Control Coach test suite
+        working-directory: apps/cognitive-control-coach
+        run: npm test
+
+      - name: Run production build
+        working-directory: apps/cognitive-control-coach
+        run: npm run build
+
+      - name: Commit guarded controller integration
+        shell: bash
+        run: |
+          if git diff --quiet -- apps/cognitive-control-coach/src/main.ts; then
+            echo "Controller was already integrated."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -- apps/cognitive-control-coach/src/main.ts
+          git commit -m "Integrate CCC real-life practice controller"
+          git push origin HEAD:feature/ccc-real-life-practice-20260817
