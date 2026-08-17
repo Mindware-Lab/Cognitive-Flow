@@ -44,10 +44,13 @@ describe("IQ Coach product checkout-first access", () => {
     expect(functionConfig).toContain("[functions.create-iq-coach-checkout-session]\nverify_jwt = false");
   });
 
-  it("treats the verified webhook as the authority for access", () => {
+  it("treats the verified webhook as the authority for normal and authorised campaign prices", () => {
     expect(webhookFunction).toContain("verifiesStripeSignature");
     expect(webhookFunction).toContain("verifiedCheckoutSession");
-    expect(webhookFunction).toContain("priceId === purchasedPriceId");
+    expect(webhookFunction).toContain('Deno.env.get("STRIPE_COMPLETE_COGNITIVE_ROUTE_PRICE_ID")');
+    expect(webhookFunction).toContain("COMPLETE_ROUTE_PROMO_PRICE_IDS");
+    expect(webhookFunction).toContain('"price_1U5RaBAZLCi6B66bgtw7tW0q"');
+    expect(webhookFunction).toContain("allowedPriceIds.includes(purchasedPriceId)");
     expect(webhookFunction).toContain('session?.payment_status !== "paid"');
     expect(webhookFunction).toContain("lineItems.length !== 1");
     expect(webhookFunction).toContain("session?.metadata?.product_code !== productCode");
