@@ -1,0 +1,57 @@
+name: Stage CCC production dist
+
+on:
+  push:
+    branches:
+      - feature/ccc-real-life-practice-20260817
+    paths:
+      - .github/workflows/stage-ccc-production-dist.yml
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/cognitive-control-coach/package-lock.json
+      - name: Install and test
+        working-directory: apps/cognitive-control-coach
+        run: |
+          npm ci
+          npm test
+      - name: Build production bundle
+        working-directory: apps/cognitive-control-coach
+        env:
+          VITE_SUPABASE_URL: https://ybnneksunfueetkmjohc.supabase.co
+          VITE_SUPABASE_ANON_KEY: sb_publishable_LMxY2t33aWsQOWgeLKBBLw_1SC3BLTX
+          VITE_IQ_COACH_COMMERCE_ENABLED: "true"
+        run: npm run build
+      - name: Verify release markers
+        working-directory: apps/cognitive-control-coach
+        run: |
+          JS_FILE=$(find dist/assets -maxdepth 1 -type f -name 'index-*.js' -print -quit)
+          grep -q 'https://ybnneksunfueetkmjohc.supabase.co' "$JS_FILE"
+          grep -q 'create-iq-coach-checkout-session' "$JS_FILE"
+          grep -q 'claim_my_iq_coach_access' "$JS_FILE"
+          grep -q 'Use the email address from checkout' "$JS_FILE"
+          grep -q 'Real-life practice lens' "$JS_FILE"
+          grep -q 'I’ll try this once' "$JS_FILE"
+      - name: Stage dist in repository
+        run: |
+          rm -rf release/ccc-production-dist
+          mkdir -p release/ccc-production-dist
+          cp -a apps/cognitive-control-coach/dist/. release/ccc-production-dist/
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -- release/ccc-production-dist
+          git commit -m 'Stage verified CCC production dist'
+          git push origin HEAD:feature/ccc-real-life-practice-20260817
