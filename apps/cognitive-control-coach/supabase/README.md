@@ -45,7 +45,9 @@ In Stripe Dashboard, enable **Settings > Business > Customer emails > Successful
 
 Website purchase buttons should call `create-iq-coach-checkout-session` with one of `g_track`, `cognitive_control_coach`, or `complete_cognitive_route`. Do not create separate Stripe Payment Links: the server-created Checkout Session carries the verified product code, canonical Price ID and product-specific return URL used by the entitlement webhook.
 
-Set `VITE_IQ_COACH_COMMERCE_ENABLED=true` only after the migration, functions, secrets and webhook have been tested. While the flag is false, existing live access is unchanged. The private `?tester=optic-flow` route intentionally bypasses the commerce gate.
+The production build sets `VITE_IQ_COACH_COMMERCE_ENABLED=true` in `.env.production`. Keep it enabled after the migration, functions, secrets and webhook have been tested. The private `?tester=optic-flow` route intentionally bypasses the commerce gate.
+
+Before the first paid-gate deployment, apply `202608170001_grandfather_existing_cognitive_control_users.sql`. It gives a 12-month `beta` entitlement to authenticated users with existing Cognitive Control Coach cloud records. It does not grant access based on unrelated IQ Mindware apps and cannot identify people who used only local browser storage. Handle any verified local-only legacy user with an individual `admin` grant rather than a shareable Stripe coupon.
 
 For a non-Stripe beta tester, insert an `active` row into `private.iq_coach_access_grants` with `source = 'beta'` and the appropriate `product_code`. Their entitlement is claimed only after they authenticate with that exact email address.
 

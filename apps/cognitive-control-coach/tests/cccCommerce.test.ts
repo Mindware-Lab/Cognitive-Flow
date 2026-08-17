@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import accessMigration from "../supabase/migrations/202608160001_iq_coach_suite_access.sql?raw";
+import grandfatherMigration from "../supabase/migrations/202608170001_grandfather_existing_cognitive_control_users.sql?raw";
 import checkoutFunction from "../supabase/functions/create-iq-coach-checkout-session/index.ts?raw";
 import webhookFunction from "../supabase/functions/iq-coach-stripe-webhook/index.ts?raw";
 import functionConfig from "../supabase/config.toml?raw";
 import mainSource from "../src/main.ts?raw";
+import productionEnvironment from "../.env.production?raw";
 
 describe("IQ Coach product checkout-first access", () => {
   it("keeps private email grants separate from public user entitlements", () => {
@@ -59,5 +61,20 @@ describe("IQ Coach product checkout-first access", () => {
     expect(mainSource).toContain('resolveIqCoachAccess("cognitive_control_coach")');
     expect(mainSource).toContain('data-product-code="cognitive_control_coach"');
     expect(mainSource).toContain('data-product-code="complete_cognitive_route"');
+  });
+
+  it("enables the entitlement gate in production builds", () => {
+    expect(productionEnvironment).toContain("VITE_IQ_COACH_COMMERCE_ENABLED=true");
+  });
+
+  it("grandfathers only existing Cognitive Control Coach cloud users", () => {
+    expect(grandfatherMigration).toContain("public.cognitive_control_progress");
+    expect(grandfatherMigration).toContain("app_id = 'cognitive_control_coach'");
+    expect(grandfatherMigration).toContain("'grandfathered-ccc-cloud-user-20260817'");
+    expect(grandfatherMigration).toContain("'beta'");
+    expect(grandfatherMigration).toContain("now() + interval '1 year'");
+    expect(grandfatherMigration).toContain("on conflict (user_id, product_code) do nothing");
+    expect(grandfatherMigration).not.toContain("attention_progress");
+    expect(grandfatherMigration).not.toContain("wm_progress");
   });
 });
