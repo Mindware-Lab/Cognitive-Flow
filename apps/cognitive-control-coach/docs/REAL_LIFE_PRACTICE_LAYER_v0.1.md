@@ -1,8 +1,8 @@
 # Cognitive Control Coach — Real-Life Practice Layer v0.1
 
-**Status:** Implementation-ready / feature branch  
+**Status:** Implemented on `feature/ccc-real-life-practice-20260817`  
 **App:** Cognitive Control Coach  
-**Purpose:** Connect abstract attention-control and relational-working-memory practice to one small, cue-linked action in the user's chosen work, study, AI-assisted or everyday workflow.
+**Purpose:** Connect abstract attention-control and relational-working-memory practice to one coherent strategic theme per training session, then one small cue-linked action in the user's chosen work, study, AI-assisted or everyday workflow.
 
 ## Claims boundary
 
@@ -14,16 +14,30 @@ This is an interpretation and practice layer. It does **not** convert a Cognitiv
 | --- | --- | --- |
 | **Find** | What matters now? | Identify the result, question or fact that should guide the next choice. |
 | **Hold** | What must stay available? | Keep the goal and one important constraint visible rather than relying on unaided memory. |
-| **Update** | What changed, and what stays stable? | Revise the task state while preserving the governing goal or rule. |
+| **Update** | What changed, and what stays stable? | Revise the task state while preserving the useful goal, boundary or relationship. |
 | **Act** | Is the next step supported enough? | Commit when the relevant information is clear enough for the stakes and reversibility of the choice. |
+
+Find / Hold / Update / Act is now a **secondary interpretation vocabulary**, not four competing behavioural prescriptions.
+
+## Core session rule
+
+```text
+ONE SESSION
+→ ONE STRATEGIC THEME
+→ EACH COMPLETED BLOCK = A DIFFERENT ANGLE ON THAT THEME
+→ SESSION END = ONE CUE–ACTION IMPLEMENTATION INTENTION
+→ ONE ACTIVE MISSION AT A TIME
+```
 
 The user loop is:
 
 ```text
 choose a real-life workflow
-→ train
-→ translate the trained operation into Find / Hold / Update / Act
-→ form one cue–strategy plan
+→ begin a training session
+→ resolve one theme from the current programme progression point
+→ rotate an equivalent theme variant by programme session number
+→ after each block, explain one concrete angle on the same theme
+→ at session end, form one cue–action plan
 → “I’ll try this once”
 → try it in the real task
 → report the outcome on a later visit
@@ -40,50 +54,116 @@ The existing four workflow presets remain the only context collected:
 
 No free-text task details are required.
 
-## Prompt resolver
+## Strategic-theme resolver
 
-Prompt selection uses training information already available in the app.
+Theme selection uses training information already available in the app:
 
-1. Relational-working-memory block → **Hold** using `GOAL · CONSTRAINT · NEXT`.
-2. Carrier/reference-frame/mixed transition → **Update**, separating surface change from the stable rule.
-3. Delayed return / return-to-now → **Act**, reconstructing the last completed and next useful step.
-4. Attention strategy indicates slow down → **Find**, checking one decision-relevant fact.
-5. Attention strategy indicates speed up → **Act**, taking a reversible next step when evidence is clear enough.
-6. Otherwise → the selected workflow's **workflow-specific baseline move**.
+```text
+programme session kind
++ current progression phase
++ programme session number
++ block index
++ selected workflow
+```
 
-Workflow baselines are deliberately heterogeneous rather than forcing every default prompt into Find:
+The session number rotates equivalent variants inside the same theme family. A user who needs several sessions to stabilise at one level therefore receives fresh examples without being pushed prematurely into the next strategic lesson.
 
-| Workflow | Baseline move | Example |
-| --- | --- | --- |
-| Focused work | Find | Return to the one result you are trying to complete. |
-| Demanding study | Update | Ask what a new source or section changes about the main question. |
-| AI-assisted work | Hold | Keep the main goal and one non-negotiable requirement visible. |
-| Everyday planning | Act | Reconstruct the last completed and next useful step after interruption. |
+Examples of theme families include:
+
+- foundation → **Stay with what matters**;
+- stable reference → **Keep the goal steady while the surface changes**;
+- first carrier perturbation → **Ask what really changed**;
+- recovery → **Change the method, keep the result**;
+- return → **Return without starting over**;
+- mixed carriers → **Switch formats without switching goals**;
+- delayed return → **Restart from the last useful point**;
+- relational WM introduction → **Keep the task state visible**;
+- WM carrier change → **Update the details without losing what belongs together**;
+- WM return/mix → **Bring the useful structure back across contexts**;
+- attention/WM integration → **Use the right thinking operation at the right time**;
+- final delayed integration → **Keep what still works after a break**.
+
+The full mapping and variant pool are documented in `REAL_LIFE_STRATEGIC_THEME_MAPPING_v0.1.md`.
+
+## Concrete-copy rule
+
+Public copy must lead with a recognisable situation, not unexplained technical language.
+
+Avoid standalone copy such as:
+
+> HOLD — What must stay available?
+
+> Preserve the invariant.
+
+> Maintain the active model.
+
+Preferred pattern:
+
+```text
+TODAY'S THEME
+Keep the task state visible
+
+THIS BLOCK
+Keep one important limit attached to the result.
+
+EXAMPLE
+Keep “finish the proposal” + “keep it under two pages” visible
+while new information arrives.
+
+small secondary tag: HOLD
+```
+
+The example carries the meaning; the framework tag is secondary.
 
 ## Block reconnect
 
-After a relevant block, show one compact **Real-life practice lens** containing:
+The existing block reconnect screen is retained. It is now **interpretation only**.
 
-- active move and its question;
-- a recognisable workflow cue;
-- one action to try outside the app;
-- the boundary: **Treat this as a strategy to test. Judge it by what happens in the real task.**
+After a completed block it shows:
 
-The lens replaces long explanatory copy rather than adding a new scrolling page.
+- the session's current strategic theme;
+- a different angle on that same theme, based on the block just completed;
+- a concrete example in the selected workflow;
+- an explicit reminder that there is **no new action to remember yet**.
+
+Block reconnects no longer use a repeated `When → Try` structure and do not create or save implementation intentions.
 
 ## Session completion mission
 
-At the existing completion reconnect screen, offer:
+The existing completion reconnect screen remains the only commitment point.
+
+It renders one explicit cue–action plan:
+
+```text
+IF THIS HAPPENS
+[one recognisable cue]
+
+THEN I'LL
+[one small action]
+```
+
+If there is no existing mission, the user may choose:
 
 - **I’ll try this once** — creates one pending mission from the last **actually completed** scored training block;
 - **Maybe later** — leaves no new mission.
 
-A mission stores only versioned identifiers and enum/state fields required to reconstruct the prompt:
+If an earlier mission is still pending, the app does not overwrite it. The same screen offers:
+
+- **Keep current mission**;
+- **Replace with today's mission**;
+- **Maybe later**.
+
+Replacement therefore requires an explicit user action.
+
+A mission stores versioned identifiers and enum/state fields rather than duplicated copy:
 
 ```text
 mission id
 preset id + preset version
+theme family id + theme id
 source session id
+programme session kind + session number
+source block index
 workflow
 operator
 transition kind
@@ -96,7 +176,7 @@ outcome/barrier enums
 review/defer timestamps and counts
 ```
 
-Prompt title, cue and action strings are reconstructed from the versioned preset library and are not duplicated into saved user state.
+User-facing theme, explanation, cue and action strings are reconstructed from the versioned theme library.
 
 ## Next-visit check-in
 
@@ -144,7 +224,7 @@ Local mode:
 
 Cloud modes:
 
-- mission creation, deferral and review trigger an immediate `saveCccRemoteProgress` update when authenticated cloud sync is active;
+- mission creation, replacement, deferral and review trigger an immediate `saveCccRemoteProgress` update when authenticated cloud sync is active;
 - this allows the pending mission to follow the user to another device;
 - failures fall back to local persistence and use the existing later-sync mechanism.
 
@@ -168,7 +248,8 @@ Protected production paths remain governed by the existing `createIqCoachCheckou
 ## Responsive acceptance criteria
 
 - No new `overflow: auto` or `overflow: scroll` container.
-- New components use `min-width: 0`, wrapping copy and bounded grids.
+- Components use `min-width: 0`, wrapping copy and bounded grids.
+- Block examples use compact labelled rows that shrink on narrow phones.
 - Outcome/barrier choices use two columns where space allows and one column on narrow phones.
 - Tap targets remain at least 44 px high.
 - Short-height breakpoints remove supporting copy before reducing tap targets.
@@ -176,16 +257,19 @@ Protected production paths remain governed by the existing `createIqCoachCheckou
 
 ## Test requirements
 
-1. Resolver coverage for every Find/Hold/Update/Act branch.
-2. Mission records versioned identifiers without duplicated prompt strings.
-3. Prompt reconstruction from a saved mission.
-4. “Not yet” remains pending rather than becoming reviewed.
-5. Mission generation uses the last completed scored block, not the last planned block.
-6. Real-life events remain score-neutral.
-7. Local/cloud persistence round-trip.
-8. Responsive/overflow checks.
-9. Existing commerce/access regression suite remains green.
-10. Static isolation check confirms the real-life module does not import Stripe, entitlement or authentication code.
+1. P0 blocks share one session theme but receive different angles.
+2. Integrated P1c blocks share one theme while exposing distinct Find/Hold/Update/Act angles.
+3. Repeated sessions at one progression point rotate equivalent theme variants.
+4. Every resolver path supplies a concrete workflow example.
+5. Mission records reconstruct user-facing copy from versioned identifiers.
+6. A pending mission cannot be replaced without an explicit replacement action.
+7. “Not yet” remains pending rather than becoming reviewed.
+8. Mission generation uses the last completed scored block, not the last planned block.
+9. Real-life events remain score-neutral.
+10. Local/cloud persistence round-trip.
+11. Responsive/overflow checks.
+12. Existing commerce/access regression suite remains green.
+13. Static isolation check confirms the real-life module does not import Stripe, entitlement or authentication code.
 
 ## Release sequence
 
