@@ -1,0 +1,66 @@
+name: Verify clean CCC session-theme release
+
+on:
+  push:
+    branches:
+      - release/ccc-session-themes-20260817
+    paths:
+      - .github/workflows/release-ccc-session-themes.yml
+
+permissions:
+  contents: write
+
+jobs:
+  apply-test-build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out release branch
+        uses: actions/checkout@v4
+        with:
+          ref: release/ccc-session-themes-20260817
+          fetch-depth: 0
+      - name: Fetch tested feature branch
+        run: git fetch origin feature/ccc-real-life-practice-20260817
+      - name: Copy only strategic-theme implementation files
+        run: |
+          git checkout origin/feature/ccc-real-life-practice-20260817 -- \
+            apps/cognitive-control-coach/docs/REAL_LIFE_PRACTICE_LAYER_v0.1.md \
+            apps/cognitive-control-coach/docs/REAL_LIFE_STRATEGIC_THEME_MAPPING_v0.1.md \
+            apps/cognitive-control-coach/src/cccRealLifePractice.css \
+            apps/cognitive-control-coach/src/cccRealLifePractice.ts \
+            apps/cognitive-control-coach/src/main.ts \
+            apps/cognitive-control-coach/tests/cccRealLifePractice.test.ts
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: apps/cognitive-control-coach/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/cognitive-control-coach
+        run: npm ci
+      - name: Run full CCC test suite
+        working-directory: apps/cognitive-control-coach
+        run: npm test
+      - name: Build production bundle
+        working-directory: apps/cognitive-control-coach
+        run: npm run build
+      - name: Check whitespace
+        run: git diff --check
+      - name: Commit verified release files
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add \
+            apps/cognitive-control-coach/docs/REAL_LIFE_PRACTICE_LAYER_v0.1.md \
+            apps/cognitive-control-coach/docs/REAL_LIFE_STRATEGIC_THEME_MAPPING_v0.1.md \
+            apps/cognitive-control-coach/src/cccRealLifePractice.css \
+            apps/cognitive-control-coach/src/cccRealLifePractice.ts \
+            apps/cognitive-control-coach/src/main.ts \
+            apps/cognitive-control-coach/tests/cccRealLifePractice.test.ts
+          if git diff --cached --quiet; then
+            echo "No implementation changes to commit."
+            exit 0
+          fi
+          git commit -m "Release CCC session-level strategic themes"
+          git push origin HEAD:release/ccc-session-themes-20260817
