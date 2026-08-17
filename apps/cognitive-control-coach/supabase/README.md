@@ -52,6 +52,13 @@ Before the first paid-gate deployment, apply both grandfathering migrations in o
 - `202608170001_grandfather_existing_cognitive_control_users.sql` gives a 12-month `beta` entitlement to authenticated users with existing Cognitive Control Coach cloud records.
 - `202608170002_grandfather_existing_g_track_users.sql` gives the equivalent `g_track` entitlement to authenticated users with existing G Track attempts, sessions or G Track consent records in the shared backend.
 
+After enabling the paid gate, apply
+`202608170003_grandfather_legacy_attention_coach_users.sql`. It gives a 12-month
+`cognitive_control_coach` beta entitlement to authenticated legacy Attention
+Coach users identified from the `attention_*` cloud tables or an
+`attention_coach` metric observation. It preserves explicit revocations and
+does not grant unrelated G Track-only or WM Coach-only accounts.
+
 Neither migration can identify people who used only local browser storage. Handle any verified local-only legacy user with an individual `admin` grant rather than a shareable Stripe coupon.
 
 For a non-Stripe beta tester, insert an `active` row into `private.iq_coach_access_grants` with `source = 'beta'` and the appropriate `product_code`. Their entitlement is claimed only after they authenticate with that exact email address.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import accessMigration from "../supabase/migrations/202608160001_iq_coach_suite_access.sql?raw";
 import grandfatherMigration from "../supabase/migrations/202608170001_grandfather_existing_cognitive_control_users.sql?raw";
+import legacyAttentionGrandfatherMigration from "../supabase/migrations/202608170003_grandfather_legacy_attention_coach_users.sql?raw";
 import checkoutFunction from "../supabase/functions/create-iq-coach-checkout-session/index.ts?raw";
 import webhookFunction from "../supabase/functions/iq-coach-stripe-webhook/index.ts?raw";
 import functionConfig from "../supabase/config.toml?raw";
@@ -77,5 +78,20 @@ describe("IQ Coach product checkout-first access", () => {
     expect(grandfatherMigration).toContain("on conflict (user_id, product_code) do nothing");
     expect(grandfatherMigration).not.toContain("attention_progress");
     expect(grandfatherMigration).not.toContain("wm_progress");
+  });
+
+  it("extends Cognitive Control Coach access to legacy Attention Coach cloud users", () => {
+    expect(legacyAttentionGrandfatherMigration).toContain("public.attention_progress_state");
+    expect(legacyAttentionGrandfatherMigration).toContain("public.attention_sessions");
+    expect(legacyAttentionGrandfatherMigration).toContain("public.attention_user_settings");
+    expect(legacyAttentionGrandfatherMigration).toContain("app_id = 'attention_coach'");
+    expect(legacyAttentionGrandfatherMigration).toContain("'cognitive_control_coach'");
+    expect(legacyAttentionGrandfatherMigration).toContain("'grandfathered-legacy-attention-cloud-user-20260817'");
+    expect(legacyAttentionGrandfatherMigration).toContain("on conflict (email, product_code) do update");
+    expect(legacyAttentionGrandfatherMigration).toContain("where grants.status = 'active'");
+    expect(legacyAttentionGrandfatherMigration).toContain("where entitlements.status = 'active'");
+    expect(legacyAttentionGrandfatherMigration).toContain("now() + interval '1 year'");
+    expect(legacyAttentionGrandfatherMigration).not.toContain("select id from auth.users");
+    expect(legacyAttentionGrandfatherMigration).not.toContain("wm_coach");
   });
 });
