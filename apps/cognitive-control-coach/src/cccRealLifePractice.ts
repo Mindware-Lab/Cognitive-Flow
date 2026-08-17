@@ -91,6 +91,7 @@ export interface CccRealLifePracticeContext {
   sessionKind?: CccProgrammeSessionKind;
   sessionNumber?: number;
   blockIndex?: number;
+  sessionAnchorPhase?: string;
 }
 
 export const REAL_LIFE_MOVE_COPY: Record<CccRealLifeMove, { label: string; question: string }> = {
@@ -258,8 +259,9 @@ function themeFamilyFor(context: CccRealLifePracticeContext): CccRealLifeThemeFa
   if (sessionKind === "p0_foundation") return "foundation_focus";
   if (sessionKind === "p1a_delayed_recheck") return "restart_state";
   if (sessionKind === "p1b_wm_bridge") {
-    if (context.phase === "p1b_wm_arrow_stabilisation" || context.phase === "p1b_attention_bridge") return "task_state";
-    if (context.phase === "p1b_wm_flow_first_contact" || context.phase === "p1b_wm_flow_recovery") return "relations_across_change";
+    const progressionPhase = context.sessionAnchorPhase || context.phase;
+    if (progressionPhase === "p1b_wm_arrow_stabilisation" || progressionPhase === "p1b_attention_bridge") return "task_state";
+    if (progressionPhase === "p1b_wm_flow_first_contact" || progressionPhase === "p1b_wm_flow_recovery") return "relations_across_change";
     return "portable_structure";
   }
   if (sessionKind === "p1c_delayed_integration") return "review_and_bank";

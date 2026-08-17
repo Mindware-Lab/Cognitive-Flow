@@ -511,6 +511,7 @@ function realLifeContextForBlock(
     sessionKind: journey?.plan.programmeSessionKind,
     sessionNumber: journey?.plan.programmeSessionNumber,
     blockIndex: block.index,
+    sessionAnchorPhase: journey?.plan.blocks.find((candidate) => candidate.phase !== "practice")?.phase,
   };
 }
 

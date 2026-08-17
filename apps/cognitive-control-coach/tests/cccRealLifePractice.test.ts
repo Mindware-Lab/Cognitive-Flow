@@ -48,6 +48,29 @@ describe("session-level strategic themes", () => {
     expect(signal.example).not.toBe(relative.example);
   });
 
+  it("keeps one theme through a P1b first-contact session even when later blocks are labelled recovery", () => {
+    const phases = [
+      ["p1b_wm_flow_first_contact", "wm_carrier_transfer", 1],
+      ["p1b_wm_flow_recovery", "baseline_stabilization", 2],
+      ["p1b_wm_flow_recovery", "baseline_stabilization", 3],
+      ["p1b_wm_flow_recovery", "baseline_stabilization", 4],
+    ] as const;
+    const presets = phases.map(([phase, transitionKind, blockIndex]) => resolveRealLifePracticePreset(context({
+      sessionKind: "p1b_wm_bridge",
+      sessionNumber: 9,
+      sessionAnchorPhase: "p1b_wm_flow_first_contact",
+      phase,
+      operator: "relational_wm",
+      transitionKind,
+      blockIndex,
+    })));
+
+    expect(new Set(presets.map((preset) => preset.themeFamilyId))).toEqual(new Set(["relations_across_change"]));
+    expect(new Set(presets.map((preset) => preset.themeId)).size).toBe(1);
+    expect(new Set(presets.map((preset) => preset.themeTitle)).size).toBe(1);
+    expect(new Set(presets.map((preset) => preset.angleTitle)).size).toBe(4);
+  });
+
   it("keeps one P1c theme while Find, Hold, Update and Act provide different block angles", () => {
     const phases = [
       ["p1c_attention_entry", "attention", "return_to_now", 1],
@@ -148,6 +171,7 @@ describe("one session-end implementation intention", () => {
     expect(mainSource).not.toContain("Translate this block into one real-life move.");
     expect(mainSource).toContain("If this happens");
     expect(mainSource).toContain("Then I’ll");
+    expect(mainSource).toContain("sessionAnchorPhase");
   });
 
   it("requires an explicit choice before a pending mission can be replaced", () => {
