@@ -5,6 +5,8 @@ import legacyAttentionGrandfatherMigration from "../supabase/migrations/20260817
 import checkoutFunction from "../supabase/functions/create-iq-coach-checkout-session/index.ts?raw";
 import webhookFunction from "../supabase/functions/iq-coach-stripe-webhook/index.ts?raw";
 import functionConfig from "../supabase/config.toml?raw";
+import checkoutHandoff from "../public/ccc-checkout-handoff.js?raw";
+import appHtml from "../index.html?raw";
 import mainSource from "../src/main.ts?raw";
 import productionEnvironment from "../.env.production?raw";
 
@@ -66,6 +68,18 @@ describe("IQ Coach product checkout-first access", () => {
     expect(mainSource).toContain('resolveIqCoachAccess("cognitive_control_coach")');
     expect(mainSource).toContain('data-product-code="cognitive_control_coach"');
     expect(mainSource).toContain('data-product-code="complete_cognitive_route"');
+  });
+
+  it("routes paid checkout returns straight to the existing secure code-verification UI", () => {
+    expect(appHtml).toContain("ccc-checkout-handoff.js?v=20260818-1");
+    expect(checkoutHandoff).toContain('checkoutState !== "complete" && checkoutState !== "access"');
+    expect(checkoutHandoff).toContain("[data-action='access-sign-in']");
+    expect(checkoutHandoff).toContain('codeInput.id = "ccc-account-code"');
+    expect(checkoutHandoff).toContain('verify.dataset.action = "verify-sign-in"');
+    expect(checkoutHandoff).toContain("verificationStarted = true");
+    expect(checkoutHandoff).not.toContain("suiteAccessStatus");
+    expect(checkoutHandoff).not.toContain("user_entitlements");
+    expect(mainSource).toContain('const entitlement = await resolveIqCoachAccess("cognitive_control_coach")');
   });
 
   it("enables the entitlement gate in production builds", () => {
