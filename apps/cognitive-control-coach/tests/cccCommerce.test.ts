@@ -83,8 +83,12 @@ describe("IQ Coach product checkout-first access", () => {
     expect(mainSource).toContain('const entitlement = await resolveIqCoachAccess("cognitive_control_coach")');
   });
 
-  it("enables the entitlement gate in production builds", () => {
+  it("ships the production Supabase browser configuration together with the entitlement gate", () => {
     expect(productionEnvironment).toContain("VITE_IQ_COACH_COMMERCE_ENABLED=true");
+    expect(productionEnvironment).toContain("VITE_SUPABASE_URL=https://ybnneksunfueetkmjohc.supabase.co");
+    expect(productionEnvironment).toMatch(/VITE_SUPABASE_ANON_KEY=(sb_publishable_|eyJ)/);
+    expect(productionEnvironment).toContain("VITE_APP_ENV=production");
+    expect(productionEnvironment).toContain("VITE_APP_URL=https://www.iqmindware.com/cognitive-control-coach/");
   });
 
   it("grandfathers only existing Cognitive Control Coach cloud users", () => {
