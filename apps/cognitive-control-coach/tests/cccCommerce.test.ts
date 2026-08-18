@@ -76,7 +76,8 @@ describe("IQ Coach product checkout-first access", () => {
     expect(checkoutHandoff).toContain("[data-action='access-sign-in']");
     expect(checkoutHandoff).toContain('codeInput.id = "ccc-account-code"');
     expect(checkoutHandoff).toContain('verify.dataset.action = "verify-sign-in"');
-    expect(checkoutHandoff).toContain("verificationStarted = true");
+    expect(checkoutHandoff).toContain("verify.disabled = Boolean(existingSend?.disabled)");
+    expect(checkoutHandoff).toContain("if (cancelled) return");
     expect(checkoutHandoff).not.toContain("suiteAccessStatus");
     expect(checkoutHandoff).not.toContain("user_entitlements");
     expect(mainSource).toContain('const entitlement = await resolveIqCoachAccess("cognitive_control_coach")');
