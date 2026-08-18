@@ -6,7 +6,6 @@
   if (!app) return;
 
   let cancelled = false;
-  let verificationStarted = false;
   let scheduled = false;
 
   const schedule = () => {
@@ -76,6 +75,7 @@
       verify.className = "ccc-button ccc-button-primary";
       verify.dataset.action = "verify-sign-in";
       verify.textContent = "Activate access";
+      verify.disabled = Boolean(existingSend?.disabled);
       actions.append(verify);
 
       if (existingSend) {
@@ -105,7 +105,7 @@
   };
 
   function ensureCheckoutHandoff() {
-    if (cancelled || verificationStarted) return;
+    if (cancelled) return;
 
     const authScreen = app.querySelector(".ccc-auth-screen");
     if (authScreen) {
@@ -129,7 +129,6 @@
       ? event.target.closest("[data-action]")?.getAttribute("data-action")
       : null;
     if (action === "return-access") cancelled = true;
-    if (action === "verify-sign-in") verificationStarted = true;
   }, true);
 
   const observer = new MutationObserver(schedule);
