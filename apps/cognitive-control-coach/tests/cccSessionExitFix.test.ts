@@ -12,9 +12,11 @@ describe("CCC session exit and planned-wait guidance", () => {
   it("routes a capped or final completed block through the existing finalisation path", () => {
     expect(sessionExitFix).toContain(".ccc-review-view:not(.ccc-practice-review)");
     expect(sessionExitFix).toContain("button[data-action='back-welcome']");
-    expect(sessionExitFix).toContain('leaveButton.dataset.action = "continue-after-block"');
-    expect(sessionExitFix).toContain('leaveButton.textContent = "Finish and save"');
+    expect(sessionExitFix).toContain('button.dataset.action = "continue-after-block"');
+    expect(sessionExitFix).toContain('button.textContent = "Finish and save"');
     expect(sessionExitFix).toContain("sessionProgressIsComplete");
+    expect(sessionExitFix).toContain(".ccc-insights-view, .ccc-block-reconnect-view");
+    expect(sessionExitFix).toContain("sessionEndPending");
   });
 
   it("distinguishes an ordinary session cap from the deliberate delayed re-check", () => {
