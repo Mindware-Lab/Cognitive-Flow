@@ -5,6 +5,7 @@
   const WAIT_ATTRIBUTE = "data-ccc-wait-explained";
   const GUIDE_DATASET_KEY = "cccSessionGuidance";
   const GUIDE_ATTRIBUTE = "data-ccc-session-guidance";
+  let sessionEndPending = false;
 
   function textMatchesSessionCap(value) {
     return /Continue next time/i.test(value)
@@ -33,26 +34,44 @@
     target.dataset[PATCH_DATASET_KEY] = "1";
   }
 
+  function routeExitThroughFinalisation(button) {
+    if (!button || button.dataset[PATCH_DATASET_KEY] === "1") return;
+    // continueAfterBlock() is the app's existing completion path. At a session
+    // cap or final block it records the completed session, updates the
+    // programme gate, saves cloud progress and opens the next action.
+    button.dataset.action = "continue-after-block";
+    button.dataset[PATCH_DATASET_KEY] = "1";
+    button.textContent = "Finish and save";
+    button.setAttribute("aria-label", "Finish and save today’s session");
+  }
+
   function patchCompletedSessionExit() {
     const reviews = document.querySelectorAll(".ccc-review-view:not(.ccc-practice-review)");
     for (const review of reviews) {
       const leaveButton = review.querySelector("button[data-action='back-welcome']");
       const insightsButton = review.querySelector("button[data-action='show-block-insights']");
-      if (!leaveButton || !insightsButton || leaveButton.dataset[PATCH_DATASET_KEY] === "1") continue;
+      if (!leaveButton || !insightsButton) continue;
 
       const capped = textMatchesSessionCap(review.textContent || "");
       if (!capped && !sessionProgressIsComplete()) continue;
 
-      // Route through the app's existing continueAfterBlock() path. At a
-      // session cap or final block that path records the completed session,
-      // updates the programme gate, saves cloud progress and opens the next
-      // programme action. Returning home directly leaves an unfinished
-      // journey behind and causes the completed screen to repeat forever.
-      leaveButton.dataset.action = "continue-after-block";
-      leaveButton.dataset[PATCH_DATASET_KEY] = "1";
-      leaveButton.textContent = "Finish and save";
-      leaveButton.setAttribute("aria-label", "Finish and save today’s session");
+      sessionEndPending = true;
+      routeExitThroughFinalisation(leaveButton);
       replaceSessionStatus(review, capped);
+    }
+  }
+
+  function patchFollowOnExitScreens() {
+    if (!sessionEndPending) return;
+    const views = document.querySelectorAll(".ccc-insights-view, .ccc-block-reconnect-view");
+    for (const view of views) {
+      routeExitThroughFinalisation(view.querySelector("button[data-action='back-welcome']"));
+    }
+  }
+
+  function resetCompletedSessionMarker() {
+    if (document.querySelector(".ccc-complete-card, .ccc-full-transfer-card, .ccc-programme-card")) {
+      sessionEndPending = false;
     }
   }
 
@@ -85,7 +104,9 @@
   }
 
   function applyPatches() {
+    resetCompletedSessionMarker();
     patchCompletedSessionExit();
+    patchFollowOnExitScreens();
     explainScheduledWait();
     extendProgrammeGuide();
   }
