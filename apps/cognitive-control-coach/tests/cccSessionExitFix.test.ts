@@ -17,6 +17,7 @@ describe("CCC session exit and planned-wait guidance", () => {
     expect(sessionExitFix).toContain("sessionProgressIsComplete");
     expect(sessionExitFix).toContain(".ccc-insights-view, .ccc-block-reconnect-view");
     expect(sessionExitFix).toContain("sessionEndPending");
+    expect(sessionExitFix).toContain("data-ccc-session-status-fixed");
   });
 
   it("distinguishes an ordinary session cap from the deliberate delayed re-check", () => {
