@@ -1,6 +1,8 @@
 (() => {
   const PATCH_DATASET_KEY = "cccSessionExitFixed";
   const PATCH_ATTRIBUTE = "data-ccc-session-exit-fixed";
+  const STATUS_DATASET_KEY = "cccSessionStatusFixed";
+  const STATUS_ATTRIBUTE = "data-ccc-session-status-fixed";
   const WAIT_DATASET_KEY = "cccWaitExplained";
   const WAIT_ATTRIBUTE = "data-ccc-wait-explained";
   const GUIDE_DATASET_KEY = "cccSessionGuidance";
@@ -18,7 +20,7 @@
   }
 
   function replaceSessionStatus(review, capped) {
-    if (!capped || review.querySelector(`[${PATCH_ATTRIBUTE}]`)) return;
+    if (!capped || review.querySelector(`[${STATUS_ATTRIBUTE}]`)) return;
     const status = review.querySelector(".ccc-learning-status");
     const target = status || document.createElement("p");
     if (!status) {
@@ -31,7 +33,7 @@
       strong,
       document.createTextNode(" Choose Finish and save to open the next session. This is a session cap, not a lockout."),
     );
-    target.dataset[PATCH_DATASET_KEY] = "1";
+    target.dataset[STATUS_DATASET_KEY] = "1";
   }
 
   function routeExitThroughFinalisation(button) {
