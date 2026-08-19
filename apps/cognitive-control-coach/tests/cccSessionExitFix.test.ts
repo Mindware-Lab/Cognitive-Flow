@@ -5,7 +5,7 @@ import sessionExitFix from "../public/ccc-session-exit-fix.js?raw";
 describe("CCC session exit and planned-wait guidance", () => {
   it("loads the session-exit patch after the programme guide", () => {
     expect(appHtml).toContain("ccc-programme-guide.js?v=20260819-1");
-    expect(appHtml).toContain("ccc-session-exit-fix.js?v=20260819-1");
+    expect(appHtml).toContain("ccc-session-exit-fix.js?v=20260819-2");
     expect(appHtml.indexOf("ccc-session-exit-fix.js")).toBeGreaterThan(appHtml.indexOf("ccc-programme-guide.js"));
   });
 
