@@ -1,0 +1,122 @@
+/* Result/report viewport safety.
+   The task display remains fixed. Narrative and review screens gain a visible
+   internal-scroll fallback only when their content is taller than the viewport. */
+
+.ccc-review-view .ccc-main,
+.ccc-insights-view .ccc-main,
+.ccc-block-reconnect-view .ccc-main,
+.ccc-complete-view .ccc-main,
+.ccc-progress-view .ccc-main,
+.ccc-reconnect-screen .ccc-main {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  align-items: start !important;
+}
+
+.ccc-review-view .ccc-narrow-card,
+.ccc-insights-view .ccc-narrow-card,
+.ccc-block-reconnect-view .ccc-narrow-card,
+.ccc-complete-view .ccc-complete-card,
+.ccc-reconnect-view {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+/* Make the fallback scroll affordance easy to discover, including for users
+   who would not think to zoom the browser. */
+.ccc-review-view .ccc-main,
+.ccc-insights-view .ccc-main,
+.ccc-block-reconnect-view .ccc-main,
+.ccc-complete-view .ccc-main,
+.ccc-progress-view .ccc-main,
+.ccc-reconnect-screen .ccc-main {
+  scrollbar-width: auto;
+  scrollbar-color: rgba(39, 100, 183, 0.55) rgba(224, 232, 239, 0.55);
+}
+
+.ccc-review-view .ccc-main::-webkit-scrollbar,
+.ccc-insights-view .ccc-main::-webkit-scrollbar,
+.ccc-block-reconnect-view .ccc-main::-webkit-scrollbar,
+.ccc-complete-view .ccc-main::-webkit-scrollbar,
+.ccc-progress-view .ccc-main::-webkit-scrollbar,
+.ccc-reconnect-screen .ccc-main::-webkit-scrollbar {
+  width: 12px;
+}
+
+.ccc-review-view .ccc-main::-webkit-scrollbar-thumb,
+.ccc-insights-view .ccc-main::-webkit-scrollbar-thumb,
+.ccc-block-reconnect-view .ccc-main::-webkit-scrollbar-thumb,
+.ccc-complete-view .ccc-main::-webkit-scrollbar-thumb,
+.ccc-progress-view .ccc-main::-webkit-scrollbar-thumb,
+.ccc-reconnect-screen .ccc-main::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(39, 100, 183, 0.55);
+  background-clip: padding-box;
+}
+
+/* Short laptop screens: compress the report before scrolling is required. */
+@media (max-height: 760px) {
+  .ccc-review-view .ccc-main,
+  .ccc-insights-view .ccc-main,
+  .ccc-block-reconnect-view .ccc-main,
+  .ccc-complete-view .ccc-main,
+  .ccc-progress-view .ccc-main,
+  .ccc-reconnect-screen .ccc-main {
+    padding-top: 8px !important;
+    padding-bottom: 8px !important;
+  }
+
+  .ccc-review-view .ccc-narrow-card,
+  .ccc-insights-view .ccc-narrow-card,
+  .ccc-block-reconnect-view .ccc-narrow-card,
+  .ccc-complete-view .ccc-complete-card,
+  .ccc-reconnect-view {
+    padding-top: 14px !important;
+    padding-bottom: 14px !important;
+  }
+
+  .ccc-review-view h1,
+  .ccc-insights-view h1,
+  .ccc-block-reconnect-view h1,
+  .ccc-complete-view h1,
+  .ccc-reconnect-screen h1 {
+    font-size: clamp(1.25rem, 4vh, 1.75rem) !important;
+    line-height: 1.08 !important;
+  }
+
+  .ccc-review-view .ccc-summary-grid,
+  .ccc-complete-view .ccc-summary-grid {
+    margin-top: 8px !important;
+    margin-bottom: 8px !important;
+  }
+
+  .ccc-review-view .ccc-actions,
+  .ccc-insights-view .ccc-actions,
+  .ccc-block-reconnect-view .ccc-actions,
+  .ccc-complete-view .ccc-actions,
+  .ccc-reconnect-screen .ccc-actions {
+    margin-top: 8px !important;
+  }
+}
+
+/* Narrow and short displays get a simpler report grid rather than squeezed text. */
+@media (max-width: 720px), (max-height: 660px) {
+  .ccc-review-view .ccc-summary-grid,
+  .ccc-review-view .ccc-summary-grid.ccc-points-summary,
+  .ccc-review-view .ccc-summary-grid.ccc-performance-summary,
+  .ccc-complete-view .ccc-summary-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+@media (max-width: 430px) {
+  .ccc-review-view .ccc-summary-grid,
+  .ccc-review-view .ccc-summary-grid.ccc-points-summary,
+  .ccc-review-view .ccc-summary-grid.ccc-performance-summary,
+  .ccc-complete-view .ccc-summary-grid {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+}
