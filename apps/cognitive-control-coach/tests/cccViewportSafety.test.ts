@@ -7,6 +7,10 @@ const viewportSafety = readFileSync(
   fileURLToPath(new URL("../public/ccc-viewport-safety.css", import.meta.url)),
   "utf8",
 );
+const realLifePracticeCss = readFileSync(
+  fileURLToPath(new URL("../src/cccRealLifePractice.css", import.meta.url)),
+  "utf8",
+);
 
 describe("CCC result-screen viewport safety", () => {
   it("loads the dedicated viewport safety stylesheet", () => {
@@ -28,6 +32,14 @@ describe("CCC result-screen viewport safety", () => {
     expect(viewportSafety).toContain("max-height: none !important");
     expect(viewportSafety).toContain("overflow: visible !important");
     expect(viewportSafety).not.toContain(".ccc-task-view .ccc-main");
+  });
+
+  it("keeps Bridge option labels and explanations on distinct responsive lines", () => {
+    expect(realLifePracticeCss).toContain(".ccc-real-life-option > strong");
+    expect(realLifePracticeCss).toContain(".ccc-real-life-option > span");
+    expect(realLifePracticeCss).toContain("display: grid");
+    expect(realLifePracticeCss).toContain("gap: 3px");
+    expect(realLifePracticeCss).toContain("overflow-wrap: anywhere");
   });
 
   it("compresses dense report grids on short or narrow displays", () => {
