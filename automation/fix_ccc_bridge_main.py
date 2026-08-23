@@ -45,5 +45,13 @@ replace_once(
     programme.bridgeProgression!.personalMove = selectedMove;''',
 )
 
+# Preserve the existing CCC copy rule enforced by cccIntegration.test.ts:
+# the app does not use a "Not sure" option.
+replace_once(
+    "preserve uncertainty wording",
+    '''data-action="bridge-probe-response" data-probe-response="unsure">Not sure</button>''',
+    '''data-action="bridge-probe-response" data-probe-response="unsure">Unsure</button>''',
+)
+
 path.write_text(text, encoding="utf-8")
 print("CCC Bridge corrective transform applied successfully")
