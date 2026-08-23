@@ -30,12 +30,12 @@ describe("CCC Bridge progression", () => {
   it("keeps one stable plain-English definition for each control move", () => {
     expect(CCC_BRIDGE_MOVE_COPY.find).toEqual({
       label: "Find",
-      definition: "Identify what matters now.",
-      question: "What matters?",
+      definition: "Select the task-relevant information; filter out competing noise.",
+      question: "What information matters most right now?",
     });
-    expect(CCC_BRIDGE_MOVE_COPY.hold.definition).toBe("Keep what matters available.");
-    expect(CCC_BRIDGE_MOVE_COPY.update.definition).toContain("keep what still fits");
-    expect(CCC_BRIDGE_MOVE_COPY.act.question).toBe("Enough to move?");
+    expect(CCC_BRIDGE_MOVE_COPY.hold.definition).toBe("Keep the selected information active in mind while you use it.");
+    expect(CCC_BRIDGE_MOVE_COPY.update.definition).toContain("keep what still applies");
+    expect(CCC_BRIDGE_MOVE_COPY.act.question).toBe("Do I have enough information to choose the next step?");
   });
 
   it("migrates missing legacy Bridge state without affecting the programme", () => {
