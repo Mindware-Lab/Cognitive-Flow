@@ -14,10 +14,10 @@ describe("CCC Bridge experience", () => {
   it("uses the four stable user-facing control moves", () => {
     expect(CCC_BRIDGE_MOVE_OPTIONS.map((item) => item.label)).toEqual(["Find", "Hold", "Update", "Act"]);
     expect(CCC_BRIDGE_MOVE_OPTIONS.map((item) => item.definition)).toEqual([
-      "Identify what matters now.",
-      "Keep what matters available.",
-      "Change what needs changing; keep what still fits.",
-      "When you have enough, take the next useful step.",
+      "Select the task-relevant information; filter out competing noise.",
+      "Keep the selected information active in mind while you use it.",
+      "Revise what you are holding when relevant information changes; keep what still applies.",
+      "Use the current evidence to choose and carry out the next useful response.",
     ]);
   });
 
