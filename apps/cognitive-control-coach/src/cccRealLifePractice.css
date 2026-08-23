@@ -149,6 +149,9 @@
 .ccc-real-life-option {
   min-width: 0;
   min-height: 46px;
+  display: grid;
+  align-content: center;
+  gap: 3px;
   padding: 10px 12px;
   border: 1px solid var(--line-strong);
   border-radius: 12px;
@@ -160,6 +163,25 @@
   text-align: left;
   white-space: normal;
   overflow-wrap: anywhere;
+}
+
+.ccc-real-life-option > strong,
+.ccc-real-life-option > span {
+  min-width: 0;
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+.ccc-real-life-option > strong {
+  color: var(--navy);
+  font-weight: 850;
+}
+
+.ccc-real-life-option > span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.35;
 }
 
 .ccc-real-life-option:hover,
