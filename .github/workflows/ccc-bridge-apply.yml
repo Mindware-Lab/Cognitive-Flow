@@ -1,9 +1,9 @@
 name: Apply CCC Bridge UI integration
 
 on:
-  push:
+  pull_request:
     branches:
-      - feature/ccc-bridge-progression-20260823
+      - coach-splash-trident-icon-20260715
     paths:
       - "automation/apply_ccc_bridge_main.py"
       - ".github/workflows/ccc-bridge-apply.yml"
@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   apply-test-commit:
+    if: github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.head.ref == 'feature/ccc-bridge-progression-20260823'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout feature branch
