@@ -1,0 +1,53 @@
+name: CCC production artifact
+
+on:
+  pull_request:
+    branches:
+      - coach-splash-trident-icon-20260715
+
+permissions:
+  contents: read
+
+jobs:
+  build-production:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: apps/cognitive-control-coach/package-lock.json
+      - name: Install dependencies
+        working-directory: apps/cognitive-control-coach
+        run: npm ci
+      - name: Run full CCC tests
+        working-directory: apps/cognitive-control-coach
+        run: npm test
+      - name: Build production bundle
+        working-directory: apps/cognitive-control-coach
+        run: npm run build
+      - name: Verify production access and Bridge markers
+        working-directory: apps/cognitive-control-coach
+        shell: bash
+        run: |
+          set -euo pipefail
+          bundle=$(find dist/assets -type f -name '*.js' -print -quit)
+          test -n "$bundle"
+          grep -Fq 'create-iq-coach-checkout-session' "$bundle"
+          grep -Fq 'claim_my_iq_coach_access' "$bundle"
+          grep -Fq 'cognitive_control_coach' "$bundle"
+          grep -Fq 'complete_cognitive_route' "$bundle"
+          grep -Fq 'https://ybnneksunfueetkmjohc.supabase.co' "$bundle"
+          grep -Fq 'Select the task-relevant information; filter out competing noise.' "$bundle"
+          grep -Fq 'Keep the selected information active in mind while you use it.' "$bundle"
+          grep -Fq 'ccc-viewport-safety.css?v=20260823-1' dist/index.html
+      - name: Upload production dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccc-production-dist
+          path: apps/cognitive-control-coach/dist
+          if-no-files-found: error
+          retention-days: 2
