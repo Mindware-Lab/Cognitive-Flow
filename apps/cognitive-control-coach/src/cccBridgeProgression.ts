@@ -37,23 +37,23 @@ export interface CccBridgeMoveCopy {
 export const CCC_BRIDGE_MOVE_COPY: Record<CccBridgeMove, CccBridgeMoveCopy> = {
   find: {
     label: "Find",
-    definition: "Identify what matters now.",
-    question: "What matters?",
+    definition: "Select the task-relevant information; filter out competing noise.",
+    question: "What information matters most right now?",
   },
   hold: {
     label: "Hold",
-    definition: "Keep what matters available.",
-    question: "What must stay available?",
+    definition: "Keep the selected information active in mind while you use it.",
+    question: "What information must I keep active?",
   },
   update: {
     label: "Update",
-    definition: "Change what needs changing; keep what still fits.",
-    question: "What changed?",
+    definition: "Revise what you are holding when relevant information changes; keep what still applies.",
+    question: "What changed, and what still matters?",
   },
   act: {
     label: "Act",
-    definition: "When you have enough, take the next useful step.",
-    question: "Enough to move?",
+    definition: "Use the current evidence to choose and carry out the next useful response.",
+    question: "Do I have enough information to choose the next step?",
   },
 };
 
