@@ -1,6 +1,12 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import appHtml from "../index.html?raw";
-import viewportSafety from "../public/ccc-viewport-safety.css?raw";
+
+const viewportSafety = readFileSync(
+  fileURLToPath(new URL("../public/ccc-viewport-safety.css", import.meta.url)),
+  "utf8",
+);
 
 describe("CCC result-screen viewport safety", () => {
   it("loads the dedicated viewport safety stylesheet", () => {
