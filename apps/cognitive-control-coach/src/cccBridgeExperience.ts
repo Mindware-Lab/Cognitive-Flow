@@ -221,7 +221,7 @@ export function bridgeWelcomeProbeModel(state: CccBridgeProgressionState): CccBr
 
 export function changedContextOptions(
   sourceWorkflow: WorkflowChoice,
-): readonly Array<{ workflow: WorkflowChoice; label: string; example: string }> {
+): ReadonlyArray<{ workflow: WorkflowChoice; label: string; example: string }> {
   return (Object.entries(WORKFLOW_CHOICES) as Array<[WorkflowChoice, (typeof WORKFLOW_CHOICES)[WorkflowChoice]]>)
     .filter(([workflow]) => workflow !== sourceWorkflow)
     .map(([workflow, copy]) => ({ workflow, label: copy.label, example: copy.example }));
