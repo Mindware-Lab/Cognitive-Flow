@@ -1,5 +1,6 @@
 from pathlib import Path
 
+# Triggered after the workflow file is present on the feature branch.
 path = Path("apps/cognitive-control-coach/src/cccBridgeProgression.ts")
 text = path.read_text(encoding="utf-8")
 
