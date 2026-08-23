@@ -7,6 +7,7 @@
 .ccc-block-reconnect-view .ccc-main,
 .ccc-complete-view .ccc-main,
 .ccc-progress-view .ccc-main,
+.ccc-real-life-checkin-view .ccc-main,
 .ccc-reconnect-screen .ccc-main {
   overflow-x: hidden !important;
   overflow-y: auto !important;
@@ -19,6 +20,7 @@
 .ccc-insights-view .ccc-narrow-card,
 .ccc-block-reconnect-view .ccc-narrow-card,
 .ccc-complete-view .ccc-complete-card,
+.ccc-real-life-checkin-card,
 .ccc-reconnect-view {
   max-height: none !important;
   overflow: visible !important;
@@ -31,6 +33,7 @@
 .ccc-block-reconnect-view .ccc-main,
 .ccc-complete-view .ccc-main,
 .ccc-progress-view .ccc-main,
+.ccc-real-life-checkin-view .ccc-main,
 .ccc-reconnect-screen .ccc-main {
   scrollbar-width: auto;
   scrollbar-color: rgba(39, 100, 183, 0.55) rgba(224, 232, 239, 0.55);
@@ -41,6 +44,7 @@
 .ccc-block-reconnect-view .ccc-main::-webkit-scrollbar,
 .ccc-complete-view .ccc-main::-webkit-scrollbar,
 .ccc-progress-view .ccc-main::-webkit-scrollbar,
+.ccc-real-life-checkin-view .ccc-main::-webkit-scrollbar,
 .ccc-reconnect-screen .ccc-main::-webkit-scrollbar {
   width: 12px;
 }
@@ -50,6 +54,7 @@
 .ccc-block-reconnect-view .ccc-main::-webkit-scrollbar-thumb,
 .ccc-complete-view .ccc-main::-webkit-scrollbar-thumb,
 .ccc-progress-view .ccc-main::-webkit-scrollbar-thumb,
+.ccc-real-life-checkin-view .ccc-main::-webkit-scrollbar-thumb,
 .ccc-reconnect-screen .ccc-main::-webkit-scrollbar-thumb {
   border: 3px solid transparent;
   border-radius: 999px;
@@ -64,6 +69,7 @@
   .ccc-block-reconnect-view .ccc-main,
   .ccc-complete-view .ccc-main,
   .ccc-progress-view .ccc-main,
+  .ccc-real-life-checkin-view .ccc-main,
   .ccc-reconnect-screen .ccc-main {
     padding-top: 8px !important;
     padding-bottom: 8px !important;
@@ -73,6 +79,7 @@
   .ccc-insights-view .ccc-narrow-card,
   .ccc-block-reconnect-view .ccc-narrow-card,
   .ccc-complete-view .ccc-complete-card,
+  .ccc-real-life-checkin-card,
   .ccc-reconnect-view {
     padding-top: 14px !important;
     padding-bottom: 14px !important;
@@ -82,6 +89,7 @@
   .ccc-insights-view h1,
   .ccc-block-reconnect-view h1,
   .ccc-complete-view h1,
+  .ccc-real-life-checkin-view h1,
   .ccc-reconnect-screen h1 {
     font-size: clamp(1.25rem, 4vh, 1.75rem) !important;
     line-height: 1.08 !important;
@@ -97,6 +105,7 @@
   .ccc-insights-view .ccc-actions,
   .ccc-block-reconnect-view .ccc-actions,
   .ccc-complete-view .ccc-actions,
+  .ccc-real-life-checkin-view .ccc-actions,
   .ccc-reconnect-screen .ccc-actions {
     margin-top: 8px !important;
   }
