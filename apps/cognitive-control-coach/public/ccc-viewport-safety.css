@@ -62,6 +62,108 @@
   background-clip: padding-box;
 }
 
+/* Purchase/access viewport safety.
+   Keep the app chrome fixed, but never clip purchase options, returning-user
+   sign-in, or the explanatory footer on shorter desktop/laptop viewports. */
+.ccc-access-view .ccc-main {
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  align-items: start !important;
+  padding-top: clamp(12px, 2.2vh, 24px) !important;
+  padding-bottom: clamp(12px, 2.2vh, 24px) !important;
+  scrollbar-width: auto;
+  scrollbar-color: rgba(39, 100, 183, 0.55) rgba(224, 232, 239, 0.55);
+}
+
+.ccc-access-view .ccc-access-screen {
+  max-height: none !important;
+  overflow: visible !important;
+}
+
+.ccc-access-view .ccc-main::-webkit-scrollbar {
+  width: 12px;
+}
+
+.ccc-access-view .ccc-main::-webkit-scrollbar-thumb {
+  border: 3px solid transparent;
+  border-radius: 999px;
+  background: rgba(39, 100, 183, 0.55);
+  background-clip: padding-box;
+}
+
+/* Typical laptop/desktop heights: compact the access card enough to fit in one
+   view where possible, while retaining internal scrolling as the fallback. */
+@media (min-width: 701px) and (max-height: 900px) {
+  .ccc-access-view .ccc-main {
+    padding-top: 12px !important;
+    padding-bottom: 12px !important;
+  }
+
+  .ccc-access-view .ccc-access-screen {
+    padding-top: 24px !important;
+    padding-bottom: 24px !important;
+  }
+
+  .ccc-access-view .ccc-access-screen h1 {
+    margin-bottom: 8px !important;
+    font-size: clamp(1.75rem, 3.4vw, 2.45rem) !important;
+    line-height: 1.02 !important;
+  }
+
+  .ccc-access-view .ccc-access-screen > p:not(.ccc-kicker) {
+    margin-top: 0 !important;
+    margin-bottom: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  .ccc-access-view .ccc-access-steps {
+    gap: 9px !important;
+    margin-top: 12px !important;
+    margin-bottom: 14px !important;
+  }
+
+  .ccc-access-view .ccc-access-steps li {
+    min-height: 78px !important;
+    padding: 11px !important;
+  }
+
+  .ccc-access-view .ccc-access-products {
+    gap: 10px !important;
+  }
+
+  .ccc-access-view .ccc-access-products article {
+    gap: 5px !important;
+    padding: 13px 14px !important;
+  }
+
+  .ccc-access-view .ccc-access-products p {
+    min-height: 2.6em !important;
+    line-height: 1.32 !important;
+  }
+
+  .ccc-access-view .ccc-access-products .ccc-button {
+    min-height: 48px !important;
+  }
+
+  .ccc-access-view .ccc-access-actions {
+    margin-top: 10px !important;
+  }
+}
+
+/* Very short desktop windows prioritise reachability over squeezing the two
+   product cards. A single column is easier to scan and scroll reliably. */
+@media (min-width: 701px) and (max-height: 720px) {
+  .ccc-access-view .ccc-access-products {
+    grid-template-columns: minmax(0, 1fr) !important;
+  }
+
+  .ccc-access-view .ccc-access-products p {
+    min-height: 0 !important;
+  }
+}
+
 /* Short laptop screens: compress the report before scrolling is required. */
 @media (max-height: 760px) {
   .ccc-review-view .ccc-main,
